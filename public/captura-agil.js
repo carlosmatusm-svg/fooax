@@ -82,7 +82,16 @@
     ".denom-ok{width:100%;font:inherit;font-size:16px;font-weight:700;color:#fff;" +
     "background:#13A463;border:none;border-radius:13px;padding:13px;cursor:pointer}" +
     ".denom-cancel{width:100%;font:inherit;font-size:14px;font-weight:600;color:#7A6E86;" +
-    "background:none;border:none;padding:9px;cursor:pointer;margin-top:4px}";
+    "background:none;border:none;padding:9px;cursor:pointer;margin-top:4px}" +
+    // arreglos móviles: pestaña "Renovaciones" no se sale; fecha no se desborda;
+    // ficha del centro con scroll; header con logo a la izquierda.
+    ".tab{font-size:11.5px;padding:9px 8px;white-space:nowrap;min-width:auto}" +
+    "input[type=date]{box-sizing:border-box;max-width:100%;min-width:0;-webkit-appearance:none;appearance:none}" +
+    ".card table,.fichacuotas,table{display:block;overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}" +
+    "header{display:flex;align-items:center;gap:12px}" +
+    "header .fooax-logo{width:46px;height:46px;border-radius:12px;object-fit:cover;flex-shrink:0;" +
+    "box-shadow:0 2px 8px rgba(0,0,0,.25)}" +
+    "header .fooax-htext{flex:1;min-width:0}";
   document.head.appendChild(st);
 
   // 3) Alerta fuerte para dedazos gordos: si el pago es >=5x la cuota (y >=$1,000),
@@ -355,6 +364,21 @@
       }, 40);
       return rv;
     };
+  })();
+
+  // 6) Logo de FOOAX a la izquierda del encabezado.
+  (function ponerLogo() {
+    const header = document.querySelector("header");
+    if (!header || header.querySelector(".fooax-logo")) return;
+    const img = document.createElement("img");
+    img.src = "/img/logo-fooax.jpg";
+    img.className = "fooax-logo";
+    img.alt = "FOOAX";
+    const wrap = document.createElement("div");
+    wrap.className = "fooax-htext";
+    while (header.firstChild) wrap.appendChild(header.firstChild);
+    header.appendChild(img);
+    header.appendChild(wrap);
   })();
 
   // Re-dibujar por si ya había un centro seleccionado al cargar.

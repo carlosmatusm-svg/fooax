@@ -79,4 +79,12 @@
     pill.innerHTML = svg(icono) + "<span>" + texto + "</span>";
   }
   pintar(navigator.onLine ? "ok" : "offline");
+
+  // Al abrir la app: si hay señal y ya hay algo capturado guardado en el
+  // teléfono, súbelo — así lo que se capturó SIN señal en una sesión anterior
+  // (y se cerró la app) se sincroniza solo en cuanto se vuelve a abrir con señal.
+  if (navigator.onLine && localStorage.getItem(STORE_KEY)) {
+    pendiente = true;
+    setTimeout(subir, 1500);
+  }
 })();
