@@ -271,7 +271,7 @@
     modal.className = "denom-modal";
     modal.innerHTML =
       '<div class="denom-sheet">' +
-      '<div class="denom-head"><div><div class="denom-title">Efectivo recibido</div>' +
+      '<div class="denom-head"><div><div class="denom-title" id="denomTitulo">Efectivo recibido</div>' +
       '<div class="denom-sub" id="denomCli"></div></div>' +
       '<button class="denom-x" id="denomX" type="button" aria-label="Cerrar">✕</button></div>' +
       '<div class="denom-rows"></div>' +
@@ -297,7 +297,7 @@
       rowsHost.appendChild(row);
     });
 
-    let curCentro = "", curSocio = "", curCuota = 0;
+    let curCentro = "", curSocio = "", curCuota = 0, curModo = "pago";
     function cerrar() { modal.style.display = "none"; }
     function recompute() {
       let total = 0;
@@ -316,13 +316,19 @@
       } else ref.innerHTML = "";
       return total;
     }
-    function abrir(centro, socio, card) {
-      curCentro = centro || ""; curSocio = socio;
+    function abrir(centro, socio, card, modo) {
+      curCentro = centro || ""; curSocio = socio; curModo = modo || "pago";
       const nmEl = card && card.querySelector(".nm");
       modal.querySelector("#denomCli").textContent = nmEl ? nmEl.textContent.trim() : "Clienta";
-      const mt = card && card.querySelector(".mt") ? card.querySelector(".mt").textContent : "";
-      const mm = mt.replace(/,/g, "").match(/cuota\s*\$?([\d.]+)/i);
-      curCuota = mm ? parseFloat(mm[1]) : 0;
+      modal.querySelector("#denomTitulo").textContent =
+        curModo === "mixEfe" ? "Efectivo del pago mixto" : "Efectivo recibido";
+      // En mixto la referencia es la parte en efectivo, no la cuota: no comparamos.
+      if (curModo === "mixEfe") curCuota = 0;
+      else {
+        const mt = card && card.querySelector(".mt") ? card.querySelector(".mt").textContent : "";
+        const mm = mt.replace(/,/g, "").match(/cuota\s*\$?([\d.]+)/i);
+        curCuota = mm ? parseFloat(mm[1]) : 0;
+      }
       modal.querySelectorAll(".denom-qty").forEach((i) => { i.value = "0"; });
       recompute();
       modal.style.display = "flex";
@@ -346,12 +352,26 @@
         if (q > 0) desglose[d] = q;
       });
       desgloses[curSocio] = { centro: curCentro, desglose: desglose };
-      window.setCampo(curCentro, curSocio, "pago", total);
+      if (curModo === "mixEfe" && typeof window.setMix === "function") {
+        window.setMix(curCentro, curSocio, "mixEfe", total); // llena la parte en efectivo del mixto
+      } else {
+        window.setCampo(curCentro, curSocio, "pago", total);
+      }
       cerrar();
     });
     modal.querySelector("#denomCancel").addEventListener("click", cerrar);
     modal.querySelector("#denomX").addEventListener("click", cerrar);
     modal.addEventListener("click", (e) => { if (e.target === modal) cerrar(); });
+
+    // En pago MIXTO: al tocar el campo "En efectivo", abre la pantalla de billetes
+    // para contar esa parte (su total llena el efectivo del mixto).
+    document.addEventListener("focusin", (e) => {
+      const el = e.target;
+      if (!el || el.tagName !== "INPUT") return;
+      const oc = el.getAttribute("onchange") || "";
+      const m = oc.match(/setMix\('([^']*)','([^']*)','mixEfe'/);
+      if (m) { el.blur(); abrir(m[1], m[2], el.closest(".cli"), "mixEfe"); }
+    });
 
     const sfPrev = window.setForma;
     window.setForma = function (centro, socio, f) {
