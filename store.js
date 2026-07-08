@@ -39,17 +39,26 @@ async function init() {
     }
     const m = await pool.query("SELECT data FROM movimientos ORDER BY ts");
     mem.movimientos = m.rows.map((r) => r.data);
-    const p = await pool.query("SELECT data FROM padron");
-    mem.padron = p.rows.map((r) => r.data);
-
-    // Siembra el padrón la primera vez (desde el archivo que viaja con el código).
-    if (mem.padron.length === 0) {
+    // El padrón (directorio de clientas con sus cuotas reales) es dato de
+    // referencia: su fuente de verdad es el archivo que viaja con el código.
+    // En cada arranque se refresca en la base para reflejar cuotas actualizadas.
+    // (En Fase 1, cuando haya altas/bajas dentro de la app, esto cambiará.)
+    try {
+      const seed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8"));
+      const client = await pool.connect();
       try {
-        const seed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8"));
-        for (const c of seed) await pool.query("INSERT INTO padron (id, data) VALUES ($1,$2)", [c.id, c]);
-        mem.padron = seed;
-        console.log(`[store] padrón sembrado en PostgreSQL: ${seed.length}`);
-      } catch (e) { console.error("[store] no se pudo sembrar padrón:", e.message); }
+        await client.query("BEGIN");
+        await client.query("DELETE FROM padron");
+        for (const c of seed) await client.query("INSERT INTO padron (id, data) VALUES ($1,$2)", [c.id, c]);
+        await client.query("COMMIT");
+      } catch (e) { await client.query("ROLLBACK"); throw e; }
+      finally { client.release(); }
+      mem.padron = seed;
+      console.log(`[store] padrón actualizado desde archivo: ${seed.length}`);
+    } catch (e) {
+      const p = await pool.query("SELECT data FROM padron");
+      mem.padron = p.rows.map((r) => r.data);
+      console.error("[store] usando padrón de la base:", e.message);
     }
     console.log(`[store] PostgreSQL listo · ${mem.padron.length} clientas, ${mem.movimientos.length} movimientos`);
   } else {
