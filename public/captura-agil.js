@@ -366,6 +366,21 @@
     };
   })();
 
+  // 6b) Fecha en horario de México (no UTC): así el "día" cambia a medianoche
+  //     real y la cobranza de la tarde NO se parte ni desaparece del tablero.
+  if (typeof window.hoyISO === "function") {
+    window.hoyISO = function () {
+      return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+    };
+    const inp = document.getElementById("inpFecha");
+    if (inp && !inp.value) inp.value = window.hoyISO();
+    else if (inp && inp.value) {
+      // si el campo tiene la fecha UTC por defecto de hoy, corrígela a la de México
+      const utcHoy = new Date().toISOString().slice(0, 10);
+      if (inp.value === utcHoy) inp.value = window.hoyISO();
+    }
+  }
+
   // 6) Logo de FOOAX a la izquierda del encabezado.
   (function ponerLogo() {
     const header = document.querySelector("header");

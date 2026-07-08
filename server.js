@@ -22,6 +22,12 @@ const USUARIOS = {
   anel:        { nombre: "Anel",        rol: "direccion", pass: process.env.PASS_ANEL       || "anel2026" },
 };
 
+// Fecha de HOY en horario de México (no UTC). Evita que el "día" cambie a las
+// 6 PM y la cobranza de la tarde se parta o desaparezca del tablero.
+function hoyMX() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+}
+
 // ---------- sesiones (cookie httpOnly) ----------
 const sesiones = new Map();
 function crearSesion(usuario) {
@@ -96,7 +102,7 @@ function acumular(nodo, acc) {
 }
 
 app.get("/api/consolidado", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const fecha = req.query.fecha || hoyMX();
   const snaps = store.snapshotsDeFecha(fecha);
   const ejecutivos = {};
   for (const id of ["neri", "karina", "christopher"]) {
@@ -160,7 +166,7 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const concepto = (b.concepto || "").trim();
   const categoria = CATEGORIAS.includes(b.categoria) ? b.categoria : null;
   const metodo = METODOS.includes(b.metodo) ? b.metodo : null;
-  const fecha = b.fecha || new Date().toISOString().slice(0, 10);
+  const fecha = b.fecha || hoyMX();
   if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
   if (!concepto) return res.status(400).json({ error: "Escribe un concepto para el movimiento." });
   if (!categoria) return res.status(400).json({ error: "Elige una categoría válida." });
@@ -185,7 +191,7 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
 const DENOMS_ARQUEO = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5];
 
 app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const fecha = req.query.fecha || hoyMX();
   const snaps = store.snapshotsDeFecha(fecha);
   const ids = req.usuario.rol === "ejecutivo"
     ? [req.usuario.id].filter((x) => USUARIOS[x] && USUARIOS[x].rol === "ejecutivo")
@@ -252,7 +258,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
 function pesos(n) { return "$" + Math.round(n || 0).toLocaleString("es-MX"); }
 
 app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const fecha = req.query.fecha || hoyMX();
   const snaps = store.snapshotsDeFecha(fecha);
   const movs = store.movimientosDeFecha(fecha);
   let efectivo = 0, transferencia = 0, garantias = 0, faltantes = 0, pagos = 0, clientasFaltan = 0;
@@ -305,7 +311,7 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
 });
 
 app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const fecha = req.query.fecha || hoyMX();
   const lista = store.movimientosDeFecha(fecha).sort((a, b) => b.ts - a.ts);
   const totalEfectivo = lista.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
   const totalTransf = lista.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
