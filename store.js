@@ -43,22 +43,25 @@ async function init() {
     // referencia: su fuente de verdad es el archivo que viaja con el código.
     // En cada arranque se refresca en la base para reflejar cuotas actualizadas.
     // (En Fase 1, cuando haya altas/bajas dentro de la app, esto cambiará.)
+    // Carga primero lo que haya en la base (arranque garantizado). Luego intenta
+    // refrescar desde el archivo en lotes; si algo falla, se queda con lo de la
+    // base y NUNCA tumba el arranque.
+    const p0 = await pool.query("SELECT data FROM padron").catch(() => ({ rows: [] }));
+    mem.padron = p0.rows.map((r) => r.data);
     try {
       const seed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8"));
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
-        await client.query("DELETE FROM padron");
-        for (const c of seed) await client.query("INSERT INTO padron (id, data) VALUES ($1,$2)", [c.id, c]);
-        await client.query("COMMIT");
-      } catch (e) { await client.query("ROLLBACK"); throw e; }
-      finally { client.release(); }
+      await pool.query("DELETE FROM padron");
+      for (let i = 0; i < seed.length; i += 500) {
+        const chunk = seed.slice(i, i + 500);
+        const vals = chunk.map((_, j) => `($${j * 2 + 1},$${j * 2 + 2})`).join(",");
+        const params = [];
+        chunk.forEach((c) => { params.push(c.id, c); });
+        await pool.query(`INSERT INTO padron (id, data) VALUES ${vals}`, params);
+      }
       mem.padron = seed;
       console.log(`[store] padrón actualizado desde archivo: ${seed.length}`);
     } catch (e) {
-      const p = await pool.query("SELECT data FROM padron");
-      mem.padron = p.rows.map((r) => r.data);
-      console.error("[store] usando padrón de la base:", e.message);
+      console.error("[store] no se refrescó el padrón (uso el de la base):", e.message);
     }
     console.log(`[store] PostgreSQL listo · ${mem.padron.length} clientas, ${mem.movimientos.length} movimientos`);
   } else {
