@@ -101,6 +101,12 @@ function persistMovimiento(mov) {
 
 module.exports = {
   init,
+  modo() { return usePg ? "postgres" : "archivos"; },
+  conteos() {
+    let snaps = 0;
+    for (const ej in mem.snapshots) snaps += Object.keys(mem.snapshots[ej]).length;
+    return { snapshots: snaps, movimientos: mem.movimientos.length, padron: mem.padron.length };
+  },
   padron() { return mem.padron; },
 
   // Upsert idempotente por (ejecutivo, fecha): reenviar el mismo snapshot nunca

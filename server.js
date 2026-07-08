@@ -51,6 +51,16 @@ function requiere(...roles) {
   };
 }
 
+// ---------- diagnóstico (sin datos sensibles) ----------
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    almacen: store.modo(),               // "postgres" (persiste) o "archivos" (se borra al reiniciar)
+    tieneDATABASE_URL: !!process.env.DATABASE_URL,
+    conteos: store.conteos(),
+  });
+});
+
 // ---------- auth ----------
 app.post("/api/login", (req, res) => {
   const { usuario, password } = req.body || {};
