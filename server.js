@@ -248,6 +248,62 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   });
 });
 
+// ---------- RESUMEN del día (campanita de alertas para dirección) ----------
+function pesos(n) { return "$" + Math.round(n || 0).toLocaleString("es-MX"); }
+
+app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
+  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const snaps = store.snapshotsDeFecha(fecha);
+  const movs = store.movimientosDeFecha(fecha);
+  let efectivo = 0, transferencia = 0, garantias = 0, faltantes = 0, pagos = 0, clientasFaltan = 0;
+  const sinSync = [], conSync = [];
+  for (const id of ["neri", "karina", "christopher"]) {
+    const s = snaps[id];
+    if (!s) { sinSync.push(USUARIOS[id].nombre); continue; }
+    let data = s.snapshot;
+    if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
+    let ef = 0, tr = 0, ga = 0, fa = 0, pa = 0, cf = 0;
+    const acum = (n, key) => {
+      if (!n || typeof n !== "object") return;
+      const p = n.pago || 0, g = n.garantia || 0, so = n.solidario || 0;
+      if (p + g + so <= 0 && !n.forma) return;
+      const t = p + g + so; ga += g;
+      if (n.forma === "T") tr += t;
+      else if (n.forma === "M") { ef += n.mixEfe || 0; tr += n.mixTr || 0; }
+      else ef += t;
+      if (p > 0) pa++;
+      const cu = CUOTA[String(key).split("|")[0]];
+      if (cu && p > 0 && p < cu) { fa += cu - p; cf++; }
+    };
+    const rec = (st) => {
+      if (!st || typeof st !== "object") return;
+      for (const k in st) {
+        const nd = st[k];
+        if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) acum(nd, k);
+        else if (nd && typeof nd === "object") for (const kk in nd) acum(nd[kk], kk);
+      }
+    };
+    rec(data.reg); rec(data.regI);
+    efectivo += ef; transferencia += tr; garantias += ga; faltantes += fa; pagos += pa; clientasFaltan += cf;
+    conSync.push({ nombre: USUARIOS[id].nombre, hora: new Date(s.recibido).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) });
+  }
+  const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((a, m) => a + m.monto, 0);
+  const efectivoAEntregar = efectivo - egresosEfectivo;
+
+  const items = [];
+  items.push({ sev: "info", txt: `Cobranza de hoy: ${pesos(efectivo + transferencia + garantias)} · ${pagos} pagos` });
+  items.push({ sev: "info", txt: `Efectivo ${pesos(efectivo)} · Transferencia ${pesos(transferencia)}` });
+  items.push({ sev: "ok", txt: `Efectivo a entregar: ${pesos(efectivoAEntregar)}` });
+  if (garantias > 0) items.push({ sev: "info", txt: `Garantías: ${pesos(garantias)}` });
+  if (faltantes > 0) items.push({ sev: "alto", txt: `Mora del día: ${pesos(faltantes)} en ${clientasFaltan} clientas` });
+  for (const e of conSync) items.push({ sev: "ok", txt: `${e.nombre} sincronizó a las ${e.hora}` });
+  for (const n of sinSync) items.push({ sev: "warn", txt: `${n} aún no sincroniza hoy` });
+  if (movs.length) items.push({ sev: "info", txt: `${movs.length} movimiento(s) de caja: ${pesos(movs.reduce((a, m) => a + m.monto, 0))}` });
+
+  const pendientes = sinSync.length + (faltantes > 0 ? 1 : 0);
+  res.json({ fecha, items, pendientes });
+});
+
 app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
   const lista = store.movimientosDeFecha(fecha).sort((a, b) => b.ts - a.ts);
