@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FOOAX · Iniciar sesión</title>
+<link rel="icon" href="/img/logo-fooax.jpg">
+<link rel="apple-touch-icon" href="/img/logo-fooax.jpg">
+<meta name="theme-color" content="#F1228E">
+<style>
+  :root{
+    /* Paleta oficial FOOAX (manual de marca, ene-2025) */
+    --aurora:#F1228E; --atardecer:#FD6E29; --rio:#324AB6;
+    --cielo:#ADE6ED; --riqueza:#F2BB06; --llama:#F44C5D;
+    --morado:#7A3EA8; /* puente aurora→río del logo */
+    --tinta:#2A1F35; --gris:#7A6E86; --linea:#ECE6F1;
+    --fuente:"Century Gothic","Futura","Avant Garde","Trebuchet MS",-apple-system,BlinkMacSystemFont,sans-serif;
+    --grad:linear-gradient(120deg,var(--atardecer),var(--llama) 26%,var(--aurora) 50%,var(--morado) 72%,var(--rio));
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:var(--fuente);
+    min-height:100vh;min-height:100dvh;color:var(--tinta);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    background:
+      radial-gradient(115% 115% at 0% 100%, var(--atardecer) 0%, rgba(253,110,41,0) 46%),
+      radial-gradient(120% 120% at 100% 0%, var(--rio) 0%, rgba(50,74,182,0) 52%),
+      radial-gradient(130% 130% at 0% 0%, var(--llama) 0%, rgba(244,76,93,0) 55%),
+      linear-gradient(135deg, var(--llama) 0%, var(--aurora) 44%, var(--morado) 70%, var(--rio) 100%);
+  }
+  .caja{
+    width:100%;max-width:380px;background:rgba(255,255,255,.94);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.6);border-radius:26px;padding:34px 28px 30px;
+    box-shadow:0 24px 60px rgba(42,31,53,.28);
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .logo{
+    width:88px;height:88px;border-radius:24px;object-fit:cover;
+    box-shadow:0 10px 26px rgba(241,34,142,.4);margin-bottom:16px;
+  }
+  .marca{font-size:30px;font-weight:700;letter-spacing:.16em;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lema{color:var(--gris);font-size:12.5px;font-style:italic;margin:5px 0 24px;text-align:center}
+  form{width:100%;display:flex;flex-direction:column}
+  label{font-size:11.5px;font-weight:700;color:var(--gris);text-transform:uppercase;
+    letter-spacing:.07em;margin:0 0 6px 2px}
+  input{width:100%;font:inherit;font-size:16px;padding:13px 14px;
+    border:1.5px solid var(--linea);border-radius:13px;background:#fff;transition:border-color .15s}
+  input:focus{outline:none;border-color:var(--aurora);box-shadow:0 0 0 3px rgba(241,34,142,.14)}
+  label:not(:first-of-type){margin-top:15px}
+  button{margin-top:22px;font:inherit;font-size:16px;font-weight:700;color:#fff;
+    border:none;border-radius:14px;padding:14px;cursor:pointer;background:var(--grad);
+    box-shadow:0 8px 22px rgba(241,34,142,.34);transition:transform .12s,filter .12s}
+  button:hover{filter:brightness(1.05)}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:3px solid var(--tinta);outline-offset:2px}
+  .error{display:none;margin-top:14px;background:#FDECEC;color:#B4232F;font-size:13px;
+    font-weight:600;padding:10px 12px;border-radius:11px;text-align:center}
+  .error.visible{display:block}
+</style>
+</head>
+<body>
+<div class="caja">
+  <img class="logo" src="/img/logo-fooax.jpg" alt="FOOAX">
+  <div class="marca">FOOAX</div>
+  <div class="lema">Creemos en ti, apoyamos tu camino</div>
+  <form id="f">
+    <label for="u">Usuario</label>
+    <input id="u" autocomplete="username" autocapitalize="none" required>
+    <label for="p">Contraseña</label>
+    <input id="p" type="password" autocomplete="current-password" required>
+    <button>Entrar</button>
+    <div class="error" id="err"></div>
+  </form>
+</div>
+<script>
+document.getElementById("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const err = document.getElementById("err");
+  err.classList.remove("visible");
+  try {
+    const r = await fetch("/api/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuario: document.getElementById("u").value, password: document.getElementById("p").value }),
+    });
+    if (r.ok) { location.href = "/"; return; }
+    const d = await r.json().catch(() => ({}));
+    err.textContent = d.error || "No se pudo entrar. Intenta de nuevo.";
+    err.classList.add("visible");
+  } catch {
+    err.textContent = "Sin conexión con el servidor.";
+    err.classList.add("visible");
+  }
+});
+</script>
+</body>
+</html>

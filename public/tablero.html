@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FOOAX · Tablero</title>
+<link rel="icon" href="/img/logo-fooax.jpg">
+<link rel="apple-touch-icon" href="/img/logo-fooax.jpg">
+<meta name="theme-color" content="#F1228E">
+<style>
+  :root{
+    /* Paleta oficial FOOAX (manual de marca, ene-2025) */
+    --aurora:#F1228E; --atardecer:#FD6E29; --rio:#324AB6;
+    --cielo:#ADE6ED; --riqueza:#F2BB06; --llama:#F44C5D; --morado:#7A3EA8;
+    --verde:#13A463; --ambar:#E8960C;
+    --tinta:#2A1F35; --gris:#7A6E86; --fondo:#F6F3F9; --tarjeta:#FFFFFF;
+    --linea:#ECE6F1; --lav:#F1ECF7;
+    --fuente:"Century Gothic","Futura","Avant Garde","Trebuchet MS",-apple-system,BlinkMacSystemFont,sans-serif;
+    --grad:linear-gradient(120deg,var(--atardecer),var(--llama) 26%,var(--aurora) 50%,var(--morado) 72%,var(--rio));
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--fuente);background:var(--fondo);
+    color:var(--tinta);display:flex;justify-content:center;min-height:100vh}
+  .marco{width:100%;max-width:460px;padding-bottom:40px}
+  header{
+    color:#fff;padding:20px 18px 18px;display:flex;align-items:center;gap:12px;
+    background:var(--grad);
+    box-shadow:0 6px 20px rgba(227,72,129,.28);
+  }
+  header .logo{width:40px;height:40px;border-radius:12px;object-fit:cover;
+    box-shadow:0 3px 10px rgba(0,0,0,.18);flex-shrink:0}
+  header .t{flex:1;min-width:0}
+  header .t b{font-size:18px;display:block;line-height:1.15}
+  header .t small{opacity:.9;font-size:12px}
+  header button{background:rgba(255,255,255,.22);border:none;color:#fff;font:600 12.5px inherit;
+    padding:8px 13px;border-radius:99px;cursor:pointer;font-family:inherit;flex-shrink:0}
+  header button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  .tarjeta{margin:14px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);
+    border-radius:18px;padding:18px;box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .eti{font-size:11.5px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.08em}
+  .cifra{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:4px;line-height:1;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .split{display:flex;margin-top:14px;border-radius:8px;overflow:hidden;height:11px;background:var(--lav)}
+  .split .efe{background:var(--verde)}.split .tra{background:var(--rio)}
+  .split-eti{display:flex;justify-content:space-between;font-size:12px;color:var(--gris);margin-top:8px}
+  .split-eti span{display:inline-flex;align-items:center;gap:5px}
+  .split-eti b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .ico{width:1.05em;height:1.05em;vertical-align:-.16em;flex-shrink:0}
+  .split-eti .ico.efe{color:var(--verde)}
+  .split-eti .ico.tra{color:var(--rio)}
+  .sub{display:flex;gap:10px;margin:12px 16px 0}
+  .mini{flex:1;background:var(--tarjeta);border:1px solid var(--linea);border-radius:15px;padding:13px 15px;
+    box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .mini .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:3px}
+  .ejec{margin:10px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;
+    padding:14px 16px;box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .ejec .f1{display:flex;align-items:center;gap:11px}
+  .ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
+  .ejec .nom{font-weight:700;flex:1}
+  .ejec .monto{font-weight:800;font-variant-numeric:tabular-nums}
+  .ejec .pie{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;
+    color:var(--gris);margin-top:9px;gap:8px}
+  .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;white-space:nowrap;
+    display:inline-flex;align-items:center;gap:4px}
+  .pie .detpago{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+  .pill.ok{background:#E7F6EE;color:#0B7247}
+  .pill.no{background:#FDECEC;color:#B4232F}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--gris);margin:20px 18px 2px;font-weight:700}
+  .resp{margin:14px 16px 0;background:#EAF7EF;border:1px solid #C6EAD6;border-radius:15px;
+    padding:13px 16px;font-size:13px;color:#0B7247;line-height:1.5}
+  .resp b{font-weight:700}.resp a{color:#0B7247;font-weight:700}
+  .buscador{margin:14px 16px 0;position:relative}
+  .buscador input{width:100%;font:inherit;font-size:15px;padding:13px 14px 13px 44px;
+    border:1px solid var(--linea);border-radius:14px;background:var(--tarjeta);
+    box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .buscador input:focus{outline:none;border-color:var(--aurora);box-shadow:0 0 0 3px rgba(241,34,142,.12)}
+  .buscador .lupa{position:absolute;left:15px;top:50%;transform:translateY(-50%);
+    width:18px;height:18px;color:var(--gris);pointer-events:none}
+  .resultados{margin:8px 16px 0;display:flex;flex-direction:column;gap:8px}
+  .rcard{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:12px 14px}
+  .rcard .rn{font-weight:700;font-size:14.5px}
+  .rcard .rm{font-size:11.5px;color:var(--gris);margin-top:2px}
+  .rcard .rd{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-size:12px;color:var(--gris)}
+  .rcard .rd b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .rcard .rmora{color:var(--llama);font-weight:700}
+  .rvacio{color:var(--gris);font-size:13px;text-align:center;padding:12px}
+  .movwrap{margin:8px 16px 0}
+  .movtoggle{width:100%;font:inherit;font-size:14px;font-weight:700;color:var(--rio);
+    background:var(--tarjeta);border:1.5px dashed #C9D0E8;border-radius:14px;padding:12px;cursor:pointer}
+  .movtoggle:focus-visible{outline:3px solid var(--aurora);outline-offset:2px}
+  .movform{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px;
+    margin-top:8px;display:flex;flex-direction:column;gap:10px}
+  .movform .mrow{display:flex;gap:10px}
+  .movform .mrow .mcampo{flex:1}
+  .mcampo label{display:block;font-size:11px;font-weight:700;color:var(--gris);
+    text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+  .mcampo input,.mcampo select{width:100%;font:inherit;font-size:15px;padding:10px 12px;
+    border:1.5px solid var(--linea);border-radius:11px;background:#fff}
+  .mcampo input:focus,.mcampo select:focus{outline:none;border-color:var(--aurora)}
+  .movsubmit{font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--grad);
+    border:none;border-radius:12px;padding:12px;cursor:pointer}
+  .movsubmit:disabled{opacity:.6}
+  .moverr{display:none;color:#B4232F;font-size:12.5px;font-weight:600}
+  .moverr.on{display:block}
+  .movlista{margin:8px 16px 0;display:flex;flex-direction:column;gap:7px}
+  .movitem{background:var(--tarjeta);border:1px solid var(--linea);border-radius:13px;
+    padding:11px 13px;display:flex;align-items:center;gap:10px}
+  .movitem .mi-info{flex:1;min-width:0}
+  .movitem .mi-cat{font-weight:700;font-size:13.5px}
+  .movitem .mi-sub{font-size:11px;color:var(--gris);margin-top:2px;line-height:1.35}
+  .movitem .mi-monto{font-weight:800;font-variant-numeric:tabular-nums;color:var(--llama);white-space:nowrap}
+  .movtot{margin-top:2px;font-size:12px;color:var(--gris);text-align:right;padding:2px 4px 0}
+  .movtot b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .arqueo{margin:8px 16px 0;display:flex;flex-direction:column;gap:10px}
+  .arq-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;
+    box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .arq-h{font-size:11.5px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+  .arq-tab{width:100%;border-collapse:collapse;font-size:13.5px}
+  .arq-tab th{text-align:left;font-size:10.5px;font-weight:700;color:var(--gris);text-transform:uppercase;
+    letter-spacing:.04em;padding-bottom:6px;border-bottom:1px solid var(--linea)}
+  .arq-tab th:nth-child(2),.arq-tab th:nth-child(3),.arq-tab td:nth-child(2),.arq-tab td:nth-child(3){text-align:right}
+  .arq-tab td{padding:6px 0;border-bottom:1px solid var(--lav);font-variant-numeric:tabular-nums;font-weight:600}
+  .arq-tab td span{font-size:9.5px;font-weight:600;color:var(--gris);text-transform:uppercase;margin-left:4px}
+  .arq-tab tr:last-child td{border-bottom:none}
+  .arq-fila{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;padding:5px 0;color:var(--tinta)}
+  .arq-fila b{font-variant-numeric:tabular-nums;font-weight:700}
+  .arq-fila.rojo b{color:var(--llama)}
+  .arq-entregar{display:flex;justify-content:space-between;align-items:baseline;margin:8px 0;padding:11px 12px;
+    background:#EAF7EF;border:1px solid #C6EAD6;border-radius:12px;font-weight:700;color:#0B7247}
+  .arq-entregar b{font-size:19px;font-variant-numeric:tabular-nums}
+  .arq-vacio{color:var(--gris);font-size:13px;padding:4px 0}
+  .arq-ejec{font-size:12px;color:var(--gris);display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--lav)}
+  .arq-ejec b{color:var(--tinta);font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="marco">
+  <header>
+    <img class="logo" src="/img/logo-fooax.jpg" alt="FOOAX">
+    <div class="t"><b id="saludo">Tablero FOOAX</b><small id="fecha-txt">en tiempo real</small></div>
+    <button onclick="salir()">Salir</button>
+  </header>
+
+  <div class="buscador">
+    <svg class="lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="q" type="search" placeholder="Buscar clienta por nombre o ID…" autocomplete="off" enterkeyhint="search">
+  </div>
+  <div id="resultados" class="resultados"></div>
+
+  <div class="tarjeta">
+    <div class="eti">Cobranza de hoy · Total FOOAX</div>
+    <div class="cifra" id="total">$0</div>
+    <div class="split"><div class="efe" id="b-efe" style="width:50%"></div><div class="tra" id="b-tra" style="width:50%"></div></div>
+    <div class="split-eti">
+      <span><svg class="ico efe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg> Efectivo <b id="efe">$0</b></span>
+      <span><svg class="ico tra" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 9h18z"/><line x1="4" y1="21" x2="20" y2="21"/><line x1="6" y1="9" x2="6" y2="21"/><line x1="10" y1="9" x2="10" y2="21"/><line x1="14" y1="9" x2="14" y2="21"/><line x1="18" y1="9" x2="18" y2="21"/></svg> Transferencia <b id="tra">$0</b></span>
+    </div>
+  </div>
+
+  <div class="sub">
+    <div class="mini"><div class="eti">Garantías</div><div class="v" id="gar">$0</div></div>
+    <div class="mini"><div class="eti">Clientas que pagaron</div><div class="v" id="cli">0</div></div>
+  </div>
+
+  <h3>Por ejecutivo · última sincronización</h3>
+  <div id="ejecutivos"></div>
+
+  <h3>Movimientos de dirección / caja</h3>
+  <div class="movwrap">
+    <button class="movtoggle" id="movToggle" onclick="toggleMovForm()">+ Registrar retiro o gasto</button>
+    <form class="movform" id="movForm" onsubmit="registrarMov(event)" style="display:none">
+      <div class="mrow">
+        <div class="mcampo"><label>Monto</label><input id="mMonto" type="number" inputmode="decimal" min="0" step="0.01" required></div>
+        <div class="mcampo"><label>Método</label><select id="mMetodo"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select></div>
+      </div>
+      <div class="mcampo"><label>Categoría</label><select id="mCategoria">
+        <option>Retiro de dirección</option><option>Gasto operativo</option><option>Autorización / préstamo</option><option>Otro</option>
+      </select></div>
+      <div class="mcampo"><label>Concepto (¿en qué?)</label><input id="mConcepto" type="text" required placeholder="Ej. pago de luz, retiro para insumos…"></div>
+      <div class="mcampo"><label>Autorizado a (opcional)</label><input id="mAut" type="text" placeholder="Quién recibe el dinero"></div>
+      <button class="movsubmit" type="submit">Registrar movimiento</button>
+      <div class="moverr" id="movErr"></div>
+    </form>
+  </div>
+  <div id="movLista" class="movlista"></div>
+
+  <h3>Arqueo del día · efectivo</h3>
+  <div id="arqueoBox" class="arqueo"></div>
+
+  <div class="resp"><b>Respaldo</b> · toda la información sincronizada se puede
+    <a href="/api/respaldo" download>descargar aquí</a> en cualquier momento.
+    En producción: respaldo automático nocturno + Excel en Drive.</div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const dinero = n => "$" + (n || 0).toLocaleString("es-MX");
+const COLORES = { neri: "#F44C5D", karina: "#F1228E", christopher: "#FD6E29" };
+const SVG_OPEN = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+const IC = {
+  cash: SVG_OPEN + '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>',
+  bank: SVG_OPEN + '<path d="M12 3 3 9h18z"/><line x1="4" y1="21" x2="20" y2="21"/><line x1="6" y1="9" x2="6" y2="21"/><line x1="10" y1="9" x2="10" y2="21"/><line x1="14" y1="9" x2="14" y2="21"/><line x1="18" y1="9" x2="18" y2="21"/></svg>',
+  cloud: SVG_OPEN + '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 14l2 2 4-4"/></svg>',
+};
+
+async function cargar() {
+  const r = await fetch("/api/consolidado", { credentials: "include" });
+  if (r.status === 401) { location.href = "/"; return; }
+  const d = await r.json();
+  $("fecha-txt").textContent = d.fecha + " · se actualiza solo";
+  const t = d.total;
+  const totalDia = t.pago + t.garantias;
+  $("total").textContent = dinero(totalDia);
+  $("efe").textContent = dinero(t.efectivo);
+  $("tra").textContent = dinero(t.transferencia);
+  const suma = t.efectivo + t.transferencia;
+  const pct = suma > 0 ? Math.round(t.efectivo / suma * 100) : 50;
+  $("b-efe").style.width = pct + "%";
+  $("b-tra").style.width = (100 - pct) + "%";
+  $("gar").textContent = dinero(t.garantias);
+  $("cli").textContent = Object.values(d.ejecutivos).reduce((n, e) => n + e.clientasPagaron, 0);
+
+  const cont = $("ejecutivos");
+  cont.innerHTML = "";
+  for (const [id, e] of Object.entries(d.ejecutivos)) {
+    const div = document.createElement("div");
+    div.className = "ejec";
+    const sync = e.ultimaSync
+      ? '<span class="pill ok">' + IC.cloud + " " + new Date(e.ultimaSync).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) + "</span>"
+      : '<span class="pill no">sin sincronizar</span>';
+    div.innerHTML =
+      '<div class="f1"><span class="ava" style="background:' + (COLORES[id] || "#7A3EA8") + '">' + e.nombre[0] + "</span>" +
+      '<span class="nom">' + e.nombre + "</span>" +
+      '<span class="monto">' + dinero(e.pago + e.garantias) + "</span></div>" +
+      '<div class="pie"><span class="detpago">' + IC.cash + " " + dinero(e.efectivo) + " · " + IC.bank + " " + dinero(e.transferencia) +
+      " · " + e.clientasPagaron + " pagos</span>" + sync + "</div>";
+    cont.appendChild(div);
+  }
+}
+// ---------- buscador de clientas ----------
+const q = $("q"), resultados = $("resultados");
+let tSearch;
+q.addEventListener("input", () => { clearTimeout(tSearch); tSearch = setTimeout(buscar, 200); });
+async function buscar() {
+  const term = q.value.trim();
+  if (term.length < 2) { resultados.innerHTML = ""; return; }
+  let d;
+  try {
+    const r = await fetch("/api/clientes?q=" + encodeURIComponent(term), { credentials: "include" });
+    if (!r.ok) { resultados.innerHTML = ""; return; }
+    d = await r.json();
+  } catch { resultados.innerHTML = '<div class="rvacio">Sin conexión con el servidor.</div>'; return; }
+  if (!d.resultados.length) {
+    resultados.innerHTML = '<div class="rvacio">Sin resultados para “' + term + '”.</div>';
+    return;
+  }
+  resultados.innerHTML = d.resultados.map(c =>
+    '<div class="rcard">'
+    + '<div class="rn">' + c.nombre + "</div>"
+    + '<div class="rm">ID ' + c.id + " · " + c.producto + " · " + c.centro + " · " + c.ejecutivo + "</div>"
+    + '<div class="rd"><span>saldo <b>' + dinero(c.saldo) + "</b></span>"
+    + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
+    + (c.mora > 0 ? '<span class="rmora">mora ' + dinero(c.mora) + "</span>" : "")
+    + "</div></div>"
+  ).join("");
+}
+
+// ---------- movimientos de dirección / caja ----------
+function toggleMovForm() {
+  const f = $("movForm"), t = $("movToggle");
+  const abierto = f.style.display !== "none";
+  f.style.display = abierto ? "none" : "flex";
+  t.textContent = abierto ? "+ Registrar retiro o gasto" : "Cerrar";
+}
+async function registrarMov(e) {
+  e.preventDefault();
+  const err = $("movErr"); err.classList.remove("on");
+  const btn = e.target.querySelector(".movsubmit"); btn.disabled = true;
+  const body = {
+    monto: $("mMonto").value, metodo: $("mMetodo").value,
+    categoria: $("mCategoria").value, concepto: $("mConcepto").value, autorizadoA: $("mAut").value,
+  };
+  try {
+    const r = await fetch("/api/movimiento", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      credentials: "include", body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.error || "No se pudo registrar."; err.classList.add("on"); btn.disabled = false; return; }
+    e.target.reset(); toggleMovForm(); cargarMovs();
+  } catch { err.textContent = "Sin conexión con el servidor."; err.classList.add("on"); }
+  btn.disabled = false;
+}
+async function cargarMovs() {
+  let d;
+  try { d = await (await fetch("/api/movimientos", { credentials: "include" })).json(); }
+  catch { return; }
+  const cont = $("movLista");
+  if (!d.lista || !d.lista.length) { cont.innerHTML = ""; return; }
+  cont.innerHTML = d.lista.map(m =>
+    '<div class="movitem"><div class="mi-info"><div class="mi-cat">' + m.categoria + "</div>"
+    + '<div class="mi-sub">' + m.concepto + " · " + m.metodo
+    + (m.autorizadoA ? " · a " + m.autorizadoA : "")
+    + " · registró " + m.registradoPor
+    + " · " + new Date(m.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
+    + " · " + m.folio + "</div></div>"
+    + '<div class="mi-monto">−' + dinero(m.monto) + "</div></div>"
+  ).join("")
+  + '<div class="movtot">Total del día: <b>' + dinero(d.total) + "</b> · efectivo <b>"
+  + dinero(d.totalEfectivo) + "</b> · transf. <b>" + dinero(d.totalTransf) + "</b></div>";
+}
+
+// ---------- arqueo del día ----------
+async function cargarArqueo() {
+  let d;
+  try { d = await (await fetch("/api/arqueo", { credentials: "include" })).json(); }
+  catch { return; }
+  const box = $("arqueoBox");
+  const etq = (dn) => (dn % 1 ? dn.toFixed(2) : String(dn));
+  const filasDenom = d.denominaciones.filter((dn) => d.denomTotal[dn] > 0).map((dn) => {
+    const cant = d.denomTotal[dn], imp = dn * cant, tipo = dn >= 20 ? "billete" : "moneda";
+    return "<tr><td>$" + etq(dn) + "<span>" + tipo + "</span></td><td>" + cant + "</td><td>" + dinero(imp) + "</td></tr>";
+  }).join("");
+  const fila = (lbl, val, rojo) =>
+    '<div class="arq-fila' + (rojo ? " rojo" : "") + '"><span>' + lbl + "</span><b>" + val + "</b></div>";
+  const porEjec = Object.values(d.porEjec).filter((e) => e.efectivo > 0 || e.transferencia > 0).map((e) =>
+    '<div class="arq-ejec"><span>' + e.nombre + "</span><b>efectivo " + dinero(e.efectivo) +
+    " · transf. " + dinero(e.transferencia) + "</b></div>").join("");
+  box.innerHTML =
+    '<div class="arq-card"><div class="arq-h">Desglose de efectivo recibido</div>' +
+    (filasDenom
+      ? '<table class="arq-tab"><thead><tr><th>Denominación</th><th>Cant.</th><th>Importe</th></tr></thead><tbody>' + filasDenom + "</tbody></table>"
+      : '<div class="arq-vacio">Aún no hay efectivo capturado hoy.</div>') +
+    "</div>" +
+    '<div class="arq-card">' +
+    fila("Total efectivo", dinero(d.efectivo)) +
+    fila("− Gastos y retiros en efectivo", "−" + dinero(d.egresosEfectivo)) +
+    '<div class="arq-entregar"><span>Efectivo a entregar</span><b>' + dinero(d.efectivoAEntregar) + "</b></div>" +
+    fila("Depósitos / transferencias", dinero(d.transferencia)) +
+    fila("Garantías", dinero(d.garantias)) +
+    fila("Mora del día (faltantes)", dinero(d.faltantes), d.faltantes > 0) +
+    (porEjec ? '<div style="margin-top:8px">' + porEjec + "</div>" : "") +
+    "</div>";
+}
+
+async function salir() {
+  await fetch("/api/logout", { method: "POST", credentials: "include" });
+  location.href = "/";
+}
+fetch("/api/me", { credentials: "include" }).then(r => r.json()).then(d => {
+  if (d.nombre) $("saludo").textContent = "Buen día, " + d.nombre;
+});
+cargar();
+cargarMovs();
+cargarArqueo();
+setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); }, 5000);
+</script>
+</body>
+</html>

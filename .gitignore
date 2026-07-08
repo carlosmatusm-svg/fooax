@@ -1,0 +1,19 @@
+# dependencias (Railway las instala solo)
+node_modules/
+
+# secretos y variables de entorno
+.env
+.env.*
+
+# datos de operación en local (en producción viven en PostgreSQL)
+data/snapshots.json
+data/movimientos.json
+data/*.tmp
+
+# respaldos rescatados del sistema anterior (datos sensibles)
+rescate/backup-*/
+
+# basura del sistema
+.DS_Store
+*.log
+npm-debug.log*

@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FOOAX · Cobranza Christopher</title>
+<style>
+  :root{
+    --aurora:#F1228E; --atardecer:#FD6E29; --rio:#324AB6; --cielo:#ADE6ED;
+    --riqueza:#F2BB06; --llama:#F44C5D; --tinta:#1A1730; --gris:#6B6880;
+    --bg:#F7F8FC; --card:#FFFFFF; --linea:#E7E8F0; --ok:#13A463; --mora:#F44C5D;
+    --efe:#13A463; --transf:#324AB6; --morado:#6B5BD2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:'Century Gothic','Poppins',system-ui,sans-serif;background:var(--bg);color:var(--tinta);padding-bottom:92px}
+  header{background:linear-gradient(120deg,var(--rio),var(--aurora));color:#fff;padding:16px 18px 14px;position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(50,74,182,.22)}
+  header .brand{font-size:13px;letter-spacing:3px;opacity:.85;font-weight:700}
+  header h1{margin:2px 0 0;font-size:21px;font-weight:800}
+  header .sub{font-size:12px;opacity:.9;margin-top:3px}
+  .tabs{display:flex;gap:6px;background:var(--card);padding:8px;position:sticky;top:78px;z-index:19;border-bottom:1px solid var(--linea);overflow-x:auto}
+  .tab{flex:1;min-width:92px;border:0;background:#EEF0F8;color:var(--gris);font-weight:700;font-size:13px;padding:10px 6px;border-radius:10px;font-family:inherit;white-space:nowrap}
+  .tab.active{background:var(--aurora);color:#fff}
+  .wrap{padding:14px}
+  .card{background:var(--card);border:1px solid var(--linea);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(26,23,48,.04)}
+  label{font-size:12px;font-weight:700;color:var(--gris);display:block;margin-bottom:5px}
+  select,input{width:100%;padding:11px;border:1.5px solid var(--linea);border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:var(--tinta)}
+  select:focus,input:focus{outline:none;border-color:var(--rio)}
+  .row2{display:flex;gap:10px}.row2>div{flex:1}
+  .cli{border-bottom:1px solid var(--linea);padding:11px 2px}
+  .cli:last-child{border-bottom:0}
+  .cli-head{display:flex;align-items:center;gap:10px}
+  .chk{width:26px;height:26px;flex:none;border:2px solid var(--linea);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;background:#fff}
+  .chk.on{background:var(--ok);border-color:var(--ok)}
+  .ci{flex:1;min-width:0}
+  .ci .nm{font-size:14px;font-weight:700;line-height:1.2}
+  .prodtag{font-size:10px;font-weight:800;color:var(--rio);background:#E5EAFB;padding:1px 7px;border-radius:10px;margin-left:4px;white-space:nowrap}
+  .ci .mt{font-size:11px;color:var(--gris);margin-top:2px}
+  .ci .rowtot{font-size:13px;font-weight:800;color:var(--rio)}
+  .forma{display:flex;gap:0;border:1.5px solid var(--linea);border-radius:9px;overflow:hidden;flex:none}
+  .forma button{border:0;background:#fff;color:var(--gris);font-size:11px;font-weight:800;padding:7px 9px;font-family:inherit}
+  .forma button.efe{background:var(--efe);color:#fff}
+  .forma button.transf{background:var(--transf);color:#fff}
+  .forma button.mix{background:var(--morado);color:#fff}
+  .mixbox{margin-top:8px;padding:9px;background:#f4f2fd;border-radius:10px;border:1px solid #ded8f7}
+  .mixnota{font-size:11px;color:var(--morado);font-weight:700;margin-bottom:7px}
+  .mixcampos{display:flex;gap:8px}
+  .mixcampos .campo{flex:1}
+  .mixok{margin-top:6px;font-size:12px;font-weight:800;color:var(--ok)}
+  .mixerr{margin-top:6px;font-size:12px;font-weight:800;color:var(--mora)}
+  .campos{display:none;margin-top:9px;gap:7px;grid-template-columns:1fr 1fr 1fr;grid-auto-rows:auto}
+  .cli.open .campos{display:grid}
+  .campo label{font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+  .campo input{padding:8px;text-align:right;font-weight:700;font-size:14px}
+  .campo.pago input{border-color:var(--aurora)}
+  .totbar{position:fixed;left:0;right:0;bottom:0;background:var(--tinta);color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;z-index:30;box-shadow:0 -2px 14px rgba(0,0,0,.18)}
+  .totbar .lbl{font-size:10px;opacity:.7;letter-spacing:1px}
+  .totbar .val{font-size:21px;font-weight:800}
+  .totbar .mini{font-size:10px;opacity:.85;margin-top:1px}
+  .btn{border:0;border-radius:11px;font-weight:800;font-size:14px;padding:11px 16px;font-family:inherit}
+  .btn-wa{background:var(--ok);color:#fff}.btn-light{background:#EEF0F8;color:var(--rio)}
+  .btn-wamsg{background:#25D366;color:#fff}
+  .muted{color:var(--gris);font-size:12px;text-align:center;padding:18px}
+  .pill{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:var(--cielo);color:var(--rio);margin-left:6px}
+  .sectitle{font-size:15px;font-weight:800;margin:2px 0 10px;display:flex;align-items:center;gap:8px}
+  .meta{font-size:12px;color:var(--gris)}
+  .arqueo-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .arqueo-row .den{width:60px;font-weight:700;font-size:13px}
+  .arqueo-row input{width:66px;text-align:center}
+  .arqueo-row .sub{flex:1;text-align:right;font-weight:700;font-size:13px;color:var(--rio)}
+  .hidden{display:none}
+  .summary-box{background:#0F1226;color:#dfe3ff;font-size:12px;white-space:pre-wrap;padding:12px;border-radius:10px;font-family:ui-monospace,monospace;line-height:1.45;max-height:300px;overflow:auto}
+  .kv{display:flex;justify-content:space-between;font-size:14px;padding:4px 0;border-bottom:1px dashed var(--linea)}
+  .kv:last-child{border-bottom:0}.kv b{font-weight:800}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .chip{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
+  .chip.efe{background:#E3F5EC;color:var(--efe)}.chip.transf{background:#E5EAFB;color:var(--transf)}
+  .sembadges{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 10px}
+  .sembadge{font-size:11px;font-weight:800;color:#fff;padding:5px 10px;border-radius:20px}
+  .subcentro{background:#F4F6FC;border-radius:12px;padding:10px 12px;margin:2px 0 12px}
+  .fichabox{background:#fff;border:2px solid var(--rio);border-radius:12px;padding:10px;margin:2px 0 12px}
+  .fichatit{font-weight:800;color:var(--rio);font-size:13px;margin-bottom:8px}
+  .fichatab{width:100%;border-collapse:collapse;font-size:12px}
+  .fichatab th{background:var(--rio);color:#fff;padding:6px 5px;font-size:11px;text-align:left}
+  .fichatab td{padding:5px;border-bottom:1px solid var(--linea)}
+  .fichatab .fichatot td{background:#EAF7EF;font-weight:800;color:var(--rio);font-size:13px;border-top:2px solid var(--rio)}
+  .fichatab .fichaprod td{background:#F4F6FC;font-weight:700;color:var(--gris);font-size:12px}
+  .fichanota{font-size:10px;color:var(--gris);font-style:italic;margin-top:4px}
+  .clidato{font-size:11px;padding:4px 8px;border-radius:7px;margin:4px 0;cursor:pointer;font-weight:700}
+  .clidato.ok{background:#EAF7EF;color:var(--ok)}
+  .clidato.falta{background:#FDECEC;color:var(--mora)}
+  .clidato .edit{opacity:.6;margin-left:4px}
+  .fichacopy{margin-top:8px}
+  .chk{cursor:pointer}
+  .cuotamas{margin-top:6px;padding:6px 9px;background:#FFF6E9;border-radius:8px;font-size:12px;font-weight:700;color:#B8860B;border-left:3px solid var(--riqueza)}
+  .cuotamenos{margin-top:6px;padding:6px 9px;background:#FDECEC;border-radius:8px;font-size:12px;font-weight:700;color:var(--mora);border-left:3px solid var(--mora)}
+  .subrow{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--tinta)}
+  .subrow b{font-weight:800}
+  .subrow.tot{border-top:1px solid var(--linea);margin-top:4px;padding-top:6px;font-size:15px}
+  .subrow.tot b{color:var(--rio)}
+  .subrow.cnt{font-size:12px;color:var(--gris)}
+  .semrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--linea)}
+  .semrow:last-child{border-bottom:0}
+  .semname{flex:1;font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .movrow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--linea)}
+  .movrow:last-child{border-bottom:0}
+  .movinfo{flex:1;min-width:0}
+  .movtop{font-size:14px}
+  .movtag{font-size:11px;font-weight:800;color:#fff;background:var(--rio);padding:2px 8px;border-radius:10px}
+  .movfolio{font-size:10px;font-weight:800;color:var(--atardecer);background:#FFF0E6;padding:2px 7px;border-radius:8px;letter-spacing:.3px}
+  .movvia{font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:4px}
+  .movvia.efe{background:#E3F5EC;color:var(--efe)}.movvia.transf{background:#E5EAFB;color:var(--transf)}
+  .movdel{flex:none;width:30px;height:30px;border:0;background:#FDE2E5;color:var(--mora);border-radius:8px;font-weight:900;font-size:14px}
+  .renovrow{padding:12px 2px;border-bottom:1px solid var(--linea)}
+  .renovrow:last-child{border-bottom:0}
+  .renovtop{font-size:14px}
+  .renovbar{height:7px;background:#EEF0F8;border-radius:6px;margin:7px 0 3px;overflow:hidden}
+  .renovfill{height:100%;border-radius:6px}
+  .renovinfo{display:flex;justify-content:space-between;font-size:11px;color:var(--gris)}
+  .renovsug{font-size:12px;margin-top:6px;color:var(--tinta)}
+  .renovsug b{color:var(--rio)}
+  .renovnota{font-size:10px;color:var(--gris);font-style:italic}
+  .renovmora{font-size:11px;margin-top:6px;color:var(--mora);font-weight:700}
+  .renovalerta{font-size:11px;margin-top:5px;color:#fff;background:var(--atardecer);padding:5px 8px;border-radius:8px;font-weight:700}
+  .renovkpi{display:flex;gap:7px;margin-top:10px}
+  .rk{flex:1;background:#F4F6FC;border-radius:10px;padding:8px;text-align:center}
+  .rk span{display:block;font-size:10px;color:var(--gris)}
+  .rk b{font-size:14px;color:var(--rio)}
+  .rk.alerta{background:#FFF0E6}.rk.alerta b{color:var(--atardecer)}
+  .rk.micro{background:#EAE7FB}.rk.micro b{color:#6B5BD2}
+  .microtag{color:#fff !important;background:#6B5BD2 !important}
+  .micromora{font-size:11px;margin-top:5px;color:#fff;background:#6B5BD2;padding:5px 8px;border-radius:8px;font-weight:700}
+  .gerprog{margin-top:4px}
+  .gerbar{height:9px;background:#EEF0F8;border-radius:6px;overflow:hidden}
+  .gerfill{height:100%;background:var(--ok);border-radius:6px;transition:width .3s}
+  .gerinfo{font-size:13px;margin-top:7px;text-align:center}
+  .gerfn{font-size:12px;font-weight:800;color:var(--rio);margin:12px 4px 6px;text-transform:uppercase;letter-spacing:.5px}
+  .gertask{display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--linea);border-radius:12px;padding:12px;margin-bottom:8px}
+  .gertask.on{border-color:var(--ok);background:#F0FBF5}
+  .gerchk{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--linea);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff}
+  .gertask.on .gerchk{background:var(--ok);border-color:var(--ok)}
+  .gertxt{font-size:14px;font-weight:600;line-height:1.3}
+  .diagok{background:#F0FBF5;color:var(--ok);font-weight:700;font-size:13px;padding:12px;border-radius:10px;text-align:center}
+  .diagrow{border-left:4px solid var(--riqueza);background:#FFFBEF;border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .diagrow.alta{border-left-color:var(--mora);background:#FDF0F1}
+  .diagtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .diagtipo{font-size:13px;font-weight:800;color:var(--tinta)}
+  .diagsev{font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;color:#fff;background:var(--riqueza)}
+  .diagsev.alta{background:var(--mora)}
+  .diagdet{font-size:12px;color:var(--tinta);line-height:1.4}
+  .diagresp{font-size:11px;color:var(--gris);margin-top:4px}
+  .diagresp b{color:var(--rio)}
+  .renovgest{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .rgbtn{font-size:11px;font-weight:700;padding:6px 9px;border:1.5px solid var(--linea);background:#fff;color:var(--gris);border-radius:8px;font-family:inherit}
+  .rgbtn.on{background:var(--rio);color:#fff;border-color:var(--rio)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">FOOAX · COBRANZA</div>
+  <h1>Christopher</h1>
+  <div class="sub" id="fechaHoy">—</div>
+  <div class="sub" id="guardadoMsg" style="font-size:10px;opacity:.75">Guardado automático activo</div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="cobranza" onclick="showTab('cobranza')">Cobranza</button>
+  <button class="tab" data-tab="indiv" onclick="showTab('indiv')">Individuales</button>
+  <button class="tab" data-tab="renov" onclick="showTab('renov')">Renovaciones</button>
+  
+  <button class="tab" data-tab="movs" onclick="showTab('movs')">Otros mov.</button>
+  <button class="tab" data-tab="arqueo" onclick="showTab('arqueo')">Arqueo</button>
+  <button class="tab" data-tab="resumen" onclick="showTab('resumen')">Resumen</button>
+</div>
+
+<div class="wrap" id="tab-cobranza">
+  <div class="card">
+    <div class="row2">
+      <div><label>Día de cobro</label><select id="selDia" onchange="render()"></select></div>
+      <div><label>Fecha</label><input type="date" id="inpFecha" onchange="updFecha()"></div>
+    </div>
+    <div style="margin-top:10px">
+      <label>Centro</label>
+      <select id="selCentro" onchange="render()"><option value="">— Elige un centro —</option></select>
+    </div>
+    <button class="btn btn-light" style="width:100%;margin-top:10px" onclick="toggleAltaClienta()">+ Agregar clienta nueva</button>
+    <div id="formAlta" class="hidden" style="margin-top:10px;border-top:1px solid var(--linea);padding-top:10px">
+      <div class="meta" style="margin-bottom:8px">Agrega una clienta a tu padrón. Queda guardada en tu celular. Avisa a Monse para que también la registre en la base.</div>
+      <div class="row2">
+        <div><label>Centro</label>
+          <select id="altaCentro"><option value="">— Centro —</option></select>
+        </div>
+        <div><label>Producto</label>
+          <select id="altaProd">
+            <option value="Grupal-Basico">Grupal-Básico</option>
+            <option value="Grupal-Micro">Grupal-Micro</option>
+            <option value="Grupal-Adicional">Grupal-Adicional</option>
+            <option value="Individual">Individual</option>
+            <option value="Foxi Plus - 1">Foxi Plus</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:8px"><label>Nombre completo</label><input type="text" id="altaNombre" placeholder="Nombre de la clienta"></div>
+      <div class="row2" style="margin-top:8px">
+        <div><label>No. Socio</label><input type="number" inputmode="numeric" id="altaSocio" placeholder="11113000000"></div>
+        <div><label>Saldo</label><input type="number" inputmode="decimal" id="altaSaldo" placeholder="0"></div>
+      </div>
+      <button class="btn btn-wa" style="width:100%;margin-top:10px" onclick="agregarClienta()">Guardar clienta</button>
+    </div>
+  </div>
+  <div id="listaClientas"></div>
+</div>
+
+<div class="wrap hidden" id="tab-indiv">
+  <div class="card">
+    <div class="row2">
+      <div><label>Fecha</label><input type="date" id="inpFechaI" disabled></div>
+    </div>
+    <div class="meta" style="margin-top:8px">Clientas individuales (FOXI / Individual). Captura su pago directamente.</div>
+  </div>
+  <div id="listaIndiv"></div>
+</div>
+
+<div class="wrap hidden" id="tab-renov">
+  <div class="card">
+    <div class="sectitle">Renovaciones próximas</div>
+    <div class="meta">Clientas cerca de liquidar su crédito (por avance de pago). Tarea semanal: contáctalas y registra la gestión. Los montos son sugerencia, sujeta a evaluación.</div>
+    <div id="renovResumen"></div>
+  </div>
+  <div id="listaRenov"></div>
+  <div class="card">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-wamsg" style="flex:1" onclick="enviarRenov()">Enviar avance a Monse</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="wrap hidden" id="tab-movs">
+  <div class="card">
+    <div class="sectitle">Otros movimientos del día</div>
+    <div class="meta">Comisiones, liquidaciones, recuperaciones, desembolsos y gastos. Lo que el ejecutivo trae además de la cobranza.</div>
+  </div>
+  <div class="card">
+    <div><label>Concepto</label>
+      <select id="movConcepto">
+        <option value="COMISION">Comisión de desembolso</option>
+        <option value="LIQUIDACION">Liquidación (pago total)</option>
+        <option value="RECUPERACION">Recuperación / adelanto</option>
+        <option value="GARANTIA">Garantía (ahorro)</option>
+        <option value="DESEMBOLSO">Desembolso (crédito nuevo)</option>
+        <option value="GASTO">Gasto</option>
+      </select>
+    </div>
+    <div class="row2" style="margin-top:9px">
+      <div><label>Centro</label>
+        <select id="movCentro"><option value="">— Centro —</option></select>
+      </div>
+      <div><label>Clienta (opcional)</label>
+        <select id="movClienta"><option value="">— Si aplica —</option></select>
+      </div>
+    </div>
+    <div class="row2" style="margin-top:9px">
+      <div><label>Cantidad</label><input type="number" inputmode="decimal" id="movMonto" placeholder="0"></div>
+      <div><label>Vía</label>
+        <select id="movVia" onchange="toggleCheque()"><option value="E">Efectivo</option><option value="T">Transferencia</option><option value="CH">Cheque</option></select>
+      </div>
+    </div>
+    <div id="chequeBox" style="margin-top:9px;display:none"><label>Número de cheque</label><input type="text" inputmode="numeric" id="movCheque" placeholder="Ej. 0012345"></div>
+    <div style="margin-top:9px"><label>Nota / referencia (opcional)</label><input type="text" id="movNota" placeholder="Ej. pagaré, descuento, nombre"></div>
+    <div class="meta" style="margin-top:7px">Cada movimiento recibe un <b>folio</b>. Si tienes evidencia (foto del pagaré, ticket), mándala por WhatsApp a Monse citando el folio.</div>
+    <button class="btn btn-wa" style="width:100%;margin-top:12px" onclick="agregarMov()">Agregar movimiento</button>
+  </div>
+  <div id="listaMovs"></div>
+</div>
+
+<div class="wrap hidden" id="tab-arqueo">
+  <div class="card"><div class="sectitle">Arqueo de efectivo</div>
+    <div class="meta">Cuenta billetes y monedas físicos. Abajo se compara contra lo cobrado.</div></div>
+  <div class="card" id="arqueoBox"></div>
+  <div class="card">
+    <div class="sectitle" style="font-size:14px">Lo que debes tener en efectivo</div>
+    <div class="kv"><span>Cobranza efectivo (fichas/garantías/solidario)</span><b id="arqCob">$0</b></div>
+    <div class="kv"><span>Otros movimientos en efectivo (+entradas −gastos)</span><b id="arqMovs">$0</b></div>
+    <div class="kv" style="border-top:2px solid var(--linea);padding-top:6px;margin-top:4px"><span><b>Total esperado en efectivo</b></span><b id="arqEsperado" style="color:var(--rio)">$0</b></div>
+  </div>
+  <div class="card">
+    <div class="kv"><span>Total contado (físico)</span><b id="arqueoTotal" style="color:var(--rio)">$0</b></div>
+    <div class="kv"><span>Diferencia (contado − esperado)</span><b id="arqueoDif">$0</b></div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="tab-resumen">
+  <div class="card">
+    <div class="sectitle">Resumen del día</div>
+    <div class="meta">Meta: 25 centros · 625 integrantes</div>
+    <div id="resumenStats" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <div class="sectitle">🔍 Diagnóstico — cuellos de botella</div>
+    <div class="meta">Lo que está frenando hoy, con el responsable. Atiende esto antes de cerrar.</div>
+    <div id="diagPanel" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <div class="sectitle">Semáforo por centro</div>
+    <div class="meta">Verde 100% · Amarillo 70-99% · Rojo menos de 70%. Mide clientas que pagaron y monto cobrado.</div>
+    <div id="semaforoPanel" style="margin-top:10px"></div>
+  <div class="card">
+    <div class="sectitle">Mensaje para WhatsApp</div>
+    <div class="summary-box" id="waText">—</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wamsg" style="flex:1" onclick="enviarMensajeGrupo('diario')">Enviar al grupo (diario)</button>
+      <button class="btn btn-light" onclick="copiarWA()">Copiar</button>
+    </div>
+    <button class="btn btn-light" style="width:100%;margin-top:8px" onclick="enviarMensajeGrupo('semanal')">Mensaje de CIERRE SEMANAL</button>
+  </div>
+  <div class="card">
+    <div class="sectitle">Enviar detalle a Monse (Excel)</div>
+    <div class="meta">Exporta el detalle por clienta en el formato de la hoja PEGAR CAPTURA. Descarga el archivo o copia para pegar directo.</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wa" style="flex:1" onclick="descargarExport()">Descargar archivo</button>
+      <button class="btn btn-light" style="flex:1" onclick="copiarExport()">Copiar para Excel</button>
+    </div>
+    <button class="btn btn-wamsg" style="width:100%;margin-top:8px" onclick="enviarWhatsApp('cobranza')">📤 Subir mi reporte al grupo (obligatorio)</button>
+    <div class="meta" style="margin-top:6px;color:var(--mora)">El día no cierra hasta que subas tu reporte al grupo.</div>
+  </div>
+  <div class="card">
+    <div class="sectitle">Enviar garantías a Ing. Alejandra</div>
+    <div class="meta">Solo las clientas con garantía capturada hoy, en el formato del control de garantías.</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wa" style="flex:1" onclick="descargarGarantias()">Descargar garantías</button>
+      <button class="btn btn-light" style="flex:1" onclick="copiarGarantias()">Copiar garantías</button>
+    </div>
+    <button class="btn btn-wamsg" style="width:100%;margin-top:8px" onclick="enviarWhatsApp('garantias')">Enviar por WhatsApp</button>
+  </div>
+  <div class="card">
+    <div class="sectitle">Enviar otros movimientos a Monse</div>
+    <div class="meta">Comisiones, liquidaciones, recuperaciones, desembolsos y gastos, en el formato de DETALLE MOVIMIENTOS.</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wa" style="flex:1" onclick="descargarMovs()">Descargar movimientos</button>
+      <button class="btn btn-light" style="flex:1" onclick="copiarMovs()">Copiar movimientos</button>
+    </div>
+    <button class="btn btn-wamsg" style="width:100%;margin-top:8px" onclick="enviarWhatsApp('movs')">Enviar por WhatsApp</button>
+    <button class="btn btn-light" style="width:100%;margin-top:8px" onclick="descargarDesembolsos()">📤 Descargar solo DESEMBOLSOS (control aparte)</button>
+  </div>
+  <div class="card">
+    <div class="sectitle">Ajustes</div>
+    <div class="meta">Lo capturado se guarda solo en este celular. Al terminar y enviar a Monse, cierra el día para empezar limpio.</div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn btn-light" style="flex:1" onclick="cerrarDia()">Cerrar día</button>
+    </div>
+    <div class="meta" style="margin-top:14px">Cuando Monse mande un padrón nuevo (altas/bajas), impórtalo aquí sin cambiar de app:</div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
+      <label class="btn btn-light" style="flex:1;text-align:center;cursor:pointer">Actualizar padrón
+        <input type="file" accept=".csv,text/csv" style="display:none" onchange="importarPadron(this)">
+      </label>
+      <button class="btn btn-light" onclick="restablecerPadron()">Restablecer</button>
+    </div>
+  </div>
+</div>
+
+<div class="totbar">
+  <div><div class="lbl">TOTAL COBRADO HOY</div><div class="val" id="totHoy">$0</div>
+    <div class="mini" id="totMini">Efe $0 · Transf $0</div>
+    <div class="mini" id="semGlobal" style="margin-top:2px">🔴 0% clientas · 🔴 0% monto</div></div>
+  <button class="btn btn-wa" onclick="showTab('resumen')">Resumen ▸</button>
+</div>
+
+<script>
+const EJECUTIVO="Christopher";
+const EJECUTIVO_BASE="Christopher".toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const META={centros:25,integrantes:625};
+const DIAS=["Lunes","Martes","Miercoles","Jueves","Viernes","Sabado"];
+const CONCEPTOS=["pago","garantia","solidario"]; // 3 conceptos confirmados
+
+// ===== PADRÓN: editable, parte del catálogo incrustado pero actualizable =====
+const STORE_KEY="fooax_cob_"+EJECUTIVO_BASE;
+const PADRON_KEY="fooax_padron_"+EJECUTIVO_BASE;
+// CENTROS e INDIVIDUALES vienen del archivo; si hay padrón importado guardado, se usa ese
+let CENTROS={"C-1 · BONI BACUM": [{"n": "ADELAIDA JOVITA HERNANDEZ VASQUES", "f": "11112929397", "sub": "Grupal-Basico", "k": "11112929397|Grupal-Basico|ADELAIDA JOVITA HERNANDEZ VASQUES|0", "imp": 5000.0, "saldo": 5100.0, "esp": 208.0, "impOrig": 5000.0, "mora": 0.0, "sug": 6000}, {"n": "AIDE ANDREA LOPEZ PACHECO", "f": "11113008396", "sub": "Grupal-Basico", "k": "11113008396|Grupal-Basico|AIDE ANDREA LOPEZ PACHECO|0", "imp": 6000.0, "saldo": 1080.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "ALMA ROSA LOPEZ HERNANDEZ", "f": "11112925238", "sub": "Grupal-Basico", "k": "11112925238|Grupal-Basico|ALMA ROSA LOPEZ HERNANDEZ|0", "imp": 9800.0, "saldo": 13524.0, "esp": 444.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "ALMA ROSA LOPEZ HERNANDEZ", "f": "11112925238", "sub": "Grupal-Micro", "k": "11112925238|Grupal-Micro|ALMA ROSA LOPEZ HERNANDEZ|0", "imp": 8000.0, "saldo": 7424.0, "esp": 444.0, "impOrig": 8000.0, "mora": 0.0, "sug": 9500}, {"n": "BEATRIZ MERCED LOPEZ HERNANDEZ", "f": "11112935428", "sub": "Grupal-Basico", "k": "11112935428|Grupal-Basico|BEATRIZ MERCED LOPEZ HERNANDEZ|0", "imp": 4000.0, "saldo": 5520.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "CARMELINA ELVIRA LOPEZ LOPEZ", "f": "11112984597", "sub": "Grupal-Basico", "k": "11112984597|Grupal-Basico|CARMELINA ELVIRA LOPEZ LOPEZ|0", "imp": 9800.0, "saldo": 5880.0, "esp": 408.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "CARMEN CATALINA LOPEZ MEJIA", "f": "11112996352", "sub": "Grupal-Basico", "k": "11112996352|Grupal-Basico|CARMEN CATALINA LOPEZ MEJIA|0", "imp": 3000.0, "saldo": 4320.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "CECILIA GUADALUPE CRUZ JUAREZ", "f": "11112939602", "sub": "Grupal-Basico", "k": "11112939602|Grupal-Basico|CECILIA GUADALUPE CRUZ JUAREZ|0", "imp": 6000.0, "saldo": 5760.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "FRANCISCA EDITH MARQUEZ GARCIA", "f": "11112839233", "sub": "Grupal-Basico", "k": "11112839233|Grupal-Basico|FRANCISCA EDITH MARQUEZ GARCIA|0", "imp": 9800.0, "saldo": 6468.0, "esp": 444.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "FRANCISCA EDITH MARQUEZ GARCIA", "f": "11112839233", "sub": "Grupal-Micro 2", "k": "11112839233|Grupal-Micro 2|FRANCISCA EDITH MARQUEZ GARCIA|0", "imp": 8000.0, "saldo": 11424.0, "esp": 444.0, "impOrig": 8000.0, "mora": 0.0, "sug": 9500}, {"n": "GABRIELA KARINA MARTINEZ MUÑOZ", "f": "11112903012", "sub": "Grupal-Basico", "k": "11112903012|Grupal-Basico|GABRIELA KARINA MARTINEZ MUÑOZ|0", "imp": 9000.0, "saldo": 7560.0, "esp": 556.0, "impOrig": 9000.0, "mora": 0.0, "sug": 11000}, {"n": "GABRIELA KARINA MARTINEZ MUÑOZ", "f": "11112903012", "sub": "Grupal-Micro", "k": "11112903012|Grupal-Micro|GABRIELA KARINA MARTINEZ MUÑOZ|0", "imp": 10000.0, "saldo": 8960.0, "esp": 556.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "GABRIELA VIANNEY DIAZ RUIZ", "f": "11112941078", "sub": "Grupal-Basico", "k": "11112941078|Grupal-Basico|GABRIELA VIANNEY DIAZ RUIZ|0", "imp": 3000.0, "saldo": 2520.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "GLORIA MISHELL MUÑOZ MUÑOZ", "f": "11113106411", "sub": "Grupal-Basico", "k": "11113106411|Grupal-Basico|GLORIA MISHELL MUÑOZ MUÑOZ|0", "imp": 6000.0, "saldo": 7920.0, "esp": 83.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "GLORIA MISHELL MUÑOZ MUÑOZ", "f": "11113106411", "sub": "Grupal-Adicional", "k": "11113106411|Grupal-Adicional|GLORIA MISHELL MUÑOZ MUÑOZ|0", "imp": 2000.0, "saldo": 2600.0, "esp": 83.0, "impOrig": 2000.0, "mora": 0.0, "sug": 2500}, {"n": "GUADALUPE NAYELLI MARTINEZ CORTES", "f": "11112807935", "sub": "Grupal-Basico", "k": "11112807935|Grupal-Basico|GUADALUPE NAYELLI MARTINEZ CORTES|0", "imp": 3000.0, "saldo": 4320.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "IRENE JUANITA MUÑOZ SANTOS", "f": "11113189493", "sub": "Grupal-Basico", "k": "11113189493|Grupal-Basico|IRENE JUANITA MUÑOZ SANTOS|0", "imp": 5000.0, "saldo": 6000.0, "esp": 208.0, "impOrig": 5000.0, "mora": 0.0, "sug": 6000}, {"n": "JUANA ROJAS MARTINEZ", "f": "11113125623", "sub": "Grupal-Basico", "k": "11113125623|Grupal-Basico|JUANA ROJAS MARTINEZ|0", "imp": 3000.0, "saldo": 3240.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "LUCERO MUÑOZ HERRERA", "f": "11113102113", "sub": "Grupal-Basico", "k": "11113102113|Grupal-Basico|LUCERO MUÑOZ HERRERA|0", "imp": 3000.0, "saldo": 1440.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "LUCERO RUFINA LOPEZ JIMENEZ", "f": "11113052056", "sub": "Grupal-Basico", "k": "11113052056|Grupal-Basico|LUCERO RUFINA LOPEZ JIMENEZ|0", "imp": 4000.0, "saldo": 1200.0, "esp": 83.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "LUCERO RUFINA LOPEZ JIMENEZ", "f": "11113052056", "sub": "Grupal-Adicional", "k": "11113052056|Grupal-Adicional|LUCERO RUFINA LOPEZ JIMENEZ|0", "imp": 2000.0, "saldo": 2600.0, "esp": 83.0, "impOrig": 2000.0, "mora": 0.0, "sug": 2500}, {"n": "MONICA EDITH PEREZ HERNANDEZ", "f": "11112996848", "sub": "Grupal-Basico", "k": "11112996848|Grupal-Basico|MONICA EDITH PEREZ HERNANDEZ|0", "imp": 7000.0, "saldo": 7560.0, "esp": 292.0, "impOrig": 7000.0, "mora": 0.0, "sug": 8500}, {"n": "REYNA MAGDALENA REYES SANTOS", "f": "11113162874", "sub": "Grupal-Basico", "k": "11113162874|Grupal-Basico|REYNA MAGDALENA REYES SANTOS|0", "imp": 3000.0, "saldo": 3600.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "ROSA MARIA MUÑOZ LOPEZ", "f": "11113202376", "sub": "Grupal-Basico", "k": "11113202376|Grupal-Basico|ROSA MARIA MUÑOZ LOPEZ|0", "imp": 8000.0, "saldo": 10560.0, "esp": 333.0, "impOrig": 8000.0, "mora": 0.0, "sug": 9500}, {"n": "ROSARIO SOLEDAD PEREZ HERNANDEZ", "f": "11113034548", "sub": "Grupal-Basico", "k": "11113034548|Grupal-Basico|ROSARIO SOLEDAD PEREZ HERNANDEZ|0", "imp": 8000.0, "saldo": 11520.0, "esp": 556.0, "impOrig": 8000.0, "mora": 0.0, "sug": 9500}, {"n": "ROSARIO SOLEDAD PEREZ HERNANDEZ", "f": "11113034548", "sub": "Grupal-Micro", "k": "11113034548|Grupal-Micro|ROSARIO SOLEDAD PEREZ HERNANDEZ|0", "imp": 10000.0, "saldo": 1920.0, "esp": 556.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "SARAHI MIREYA MUÑOZ CRUZ", "f": "11113126104", "sub": "Grupal-Basico", "k": "11113126104|Grupal-Basico|SARAHI MIREYA MUÑOZ CRUZ|0", "imp": 4000.0, "saldo": 3600.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "TERESA MATILDE MUÑOZ MUÑOZ", "f": "11113232046", "sub": "Grupal-Basico", "k": "11113232046|Grupal-Basico|TERESA MATILDE MUÑOZ MUÑOZ|0", "imp": 3000.0, "saldo": 720.0, "esp": 83.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "TERESA MATILDE MUÑOZ MUÑOZ", "f": "11113232046", "sub": "Grupal-Adicional", "k": "11113232046|Grupal-Adicional|TERESA MATILDE MUÑOZ MUÑOZ|0", "imp": 2000.0, "saldo": 800.0, "esp": 83.0, "impOrig": 2000.0, "mora": 0.0, "sug": 2500}, {"n": "YOLANDA VICTORIA JIMENEZ CHAVEZ", "f": "11113033563", "sub": "Grupal-Basico", "k": "11113033563|Grupal-Basico|YOLANDA VICTORIA JIMENEZ CHAVEZ|0", "imp": 6000.0, "saldo": 6120.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "YUILIANA GUADALUPE CRUZ MUÑOZ", "f": "11113186245", "sub": "Grupal-Basico", "k": "11113186245|Grupal-Basico|YUILIANA GUADALUPE CRUZ MUÑOZ|0", "imp": 4000.0, "saldo": 4800.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}], "C-10 · HIGA": [{"n": "AIDE YULICELI CRUZ ROBLEDO", "f": "11112997831", "sub": "Grupal-Basico", "k": "11112997831|Grupal-Basico|AIDE YULICELI CRUZ ROBLEDO|0", "imp": 9000.0, "saldo": 3030.0, "esp": 375.0, "impOrig": 9000.0, "mora": 36.0, "sug": 11000}, {"n": "AMAIRANI ROBLEDO HERNANDEZ", "f": "11112985270", "sub": "Grupal-Basico", "k": "11112985270|Grupal-Basico|AMAIRANI ROBLEDO HERNANDEZ|0", "imp": 6000.0, "saldo": 2160.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "FABIOLA CRUZ ROBLEDO", "f": "11113043290", "sub": "Grupal-Basico", "k": "11113043290|Grupal-Basico|FABIOLA CRUZ ROBLEDO|0", "imp": 6000.0, "saldo": 1440.0, "esp": 62.0, "impOrig": 6000.0, "mora": 90.0, "sug": 7000}, {"n": "FABIOLA CRUZ ROBLEDO", "f": "11113043290", "sub": "Grupal-Adicional", "k": "11113043290|Grupal-Adicional|FABIOLA CRUZ ROBLEDO|0", "imp": 1500.0, "saldo": 40.0, "esp": 62.0, "impOrig": 1500.0, "mora": 90.0, "sug": 2000}, {"n": "GARY GARCIA PEREZ", "f": "11112871513", "sub": "Grupal-Basico", "k": "11112871513|Grupal-Basico|GARY GARCIA PEREZ|0", "imp": 12000.0, "saldo": 14208.0, "esp": 833.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "GARY GARCIA PEREZ", "f": "11112871513", "sub": "Grupal-Micro 2", "k": "11112871513|Grupal-Micro 2|GARY GARCIA PEREZ|0", "imp": 15000.0, "saldo": 12720.5, "esp": 833.0, "impOrig": 15000.0, "mora": 0.0, "sug": 18000}, {"n": "HERALIA PEREZ GUZMAN", "f": "11112926916", "sub": "Grupal-Basico", "k": "11112926916|Grupal-Basico|HERALIA PEREZ GUZMAN|0", "imp": 9800.0, "saldo": 11172.0, "esp": 83.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "HERALIA PEREZ GUZMAN", "f": "11112926916", "sub": "Grupal-Adicional", "k": "11112926916|Grupal-Adicional|HERALIA PEREZ GUZMAN|0", "imp": 2000.0, "saldo": 300.0, "esp": 83.0, "impOrig": 2000.0, "mora": 78.0, "sug": 2500}, {"n": "NOEMI GARCIA PEREZ", "f": "11112949301", "sub": "Grupal-Basico", "k": "11112949301|Grupal-Basico|NOEMI GARCIA PEREZ|0", "imp": 12000.0, "saldo": 5760.0, "esp": 500.0, "impOrig": 12000.0, "mora": 66.0, "sug": 14500}], "C-16 · YA GHANI": [{"n": "DORIS GREYCE ALONSO RUIZ", "f": "11112948571", "sub": "Grupal-Basico 2", "k": "11112948571|Grupal-Basico 2|DORIS GREYCE ALONSO RUIZ|0", "imp": 3000.0, "saldo": 1296.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "ELDA JANET FLORES ECHEVERRIA", "f": "11112878795", "sub": "Grupal-Basico 2", "k": "11112878795|Grupal-Basico 2|ELDA JANET FLORES ECHEVERRIA|0", "imp": 6000.0, "saldo": 2592.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "EPIFANIA GARCIA SANTIAGO", "f": "11112886288", "sub": "Grupal-Basico 2", "k": "11112886288|Grupal-Basico 2|EPIFANIA GARCIA SANTIAGO|0", "imp": 3000.0, "saldo": 216.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "RAFAELA IRMA  PEREZ CRUZ", "f": "11112984529", "sub": "Grupal-Basico 2", "k": "11112984529|Grupal-Basico 2|RAFAELA IRMA  PEREZ CRUZ|0", "imp": 5000.0, "saldo": 2160.0, "esp": 208.0, "impOrig": 5000.0, "mora": 0.0, "sug": 6000}, {"n": "ROSA LILIAN ECHEVERRIA  RUIZ", "f": "11113026843", "sub": "Grupal-Basico 2", "k": "11113026843|Grupal-Basico 2|ROSA LILIAN ECHEVERRIA  RUIZ|0", "imp": 6000.0, "saldo": 2592.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}], "C-17 · TENEXPAM": [{"n": "ALFREDO FAUSTO VILLANUEVA GARCIA", "f": "11112952934", "sub": "Grupal-Basico", "k": "11112952934|Grupal-Basico|ALFREDO FAUSTO VILLANUEVA GARCIA|0", "imp": 9000.0, "saldo": 4320.0, "esp": 833.0, "impOrig": 9000.0, "mora": 0.0, "sug": 11000}, {"n": "ALFREDO FAUSTO VILLANUEVA GARCIA", "f": "11112952934", "sub": "Grupal-Micro", "k": "11112952934|Grupal-Micro|ALFREDO FAUSTO VILLANUEVA GARCIA|0", "imp": 15000.0, "saldo": 19680.0, "esp": 833.0, "impOrig": 15000.0, "mora": 0.0, "sug": 18000}, {"n": "ANGELES YANIRA CRUZ AVENDAÑO", "f": "11112821419", "sub": "Grupal-Microcredito", "k": "11112821419|Grupal-Microcredito|ANGELES YANIRA CRUZ AVENDAÑO|0", "imp": 35000.0, "saldo": 27016.0, "esp": 1944.0, "impOrig": 35000.0, "mora": 0.0, "sug": 42000}, {"n": "CATALINA PETRA GARCIA CRUZ", "f": "11112706693", "sub": "Grupal-Microcredito", "k": "11112706693|Grupal-Microcredito|CATALINA PETRA GARCIA CRUZ|0", "imp": 30000.0, "saldo": 20258.0, "esp": 1667.0, "impOrig": 30000.0, "mora": 0.0, "sug": 36000}, {"n": "CELESTINA MARICELA GARCIA DIAZ", "f": "11112716716", "sub": "Grupal-Basico", "k": "11112716716|Grupal-Basico|CELESTINA MARICELA GARCIA DIAZ|0", "imp": 12000.0, "saldo": 13680.0, "esp": 833.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "CELESTINA MARICELA GARCIA DIAZ", "f": "11112716716", "sub": "Grupal-Micro", "k": "11112716716|Grupal-Micro|CELESTINA MARICELA GARCIA DIAZ|0", "imp": 15000.0, "saldo": 8160.0, "esp": 833.0, "impOrig": 15000.0, "mora": 0.0, "sug": 18000}, {"n": "CONCEPCION ODILIA GARCIA LOPEZ", "f": "11112792952", "sub": "Grupal-Basico", "k": "11112792952|Grupal-Basico|CONCEPCION ODILIA GARCIA LOPEZ|0", "imp": 13000.0, "saldo": 14820.0, "esp": 542.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "ELBA ELVIRA GARCIA CRUZ", "f": "11112724518", "sub": "Grupal-Basico", "k": "11112724518|Grupal-Basico|ELBA ELVIRA GARCIA CRUZ|0", "imp": 12000.0, "saldo": 17280.0, "esp": 556.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "ELBA ELVIRA GARCIA CRUZ", "f": "11112724518", "sub": "Grupal-Micro", "k": "11112724518|Grupal-Micro|ELBA ELVIRA GARCIA CRUZ|0", "imp": 10000.0, "saldo": 6080.0, "esp": 556.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "EVILA MARTINEZ MIGUEL", "f": "11113115541", "sub": "Grupal-Basico", "k": "11113115541|Grupal-Basico|EVILA MARTINEZ MIGUEL|0", "imp": 7000.0, "saldo": 2100.0, "esp": 833.0, "impOrig": 7000.0, "mora": 0.0, "sug": 8500}, {"n": "EVILA MARTINEZ MIGUEL", "f": "11113115541", "sub": "Grupal-Micro", "k": "11113115541|Grupal-Micro|EVILA MARTINEZ MIGUEL|0", "imp": 15000.0, "saldo": 21600.0, "esp": 833.0, "impOrig": 15000.0, "mora": 0.0, "sug": 18000}, {"n": "FLORENCIA CRUZ SANTIAGO", "f": "11113053166", "sub": "Grupal-Basico", "k": "11113053166|Grupal-Basico|FLORENCIA CRUZ SANTIAGO|0", "imp": 12000.0, "saldo": 9360.0, "esp": 833.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "FLORENCIA CRUZ SANTIAGO", "f": "11113053166", "sub": "Grupal-Micro", "k": "11113053166|Grupal-Micro|FLORENCIA CRUZ SANTIAGO|0", "imp": 15000.0, "saldo": 22080.0, "esp": 833.0, "impOrig": 15000.0, "mora": 0.0, "sug": 18000}, {"n": "JEIVI CRUZ AVENDAÑO", "f": "11112918349", "sub": "Grupal-Basico", "k": "11112918349|Grupal-Basico|JEIVI CRUZ AVENDAÑO|0", "imp": 13000.0, "saldo": 10920.0, "esp": 1389.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "JEIVI CRUZ AVENDAÑO", "f": "11112918349", "sub": "Grupal-Microcredito", "k": "11112918349|Grupal-Microcredito|JEIVI CRUZ AVENDAÑO|0", "imp": 25000.0, "saldo": 13266.0, "esp": 1389.0, "impOrig": 25000.0, "mora": 0.0, "sug": 30000}, {"n": "KAREN ITZEL SANTIAGO SUMANO", "f": "11113069896", "sub": "Grupal-Basico", "k": "11113069896|Grupal-Basico|KAREN ITZEL SANTIAGO SUMANO|0", "imp": 3000.0, "saldo": 3960.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "MARIA DEL SOCORRO GONZALES MIGUEL", "f": "11112973962", "sub": "Grupal-Basico", "k": "11112973962|Grupal-Basico|MARIA DEL SOCORRO GONZALES MIGUEL|0", "imp": 13000.0, "saldo": 11700.0, "esp": 667.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "MARIA DEL SOCORRO GONZALES MIGUEL", "f": "11112973962", "sub": "Grupal-Micro", "k": "11112973962|Grupal-Micro|MARIA DEL SOCORRO GONZALES MIGUEL|0", "imp": 12000.0, "saldo": 11136.0, "esp": 667.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "PERLA FRANCISCA GONZALES ZARATE", "f": "11113209269", "sub": "Grupal-Basico", "k": "11113209269|Grupal-Basico|PERLA FRANCISCA GONZALES ZARATE|0", "imp": 13000.0, "saldo": 2340.0, "esp": 167.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "PERLA FRANCISCA GONZALES ZARATE", "f": "11113209269", "sub": "Grupal-Adicional", "k": "11113209269|Grupal-Adicional|PERLA FRANCISCA GONZALES ZARATE|0", "imp": 4000.0, "saldo": 800.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "RICARDA CRUZ RAMIREZ PAZ", "f": "11113299859", "sub": "Grupal-Micro 2", "k": "11113299859|Grupal-Micro 2|RICARDA CRUZ RAMIREZ PAZ|0", "imp": 20000.0, "saldo": 20539.0, "esp": 1111.0, "impOrig": 20000.0, "mora": 0.0, "sug": 24000}, {"n": "SOCORRO GLAFIRA AVENDAÑO CHAVEZ", "f": "11112847319", "sub": "Grupal-Microcredito", "k": "11112847319|Grupal-Microcredito|SOCORRO GLAFIRA AVENDAÑO CHAVEZ|0", "imp": 20000.0, "saldo": 27985.0, "esp": 1944.0, "impOrig": 20000.0, "mora": 0.0, "sug": 24000}, {"n": "SOCORRO GLAFIRA AVENDAÑO CHAVEZ", "f": "11112847319", "sub": "Micro-Especial", "k": "11112847319|Micro-Especial|SOCORRO GLAFIRA AVENDAÑO CHAVEZ|0", "imp": 35000.0, "saldo": 21073.0, "esp": 1944.0, "impOrig": 35000.0, "mora": 0.0, "sug": 42000}, {"n": "SOCORRO MIGUEL MIGUEL", "f": "11113102023", "sub": "Grupal-Basico", "k": "11113102023|Grupal-Basico|SOCORRO MIGUEL MIGUEL|0", "imp": 12000.0, "saldo": 14400.0, "esp": 556.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "SOCORRO MIGUEL MIGUEL", "f": "11113102023", "sub": "Grupal-Micro", "k": "11113102023|Grupal-Micro|SOCORRO MIGUEL MIGUEL|0", "imp": 10000.0, "saldo": 5120.0, "esp": 556.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "SOCORRO MIGUEL MIGUEL", "f": "11113102023", "sub": "Grupal-Micro", "k": "11113102023|Grupal-Micro|SOCORRO MIGUEL MIGUEL|1", "imp": 10000.0, "saldo": 5120.0, "esp": 556.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "TERESA GONZALES MIGUEL", "f": "11113117861", "sub": "Grupal-Basico", "k": "11113117861|Grupal-Basico|TERESA GONZALES MIGUEL|0", "imp": 12000.0, "saldo": 10800.0, "esp": 1000.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "TERESA GONZALES MIGUEL", "f": "11113117861", "sub": "Grupal-Micro", "k": "11113117861|Grupal-Micro|TERESA GONZALES MIGUEL|0", "imp": 18000.0, "saldo": 14976.0, "esp": 1000.0, "impOrig": 18000.0, "mora": 0.0, "sug": 21500}], "C-45 · SAN JUAN": [{"n": "ANDREA JOSELYN SANCHEZ RUIZ", "f": "11112957047", "sub": "Grupal-Basico", "k": "11112957047|Grupal-Basico|ANDREA JOSELYN SANCHEZ RUIZ|0", "imp": 5000.0, "saldo": 1800.0, "esp": 208.0, "impOrig": 5000.0, "mora": 167.0, "sug": 6000}, {"n": "ARIADNA PAOLA LOPEZ PEREZ", "f": "11113003674", "sub": "Grupal-Basico", "k": "11113003674|Grupal-Basico|ARIADNA PAOLA LOPEZ PEREZ|0", "imp": 7000.0, "saldo": 4620.0, "esp": 292.0, "impOrig": 7000.0, "mora": 204.0, "sug": 8500}, {"n": "ESPERANZA ELIZABETH MARTINEZ CRUZ", "f": "11112788121", "sub": "Grupal-Basico", "k": "11112788121|Grupal-Basico|ESPERANZA ELIZABETH MARTINEZ CRUZ|0", "imp": 6000.0, "saldo": 2160.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "MARTHA SILVIA  CRUZ ACEVEDO", "f": "11112943727", "sub": "Grupal-Basico", "k": "11112943727|Grupal-Basico|MARTHA SILVIA  CRUZ ACEVEDO|0", "imp": 3000.0, "saldo": 760.0, "esp": 125.0, "impOrig": 3000.0, "mora": 57.0, "sug": 3500}, {"n": "REINA RUIZ ESPINOZA", "f": "11113186700", "sub": "Grupal-Basico", "k": "11113186700|Grupal-Basico|REINA RUIZ ESPINOZA|0", "imp": 12000.0, "saldo": 2880.0, "esp": 500.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "TERESA CRUZ PEREZ", "f": "11113168554", "sub": "Grupal-Micro", "k": "11113168554|Grupal-Micro|TERESA CRUZ PEREZ|0", "imp": 10000.0, "saldo": 4160.0, "esp": 556.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "VICENTA GAUDENCIA   PAZ SANTIAGO", "f": "11112999671", "sub": "Grupal-Basico", "k": "11112999671|Grupal-Basico|VICENTA GAUDENCIA   PAZ SANTIAGO|0", "imp": 3000.0, "saldo": 180.0, "esp": 125.0, "impOrig": 3000.0, "mora": 12.0, "sug": 3500}], "C-5 · ARENITA": [{"n": "CARMEN VIANEY EVANGELISTA MARTINEZ", "f": "11112783089", "sub": "Grupal-Basico", "k": "11112783089|Grupal-Basico|CARMEN VIANEY EVANGELISTA MARTINEZ|0", "imp": 3000.0, "saldo": 2340.0, "esp": 125.0, "impOrig": 3000.0, "mora": 36.0, "sug": 3500}, {"n": "EMMA GUADALUPE EVANGELISTA MARTINEZ", "f": "11112807346", "sub": "Grupal-Basico", "k": "11112807346|Grupal-Basico|EMMA GUADALUPE EVANGELISTA MARTINEZ|0", "imp": 3000.0, "saldo": 1800.0, "esp": 125.0, "impOrig": 3000.0, "mora": 30.0, "sug": 3500}, {"n": "HERIBERTA MARIA ELIZA GONZALEZ GARCIA", "f": "11112934517", "sub": "Grupal-Basico", "k": "11112934517|Grupal-Basico|HERIBERTA MARIA ELIZA GONZALEZ GARCIA|0", "imp": 8000.0, "saldo": 2320.0, "esp": 333.0, "impOrig": 8000.0, "mora": 176.0, "sug": 9500}, {"n": "NOEMI MELISSA ESPINOZA CRUZ", "f": "11112871315", "sub": "Grupal-Basico", "k": "11112871315|Grupal-Basico|NOEMI MELISSA ESPINOZA CRUZ|0", "imp": 12000.0, "saldo": 2160.0, "esp": 500.0, "impOrig": 12000.0, "mora": 0.0, "sug": 14500}, {"n": "SONIA ELIZABETH LUIS GONZALES", "f": "11113152077", "sub": "Grupal-Basico", "k": "11113152077|Grupal-Basico|SONIA ELIZABETH LUIS GONZALES|0", "imp": 3000.0, "saldo": 360.0, "esp": 125.0, "impOrig": 3000.0, "mora": 176.0, "sug": 3500}], "C-70 · BARRIO EL TETICHE": [{"n": "ARACELY SONIA PADILLA CRUZ", "f": "11112772748", "sub": "Grupal-Basico 2", "k": "11112772748|Grupal-Basico 2|ARACELY SONIA PADILLA CRUZ|0", "imp": 9800.0, "saldo": 3530.0, "esp": 125.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "ARACELY SONIA PADILLA CRUZ", "f": "11112772748", "sub": "Grupal-Adicional", "k": "11112772748|Grupal-Adicional|ARACELY SONIA PADILLA CRUZ|0", "imp": 3000.0, "saldo": 900.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "ARELI  RAMOS HERNANDEZ", "f": "11112849831", "sub": "Grupal-Basico 2", "k": "11112849831|Grupal-Basico 2|ARELI  RAMOS HERNANDEZ|0", "imp": 13000.0, "saldo": 7488.0, "esp": 56.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "ARELI  RAMOS HERNANDEZ", "f": "11112849831", "sub": "Grupal-Micro", "k": "11112849831|Grupal-Micro|ARELI  RAMOS HERNANDEZ|0", "imp": 1000.0, "saldo": 3520.0, "esp": 56.0, "impOrig": 1000.0, "mora": 0.0, "sug": 1000}, {"n": "BETZY HERNANDEZ PADILLA", "f": "11112871359", "sub": "Grupal-Basico 2", "k": "11112871359|Grupal-Basico 2|BETZY HERNANDEZ PADILLA|0", "imp": 8000.0, "saldo": 8064.0, "esp": 333.0, "impOrig": 8000.0, "mora": 0.0, "sug": 9500}, {"n": "CINTHYA ARLETH CRUZ HERNANDEZ", "f": "11112917272", "sub": "Grupal-Basico 2", "k": "11112917272|Grupal-Basico 2|CINTHYA ARLETH CRUZ HERNANDEZ|0", "imp": 9800.0, "saldo": 7060.0, "esp": 408.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "ESTHER GAYTAN RAMIREZ", "f": "11112872200", "sub": "Grupal-Basico 2", "k": "11112872200|Grupal-Basico 2|ESTHER GAYTAN RAMIREZ|0", "imp": 13000.0, "saldo": 2808.0, "esp": 167.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "ESTHER GAYTAN RAMIREZ", "f": "11112872200", "sub": "Grupal-Adicional", "k": "11112872200|Grupal-Adicional|ESTHER GAYTAN RAMIREZ|0", "imp": 4000.0, "saldo": 3600.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "FLOR SILVIA LOPEZ MARTINEZ", "f": "11112932017", "sub": "Grupal-Basico 2", "k": "11112932017|Grupal-Basico 2|FLOR SILVIA LOPEZ MARTINEZ|0", "imp": 8000.0, "saldo": 5184.0, "esp": 333.0, "impOrig": 8000.0, "mora": 0.0, "sug": 9500}, {"n": "JUANA GUDELIA RAMIREZ MARTINEZ", "f": "11112982584", "sub": "Grupal-Basico 2", "k": "11112982584|Grupal-Basico 2|JUANA GUDELIA RAMIREZ MARTINEZ|0", "imp": 6000.0, "saldo": 6912.0, "esp": 125.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}, {"n": "JUANA GUDELIA RAMIREZ MARTINEZ", "f": "11112982584", "sub": "Grupal-Adicional", "k": "11112982584|Grupal-Adicional|JUANA GUDELIA RAMIREZ MARTINEZ|0", "imp": 3000.0, "saldo": 900.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "MARIA ESTELA PADILLA CRUZ", "f": "11112816492", "sub": "Grupal-Basico 2", "k": "11112816492|Grupal-Basico 2|MARIA ESTELA PADILLA CRUZ|0", "imp": 13000.0, "saldo": 12168.0, "esp": 167.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "MARIA ESTELA PADILLA CRUZ", "f": "11112816492", "sub": "Grupal-Adicional", "k": "11112816492|Grupal-Adicional|MARIA ESTELA PADILLA CRUZ|0", "imp": 4000.0, "saldo": 4800.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "MELANIE DALAID DIAZ RUIZ", "f": "11113005497", "sub": "Grupal-Basico 2", "k": "11113005497|Grupal-Basico 2|MELANIE DALAID DIAZ RUIZ|0", "imp": 5000.0, "saldo": 1800.0, "esp": 208.0, "impOrig": 5000.0, "mora": 0.0, "sug": 6000}, {"n": "RUTH MARTHA LOPEZ SANTOS", "f": "11113207666", "sub": "Grupal-Basico 2", "k": "11113207666|Grupal-Basico 2|RUTH MARTHA LOPEZ SANTOS|0", "imp": 13000.0, "saldo": 3744.0, "esp": 1000.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "RUTH MARTHA LOPEZ SANTOS", "f": "11113207666", "sub": "Grupal-Micro", "k": "11113207666|Grupal-Micro|RUTH MARTHA LOPEZ SANTOS|0", "imp": 18000.0, "saldo": 23616.0, "esp": 1000.0, "impOrig": 18000.0, "mora": 0.0, "sug": 21500}, {"n": "YOLANDA ROCIO LOPEZ RUIZ", "f": "11113264674", "sub": "Grupal-Basico 2", "k": "11113264674|Grupal-Basico 2|YOLANDA ROCIO LOPEZ RUIZ|0", "imp": 8000.0, "saldo": 2880.0, "esp": 333.0, "impOrig": 8000.0, "mora": 0.0, "sug": 9500}, {"n": "YULIANA HERNANDEZ SANTIAGO", "f": "11113131595", "sub": "Grupal-Basico 2", "k": "11113131595|Grupal-Basico 2|YULIANA HERNANDEZ SANTIAGO|0", "imp": 13000.0, "saldo": 11232.0, "esp": 833.0, "impOrig": 13000.0, "mora": 0.0, "sug": 15500}, {"n": "YULIANA HERNANDEZ SANTIAGO", "f": "11113131595", "sub": "Grupal-Micro", "k": "11113131595|Grupal-Micro|YULIANA HERNANDEZ SANTIAGO|0", "imp": 15000.0, "saldo": 6240.0, "esp": 833.0, "impOrig": 15000.0, "mora": 0.0, "sug": 18000}], "C-75 · EL DINERO ME AMA": [{"n": "AUREA GLORIA GARCIA MARQUEZ", "f": "11112789848", "sub": "Grupal-Basico", "k": "11112789848|Grupal-Basico|AUREA GLORIA GARCIA MARQUEZ|0", "imp": 9800.0, "saldo": 5880.0, "esp": 167.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "AUREA GLORIA GARCIA MARQUEZ", "f": "11112789848", "sub": "Grupal-Adicional", "k": "11112789848|Grupal-Adicional|AUREA GLORIA GARCIA MARQUEZ|0", "imp": 4000.0, "saldo": 2000.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "DULCE SOLEDAD MARTINEZ GARCIA", "f": "11112818097", "sub": "Grupal-Basico", "k": "11112818097|Grupal-Basico|DULCE SOLEDAD MARTINEZ GARCIA|0", "imp": 9800.0, "saldo": 9996.0, "esp": 408.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "FABIOLA LIZBETH AVENDAÑO CRUZ", "f": "11112716131", "sub": "Grupal-Basico", "k": "11112716131|Grupal-Basico|FABIOLA LIZBETH AVENDAÑO CRUZ|0", "imp": 9800.0, "saldo": 5880.0, "esp": 408.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "OLIVIA PIRSI SANTOS HERNANDEZ", "f": "11112993402", "sub": "Grupal-Basico", "k": "11112993402|Grupal-Basico|OLIVIA PIRSI SANTOS HERNANDEZ|0", "imp": 9800.0, "saldo": 5880.0, "esp": 125.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "OLIVIA PIRSI SANTOS HERNANDEZ", "f": "11112993402", "sub": "Grupal-Adicional", "k": "11112993402|Grupal-Adicional|OLIVIA PIRSI SANTOS HERNANDEZ|0", "imp": 3000.0, "saldo": 1500.0, "esp": 125.0, "impOrig": 3000.0, "mora": 0.0, "sug": 3500}, {"n": "ROSA ELIA  HERNANDEZ CRUZ", "f": "11113061706", "sub": "Grupal-Basico", "k": "11113061706|Grupal-Basico|ROSA ELIA  HERNANDEZ CRUZ|0", "imp": 9800.0, "saldo": 5880.0, "esp": 408.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}], "C-8 · APASCO": [{"n": "CIRINA ROBLES JUAREZ", "f": "11113025167", "sub": "Grupal-Basico", "k": "11113025167|Grupal-Basico|CIRINA ROBLES JUAREZ|0", "imp": 8000.0, "saldo": 3840.0, "esp": 333.0, "impOrig": 8000.0, "mora": 72.0, "sug": 9500}, {"n": "GLORIA LOPEZ CRUZ", "f": "11112934778", "sub": "Grupal-Basico", "k": "11112934778|Grupal-Basico|GLORIA LOPEZ CRUZ|0", "imp": 9800.0, "saldo": 12348.0, "esp": 944.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "GLORIA LOPEZ CRUZ", "f": "11112934778", "sub": "Grupal-Micro", "k": "11112934778|Grupal-Micro|GLORIA LOPEZ CRUZ|0", "imp": 17000.0, "saldo": 4352.0, "esp": 944.0, "impOrig": 17000.0, "mora": 0.0, "sug": 20500}, {"n": "JULIA VICTORIA OJEDA", "f": "11113129537", "sub": "Grupal-Basico", "k": "11113129537|Grupal-Basico|JULIA VICTORIA OJEDA|0", "imp": 9800.0, "saldo": 12348.0, "esp": 944.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "JULIA VICTORIA OJEDA", "f": "11113129537", "sub": "Grupal-Micro", "k": "11113129537|Grupal-Micro|JULIA VICTORIA OJEDA|0", "imp": 17000.0, "saldo": 5984.0, "esp": 944.0, "impOrig": 17000.0, "mora": 0.0, "sug": 20500}, {"n": "LAURA CUEVAS ARANGO", "f": "11112931340", "sub": "Grupal-Basico", "k": "11112931340|Grupal-Basico|LAURA CUEVAS ARANGO|0", "imp": 9800.0, "saldo": 12348.0, "esp": 167.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "LAURA CUEVAS ARANGO", "f": "11112931340", "sub": "Grupal-Adicional", "k": "11112931340|Grupal-Adicional|LAURA CUEVAS ARANGO|0", "imp": 4000.0, "saldo": 5200.0, "esp": 167.0, "impOrig": 4000.0, "mora": 0.0, "sug": 5000}, {"n": "MARGARITA LOPEZ CRUZ", "f": "11112996211", "sub": "Grupal-Basico", "k": "11112996211|Grupal-Basico|MARGARITA LOPEZ CRUZ|0", "imp": 9800.0, "saldo": 12348.0, "esp": 944.0, "impOrig": 9800.0, "mora": 0.0, "sug": 12000}, {"n": "MARGARITA LOPEZ CRUZ", "f": "11112996211", "sub": "Grupal-Micro", "k": "11112996211|Grupal-Micro|MARGARITA LOPEZ CRUZ|0", "imp": 17000.0, "saldo": 5984.0, "esp": 944.0, "impOrig": 17000.0, "mora": 0.0, "sug": 20500}, {"n": "MARIA ELENA CERVANTES MENDEZ", "f": "11112824835", "sub": "Grupal-Micro", "k": "11112824835|Grupal-Micro|MARIA ELENA CERVANTES MENDEZ|0", "imp": 10000.0, "saldo": 5120.0, "esp": 556.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "MONICA JIMENEZ GARCIA", "f": "11112952009", "sub": "Grupal-Basico", "k": "11112952009|Grupal-Basico|MONICA JIMENEZ GARCIA|0", "imp": 6000.0, "saldo": 1080.0, "esp": 250.0, "impOrig": 6000.0, "mora": 0.0, "sug": 7000}]};
+let INDIVIDUALES=[{"n": "ALMA PAOLA ORTIZ HERNANDEZ", "f": "11112893373", "sub": "Individual 3", "k": "11112893373|Individual 3|ALMA PAOLA ORTIZ HERNANDEZ|0", "imp": 10000.0, "saldo": 6090.0, "esp": 625.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "BRIGIDA CONTRERAS ANTONIO", "f": "11112775265", "sub": "Individual 2", "k": "11112775265|Individual 2|BRIGIDA CONTRERAS ANTONIO|0", "imp": 7000.0, "saldo": 5229.0, "esp": 438.0, "impOrig": 7000.0, "mora": 0.0, "sug": 10000}, {"n": "EULALIA JULIA HERNANDEZ LOPEZ", "f": "11112862419", "sub": "Foxi Plus - 1", "k": "11112862419|Foxi Plus - 1|EULALIA JULIA HERNANDEZ LOPEZ|0", "imp": 20000.0, "saldo": 26535.0, "esp": 1250.0, "impOrig": 20000.0, "mora": 0.0, "sug": 20000.0}, {"n": "FRANCISCO GUADALUPE LOPEZ PINELO", "f": "11113053778", "sub": "Individual 1", "k": "11113053778|Individual 1|FRANCISCO GUADALUPE LOPEZ PINELO|0", "imp": 5000.0, "saldo": 4895.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "LETICIA CHAVEZ GONZALES", "f": "11112794953", "sub": "Individual 4", "k": "11112794953|Individual 4|LETICIA CHAVEZ GONZALES|0", "imp": 12000.0, "saldo": 996.0, "esp": 750.0, "impOrig": 12000.0, "mora": 0.0, "sug": 15000}, {"n": "LETICIA LUISA CUEVAS HERNANDEZ", "f": "11113008354", "sub": "Individual 2", "k": "11113008354|Individual 2|LETICIA LUISA CUEVAS HERNANDEZ|0", "imp": 7000.0, "saldo": 581.0, "esp": 438.0, "impOrig": 7000.0, "mora": 0.0, "sug": 10000}, {"n": "NUBIA ESPINOZA PEREZ", "f": "11113007142", "sub": "Foxi Plus - 1", "k": "11113007142|Foxi Plus - 1|NUBIA ESPINOZA PEREZ|0", "imp": 25000.0, "saldo": 26313.0, "esp": 1562.0, "impOrig": 25000.0, "mora": 0.0, "sug": 25000.0}, {"n": "SARA ESTRELLA MENDOZA CHAVEZ", "f": "11112666665", "sub": "Individual 3", "k": "11112666665|Individual 3|SARA ESTRELLA MENDOZA CHAVEZ|0", "imp": 10000.0, "saldo": 6960.0, "esp": 625.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "JUANA SANTIAGO RUIZ", "f": "11113052405", "sub": "Individual 1", "k": "11113052405|Individual 1|JUANA SANTIAGO RUIZ|0", "imp": 5000.0, "saldo": 4450.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "ADRIANA DENISE VASQUEZ ANGEL", "f": "11112811779", "sub": "Foxi Plus - 2", "k": "11112811779|Foxi Plus - 2|ADRIANA DENISE VASQUEZ ANGEL|0", "imp": 15000.0, "saldo": 13498.0, "esp": 938.0, "impOrig": 15000.0, "mora": 0.0, "sug": 15000.0}, {"n": "VICENTA ALCANTARA SANTIAGO", "f": "11112993910", "sub": "Foxi Plus - 2", "k": "11112993910|Foxi Plus - 2|VICENTA ALCANTARA SANTIAGO|0", "imp": 20000.0, "saldo": 15877.5, "esp": 1250.0, "impOrig": 20000.0, "mora": 0.0, "sug": 20000.0}, {"n": "JOLIBETH MINERVA LOPEZ GALINDO", "f": "11113009695", "sub": "Foxi Plus - 1", "k": "11113009695|Foxi Plus - 1|JOLIBETH MINERVA LOPEZ GALINDO|0", "imp": 30000.0, "saldo": 32940.0, "esp": 1875.0, "impOrig": 30000.0, "mora": 0.0, "sug": 30000.0}, {"n": "DANIELA MICHELLE HERNANDEZ LOPEZ", "f": "11112856037", "sub": "Foxi Plus - 1", "k": "11112856037|Foxi Plus - 1|DANIELA MICHELLE HERNANDEZ LOPEZ|0", "imp": 20000.0, "saldo": 21960.0, "esp": 1250.0, "impOrig": 20000.0, "mora": 0.0, "sug": 20000.0}, {"n": "EDITH CHAVEZ GONZALES", "f": "11112721007", "sub": "Foxi Plus - 2", "k": "11112721007|Foxi Plus - 2|EDITH CHAVEZ GONZALES|0", "imp": 16000.0, "saldo": 17787.0, "esp": 1000.0, "impOrig": 16000.0, "mora": 0.0, "sug": 16000.0}, {"n": "ELVIA VIRGINIA LOPEZ VENEGAS", "f": "11113101539", "sub": "Individual 3", "k": "11113101539|Individual 3|ELVIA VIRGINIA LOPEZ VENEGAS|0", "imp": 10000.0, "saldo": 4350.0, "esp": 625.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "MINERVA ENEDINA GALINDO VICTORIA", "f": "11112993643", "sub": "Foxi Plus - 1", "k": "11112993643|Foxi Plus - 1|MINERVA ENEDINA GALINDO VICTORIA|0", "imp": 25000.0, "saldo": 18304.0, "esp": 1562.0, "impOrig": 25000.0, "mora": 0.0, "sug": 25000.0}, {"n": "JULIANA CESAREA CRUZ MUÑOZ", "f": "11113034520", "sub": "Individual 1", "k": "11113034520|Individual 1|JULIANA CESAREA CRUZ MUÑOZ|0", "imp": 5000.0, "saldo": 4005.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "REINA JUANA GARCIA CRUZ", "f": "11112855162", "sub": "Individual 2", "k": "11112855162|Individual 2|REINA JUANA GARCIA CRUZ|0", "imp": 7000.0, "saldo": 5229.0, "esp": 438.0, "impOrig": 7000.0, "mora": 0.0, "sug": 10000}, {"n": "DULCE GARCIA CRUZ", "f": "11112714005", "sub": "Individual 1", "k": "11112714005|Individual 1|DULCE GARCIA CRUZ|0", "imp": 5000.0, "saldo": 2225.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "GUIE XHUUBA ANTONIO RUIZ", "f": "11112971606", "sub": "Individual 1", "k": "11112971606|Individual 1|GUIE XHUUBA ANTONIO RUIZ|0", "imp": 5000.0, "saldo": 4005.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "SOLEDAD REINA CRUZ MEJIA", "f": "11113126158", "sub": "Individual 1", "k": "11113126158|Individual 1|SOLEDAD REINA CRUZ MEJIA|0", "imp": 5000.0, "saldo": 4450.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "ELVIRA ROSA MUÑOZ LOPEZ", "f": "11113075182", "sub": "Individual 1", "k": "11113075182|Individual 1|ELVIRA ROSA MUÑOZ LOPEZ|0", "imp": 5000.0, "saldo": 4450.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "CONSTANTINO OSCAR PINELO JIMENEZ", "f": "11112944545", "sub": "Individual 1", "k": "11112944545|Individual 1|CONSTANTINO OSCAR PINELO JIMENEZ|0", "imp": 5000.0, "saldo": 4005.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "EDITH IRMA GARCIA LOPEZ", "f": "11112818336", "sub": "Individual 1", "k": "11112818336|Individual 1|EDITH IRMA GARCIA LOPEZ|0", "imp": 5000.0, "saldo": 3560.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "YADIRA MONICA GARCIA HERNANDEZ", "f": "11112973932", "sub": "Individual 2", "k": "11112973932|Individual 2|YADIRA MONICA GARCIA HERNANDEZ|0", "imp": 7000.0, "saldo": 8715.0, "esp": 438.0, "impOrig": 7000.0, "mora": 0.0, "sug": 10000}, {"n": "GABRIELA MANUELA GARCIA GARCIA", "f": "11112781039", "sub": "Individual 3", "k": "11112781039|Individual 3|GABRIELA MANUELA GARCIA GARCIA|0", "imp": 10000.0, "saldo": 2610.0, "esp": 625.0, "impOrig": 10000.0, "mora": 0.0, "sug": 12000}, {"n": "DELIA LUCIA PAZ DE LA LUZ", "f": "11112898863", "sub": "Individual 2", "k": "11112898863|Individual 2|DELIA LUCIA PAZ DE LA LUZ|0", "imp": 7000.0, "saldo": 8715.0, "esp": 438.0, "impOrig": 7000.0, "mora": 0.0, "sug": 10000}, {"n": "ARELI BELEN LOPEZ RAMOS", "f": "11113029242", "sub": "Individual 1", "k": "11113029242|Individual 1|ARELI BELEN LOPEZ RAMOS|0", "imp": 5000.0, "saldo": 5785.0, "esp": 312.0, "impOrig": 5000.0, "mora": 0.0, "sug": 7000}, {"n": "TERESA HERNANDEZ HERNANDEZ", "f": "11112977354", "sub": "Individual 2", "k": "11112977354|Individual 2|TERESA HERNANDEZ HERNANDEZ|0", "imp": 7000.0, "saldo": 8134.0, "esp": 438.0, "impOrig": 7000.0, "mora": 0.0, "sug": 10000}];
+(function cargarPadron(){
+  try{const p=localStorage.getItem(PADRON_KEY);if(p){const d=JSON.parse(p);if(d.CENTROS)CENTROS=d.CENTROS;if(d.INDIVIDUALES)INDIVIDUALES=d.INDIVIDUALES;}}catch(e){}
+})();
+
+// registro[centro][socio]={pago,garantia,solidario,forma}
+let reg={};
+let regI={};
+let movs=[]; // otros movimientos: {concepto,centro,clienta,socio,monto,via,nota}
+let gestRenov={}; // gestión de renovaciones por llave: {estado, ts}
+let tareasGerente={}; // solo Nery: {tareaId: true}
+let datosCli={}; // datos permanentes por clienta (llave): {plazo, semana, tsSemana} — NO se borra al cerrar día
+const DATOS_KEY="fooax_datoscli_"+EJECUTIVO_BASE;
+function guardarDatosCli(){try{localStorage.setItem(DATOS_KEY,JSON.stringify(datosCli));}catch(e){}}
+function restaurarDatosCli(){try{const raw=localStorage.getItem(DATOS_KEY);if(raw)datosCli=JSON.parse(raw);}catch(e){}}
+const ES_GERENTE=false;
+// ===== Guardado automático en el celular (sobrevive cierres/recargas) =====
+function guardar(){
+  try{
+    const fecha=document.getElementById('inpFecha').value||hoyISO();
+    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,ts:Date.now()}));
+    const ind=document.getElementById('guardadoMsg');
+    if(ind){ind.textContent='Guardado '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
+  }catch(e){}
+}
+function restaurar(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);if(!raw)return;
+    const d=JSON.parse(raw);
+    const hoy=hoyISO();
+    // Si lo guardado es de un DÍA ANTERIOR, no lo cargamos como si fuera de hoy:
+    // avisamos y limpiamos, para que no se junte la cobranza de ayer con la de hoy.
+    if(d.fecha && d.fecha!==hoy){
+      const tieneAlgo=(d.reg&&Object.keys(d.reg).length)||(d.regI&&Object.keys(d.regI).length)||(d.movs&&d.movs.length);
+      if(tieneAlgo){
+        const seguir=confirm('⚠ Hay captura guardada del '+d.fecha+' (un día anterior).\n\nSi ya cerraste ese día, toca ACEPTAR para empezar limpio hoy ('+hoy+').\n\nSi NO habías terminado ese día, toca CANCELAR para recuperarlo.');
+        if(seguir){
+          localStorage.removeItem(STORE_KEY);
+          document.getElementById('inpFecha').value=hoy;
+          return; // empieza limpio con fecha de hoy
+        }
+      }
+    }
+    if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs; if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
+    // la fecha SIEMPRE es la de hoy al abrir, no la guardada
+    document.getElementById('inpFecha').value=hoy;
+  }catch(e){}
+}
+function cerrarDia(){
+  // EXIGIR envío del reporte del día si hubo cobranza
+  const {t}=totales();
+  if(t>0 && !window._reporteEnviado){
+    alert('🔒 NO PUEDES CERRAR EL DÍA.\n\nPrimero debes SUBIR TU REPORTE del día al grupo de WhatsApp.\n\nVe a la pestaña Resumen y toca "Enviar por WhatsApp". Es obligatorio: así Dirección y Monse ven tu avance.');
+    showTab('resumen');
+    return;
+  }
+  const rp=renovPendientes();
+  if(rp.pendientes>0){
+    if(!confirm('⚠ ATENCIÓN: tienes '+rp.pendientes+' renovación(es) SIN gestionar.\n\nLas renovaciones son parte de tus tareas del día. Lo recomendable es contactarlas y marcar su estado antes de cerrar.\n\n¿Cerrar de todos modos?'))return;
+  }
+  // BLOQUEO TOTAL para gerente: las 3 funciones deben estar cumplidas
+  if(ES_GERENTE){
+    const faltan=tareasGerentePendientes();
+    if(faltan.length>0){
+      alert('🔒 NO PUEDES CERRAR EL DÍA.\n\nComo Gerente, debes cumplir tus 3 funciones antes de cerrar. Te falta:\n\n'+faltan.map(t=>'• '+t).join('\n')+'\n\nVe a la pestaña "Mis funciones" y márcalas como cumplidas.');
+      return;
+    }
+  }
+  if(!confirm('¿Cerrar el día? Esto borra lo capturado de este celular. Asegúrate de haber exportado o enviado el detalle a Monse primero.'))return;
+  localStorage.removeItem(STORE_KEY);
+  reg={};regI={};movs=[];gestRenov={};tareasGerente={};window._reporteEnviado=false;
+  render();renderIndiv();renderRenov();recalc();
+  if(ES_GERENTE)renderGerente();
+  alert('Día cerrado. La app quedó lista para la próxima captura.');
+}
+
+
+function fmt(n){return '$'+(Math.round(n)).toLocaleString('es-MX');}
+function hoyISO(){return new Date().toISOString().slice(0,10);}
+
+function initFecha(){document.getElementById('inpFecha').value=hoyISO();updFecha();}
+function updFecha(){
+  const d=new Date(document.getElementById('inpFecha').value||hoyISO());
+  document.getElementById('fechaHoy').textContent=d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const ds=DIAS[(d.getDay()+6)%7];
+  const sel=document.getElementById('selDia');
+  for(const o of sel.options){if(o.value===ds){sel.value=ds;break;}}
+  render();
+}
+function initSelects(){const s=document.getElementById('selDia');DIAS.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;s.appendChild(o);});}
+function fillCentros(){
+  const sel=document.getElementById('selCentro');sel.innerHTML='<option value="">— Elige un centro —</option>';
+  Object.keys(CENTROS).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k+' ('+CENTROS[k].length+')';sel.appendChild(o);});
+}
+
+function getReg(store,centro,socio){
+  if(centro){if(!store[centro])store[centro]={};if(!store[centro][socio])store[centro][socio]={pago:0,garantia:0,solidario:0,forma:''};return store[centro][socio];}
+  if(!store[socio])store[socio]={pago:0,garantia:0,solidario:0,forma:''};return store[socio];
+}
+function rTot(r){return (r.pago||0)+(r.garantia||0)+(r.solidario||0);}
+
+function semaforoCentro(centro){
+  const clientas=CENTROS[centro]||[];
+  const total=clientas.length;
+  let pagadas=0, montoCobrado=0, montoEsp=0, garCobrada=0, solCobrado=0, moraCentro=0, clientasMora=0;
+  clientas.forEach(cl=>{
+    const r=(reg[centro]&&reg[centro][cl.k||cl.f])||{};
+    if(rTot(r)>0)pagadas++;
+    montoCobrado+=(r.pago||0);
+    garCobrada+=(r.garantia||0);
+    solCobrado+=(r.solidario||0);
+    montoEsp+=(cl.esp||0);
+    if((cl.mora||0)>0){moraCentro+=cl.mora;clientasMora++;}
+  });
+  const pctCli= total? Math.round(pagadas/total*100):0;
+  const pctMonto= montoEsp? Math.round(montoCobrado/montoEsp*100):0;
+  return {total,pagadas,pctCli,pctMonto,montoCobrado,montoEsp,garCobrada,solCobrado,moraCentro,clientasMora};
+}
+function colorSem(pct){ if(pct>=100)return 'var(--ok)'; if(pct>=70)return 'var(--riqueza)'; return 'var(--mora)'; }
+function emojiSem(pct){ if(pct>=100)return '🟢'; if(pct>=70)return '🟡'; return '🔴'; }
+function semBadges(s){
+  return '<div class="sembadges">'
+    +'<span class="sembadge" style="background:'+colorSem(s.pctCli)+'">'+emojiSem(s.pctCli)+' Clientas '+s.pagadas+'/'+s.total+' ('+s.pctCli+'%)</span>'
+    +'<span class="sembadge" style="background:'+colorSem(s.pctMonto)+'">'+emojiSem(s.pctMonto)+' Monto '+s.pctMonto+'%</span>'
+    +'</div>';
+}
+function subtotalCentro(s){
+  const tot=s.montoCobrado+s.garCobrada+s.solCobrado;
+  return '<div class="subcentro">'
+    +'<div class="subrow"><span>Pagos</span><b>'+fmt(s.montoCobrado)+'</b></div>'
+    +'<div class="subrow"><span>Garantías</span><b>'+fmt(s.garCobrada)+'</b></div>'
+    +(s.solCobrado>0?'<div class="subrow"><span>Solidarios</span><b>'+fmt(s.solCobrado)+'</b></div>':'')
+    +'<div class="subrow tot"><span>Total centro</span><b>'+fmt(tot)+'</b></div>'
+    +'<div class="subrow cnt"><span>Pagaron</span><b>'+s.pagadas+' de '+s.total+'</b></div>'
+    +(s.moraCentro>0?'<div class="subrow cnt" style="color:var(--mora)"><span>⚠ Mora del centro</span><b style="color:var(--mora)">'+fmt(s.moraCentro)+' ('+s.clientasMora+' clientas)</b></div>':'')
+    +'</div>';
+}
+function render(){
+  const centro=document.getElementById('selCentro').value;
+  const cont=document.getElementById('listaClientas');
+  if(!centro){cont.innerHTML='<div class="card muted">Elige un centro para capturar la cobranza.</div>';recalc();return;}
+  const clientas=CENTROS[centro];
+  const s=semaforoCentro(centro);
+  let h='<div class="card"><div class="sectitle">'+centro+' <span class="pill">'+clientas.length+' integrantes</span></div>';
+  h+=semBadges(s);
+  h+=subtotalCentro(s);
+  h+='<button class="btn btn-light" style="width:100%;margin:6px 0" onclick="toggleFicha(\''+centro.replace(/'/g,"\\'")+'\')">📋 Ver ficha del centro (cuotas)</button>';
+  h+=fichaCentro(centro);
+  clientas.forEach(cl=>{h+=cliRow(centro,cl);});
+  h+='</div>';cont.innerHTML=h;recalc();
+}
+function fichaCentro(centro){
+  const clientas=CENTROS[centro]||[];
+  let filas='', totalEsp=0, totalSaldo=0;
+  const totProd={BASICO:0, ADICIONAL:0, MICROCREDITO:0};
+  clientas.forEach(cl=>{
+    const key=cl.k||cl.f;
+    const dcli=datosCli[key]||{};
+    const cuota=(dcli.cuota&&dcli.cuota>0)?dcli.cuota:(cl.esp||0);
+    totalEsp+=cuota; totalSaldo+=(cl.saldo||0);
+    const microtag=(cl.sub||'').toLowerCase().includes('micro');
+    // Categoría de producto para el total
+    const sub=(cl.sub||'').toLowerCase();
+    let cat='BASICO';
+    if(sub.includes('adicional'))cat='ADICIONAL';
+    else if(sub.includes('micro'))cat='MICROCREDITO';
+    totProd[cat]+=cuota;
+    // Número de pago: usa el capturado (real) si existe, si no el aproximado por saldo
+    const dc=datosCli[key]||{};
+    let noPago='—';
+    if(dc.semana && dc.plazo){
+      noPago=dc.semana+'/'+dc.plazo;
+    }else{
+      const imp=cl.impOrig||cl.imp||0;
+      if(imp>0 && cuota>0){
+        const pagado=imp-(cl.saldo||0);
+        const nPago=Math.round(pagado/cuota);
+        if(nPago>0)noPago='~'+nPago;
+      }
+    }
+    filas+='<tr'+(microtag?' style="background:#FFF6E9"':'')+'>'
+      +'<td>'+cl.n+'</td>'
+      +'<td style="text-align:center">'+(cl.sub||'')+'</td>'
+      +'<td style="text-align:center">'+noPago+'</td>'
+      +'<td style="text-align:right">'+fmt(cl.saldo||0)+'</td>'
+      +'<td style="text-align:right;font-weight:800;color:var(--rio)">'+fmt(cuota)+'</td>'
+      +'</tr>';
+  });
+  let totalesProd='';
+  if(totProd.BASICO>0)totalesProd+='<tr class="fichaprod"><td colspan="4">Básico</td><td style="text-align:right">'+fmt(totProd.BASICO)+'</td></tr>';
+  if(totProd.ADICIONAL>0)totalesProd+='<tr class="fichaprod"><td colspan="4">Adicional</td><td style="text-align:right">'+fmt(totProd.ADICIONAL)+'</td></tr>';
+  if(totProd.MICROCREDITO>0)totalesProd+='<tr class="fichaprod"><td colspan="4">Microcrédito</td><td style="text-align:right">'+fmt(totProd.MICROCREDITO)+'</td></tr>';
+  return '<div class="fichabox" id="ficha_'+centro.replace(/[^a-zA-Z0-9]/g,'')+'" style="display:none">'
+    +'<div class="fichatit">📋 Ficha de cobranza · '+centro+'</div>'
+    +'<table class="fichatab"><thead><tr>'
+    +'<th>Clienta</th><th style="text-align:center">Producto</th><th style="text-align:center">No.pago</th><th style="text-align:right">Saldo</th><th style="text-align:right">Cuota</th>'
+    +'</tr></thead><tbody>'+filas
+    +totalesProd
+    +'<tr class="fichatot"><td colspan="4">TOTAL DEL CENTRO (cuota semanal)</td><td style="text-align:right">'+fmt(totalEsp)+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="fichanota">El No.pago es aproximado (calculado por el avance del saldo).</div>'
+    +'<div class="fichacopy"><button class="btn btn-light" onclick="copiarFicha(\''+centro.replace(/'/g,"\\'")+'\')">📋 Copiar ficha</button></div>'
+    +'</div>';
+}
+function toggleFicha(centro){
+  const el=document.getElementById('ficha_'+centro.replace(/[^a-zA-Z0-9]/g,''));
+  if(el)el.style.display=(el.style.display==='none')?'block':'none';
+}
+function copiarFicha(centro){
+  const clientas=CENTROS[centro]||[];
+  let txt='FICHA DE COBRANZA · '+centro+'\n\n';
+  let totalEsp=0;
+  const totProd={BASICO:0,ADICIONAL:0,MICROCREDITO:0};
+  clientas.forEach(cl=>{
+    const c=cl.esp||0;totalEsp+=c;
+    const sub=(cl.sub||'').toLowerCase();
+    let cat='BASICO'; if(sub.includes('adicional'))cat='ADICIONAL'; else if(sub.includes('micro'))cat='MICROCREDITO';
+    totProd[cat]+=c;
+    txt+=cl.n+' ('+(cl.sub||'')+'): '+fmt(c)+'\n';
+  });
+  txt+='\n';
+  if(totProd.BASICO>0)txt+='Básico: '+fmt(totProd.BASICO)+'\n';
+  if(totProd.ADICIONAL>0)txt+='Adicional: '+fmt(totProd.ADICIONAL)+'\n';
+  if(totProd.MICROCREDITO>0)txt+='Microcrédito: '+fmt(totProd.MICROCREDITO)+'\n';
+  txt+='\nTOTAL DEL CENTRO: '+fmt(totalEsp);
+  copiar(txt);
+}
+function cliRow(centro,cl){
+  const key=cl.k||cl.f;
+  const r=getReg(centro?reg:regI,centro,key);
+  const tot=rTot(r);
+  const open=tot>0||r.forma?'open':'';
+  const chk=tot>0?'on':'';const chkc=tot>0?'✓':'';
+  const efeOn=r.forma==='E'?'efe':'';const trOn=r.forma==='T'?'transf':'';const mixOn=r.forma==='M'?'mix':'';
+  const pre=centro?('c|'+centro):'i';
+  const dcli=datosCli[key]||{};
+  const cuota=(dcli.cuota&&dcli.cuota>0)?dcli.cuota:(cl.esp||0);
+  const cuotaEditada=(dcli.cuota&&dcli.cuota>0);
+  return '<div class="cli '+open+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
+    +'<div class="cli-head">'
+      +'<div class="chk '+chk+'" onclick="palomear(\''+(centro||'')+'\',\''+key+'\','+cuota+')">'+chkc+'</div>'
+      +'<div class="ci"><div class="nm">'+cl.n+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(cl.saldo)+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
+        +(((cl.sub||'').toLowerCase().includes('micro')&&(cl.mora||0)>0)?'<div class="micromora">⚠ Micro con mora ('+fmt(cl.mora)+'). Producto de alto monto: prioriza recuperar.</div>':'')
+        +fichaClienteDato(key)
+        +'<div class="rowtot">'+(tot>0?('Total: '+fmt(tot)):'')+'</div></div>'
+      +'<div class="forma">'
+        +'<button class="'+efeOn+'" onclick="setForma(\''+(centro||'')+'\',\''+key+'\',\'E\')">Efe</button>'
+        +'<button class="'+trOn+'" onclick="setForma(\''+(centro||'')+'\',\''+key+'\',\'T\')">Transf</button>'
+        +'<button class="'+mixOn+'" onclick="setForma(\''+(centro||'')+'\',\''+key+'\',\'M\')">Mixto</button>'
+      +'</div>'
+    +'</div>'
+    +'<div class="campos">'
+      +campo(centro,key,'pago','Pago',r.pago)
+      +campo(centro,key,'garantia','Garantía',r.garantia)
+      +campo(centro,key,'solidario','Solidario',r.solidario)
+    +'</div>'
+    +cuotaAviso(r,cuota)
+    +(r.forma==='M'?('<div class="mixbox">'
+      +'<div class="mixnota">Pago mixto: anota cuánto entró en efectivo y cuánto por transferencia. Deben sumar el total ('+fmt(tot)+').</div>'
+      +'<div class="mixcampos">'
+        +'<div class="campo"><label>En efectivo</label><input type="number" inputmode="decimal" placeholder="0" value="'+((r.mixEfe&&r.mixEfe>0)?r.mixEfe:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixEfe\',this.value)"></div>'
+        +'<div class="campo"><label>Transferencia</label><input type="number" inputmode="decimal" placeholder="0" value="'+((r.mixTr&&r.mixTr>0)?r.mixTr:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixTr\',this.value)"></div>'
+      +'</div>'
+      +mixAviso(r,tot)
+      +'</div>'):'')
+    +'</div>';
+}
+function fichaClienteDato(key){
+  const d=datosCli[key]||{};
+  if(d.plazo && d.semana){
+    // ya tiene datos: muestra "pago X de Y" con opción de corregir
+    return '<div class="clidato ok" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Pago '+d.semana+' de '+d.plazo+' <span class="edit">✎</span></div>';
+  }
+  // falta capturar
+  return '<div class="clidato falta" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Falta: plazo y semana de esta clienta (toca para capturar)</div>';
+}
+function editarDato(key){
+  const d=datosCli[key]||{};
+  const plazo=prompt('¿De cuántas semanas es el crédito? (plazo total)', d.plazo||'');
+  if(plazo===null)return;
+  const semana=prompt('¿En qué número de pago/semana va? (ej. 13)', d.semana||'');
+  if(semana===null)return;
+  const p=parseInt(plazo)||0, s=parseInt(semana)||0;
+  if(p>0 && s>0){
+    datosCli[key]={plazo:p, semana:s, tsSemana:Date.now()};
+    guardarDatosCli();
+    // re-render
+    const centro=document.getElementById('selCentro').value;
+    if(centro)render(); else renderIndiv();
+  }else{
+    alert('Pon números válidos (plazo y semana).');
+  }
+}
+function palomear(centro,key,cuota){
+  const r=getReg(centro?reg:regI,centro||null,key);
+  // usar la cuota corregida por el ejecutivo si existe
+  const dc=datosCli[key]||{};
+  const cuotaReal=(dc.cuota&&dc.cuota>0)?dc.cuota:cuota;
+  const pagoActual=r.pago||0;
+  if(pagoActual>0){
+    // Si el pago es DISTINTO de la cuota, es un pago manual: NO lo borramos, avisamos
+    if(cuotaReal>0 && Math.abs(pagoActual-cuotaReal)>0.01){
+      if(!confirm('Esta clienta tiene un pago de '+fmt(pagoActual)+' (distinto a su cuota '+fmt(cuotaReal)+').\n\n¿Quieres QUITAR ese pago? Si lo capturaste a mano, toca CANCELAR para conservarlo.')){
+        return; // conserva el pago manual
+      }
+    }
+    r.pago=0; // desmarcar
+  }else{
+    r.pago=cuotaReal;
+    if(!r.forma)r.forma='E';
+  }
+  if(centro)render(); else renderIndiv();
+  recalc();guardar();
+}
+function editarCuota(centro,key,cuotaActual){
+  const dc=datosCli[key]||{};
+  const actual=(dc.cuota&&dc.cuota>0)?dc.cuota:cuotaActual;
+  const nueva=prompt('Cuota semanal correcta de esta clienta (la de su ficha):', actual||'');
+  if(nueva===null)return;
+  const c=parseFloat(nueva)||0;
+  if(c>0){
+    datosCli[key]=Object.assign(datosCli[key]||{},{cuota:c});
+    guardarDatosCli();
+    if(centro)render(); else renderIndiv();
+    recalc();
+  }
+}
+function cuotaAviso(r,cuota){
+  const pago=r.pago||0;
+  if(pago<=0||cuota<=0)return '';
+  if(Math.abs(pago-cuota)<0.01)return '';
+  if(pago>cuota)return '<div class="cuotamas">⚠ Pagó '+fmt(pago)+' — es MÁS que su cuota ('+fmt(cuota)+'). Diferencia: +'+fmt(pago-cuota)+'</div>';
+  return '<div class="cuotamenos">⚠ Pagó '+fmt(pago)+' — es MENOS que su cuota ('+fmt(cuota)+'). Falta: '+fmt(cuota-pago)+'</div>';
+}
+function mixAviso(r,tot){
+  const suma=(r.mixEfe||0)+(r.mixTr||0);
+  if(suma===0)return '';
+  if(Math.abs(suma-tot)<0.01)return '<div class="mixok">✓ Cuadra: '+fmt(suma)+'</div>';
+  return '<div class="mixerr">⚠ Suma '+fmt(suma)+' pero el total es '+fmt(tot)+'. Ajusta para que cuadre.</div>';
+}
+function campo(centro,socio,key,lbl,val){
+  return '<div class="campo '+key+'"><label>'+lbl+'</label>'
+    +'<input type="number" inputmode="decimal" placeholder="0" value="'+((val&&val>0)?val:'')
+    +'" onchange="setCampo(\''+(centro||'')+'\',\''+socio+'\',\''+key+'\',this.value)"></div>';
+}
+function setCampo(centro,socio,key,v){
+  const r=getReg(centro?reg:regI,centro||null,socio);
+  r[key]=parseFloat(v)||0;
+  reflow(centro,socio);recalc();guardar();
+}
+function setForma(centro,socio,f){
+  const r=getReg(centro?reg:regI,centro||null,socio);
+  r.forma=(r.forma===f)?'':f;
+  if(r.forma!=='M'){r.mixEfe=0;r.mixTr=0;} // si deja de ser mixto, limpia
+  if(centro)render(); else renderIndiv();
+  recalc();guardar();
+}
+function setMix(centro,socio,key,v){
+  const r=getReg(centro?reg:regI,centro||null,socio);
+  r[key]=parseFloat(v)||0;
+  if(centro)render(); else renderIndiv();
+  recalc();guardar();
+}
+function reflow(centro,socio){
+  // actualizar total visible sin redibujar todo
+  if(centro)render(); else renderIndiv();
+}
+
+function totales(){
+  let t=0,efe=0,tr=0,n=0;
+  const acc={pago:0,garantia:0,solidario:0};
+  function add(r){const tt=rTot(r);if(tt>0){t+=tt;n++;CONCEPTOS.forEach(k=>acc[k]+=(r[k]||0));
+    if(r.forma==='E')efe+=tt;
+    else if(r.forma==='T')tr+=tt;
+    else if(r.forma==='M'){efe+=(r.mixEfe||0);tr+=(r.mixTr||0);} // pago mixto: cada parte a su bolsa
+  }}
+  for(const c in reg)for(const s in reg[c])add(reg[c][s]);
+  for(const s in regI)add(regI[s]);
+  return {t,efe,tr,n,acc};
+}
+function semaforoGlobalDia(){
+  // suma todos los centros que tienen al menos una captura ese día + individuales
+  let totalCli=0,pagadas=0,montoCob=0,montoEsp=0,centrosTocados=0,centrosCompletos=0;
+  for(const ck in CENTROS){
+    if(!reg[ck])continue; // solo centros con algo capturado cuentan al avance del día
+    const s=semaforoCentro(ck);
+    centrosTocados++;
+    if(s.pctCli>=100)centrosCompletos++;
+    totalCli+=s.total;pagadas+=s.pagadas;montoCob+=s.montoCobrado;montoEsp+=s.montoEsp;
+  }
+  // individuales
+  let iPag=0,iTot=INDIVIDUALES.length,iCob=0,iEsp=0;
+  for(const cl of INDIVIDUALES){const r=regI[cl.k||cl.f]||{};if(rTot(r)>0)iPag++;iCob+=(r.pago||0);iEsp+=(cl.esp||0);}
+  if(iPag>0){totalCli+=iTot;pagadas+=iPag;montoCob+=iCob;montoEsp+=iEsp;}
+  const pctCli=totalCli?Math.round(pagadas/totalCli*100):0;
+  const pctMonto=montoEsp?Math.round(montoCob/montoEsp*100):0;
+  return {pctCli,pctMonto,pagadas,totalCli,centrosTocados,centrosCompletos};
+}
+function recalc(){
+  const {t,efe,tr}=totales();
+  document.getElementById('totHoy').textContent=fmt(t);
+  document.getElementById('totMini').textContent='Efe '+fmt(efe)+' · Transf '+fmt(tr);
+  const g=semaforoGlobalDia();
+  const gd=document.getElementById('semGlobal');
+  if(gd){
+    const rp=renovPendientes();
+    let txt=emojiSem(g.pctCli)+' '+g.pctCli+'% clientas · '+emojiSem(g.pctMonto)+' '+g.pctMonto+'% monto';
+    if(rp.total>0){
+      const renovOk=rp.pendientes===0;
+      txt+=' · '+(renovOk?'🟢':'🔴')+' Renov '+(rp.total-rp.pendientes)+'/'+rp.total;
+    }
+    gd.innerHTML=txt;
+  }
+}
+
+/* INDIVIDUALES */
+function renderIndiv(){
+  const cont=document.getElementById('listaIndiv');if(!cont)return;
+  let h='<div class="card"><div class="sectitle">Clientas individuales <span class="pill">'+INDIVIDUALES.length+'</span></div>';
+  INDIVIDUALES.forEach(cl=>{h+=cliRow('',cl);});
+  h+='</div>';cont.innerHTML=h;
+}
+
+/* ARQUEO — estructura idéntica al cierre semanal (billetes + monedas) */
+const DENOM=[
+  {l:"Billete $1,000",v:1000},{l:"Billete $500",v:500},{l:"Billete $200",v:200},
+  {l:"Billete $100",v:100},{l:"Billete $50",v:50},{l:"Billete $20",v:20},
+  {l:"Moneda $20",v:20,m:1},{l:"Moneda $10",v:10,m:1},{l:"Moneda $5",v:5,m:1},
+  {l:"Moneda $2",v:2,m:1},{l:"Moneda $1",v:1,m:1},{l:"Moneda $0.50",v:0.5,m:1}
+];
+function initArqueo(){const box=document.getElementById('arqueoBox');let h='';
+  DENOM.forEach((d,i)=>{
+    if(i===0)h+='<div class="meta" style="font-weight:800;color:var(--rio);margin:2px 0 6px">BILLETES</div>';
+    if(i===6)h+='<div class="meta" style="font-weight:800;color:var(--rio);margin:10px 0 6px">MONEDAS</div>';
+    h+='<div class="arqueo-row"><div class="den">'+d.l.replace("Billete ","").replace("Moneda ","")+'</div><span>×</span><input type="number" inputmode="numeric" min="0" placeholder="0" data-den="'+i+'" data-val="'+d.v+'" oninput="calcArqueo()"><div class="sub" id="sub'+i+'">$0</div></div>';
+  });
+  box.innerHTML=h;}
+function movsEfectivoNeto(){
+  // entradas en efectivo suman, gastos/desembolsos en efectivo restan
+  let neto=0;
+  movs.forEach(m=>{
+    if(m.via!=='E')return;
+    const c=(m.concepto||'').toLowerCase();
+    if(c.includes('gasto')||c.includes('desembolso'))neto-=m.monto;
+    else neto+=m.monto; // comisión, liquidación, recuperación
+  });
+  return neto;
+}
+function calcArqueo(){let t=0;
+  document.querySelectorAll('[data-den]').forEach(inp=>{const val=+inp.dataset.val;const q=+inp.value||0;const s=val*q;t+=s;document.getElementById('sub'+inp.dataset.den).textContent=fmt(s);});
+  document.getElementById('arqueoTotal').textContent=fmt(t);
+  const {efe}=totales();
+  const movsEfe=movsEfectivoNeto();
+  const esperado=efe+movsEfe;
+  const ac=document.getElementById('arqCob'); if(ac)ac.textContent=fmt(efe);
+  const am=document.getElementById('arqMovs'); if(am)am.textContent=(movsEfe<0?'-'+fmt(Math.abs(movsEfe)):fmt(movsEfe));
+  const ae=document.getElementById('arqEsperado'); if(ae)ae.textContent=fmt(esperado);
+  const dif=t-esperado;const de=document.getElementById('arqueoDif');
+  de.textContent=(Math.abs(dif)<0.01?'$0 ✓':fmt(dif));de.style.color=Math.abs(dif)<0.01?'var(--ok)':'var(--mora)';
+  window._arqueo=DENOM.map((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');return {l:d.l,q:+(inp.value||0),sub:d.v*(+(inp.value||0))};});
+  window._arqueoTotal=t; window._arqueoEsperado=esperado; window._arqueoMovsEfe=movsEfe;}
+
+/* ===== OTROS MOVIMIENTOS ===== */
+function fillMovSelects(){
+  const sc=document.getElementById('movCentro');
+  if(sc){sc.innerHTML='<option value="">— Centro —</option>';
+    Object.keys(CENTROS).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sc.appendChild(o);});
+    const oi=document.createElement('option');oi.value='INDIVIDUAL';oi.textContent='INDIVIDUAL';sc.appendChild(oi);
+    sc.onchange=fillMovClientas;
+  }
+}
+function fillMovClientas(){
+  const cen=document.getElementById('movCentro').value;
+  const scl=document.getElementById('movClienta');
+  scl.innerHTML='<option value="">— Si aplica —</option>';
+  let lista=[];
+  if(cen==='INDIVIDUAL')lista=INDIVIDUALES;
+  else if(cen&&CENTROS[cen])lista=CENTROS[cen];
+  lista.forEach(cl=>{const o=document.createElement('option');o.value=(cl.k||cl.f);o.textContent=cl.n+' ('+cl.sub+')';scl.appendChild(o);});
+}
+function agregarMov(){
+  const concepto=document.getElementById('movConcepto').value;
+  const cen=document.getElementById('movCentro').value;
+  const clk=document.getElementById('movClienta').value;
+  const monto=parseFloat(document.getElementById('movMonto').value)||0;
+  const via=document.getElementById('movVia').value;
+  const nota=document.getElementById('movNota').value||'';
+  const cheque=(via==='CH')?(document.getElementById('movCheque').value||''):'';
+  if(monto<=0){alert('Escribe la cantidad del movimiento.');return;}
+  if(via==='CH' && !cheque){alert('Escribe el número de cheque.');return;}
+  let clienta='',socio='';
+  if(clk){
+    const arr=(cen==='INDIVIDUAL')?INDIVIDUALES:(CENTROS[cen]||[]);
+    const cl=arr.find(x=>(x.k||x.f)===clk);
+    if(cl){clienta=cl.n;socio=cl.f;}
+  }
+  movs.push({folio:nuevoFolio(),concepto,centro:cen,clienta,socio,monto,via,cheque,nota});
+  document.getElementById('movMonto').value='';document.getElementById('movNota').value='';
+  if(document.getElementById('movCheque'))document.getElementById('movCheque').value='';
+  renderMovs();guardar();recalc();if(typeof calcArqueo==='function')calcArqueo();
+}
+function toggleCheque(){
+  const v=document.getElementById('movVia').value;
+  const box=document.getElementById('chequeBox');
+  if(box)box.style.display=(v==='CH')?'block':'none';
+}
+function viaNombre(v){return v==='E'?'Efectivo':(v==='T'?'Transferencia':(v==='CH'?'Cheque':v));}
+function viaCorto(v){return v==='E'?'Efvo':(v==='T'?'Transf':(v==='CH'?'Cheque':v));}
+function nuevoFolio(){
+  // folio único corto: iniciales ejecutivo + fecha (ddmm) + consecutivo del día
+  const ini=EJECUTIVO.substring(0,3).toUpperCase();
+  const f=new Date(document.getElementById('inpFecha').value||hoyISO());
+  const dm=('0'+f.getDate()).slice(-2)+('0'+(f.getMonth()+1)).slice(-2);
+  const consec=(movs.length+1);
+  return ini+'-'+dm+'-'+('0'+consec).slice(-2);
+}
+function eliminarMov(i){movs.splice(i,1);renderMovs();guardar();recalc();if(typeof calcArqueo==='function')calcArqueo();}
+function renderMovs(){
+  const cont=document.getElementById('listaMovs');if(!cont)return;
+  if(movs.length===0){cont.innerHTML='<div class="card muted">Aún no agregas movimientos.</div>';return;}
+  const etiq={COMISION:'Comisión',LIQUIDACION:'Liquidación',RECUPERACION:'Recuperación',GARANTIA:'Garantía',DESEMBOLSO:'Desembolso',GASTO:'Gasto'};
+  let h='<div class="card"><div class="sectitle">Movimientos capturados ('+movs.length+')</div>';
+  movs.forEach((m,i)=>{
+    h+='<div class="movrow"><div class="movinfo"><div class="movtop"><span class="movfolio">'+(m.folio||'')+'</span> <span class="movtag">'+etiq[m.concepto]+'</span> <b>'+fmt(m.monto)+'</b> <span class="movvia '+(m.via==='E'?'efe':'transf')+'">'+viaCorto(m.via)+'</span></div>'
+      +'<div class="mt">'+(m.centro||'—')+(m.clienta?(' · '+m.clienta):'')+(m.cheque?(' · cheque '+m.cheque):'')+(m.nota?(' · '+m.nota):'')+'</div></div>'
+      +'<button class="movdel" onclick="eliminarMov('+i+')">✕</button></div>';
+  });
+  // totales por concepto
+  const tot={};let suma=0,efe=0,tr=0;
+  movs.forEach(m=>{tot[m.concepto]=(tot[m.concepto]||0)+m.monto;suma+=m.monto;if(m.via==='E')efe+=m.monto;else tr+=m.monto;});
+  h+='<div style="margin-top:10px;border-top:1px solid var(--linea);padding-top:8px">';
+  for(const k in tot)h+='<div class="kv"><span>'+etiq[k]+'</span><b>'+fmt(tot[k])+'</b></div>';
+  h+='<div class="kv"><span><b>Total movimientos</b></span><b>'+fmt(suma)+'</b></div>';
+  h+='<div class="chips"><span class="chip efe">Efectivo '+fmt(efe)+'</span><span class="chip transf">Transferencia '+fmt(tr)+'</span></div>';
+  h+='</div></div>';
+  cont.innerHTML=h;
+}
+function buildExportMovs(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['FOLIO','FECHA','CONCEPTO','CENTRO','CLIENTA','No.SOCIO','EJECUTIVO','VIA','No.CHEQUE','MONTO','NOTA']];
+  movs.forEach(m=>{
+    rows.push([m.folio||'',fecha,m.concepto,m.centro,m.clienta,m.socio,EJECUTIVO,viaNombre(m.via).toUpperCase(),m.cheque||'',m.monto,m.nota]);
+  });
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+/* EXPORT DEDICADO DE DESEMBOLSOS — para el control aparte de Monse */
+function buildExportDesembolsos(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['FOLIO','FECHA','CENTRO','CLIENTA','No.SOCIO','EJECUTIVO','MONTO ENTREGADO','MÉTODO SALIDA','No.CHEQUE','NOTA']];
+  movs.filter(m=>m.concepto==='DESEMBOLSO').forEach(m=>{
+    rows.push([m.folio||'',fecha,m.centro,m.clienta,m.socio,EJECUTIVO,m.monto,viaNombre(m.via).toUpperCase(),m.cheque||'',m.nota]);
+  });
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+/* ===== RENOVACIONES ===== */
+function clientasRenov(){
+  // recolecta todos los créditos con avance >= 70% y sin mora, de todo el padrón
+  const out=[];
+  function consider(cl, centroKey){
+    const io=cl.impOrig||cl.imp||0; const s=cl.saldo||0;
+    if(io<=0)return;
+    const avance=1-(s/io);
+    if(avance<0.70)return;
+    out.push({k:cl.k||cl.f, n:cl.n, f:cl.f, sub:cl.sub, centro:centroKey,
+      avance:avance, saldo:s, impOrig:io, mora:cl.mora||0, sug:cl.sug||0});
+  }
+  for(const ck in CENTROS)CENTROS[ck].forEach(cl=>consider(cl,ck));
+  INDIVIDUALES.forEach(cl=>consider(cl,'INDIVIDUAL'));
+  out.sort((a,b)=>b.avance-a.avance);
+  return out;
+}
+const ESTADOS_RENOV=['Pendiente','Contactada','Interesada','Renovó','No quiso'];
+function renderRenov(){
+  const cont=document.getElementById('listaRenov');if(!cont)return;
+  const lista=clientasRenov();
+  // resumen de crecimiento potencial de SU cartera
+  const rr=document.getElementById('renovResumen');
+  if(rr){
+    let potencial=0, conAnalisis=0, sinMora=0, micros=0;
+    lista.forEach(r=>{
+      if(r.mora>0)return;
+      sinMora++;
+      const aum=r.sug-r.impOrig;
+      if(aum>0)potencial+=aum;
+      if(aum>=3000||r.impOrig>=10000)conAnalisis++;
+      if((r.sub||'').toLowerCase().includes('micro'))micros++;
+    });
+    rr.innerHTML='<div class="renovkpi"><div class="rk"><span>Próximas sin mora</span><b>'+sinMora+'</b></div>'
+      +'<div class="rk"><span>Crecimiento potencial</span><b>'+fmt(potencial)+'</b></div>'
+      +'<div class="rk alerta"><span>Requieren análisis</span><b>'+conAnalisis+'</b></div>'
+      +'<div class="rk micro"><span>Micros por renovar</span><b>'+micros+'</b></div></div>'
+      +'<div class="renovnota" style="margin-top:6px">Crecimiento potencial = lo que sumaría tu cartera si renuevan al alza. Los Micros son de mayor monto: valida bien la capacidad de pago.</div>';
+  }
+  if(lista.length===0){cont.innerHTML='<div class="card muted">No hay clientas próximas a renovar por ahora.</div>';return;}
+  let h='<div class="card"><div class="sectitle">Próximas a renovar <span class="pill">'+lista.length+'</span></div>';
+  lista.forEach(r=>{
+    const g=gestRenov[r.k]||{estado:'Pendiente'};
+    const conMora=r.mora>0;
+    const pct=Math.round(r.avance*100);
+    const colorAv=pct>=90?'var(--ok)':(pct>=80?'var(--riqueza)':'var(--atardecer)');
+    h+='<div class="renovrow">'
+      +'<div class="renovtop"><b>'+r.n+'</b> <span class="prodtag'+((r.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+r.sub+'</span></div>'
+      +'<div class="mt">'+r.centro+' · Socio '+r.f+'</div>'
+      +'<div class="renovbar"><div class="renovfill" style="width:'+pct+'%;background:'+colorAv+'"></div></div>'
+      +'<div class="renovinfo"><span>Avance '+pct+'%</span><span>Saldo '+fmt(r.saldo)+'</span></div>';
+    if(conMora){
+      h+='<div class="renovmora">⚠ Tiene mora ('+fmt(r.mora)+'). No se sugiere monto hasta regularizar.</div>';
+    } else {
+      const aumento=r.sug-r.impOrig;
+      const requiereAnalisis=(aumento>=3000)||(r.impOrig>=10000);
+      h+='<div class="renovsug">Sugerido próximo ciclo: <b>'+fmt(r.sug)+'</b> <span class="renovnota">(sugerencia, sujeta a evaluación)</span></div>';
+      if(requiereAnalisis){
+        h+='<div class="renovalerta">⚠ Aumento de '+fmt(aumento)+'. REQUIERE análisis de capacidad de pago antes de autorizar (riesgo de sobreendeudamiento).</div>';
+      }
+    }
+    // selector de estado de gestión
+    h+='<div class="renovgest">';
+    ESTADOS_RENOV.forEach(e=>{
+      h+='<button class="rgbtn'+(g.estado===e?' on':'')+'" onclick="setRenov(\''+r.k+'\',\''+e+'\')">'+e+'</button>';
+    });
+    h+='</div></div>';
+  });
+  h+='</div>';cont.innerHTML=h;
+}
+function setRenov(k,estado){
+  gestRenov[k]={estado:estado,fecha:document.getElementById('inpFecha').value||hoyISO(),por:EJECUTIVO,ts:Date.now()};
+  renderRenov();guardar();recalc();
+}
+function renovPendientes(){
+  const lista=clientasRenov();
+  let pend=0;
+  lista.forEach(r=>{const g=gestRenov[r.k];if(!g||g.estado==='Pendiente')pend++;});
+  return {total:lista.length, pendientes:pend};
+}
+function buildExportRenov(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['FECHA','EJECUTIVO','CLIENTA','No.SOCIO','PRODUCTO','CENTRO','AVANCE','SALDO','MORA','SUGERIDO','REQUIERE ANALISIS','GESTION']];
+  clientasRenov().forEach(r=>{
+    const g=gestRenov[r.k]||{estado:'Pendiente'};
+    const aumento=r.sug-r.impOrig;
+    const reqAnalisis=(r.mora>0)?'':((aumento>=3000||r.impOrig>=10000)?'SÍ':'No');
+    rows.push([fecha,EJECUTIVO,r.n,r.f,r.sub,r.centro,Math.round(r.avance*100)+'%',Math.round(r.saldo),Math.round(r.mora),(r.mora>0?'':r.sug),reqAnalisis,g.estado]);
+  });
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+function enviarRenov(){
+  const data=buildExportRenov();
+  if(data.split('\n').length<=1){alert('No hay renovaciones para enviar.');return;}
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const texto='RENOVACIONES '+EJECUTIVO+' '+fecha+'\n\n'+data;
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+
+function descargarDesembolsos(){
+  const desem=movs.filter(m=>m.concepto==='DESEMBOLSO');
+  if(desem.length===0){alert('No hay desembolsos capturados hoy.');return;}
+  const data=buildExportDesembolsos();const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='Desembolsos_'+EJECUTIVO+'_'+fecha+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function descargarMovs(){
+  if(movs.length===0){alert('No hay movimientos capturados.');return;}
+  const data=buildExportMovs();const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='Movimientos_'+EJECUTIVO+'_'+fecha+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function copiarMovs(){
+  if(movs.length===0){alert('No hay movimientos capturados.');return;}
+  const data=buildExportMovs();
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(data).then(()=>alert('Movimientos copiados. Pásalos a Monse (DETALLE MOVIMIENTOS).')).catch(()=>fallbackCopy(data));}
+  else fallbackCopy(data);
+}
+
+/* RESUMEN */
+function diagnosticoCuellos(){
+  // detecta los 4 tipos de cuello de botella, con responsable (EJECUTIVO de esta app)
+  const cuellos=[];
+  // 1. Centros atrasados (semáforo rojo: <70% monto)
+  Object.keys(CENTROS).forEach(ck=>{
+    const s=semaforoCentro(ck);
+    if(s.total>0 && s.pctMonto<70 && (s.montoCobrado>0||s.pagadas>0)){
+      cuellos.push({tipo:'Centro atrasado',det:ck+' va al '+s.pctMonto+'% del monto ('+s.pagadas+'/'+s.total+' pagaron)',resp:EJECUTIVO,sev:s.pctMonto<40?'alta':'media'});
+    }
+  });
+  // 2. Clientas que no pagaron (en centros ya trabajados hoy)
+  let noPagaron=0, centrosTrabajados=0;
+  Object.keys(CENTROS).forEach(ck=>{
+    const s=semaforoCentro(ck);
+    if(s.montoCobrado>0){ centrosTrabajados++; noPagaron+=(s.total-s.pagadas); }
+  });
+  if(noPagaron>0){
+    cuellos.push({tipo:'Clientas sin pagar',det:noPagaron+' clientas no pagaron en los centros trabajados hoy',resp:EJECUTIVO,sev:noPagaron>10?'alta':'media'});
+  }
+  // 3. Renovaciones atoradas (no contactadas o no quiso)
+  const lista=clientasRenov();
+  let atoradas=0;
+  lista.forEach(r=>{
+    const g=gestRenov[r.k];
+    if(!g||g.estado==='Pendiente'||g.estado==='No quiso'||g.estado==='No localizada')atoradas++;
+  });
+  if(atoradas>0){
+    cuellos.push({tipo:'Renovaciones atoradas',det:atoradas+' de '+lista.length+' renovaciones sin avanzar (pendientes, no quiso o no localizadas)',resp:EJECUTIVO,sev:atoradas>lista.length/2?'alta':'media'});
+  }
+  // 4. Micros y montos altos en mora
+  let microsMora=0, montoMora=0;
+  function revisar(cl){
+    if((cl.mora||0)>0 && ((cl.sub||'').toLowerCase().includes('micro')||(cl.impOrig||cl.imp||0)>=10000)){
+      microsMora++; montoMora+=(cl.mora||0);
+    }
+  }
+  Object.keys(CENTROS).forEach(ck=>CENTROS[ck].forEach(revisar));
+  INDIVIDUALES.forEach(revisar);
+  if(microsMora>0){
+    cuellos.push({tipo:'Mora en montos altos',det:microsMora+' Micros/créditos grandes en mora ('+fmt(montoMora)+'). Prioridad de recuperación',resp:EJECUTIVO,sev:'alta'});
+  }
+  return cuellos;
+}
+function renderDiagnostico(){
+  const cont=document.getElementById('diagPanel');if(!cont)return;
+  const cuellos=diagnosticoCuellos();
+  if(cuellos.length===0){cont.innerHTML='<div class="diagok">✓ Sin cuellos de botella detectados. Buen trabajo.</div>';return;}
+  let h='';
+  cuellos.forEach(c=>{
+    h+='<div class="diagrow '+c.sev+'"><div class="diagtop"><span class="diagtipo">'+c.tipo+'</span><span class="diagsev '+c.sev+'">'+(c.sev==='alta'?'ALTA':'Media')+'</span></div>'
+      +'<div class="diagdet">'+c.det+'</div>'
+      +'<div class="diagresp">Responsable: <b>'+c.resp+'</b></div></div>';
+  });
+  cont.innerHTML=h;
+}
+
+function buildResumen(){
+  const {t,efe,tr,n,acc}=totales();
+  const fecha=new Date(document.getElementById('inpFecha').value||hoyISO()).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  let lineas=[],centrosCob=0;
+  for(const c in reg){let sc=0,nc=0;for(const s in reg[c]){const tt=rTot(reg[c][s]);if(tt>0){sc+=tt;nc++;}}if(sc>0){centrosCob++;lineas.push('• '+c+': '+fmt(sc)+' ('+nc+')');}}
+  let iSum=0,iN=0;for(const s in regI){const tt=rTot(regI[s]);if(tt>0){iSum+=tt;iN++;}}
+  document.getElementById('resumenStats').innerHTML=
+    '<div class="kv"><span>Total cobrado</span><b>'+fmt(t)+'</b></div>'
+    +'<div class="kv"><span>Pago (capital+interés)</span><b>'+fmt(acc.pago)+'</b></div>'
+    +'<div class="kv"><span>Garantías</span><b>'+fmt(acc.garantia)+'</b></div>'
+    +'<div class="kv"><span>Solidarios</span><b>'+fmt(acc.solidario)+'</b></div>'
+    +'<div class="kv"><span>Pagos registrados</span><b>'+n+'</b></div>'
+    +'<div class="kv"><span>Centros con cobranza</span><b>'+centrosCob+'</b></div>'
+    +(INDIVIDUALES.length?'<div class="kv"><span>Individuales</span><b>'+fmt(iSum)+' ('+iN+')</b></div>':'')
+    +'<div class="chips"><span class="chip efe">Efectivo '+fmt(efe)+'</span><span class="chip transf">Transferencia '+fmt(tr)+'</span></div>';
+  // panel semáforo por centro (solo centros tocados)
+  const g=semaforoGlobalDia();
+  let panel='<div class="kv"><span><b>Global del día</b></span><b>'+emojiSem(g.pctCli)+' '+g.pctCli+'% clientas · '+emojiSem(g.pctMonto)+' '+g.pctMonto+'% monto</b></div>';
+  const tocados=Object.keys(reg).filter(ck=>CENTROS[ck]&&Object.values(reg[ck]).some(r=>rTot(r)>0));
+  if(tocados.length===0){panel+='<div class="meta" style="margin-top:8px">Aún no capturas ningún centro hoy.</div>';}
+  tocados.sort().forEach(ck=>{const s=semaforoCentro(ck);
+    panel+='<div class="semrow"><span class="semname">'+ck+'</span>'
+      +'<span class="sembadge" style="background:'+colorSem(s.pctCli)+'">'+s.pagadas+'/'+s.total+'</span>'
+      +'<span class="sembadge" style="background:'+colorSem(s.pctMonto)+'">'+s.pctMonto+'%</span></div>';
+  });
+  document.getElementById('semaforoPanel').innerHTML=panel;
+  let wa='FOOAX · Cobranza '+EJECUTIVO+'\n'+fecha+'\n\n'+lineas.join('\n');
+  if(iN>0)wa+='\n• Individuales: '+fmt(iSum)+' ('+iN+')';
+  wa+='\n\nDESGLOSE\nPago: '+fmt(acc.pago)+'\nGarantías: '+fmt(acc.garantia)+'\nSolidarios: '+fmt(acc.solidario)
+    +'\n\nEfectivo: '+fmt(efe)+'\nTransferencia: '+fmt(tr)
+    +'\n\nTOTAL DÍA: '+fmt(t)+'  ('+n+' pagos)';
+  // arqueo por denominación si se contó
+  calcArqueo();
+  if(window._arqueo && window._arqueoTotal>0){
+    wa+='\n\nARQUEO EFECTIVO';
+    window._arqueo.forEach(a=>{if(a.q>0)wa+='\n'+a.l+': '+a.q+' = '+fmt(a.sub);});
+    wa+='\nTotal contado: '+fmt(window._arqueoTotal);
+  }
+  // cuellos de botella en el mensaje
+  const cuellos=diagnosticoCuellos();
+  if(cuellos.length>0){
+    wa+='\n\n⚠ CUELLOS DE BOTELLA';
+    cuellos.forEach(c=>{wa+='\n• '+c.tipo+': '+c.det+' ['+c.resp+']';});
+  }
+  // metas del día siguiente
+  const lista=clientasRenov();
+  const renovPend=lista.filter(r=>{const g=gestRenov[r.k];return !g||g.estado==='Pendiente';}).length;
+  wa+='\n\n🎯 METAS MAÑANA';
+  if(renovPend>0)wa+='\n• Gestionar '+renovPend+' renovaciones pendientes';
+  const rojos=Object.keys(CENTROS).filter(ck=>{const s=semaforoCentro(ck);return s.montoCobrado>0&&s.pctMonto<70;}).length;
+  if(rojos>0)wa+='\n• Recuperar en '+rojos+' centros en rojo';
+  if(renovPend===0&&rojos===0)wa+='\n• Mantener el ritmo, vas bien';
+  document.getElementById('waText').textContent=(n>0)?wa:'Aún no hay pagos capturados.';
+  window._wa=wa;
+  renderDiagnostico();
+}
+function enviarMensajeGrupo(tipo){
+  buildResumen();
+  let texto=window._wa||'';
+  if(tipo==='semanal'){
+    // resumen semanal: cuellos acumulados + metas de la semana
+    const fecha=new Date(document.getElementById('inpFecha').value||hoyISO()).toLocaleDateString('es-MX',{day:'numeric',month:'long'});
+    const cuellos=diagnosticoCuellos();
+    const lista=clientasRenov();
+    const micros=lista.filter(r=>(r.sub||'').toLowerCase().includes('micro')).length;
+    let pot=0; lista.forEach(r=>{if(r.mora<=0){const a=r.sug-r.impOrig;if(a>0)pot+=a;}});
+    texto='FOOAX · CIERRE SEMANAL\n'+EJECUTIVO+' · '+fecha+'\n\n';
+    texto+='RENOVACIONES DE LA SEMANA\n';
+    texto+='• '+lista.length+' clientas próximas a renovar\n';
+    texto+='• '+micros+' son Micros (mayor monto)\n';
+    texto+='• Crecimiento potencial: '+fmt(pot)+'\n';
+    if(cuellos.length>0){
+      texto+='\n⚠ CUELLOS DE BOTELLA DE LA SEMANA\n';
+      cuellos.forEach(c=>{texto+='• '+c.tipo+': '+c.det+' ['+c.resp+']\n';});
+    } else {
+      texto+='\n✓ Sin cuellos de botella pendientes\n';
+    }
+    texto+='\n🎯 META SEMANA QUE ENTRA\n• Cerrar las renovaciones pendientes\n• Recuperar la mora de montos altos\n• Mantener centros en verde';
+  }
+  if(!texto){alert('No hay información para enviar.');return;}
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+function copiarWA(){const txt=window._wa||'';
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>alert('Mensaje copiado. Pégalo en WhatsApp.'));}
+  else{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();alert('Copiado.');}
+}
+
+/* EXPORTAR detalle por clienta — formato exacto de la hoja PEGAR CAPTURA del v4 */
+/* RESUMEN EN TEXTO para WhatsApp — con suma por centro y total del ejecutivo.
+   No descarga archivo; manda texto legible (lo pidió el Lic.). */
+function resumenTextoCobranza(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  let txt='🌸 *FOOAX · COBRANZA DEL DÍA*\n';
+  txt+='👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n';
+  txt+='━━━━━━━━━━━━━━━\n';
+  let granTotal=0, granPago=0, granGar=0, granSol=0, granCli=0, granPagaron=0;
+  for(const centroKey in reg){
+    const clientas=CENTROS[centroKey]||[];
+    const s=semaforoCentro(centroKey);
+    let cTot=0,cPago=0,cGar=0,cSol=0,cN=0;
+    for(const k in reg[centroKey]){
+      const r=reg[centroKey][k];const tot=rTot(r);if(tot<=0)continue;
+      cTot+=tot;cPago+=(r.pago||0);cGar+=(r.garantia||0);cSol+=(r.solidario||0);cN++;
+    }
+    if(cTot>0){
+      const emj= s.pctCli>=100?'🟢':(s.pctCli>=70?'🟡':'🔴');
+      txt+='\n'+emj+' *'+centroKey+'*\n';
+      txt+='    💵 Fichas: '+fmt(cPago)+'\n';
+      if(cGar>0)txt+='    🔐 Garantías: '+fmt(cGar)+'\n';
+      if(cSol>0)txt+='    🤝 Solidario: '+fmt(cSol)+'\n';
+      txt+='    ✅ Pagaron: '+cN+' de '+s.total+'\n';
+      if(s.moraCentro>0)txt+='    ⚠️ Mora: '+fmt(s.moraCentro)+'\n';
+      txt+='    ➡️ *Subtotal: '+fmt(cTot)+'*\n';
+      granTotal+=cTot;granPago+=cPago;granGar+=cGar;granSol+=cSol;granCli+=s.total;granPagaron+=cN;
+    }
+  }
+  let iTot=0,iPago=0,iGar=0,iSol=0,iN=0;
+  for(const k in regI){const r=regI[k];const tot=rTot(r);if(tot<=0)continue;iTot+=tot;iPago+=(r.pago||0);iGar+=(r.garantia||0);iSol+=(r.solidario||0);iN++;}
+  if(iTot>0){
+    txt+='\n👤 *INDIVIDUALES*\n    💵 Fichas: '+fmt(iPago)+'\n';
+    if(iGar>0)txt+='    🔐 Garantías: '+fmt(iGar)+'\n';
+    txt+='    ✅ Pagaron: '+iN+'\n    ➡️ *Subtotal: '+fmt(iTot)+'*\n';
+    granTotal+=iTot;granPago+=iPago;granGar+=iGar;granSol+=iSol;granPagaron+=iN;
+  }
+  txt+='\n━━━━━━━━━━━━━━━\n';
+  // Otros movimientos del día (recuperaciones, comisiones, gastos, desembolsos, garantías)
+  if(movs.length>0){
+    const etiqM={COMISION:'Comisión',RECUPERACION:'Recuperación',LIQUIDACION:'Liquidación',GARANTIA:'Garantía',GASTO:'Gasto',DESEMBOLSO:'Desembolso'};
+    let sumMov=0, sumMovEfe=0;
+    txt+='🔄 *OTROS MOVIMIENTOS*\n';
+    movs.forEach(m=>{
+      const c=(m.concepto||'').toUpperCase();
+      const nom=etiqM[c]||m.concepto;
+      const esSalida=(c==='GASTO'||c==='DESEMBOLSO');
+      const signo=esSalida?'-':'+';
+      txt+='    '+signo+' '+nom+': '+fmt(m.monto)+' ('+(m.via==='E'?'efectivo':(m.via==='C'?'cheque':'transf'))+')\n';
+      if(esSalida){sumMov-=m.monto;if(m.via==='E')sumMovEfe-=m.monto;}
+      else {sumMov+=m.monto;if(m.via==='E')sumMovEfe+=m.monto;}
+    });
+    txt+='    ➡️ *Neto movimientos: '+(sumMov<0?'-'+fmt(Math.abs(sumMov)):fmt(sumMov))+'*\n';
+    txt+='\n━━━━━━━━━━━━━━━\n';
+  }
+  txt+='📊 *TOTAL DEL DÍA*\n';
+  txt+='    Fichas: '+fmt(granPago)+'\n';
+  if(granGar>0)txt+='    Garantías: '+fmt(granGar)+'\n';
+  if(granSol>0)txt+='    Solidario: '+fmt(granSol)+'\n';
+  txt+='    Clientas que pagaron: '+granPagaron+'\n';
+  txt+='\n💰 *TOTAL: '+fmt(granTotal)+'*\n';
+  // Efectivo a entregar = cobranza en efectivo + neto de movimientos en efectivo
+  const efeCob=totales().efe;
+  const movEfeNeto=movsEfectivoNeto();
+  const efeEntregar=efeCob+movEfeNeto;
+  txt+='━━━━━━━━━━━━━━━\n';
+  txt+='💵 *Efectivo a entregar: '+fmt(efeEntregar)+'*\n';
+  txt+='   (cobranza efvo '+fmt(efeCob)+(movEfeNeto!==0?(movEfeNeto<0?' − '+fmt(Math.abs(movEfeNeto))+' movs':' + '+fmt(movEfeNeto)+' movs'):'')+')\n';
+  txt+='_Creciendo juntas, avanzando siempre_';
+  return granTotal>0?txt:'';
+}
+function resumenTextoGarantias(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  let txt='🔐 *FOOAX · GARANTÍAS DEL DÍA*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
+  let gran=0, granN=0;
+  for(const centroKey in reg){
+    const clientas=CENTROS[centroKey]||[];
+    let cGar=0; let lineas=''; let cn=0;
+    for(const k in reg[centroKey]){
+      const g=reg[centroKey][k].garantia||0;if(g<=0)continue;
+      const cl=clientas.find(x=>(x.k||x.f)===k)||{n:'',f:''};
+      lineas+='    • '+cl.n+': '+fmt(g)+'\n'; cGar+=g; cn++;
+    }
+    if(cGar>0){txt+='\n📍 *'+centroKey+'*\n'+lineas+'    ➡️ *Subtotal: '+fmt(cGar)+'*\n';gran+=cGar;granN+=cn;}
+  }
+  for(const k in regI){
+    const g=regI[k].garantia||0;if(g<=0)continue;
+    const cl=INDIVIDUALES.find(x=>(x.k||x.f)===k)||{n:''};
+    txt+='\n👤 *INDIVIDUAL*\n    • '+cl.n+': '+fmt(g)+'\n';gran+=g;granN++;
+  }
+  txt+='\n━━━━━━━━━━━━━━━\n🔐 *TOTAL GARANTÍAS: '+fmt(gran)+'*\n    ('+granN+' clientas)\n━━━━━━━━━━━━━━━\n_Ing. Alejandra · control de garantías_';
+  return gran>0?txt:'';
+}
+function resumenTextoMovs(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  if(movs.length===0)return '';
+  let txt='📋 *FOOAX · OTROS MOVIMIENTOS*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
+  const porConcepto={}; let gran=0;
+  const emojiC={'Comisión':'💵','Liquidación':'✔️','Recuperación':'♻️','Garantía':'🔐','Desembolso':'📤','Gasto':'🧾'};
+  movs.forEach(m=>{
+    const e=emojiC[m.concepto]||'•';
+    txt+='\n'+e+' *'+m.concepto+'* · '+fmt(m.monto)+' ('+viaCorto(m.via)+(m.cheque?' '+m.cheque:'')+')\n';
+    txt+='    '+(m.centro||'')+(m.clienta?' · '+m.clienta:'')+'\n    📎 folio '+(m.folio||'')+'\n';
+    porConcepto[m.concepto]=(porConcepto[m.concepto]||0)+m.monto; gran+=m.monto;
+  });
+  txt+='\n━━━━━━━━━━━━━━━\n📊 *POR CONCEPTO:*\n';
+  for(const c in porConcepto)txt+='    '+c+': '+fmt(porConcepto[c])+'\n';
+  txt+='\n💰 *TOTAL MOVIMIENTOS: '+fmt(gran)+'*\n━━━━━━━━━━━━━━━\n_Ing. Monse · validar por folio_';
+  return txt;
+}
+function formaTexto(r){
+  if(r.forma==='E')return 'EFECTIVO';
+  if(r.forma==='T')return 'TRANSFERENCIA';
+  if(r.forma==='M')return 'MIXTO (Efe '+fmt(r.mixEfe||0)+' / Transf '+fmt(r.mixTr||0)+')';
+  return '';
+}
+function buildExport(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  // headers iguales a PEGAR CAPTURA: FECHA No.CENTRO CENTRO CLIENTA No.SOCIO EJECUTIVO PRODUCTO DESTINO PAGO GARANTÍA SOLIDARIO FORMA TOTAL
+  const sep='\t'; // tab: se pega directo en Excel
+  const rows=[['FECHA','No.CENTRO','CENTRO','CLIENTA','No.SOCIO','EJECUTIVO','PRODUCTO','PAGO','GARANTIA','SOLIDARIO','FORMA','TOTAL','PLAZO SEM','No.SEMANA']];
+  function destino(sub){const s=(sub||'').toLowerCase();if(s.includes('individual')||s.includes('foxi'))return'INDIVIDUAL';if(s.includes('adicional'))return'ADICIONAL';if(s.includes('micro'))return'MICRO';return'BASICO';}
+  // grupales
+  for(const centroKey in reg){
+    const noCentro=centroKey.split(' · ')[0].replace('C-','');
+    const nombreCentro=centroKey.split(' · ')[1]||centroKey;
+    const clientas=CENTROS[centroKey]||[];
+    for(const k in reg[centroKey]){
+      const r=reg[centroKey][k];const tot=rTot(r);if(tot<=0&&!r.forma)continue;
+      const cl=clientas.find(x=>(x.k||x.f)===k)||{n:'',sub:'',f:k.split('|')[0]};
+      const dc=datosCli[k]||{};
+      rows.push([fecha,noCentro,nombreCentro,cl.n,cl.f,EJECUTIVO,cl.sub,r.pago||0,r.garantia||0,r.solidario||0,formaTexto(r),tot,dc.plazo||'',dc.semana||'']);
+    }
+  }
+  // individuales
+  for(const k in regI){
+    const r=regI[k];const tot=rTot(r);if(tot<=0&&!r.forma)continue;
+    const cl=INDIVIDUALES.find(x=>(x.k||x.f)===k)||{n:'',sub:'',f:k.split('|')[0]};
+    const dc=datosCli[k]||{};
+    rows.push([fecha,'0','INDIVIDUAL',cl.n,cl.f,EJECUTIVO,cl.sub,r.pago||0,r.garantia||0,r.solidario||0,formaTexto(r),tot,dc.plazo||'',dc.semana||'']);
+  }
+  // FILA DE TOTALES (sumatoria general)
+  if(rows.length>1){
+    let tP=0,tG=0,tS=0,tT=0;
+    for(let i=1;i<rows.length;i++){tP+=(+rows[i][7]||0);tG+=(+rows[i][8]||0);tS+=(+rows[i][9]||0);tT+=(+rows[i][11]||0);}
+    rows.push(['','','','','','','TOTALES','','','','','']);
+    rows.push([fecha,'','','TOTAL '+EJECUTIVO,'','','',tP,tG,tS,'',tT]);
+  }
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+/* EXPORTAR GARANTÍAS — formato del REPORTE de Alejandra (solo clientas con garantía>0) */
+function buildExportGarantias(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['ID','NOMBRE DE LA CLIENTA','CENTRO','EJECUTIVO','MONTO','OBSERVACIONES']];
+  let granTotal=0;
+  for(const centroKey in reg){
+    const nombreCentro=centroKey;
+    const clientas=CENTROS[centroKey]||[];
+    let cGar=0, cN=0;
+    for(const k in reg[centroKey]){
+      const g=reg[centroKey][k].garantia||0;
+      if(g<=0)continue;
+      const cl=clientas.find(x=>(x.k||x.f)===k)||{n:'',f:k.split('|')[0]};
+      rows.push([cl.f,cl.n,nombreCentro,EJECUTIVO,g,'GARANTIA ADICIONAL '+(cl.sub||'')+' '+fecha]);
+      cGar+=g; cN++;
+    }
+    if(cGar>0){rows.push(['','SUBTOTAL '+nombreCentro,nombreCentro,EJECUTIVO,cGar,cN+' clientas']);granTotal+=cGar;}
+  }
+  let iGar=0;
+  for(const k in regI){
+    const g=regI[k].garantia||0; if(g<=0)continue;
+    const cl=INDIVIDUALES.find(x=>(x.k||x.f)===k)||{n:'',f:k.split('|')[0]};
+    rows.push([cl.f,cl.n,'INDIVIDUAL',EJECUTIVO,g,'GARANTIA ADICIONAL '+(cl.sub||'')+' '+fecha]);
+    iGar+=g;
+  }
+  if(iGar>0){rows.push(['','SUBTOTAL INDIVIDUAL','INDIVIDUAL',EJECUTIVO,iGar,'']);granTotal+=iGar;}
+  if(granTotal>0){
+    rows.push(['','','','','','']);
+    rows.push(['','TOTAL GARANTÍAS DEL DÍA','',EJECUTIVO,granTotal,fecha]);
+  }
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+function descargarGarantias(){
+  const data=buildExportGarantias();
+  if(data.split('\n').length<=1){alert('No hay garantías capturadas hoy.');return;}
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='Garantias_'+EJECUTIVO+'_'+fecha+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function copiarGarantias(){
+  const data=buildExportGarantias();
+  if(data.split('\n').length<=1){alert('No hay garantías capturadas hoy.');return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(data).then(()=>alert('Garantías copiadas. Pásalas a Ing. Alejandra (control de garantías).')).catch(()=>fallbackCopy(data));}
+  else fallbackCopy(data);
+}
+function descargarExport(){
+  const data=buildExport();
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const nombre='Cobranza_'+EJECUTIVO+'_'+fecha+'.csv';
+  // CSV con BOM para que Excel respete acentos; usar coma como separador en el archivo
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=nombre;document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function copiarExport(){
+  const data=buildExport(); // tab-separated, se pega directo en Excel
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(data).then(()=>alert('Detalle copiado. Pégalo en la hoja PEGAR CAPTURA del Excel (Monse).')).catch(()=>fallbackCopy(data));
+  } else fallbackCopy(data);
+}
+function fallbackCopy(data){const t=document.createElement('textarea');t.value=data;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.focus();t.select();try{document.execCommand('copy');alert('Detalle copiado. Pégalo en la hoja PEGAR CAPTURA.');}catch(e){alert('No se pudo copiar automáticamente. Usa Descargar archivo.');}t.remove();}
+
+/* ENVIAR POR WHATSAPP — manda el RESUMEN EN TEXTO (con sumas por centro y total).
+   No descarga archivo, como lo pidió el Lic. para no llenar el teléfono. */
+function enviarWhatsApp(tipo){
+  let texto='';
+  if(tipo==='cobranza')texto=resumenTextoCobranza();
+  else if(tipo==='garantias')texto=resumenTextoGarantias();
+  else if(tipo==='movs')texto=resumenTextoMovs();
+  if(!texto){alert('No hay datos capturados para enviar.');return;}
+  if(tipo==='cobranza')window._reporteEnviado=true; // habilita el cierre del día
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+
+/* ACTUALIZAR PADRÓN — importa CSV con altas/bajas sin regenerar la app */
+function importarPadron(input){
+  const file=input.files[0];if(!file)return;
+  const fr=new FileReader();
+  fr.onload=function(e){
+    try{
+      const txt=e.target.result.replace(/^\ufeff/,'');
+      const lineas=txt.split(/\r?\n/).filter(l=>l.trim());
+      // formato esperado: No.CENTRO,CENTRO,CLIENTA,No.SOCIO,PRODUCTO,SALDO  (mismo de PEGAR CAPTURA, sin montos)
+      const head=lineas[0].toLowerCase();
+      const start=(head.includes('clienta')||head.includes('socio'))?1:0;
+      const nuevosCentros={};const nuevosIndiv=[];
+      for(let i=start;i<lineas.length;i++){
+        const c=lineas[i].split(/[,\t]/).map(x=>x.replace(/^"|"$/g,'').trim());
+        if(c.length<4)continue;
+        const noCentro=c[0],nombreC=c[1],clienta=c[2],socio=c[3],prod=c[4]||'',saldo=parseFloat(c[5])||0;
+        const sl=(prod||'').toLowerCase();
+        if(noCentro==='0'||nombreC.toUpperCase()==='INDIVIDUAL'||sl.includes('individual')||sl.includes('foxi')){
+          nuevosIndiv.push({n:clienta,f:socio,sub:prod,k:socio+"|"+prod,imp:0,saldo:saldo});
+        }else{
+          const key='C-'+noCentro+' · '+nombreC;
+          if(!nuevosCentros[key])nuevosCentros[key]=[];
+          nuevosCentros[key].push({n:clienta,f:socio,sub:prod,k:socio+"|"+prod,imp:0,saldo:saldo});
+        }
+      }
+      const nC=Object.keys(nuevosCentros).length, nI=nuevosIndiv.length;
+      const nCli=Object.values(nuevosCentros).reduce((a,v)=>a+v.length,0);
+      if(nC===0&&nI===0){alert('El archivo no tiene filas válidas. Revisa el formato.');return;}
+      if(!confirm('Actualizar padrón a: '+nC+' centros, '+nCli+' clientas grupales, '+nI+' individuales. ¿Continuar?'))return;
+      CENTROS=nuevosCentros; INDIVIDUALES=nuevosIndiv;
+      localStorage.setItem(PADRON_KEY, JSON.stringify({CENTROS,INDIVIDUALES,ts:Date.now()}));
+      fillCentros();renderIndiv();render();
+      alert('Padrón actualizado. Ya puedes capturar con la lista nueva.');
+    }catch(err){alert('No se pudo leer el archivo: '+err.message);}
+    input.value='';
+  };
+  fr.readAsText(file,'UTF-8');
+}
+function restablecerPadron(){
+  if(!confirm('¿Volver al padrón original de la app? Esto descarta el padrón importado y las clientas que agregaste.'))return;
+  localStorage.removeItem(PADRON_KEY);
+  location.reload();
+}
+
+/* AGREGAR CLIENTA — la suma al padrón sin borrar nada, guarda en el celular */
+function toggleAltaClienta(){
+  const f=document.getElementById('formAlta');
+  f.classList.toggle('hidden');
+  if(!f.classList.contains('hidden'))fillAltaCentros();
+}
+function fillAltaCentros(){
+  const sc=document.getElementById('altaCentro');
+  sc.innerHTML='<option value="">— Centro —</option>';
+  Object.keys(CENTROS).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sc.appendChild(o);});
+  const oi=document.createElement('option');oi.value='INDIVIDUAL';oi.textContent='INDIVIDUAL';sc.appendChild(oi);
+}
+function guardarPadronLocal(){
+  try{localStorage.setItem(PADRON_KEY,JSON.stringify({CENTROS,INDIVIDUALES,ts:Date.now()}));}catch(e){}
+}
+function agregarClienta(){
+  const centro=document.getElementById('altaCentro').value;
+  const prod=document.getElementById('altaProd').value;
+  const nombre=(document.getElementById('altaNombre').value||'').trim();
+  const socio=(document.getElementById('altaSocio').value||'').trim();
+  const saldo=parseFloat(document.getElementById('altaSaldo').value)||0;
+  if(!centro){alert('Elige el centro.');return;}
+  if(!nombre){alert('Escribe el nombre de la clienta.');return;}
+  if(!socio){alert('Escribe el No. de socio.');return;}
+  // Llave única: socio|producto|nombre|índice (evita colisión si comparten socio o producto)
+  const arr = centro==='INDIVIDUAL' ? INDIVIDUALES : (CENTROS[centro]||[]);
+  const base=socio+'|'+prod+'|'+nombre;
+  let idx=0; arr.forEach(x=>{ if((x.k||'').startsWith(base+'|'))idx++; });
+  const k=base+'|'+idx;
+  const nueva={n:nombre,f:socio,sub:prod,k:k,imp:0,saldo:saldo,esp:0};
+  if(centro==='INDIVIDUAL'){
+    INDIVIDUALES.push(nueva);
+  } else {
+    if(!CENTROS[centro])CENTROS[centro]=[];
+    CENTROS[centro].push(nueva);
+  }
+  guardarPadronLocal();
+  fillCentros();renderIndiv();
+  // limpiar form
+  document.getElementById('altaNombre').value='';document.getElementById('altaSocio').value='';document.getElementById('altaSaldo').value='';
+  // seleccionar el centro donde se agregó y mostrarlo
+  if(centro!=='INDIVIDUAL'){document.getElementById('selCentro').value=centro;render();}
+  alert('Clienta agregada a tu padrón: '+nombre+'. Recuerda avisar a Monse para registrarla en la base.');
+}
+
+
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  ['cobranza','indiv','renov','gerente','movs','arqueo','resumen'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('hidden',t!==name);});
+  if(name==='resumen')buildResumen();
+  if(name==='arqueo')calcArqueo();
+  if(name==='movs')renderMovs();
+  if(name==='renov')renderRenov();
+  if(name==='gerente'&&ES_GERENTE)renderGerente();
+}
+
+// Soporte de toque para visores limitados (ej. navegador interno de WhatsApp en iPhone):
+// algunos WebView no disparan bien onclick; reforzamos con touchend.
+function reforzarToque(){
+  document.querySelectorAll('[onclick]').forEach(el=>{
+    if(el._tch)return; el._tch=1;
+    el.addEventListener('touchend',function(e){
+      // evitar doble disparo y permitir scroll
+      if(el.tagName==='INPUT'||el.tagName==='SELECT')return;
+      e.preventDefault();
+      el.click();
+    },{passive:false});
+  });
+}
+
+// Detectar si abrió dentro de WhatsApp/Instagram WebView y avisar
+function avisarWebView(){
+  const ua=navigator.userAgent||'';
+  if(/WhatsApp|Instagram|FBAN|FBAV|Line/i.test(ua)){
+    const b=document.createElement('div');
+    b.style.cssText='background:#F44C5D;color:#fff;font-size:12px;font-weight:700;padding:10px 14px;text-align:center;line-height:1.4';
+    b.innerHTML='Para que funcione bien, abre esta app en Safari: toca el botón Compartir y elige "Abrir en Safari", luego "Agregar a inicio".';
+    document.body.insertBefore(b,document.body.firstChild);
+  }
+}
+
+initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
+avisarWebView();reforzarToque();
+// reforzar toque cada vez que se redibuja contenido
+const _obs=new MutationObserver(()=>reforzarToque());
+_obs.observe(document.body,{childList:true,subtree:true});
+</script>
+</body>
+</html>
