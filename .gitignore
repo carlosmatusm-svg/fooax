@@ -18,3 +18,4 @@ rescate/backup-*/
 *.log
 npm-debug.log*
 data/*.bak
+apps/*.bak
