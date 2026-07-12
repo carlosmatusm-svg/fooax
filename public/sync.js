@@ -41,6 +41,9 @@
     } catch { pintar("offline"); }
   }
 
+  // Fuerza una subida inmediata (la usa el botón "Salir" antes de cerrar sesión).
+  window.__forzarSync = function () { pendiente = true; return subir(); };
+
   window.addEventListener("online", subir);
   setInterval(() => { if (pendiente) subir(); }, 30000); // reintento de respaldo
 

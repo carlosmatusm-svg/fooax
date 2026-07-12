@@ -91,7 +91,12 @@
     "header{display:flex;align-items:center;gap:12px}" +
     "header .fooax-logo{width:46px;height:46px;border-radius:12px;object-fit:cover;flex-shrink:0;" +
     "box-shadow:0 2px 8px rgba(0,0,0,.25)}" +
-    "header .fooax-htext{flex:1;min-width:0}";
+    "header .fooax-htext{flex:1;min-width:0}" +
+    "header .fooax-salir{flex-shrink:0;background:rgba(255,255,255,.22);border:none;color:#fff;" +
+    "font:700 13px inherit;font-family:inherit;padding:0 15px;height:40px;min-width:40px;border-radius:99px;" +
+    "cursor:pointer;display:inline-flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent}" +
+    "header .fooax-salir:active{background:rgba(255,255,255,.35)}" +
+    "header .fooax-salir svg{width:16px;height:16px}";
   document.head.appendChild(st);
 
   // 3) Alerta fuerte para dedazos gordos: si el pago es >=5x la cuota (y >=$1,000),
@@ -414,6 +419,24 @@
     while (header.firstChild) wrap.appendChild(header.firstChild);
     header.appendChild(img);
     header.appendChild(wrap);
+
+    // Botón de salir (cerrar sesión). Antes de salir fuerza una última
+    // sincronización para no dejar nada sin subir a la nube.
+    const salir = document.createElement("button");
+    salir.className = "fooax-salir";
+    salir.type = "button";
+    salir.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+      'stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>' +
+      '<polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span>';
+    salir.addEventListener("click", async () => {
+      if (!confirm("¿Cerrar sesión? Tu captura ya está guardada.")) return;
+      salir.disabled = true;
+      try { if (window.__forzarSync) await window.__forzarSync(); } catch (e) {}
+      try { await fetch("/api/logout", { method: "POST", credentials: "include" }); } catch (e) {}
+      location.href = "/";
+    });
+    header.appendChild(salir);
   })();
 
   // Re-dibujar por si ya había un centro seleccionado al cargar.
