@@ -136,10 +136,92 @@ app.get("/api/consolidado", requiere("direccion", "admin", "ejecutivo"), (req, r
   res.json({ fecha, ejecutivos, total });
 });
 
-// Respaldo legible: descarga todo lo sincronizado (Dirección/Admin).
-app.get("/api/respaldo", requiere("direccion", "admin"), (req, res) => {
-  res.setHeader("Content-Disposition", "attachment; filename=respaldo-fooax.json");
-  res.json(store.respaldo());
+// Respaldo en EXCEL de verdad (.xlsx): cobranza detallada + movimientos de caja.
+// Lo que Monse puede abrir y usar directo, sin depender de Drive ni nada externo.
+const ExcelJS = require("exceljs");
+
+function filasCobranza(snaps) {
+  const filas = [];
+  for (const ej in snaps) {
+    for (const fecha in snaps[ej]) {
+      let data = snaps[ej][fecha].snapshot;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
+      const empujar = (nodo, centro, key) => {
+        if (!nodo || typeof nodo !== "object") return;
+        const pago = nodo.pago || 0, gar = nodo.garantia || 0, sol = nodo.solidario || 0;
+        if (pago + gar + sol <= 0) return;
+        const p = String(key).split("|");
+        const total = pago + gar + sol;
+        let efe = 0, tra = 0;
+        if (nodo.forma === "T") tra = total;
+        else if (nodo.forma === "M") { efe = nodo.mixEfe || 0; tra = nodo.mixTr || 0; }
+        else efe = total;
+        const formaTxt = nodo.forma === "T" ? "Transferencia" : nodo.forma === "M" ? "Mixto" : "Efectivo";
+        filas.push({
+          ejecutivo: USUARIOS[ej] ? USUARIOS[ej].nombre : ej, fecha,
+          centro: centro || "INDIVIDUAL", clienta: p[2] || "", socio: p[0] || "",
+          producto: p[1] || "", pago, garantia: gar, solidario: sol,
+          forma: formaTxt, efectivo: efe, transferencia: tra,
+        });
+      };
+      const rec = (st, esCentro) => {
+        if (!st || typeof st !== "object") return;
+        for (const k in st) {
+          const nd = st[k];
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) empujar(nd, esCentro ? null : "", k);
+          else if (nd && typeof nd === "object") for (const kk in nd) empujar(nd[kk], k, kk);
+        }
+      };
+      rec(data.reg, true); rec(data.regI, false);
+    }
+  }
+  return filas;
+}
+
+app.get("/api/respaldo", requiere("direccion", "admin"), async (req, res) => {
+  const { snapshots, movimientos } = store.respaldo();
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "FOOAX";
+
+  const s1 = wb.addWorksheet("Cobranza");
+  s1.columns = [
+    { header: "Ejecutivo", key: "ejecutivo", width: 14 },
+    { header: "Fecha", key: "fecha", width: 12 },
+    { header: "Centro", key: "centro", width: 22 },
+    { header: "Clienta", key: "clienta", width: 30 },
+    { header: "Socio", key: "socio", width: 15 },
+    { header: "Producto", key: "producto", width: 18 },
+    { header: "Pago", key: "pago", width: 11 },
+    { header: "Garantía", key: "garantia", width: 11 },
+    { header: "Solidario", key: "solidario", width: 11 },
+    { header: "Forma", key: "forma", width: 14 },
+    { header: "Efectivo", key: "efectivo", width: 11 },
+    { header: "Transferencia", key: "transferencia", width: 13 },
+  ];
+  filasCobranza(snapshots).forEach((f) => s1.addRow(f));
+  s1.getRow(1).font = { bold: true };
+  ["G", "H", "I", "K", "L"].forEach((c) => { s1.getColumn(c).numFmt = '"$"#,##0.00'; });
+
+  const s2 = wb.addWorksheet("Movimientos de caja");
+  s2.columns = [
+    { header: "Folio", key: "folio", width: 14 },
+    { header: "Fecha", key: "fecha", width: 12 },
+    { header: "Categoría", key: "categoria", width: 22 },
+    { header: "Concepto", key: "concepto", width: 30 },
+    { header: "Método", key: "metodo", width: 14 },
+    { header: "Monto", key: "monto", width: 12 },
+    { header: "Autorizado a", key: "autorizadoA", width: 20 },
+    { header: "Registró", key: "registradoPor", width: 14 },
+  ];
+  (movimientos || []).forEach((m) => s2.addRow(m));
+  s2.getRow(1).font = { bold: true };
+  s2.getColumn("F").numFmt = '"$"#,##0.00';
+
+  const hoy = hoyMX();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Respaldo FOOAX ${hoy}.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
 });
 
 // ---------- padrón / búsqueda de clientas ----------
