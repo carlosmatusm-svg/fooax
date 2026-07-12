@@ -106,6 +106,7 @@
   .rcard .rd{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-size:12px;color:var(--gris)}
   .rcard .rd b{color:var(--tinta);font-variant-numeric:tabular-nums}
   .rcard .rmora{color:var(--llama);font-weight:700}
+  .rcard .rpago{color:var(--verde);font-weight:700}
   .rvacio{color:var(--gris);font-size:13px;text-align:center;padding:12px}
   .movwrap{margin:8px 16px 0}
   .movtoggle{width:100%;font:inherit;font-size:14px;font-weight:700;color:var(--rio);
@@ -290,8 +291,9 @@ async function buscar() {
     '<div class="rcard">'
     + '<div class="rn">' + c.nombre + "</div>"
     + '<div class="rm">ID ' + c.id + " · " + c.producto + " · " + c.centro + " · " + c.ejecutivo + "</div>"
-    + '<div class="rd"><span>saldo <b>' + dinero(c.saldo) + "</b></span>"
+    + '<div class="rd"><span>saldo <b>' + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
+    + (c.pagado > 0 ? '<span class="rpago">pagó ' + dinero(c.pagado) + " esta sem.</span>" : "")
     + (c.mora > 0 ? '<span class="rmora">mora ' + dinero(c.mora) + "</span>" : "")
     + "</div></div>"
   ).join("");

@@ -152,6 +152,52 @@ const CUOTA = {}; // cuota por nº de socio (para faltantes/mora del día)
 function norm(s) {
   return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
+
+// ---------- FASE 1: cartera viva ----------
+// Suma lo pagado por cada crédito (socio+producto) en la semana en curso, para
+// que el saldo baje solo con cada pago (saldo actual = saldo del padrón − pagado).
+function lunesDeLaSemana(fechaISO) {
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = dt.getUTCDay();            // 0=Dom … 6=Sáb
+  dt.setUTCDate(dt.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+  return dt.toISOString().slice(0, 10);
+}
+function claveCredito(socioOKey, producto) {
+  return norm(String(socioOKey).split("|")[0]) + "|" + norm(producto || "");
+}
+function pagosDeLaSemana() {
+  const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
+  const map = {};
+  const snaps = store.respaldo().snapshots || {};
+  const sumar = (nodo, key) => {
+    if (!nodo || typeof nodo !== "object") return;
+    const pago = nodo.pago || 0;
+    if (pago > 0) {
+      const partes = String(key).split("|");
+      const clave = claveCredito(partes[0], partes[1]);
+      map[clave] = (map[clave] || 0) + pago;
+    }
+  };
+  for (const ej in snaps) {
+    for (const fecha in snaps[ej]) {
+      if (fecha < lunes || fecha > hoy) continue;
+      let data = snaps[ej][fecha].snapshot;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
+      const rec = (st) => {
+        if (!st || typeof st !== "object") return;
+        for (const k in st) {
+          const nd = st[k];
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) sumar(nd, k);
+          else if (nd && typeof nd === "object") for (const kk in nd) sumar(nd[kk], kk);
+        }
+      };
+      rec(data.reg); rec(data.regI);
+    }
+  }
+  return map;
+}
+
 app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
   const q = norm(req.query.q).trim();
   if (q.length < 2) return res.json({ total: PADRON.length, resultados: [] });
@@ -159,10 +205,14 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
   // ejecutivo solo ve sus clientas; dirección y admin ven todas
   let base = PADRON;
   if (req.usuario.rol === "ejecutivo") base = PADRON.filter(c => norm(c.ejecutivo) === norm(req.usuario.nombre));
+  const pagos = pagosDeLaSemana(); // cartera viva
   const res1 = base.filter(c => {
     const heno = norm(c.nombre) + " " + c.id;
     return terminos.every(t => heno.includes(t));
-  }).slice(0, 40);
+  }).slice(0, 40).map(c => {
+    const pagado = pagos[claveCredito(c.id, c.producto)] || 0;
+    return { ...c, pagado, saldoActual: Math.max(0, (c.saldo || 0) - pagado) };
+  });
   res.json({ total: base.length, resultados: res1 });
 });
 
