@@ -400,9 +400,26 @@
     const inp = document.getElementById("inpFecha");
     if (inp && !inp.value) inp.value = window.hoyISO();
     else if (inp && inp.value) {
-      // si el campo tiene la fecha UTC por defecto de hoy, corrígela a la de México
       const utcHoy = new Date().toISOString().slice(0, 10);
       if (inp.value === utcHoy) inp.value = window.hoyISO();
+    }
+    // Arregla el desfase de un día: la app hacía new Date("AAAA-MM-DD") que se
+    // interpreta como UTC y en México (−6) caía al día anterior. Aquí la fecha
+    // se arma LOCAL, así el encabezado y el campo muestran SIEMPRE el mismo día.
+    if (typeof window.updFecha === "function") {
+      const DIAS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+      window.updFecha = function () {
+        const v = (document.getElementById("inpFecha").value || window.hoyISO());
+        const pz = String(v).split("-").map(Number);
+        const d = pz.length === 3 && pz[0] ? new Date(pz[0], pz[1] - 1, pz[2]) : new Date(v);
+        const fh = document.getElementById("fechaHoy");
+        if (fh) fh.textContent = d.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+        const ds = DIAS[(d.getDay() + 6) % 7];
+        const sel = document.getElementById("selDia");
+        if (sel) for (const o of sel.options) { if (o.value === ds) { sel.value = ds; break; } }
+        if (typeof window.render === "function") window.render();
+      };
+      try { window.updFecha(); } catch (e) {}
     }
   }
 
