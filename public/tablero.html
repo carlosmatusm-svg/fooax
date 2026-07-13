@@ -107,6 +107,33 @@
   .rcard .rd b{color:var(--tinta);font-variant-numeric:tabular-nums}
   .rcard .rmora{color:var(--llama);font-weight:700}
   .rcard .rpago{color:var(--verde);font-weight:700}
+  .rcard .racc{margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
+  .rbaja{font:inherit;font-size:12px;font-weight:700;color:var(--llama);background:none;
+    border:1.5px solid var(--llama);border-radius:99px;padding:5px 12px;cursor:pointer}
+  .rbadge-baja{font-size:10px;font-weight:800;color:#fff;background:var(--llama);
+    border-radius:99px;padding:2px 8px;vertical-align:middle;letter-spacing:.03em}
+  .bajabox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
+  .bajabox>span{font-size:11.5px;font-weight:700;color:var(--gris);width:100%}
+  .motbtn{font:inherit;font-size:11.5px;font-weight:600;color:var(--tinta);background:var(--lav);
+    border:1px solid var(--linea);border-radius:99px;padding:6px 11px;cursor:pointer}
+  .motbtn:active{background:#FDECEC;color:#B4232F}
+  .altawrap{margin:8px 16px 0}
+  .altatoggle{width:100%;font:inherit;font-size:14px;font-weight:700;color:var(--verde);
+    background:var(--tarjeta);border:1.5px dashed #B7DEC8;border-radius:14px;padding:12px;cursor:pointer}
+  .altaform{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px;
+    margin-top:8px;display:flex;flex-direction:column;gap:10px}
+  .altaform .arow{display:flex;gap:10px}
+  .altaform .arow .acampo{flex:1}
+  .acampo label{display:block;font-size:11px;font-weight:700;color:var(--gris);
+    text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+  .acampo input,.acampo select{width:100%;font:inherit;font-size:15px;padding:10px 12px;
+    border:1.5px solid var(--linea);border-radius:11px;background:#fff}
+  .acampo input:focus,.acampo select:focus{outline:none;border-color:var(--aurora)}
+  .altasubmit{font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--verde);
+    border:none;border-radius:12px;padding:12px;cursor:pointer}
+  .altasubmit:disabled{opacity:.6}
+  .altaerr{font-size:12.5px;font-weight:600}
+  .altaerr.err{color:#B4232F}.altaerr.ok{color:var(--verde)}
   .rvacio{color:var(--gris);font-size:13px;text-align:center;padding:12px}
   .movwrap{margin:8px 16px 0}
   .movtoggle{width:100%;font:inherit;font-size:14px;font-weight:700;color:var(--rio);
@@ -180,6 +207,28 @@
     <input id="q" type="search" placeholder="Buscar clienta por nombre o ID…" autocomplete="off" enterkeyhint="search">
   </div>
   <div id="resultados" class="resultados"></div>
+
+  <div class="altawrap">
+    <button class="altatoggle" id="altaToggle" onclick="toggleAlta()">+ Dar de alta a una clienta</button>
+    <form class="altaform" id="altaForm" onsubmit="registrarAlta(event)" style="display:none">
+      <div class="acampo"><label>Nombre de la clienta</label><input id="aNombre" required></div>
+      <div class="arow">
+        <div class="acampo"><label>Socio (ID)</label><input id="aSocio" inputmode="numeric" required></div>
+        <div class="acampo"><label>Producto</label><input id="aProducto" placeholder="Grupal-Basico"></div>
+      </div>
+      <div class="arow">
+        <div class="acampo"><label>Centro</label><input id="aCentro" placeholder="C-13 · YA MUGHNI" required></div>
+        <div class="acampo"><label>Ejecutivo</label><select id="aEjecutivo"><option>Neri</option><option>Karina</option><option>Christopher</option></select></div>
+      </div>
+      <div class="arow">
+        <div class="acampo"><label>Saldo</label><input id="aSaldo" type="number" inputmode="decimal"></div>
+        <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal"></div>
+        <div class="acampo"><label>Plazo (sem)</label><input id="aPlazo" type="number" inputmode="numeric"></div>
+      </div>
+      <button class="altasubmit" type="submit">Registrar alta</button>
+      <div class="altaerr" id="altaErr"></div>
+    </form>
+  </div>
 
   <div class="tarjeta">
     <div class="eti">Cobranza de hoy · Total FOOAX</div>
@@ -287,16 +336,68 @@ async function buscar() {
     resultados.innerHTML = '<div class="rvacio">Sin resultados para “' + term + '”.</div>';
     return;
   }
-  resultados.innerHTML = d.resultados.map(c =>
-    '<div class="rcard">'
-    + '<div class="rn">' + c.nombre + "</div>"
+  resultados.innerHTML = d.resultados.map(c => {
+    const esBaja = c.activa === false || c.estatus === "BAJA";
+    return '<div class="rcard">'
+    + '<div class="rn">' + c.nombre + (esBaja ? ' <span class="rbadge-baja">BAJA</span>' : "") + "</div>"
     + '<div class="rm">ID ' + c.id + " · " + c.producto + " · " + c.centro + " · " + c.ejecutivo + "</div>"
     + '<div class="rd"><span>saldo <b>' + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
     + (c.pagado > 0 ? '<span class="rpago">pagó ' + dinero(c.pagado) + " esta sem.</span>" : "")
     + (c.mora > 0 ? '<span class="rmora">mora ' + dinero(c.mora) + "</span>" : "")
-    + "</div></div>"
-  ).join("");
+    + "</div>"
+    + (esBaja ? "" : '<div class="racc"><button class="rbaja" onclick="pedirBaja(this,\'' + c.id + "','" + esc(c.producto) + '\')">Dar de baja</button></div>')
+    + "</div>";
+  }).join("");
+}
+
+// ---------- alta / baja de clientas ----------
+const MOTIVOS_BAJA = ["Salió del grupo", "No renovó", "Mora / mal historial",
+  "Cambió zona / cerró negocio", "Decisión FOOAX", "Otro"];
+function esc(s) { return String(s == null ? "" : s).replace(/'/g, "\\'"); }
+
+function toggleAlta() {
+  const f = $("altaForm"), t = $("altaToggle");
+  const ab = f.style.display !== "none";
+  f.style.display = ab ? "none" : "flex";
+  t.textContent = ab ? "+ Dar de alta a una clienta" : "Cerrar";
+}
+async function registrarAlta(e) {
+  e.preventDefault();
+  const err = $("altaErr"); err.className = "altaerr";
+  const btn = e.target.querySelector(".altasubmit"); btn.disabled = true;
+  const body = {
+    nombre: $("aNombre").value, id: $("aSocio").value, producto: $("aProducto").value,
+    centro: $("aCentro").value, ejecutivo: $("aEjecutivo").value,
+    saldo: $("aSaldo").value, cuota: $("aCuota").value, plazo: $("aPlazo").value,
+  };
+  try {
+    const r = await fetch("/api/clientes/alta", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      credentials: "include", body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.error || "No se pudo dar de alta."; err.className = "altaerr err"; btn.disabled = false; return; }
+    e.target.reset();
+    err.textContent = "✓ " + d.clienta.nombre + " dada de alta"; err.className = "altaerr ok";
+    setTimeout(() => { err.textContent = ""; }, 3500);
+  } catch { err.textContent = "Sin conexión con el servidor."; err.className = "altaerr err"; }
+  btn.disabled = false;
+}
+function pedirBaja(btn, id, producto) {
+  const cont = btn.parentNode;
+  cont.className = "bajabox";
+  cont.innerHTML = "<span>Motivo de baja:</span>" + MOTIVOS_BAJA.map(m =>
+    '<button class="motbtn" type="button" onclick="hacerBaja(\'' + id + "','" + esc(producto) + "','" + esc(m) + '\')">' + m + "</button>").join("");
+}
+async function hacerBaja(id, producto, motivo) {
+  try {
+    const r = await fetch("/api/clientes/baja", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      credentials: "include", body: JSON.stringify({ id, producto, motivo }),
+    });
+    if (r.ok) buscar();
+  } catch {}
 }
 
 // ---------- movimientos de dirección / caja ----------

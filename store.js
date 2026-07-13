@@ -12,7 +12,29 @@ const DATA_DIR = path.join(__dirname, "data");
 const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;
-const mem = { snapshots: {}, movimientos: [], padron: [] };
+const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [] };
+
+// Aplica las altas y bajas (capa de cambios) sobre el padrón base del archivo.
+// Alta: agrega la clienta. Baja: la marca inactiva (estatus BAJA) sin borrar su
+// historia. Devuelve un padrón NUEVO sin mutar el base.
+function aplicarCambios(base, cambios) {
+  const arr = base.map((c) => Object.assign({}, c));
+  const norm2 = (s) => String(s || "").toLowerCase().trim();
+  for (const c of cambios) {
+    if (c.tipo === "alta" && c.clienta) {
+      arr.push(Object.assign({}, c.clienta, { origen: "alta", activa: true }));
+    } else if (c.tipo === "baja") {
+      for (const cl of arr) {
+        if (String(cl.id) === String(c.id) && (!c.producto || norm2(cl.producto) === norm2(c.producto))) {
+          cl.activa = false; cl.estatus = "BAJA";
+          cl.motivo_baja = c.motivo || null; cl.fecha_baja = c.fecha || null; cl.baja_por = c.por || null;
+        }
+      }
+    }
+  }
+  for (const cl of arr) if (cl.activa === undefined) cl.activa = cl.estatus !== "BAJA";
+  return arr;
+}
 
 // ---------- arranque ----------
 async function init() {
@@ -29,6 +51,7 @@ async function init() {
       "CREATE TABLE IF NOT EXISTS movimientos (folio text PRIMARY KEY, fecha text, data jsonb, ts bigint)"
     );
     await pool.query("CREATE TABLE IF NOT EXISTS padron (id text, data jsonb)");
+    await pool.query("CREATE TABLE IF NOT EXISTS padron_cambios (id text, data jsonb, ts bigint)");
 
     const s = await pool.query("SELECT ejecutivo, fecha, data, ts, recibido FROM snapshots");
     for (const r of s.rows) {
@@ -46,8 +69,11 @@ async function init() {
     // Carga primero lo que haya en la base (arranque garantizado). Luego intenta
     // refrescar desde el archivo en lotes; si algo falla, se queda con lo de la
     // base y NUNCA tumba el arranque.
+    const cb = await pool.query("SELECT data FROM padron_cambios ORDER BY ts");
+    mem.cambios = cb.rows.map((r) => r.data);
+
     const p0 = await pool.query("SELECT data FROM padron").catch(() => ({ rows: [] }));
-    mem.padron = p0.rows.map((r) => r.data);
+    mem.padronBase = p0.rows.map((r) => r.data);
     try {
       const seed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8"));
       await pool.query("DELETE FROM padron");
@@ -58,17 +84,20 @@ async function init() {
         chunk.forEach((c) => { params.push(c.id, c); });
         await pool.query(`INSERT INTO padron (id, data) VALUES ${vals}`, params);
       }
-      mem.padron = seed;
-      console.log(`[store] padrón actualizado desde archivo: ${seed.length}`);
+      mem.padronBase = seed;
+      console.log(`[store] padrón base actualizado desde archivo: ${seed.length}`);
     } catch (e) {
       console.error("[store] no se refrescó el padrón (uso el de la base):", e.message);
     }
-    console.log(`[store] PostgreSQL listo · ${mem.padron.length} clientas, ${mem.movimientos.length} movimientos`);
+    mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
+    console.log(`[store] PostgreSQL listo · ${mem.padron.length} clientas (${mem.cambios.length} cambios), ${mem.movimientos.length} movimientos`);
   } else {
     try { mem.snapshots = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "snapshots.json"), "utf8")); } catch { mem.snapshots = {}; }
     try { mem.movimientos = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "movimientos.json"), "utf8")); } catch { mem.movimientos = []; }
-    try { mem.padron = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8")); } catch { mem.padron = []; }
-    console.log(`[store] archivos locales · ${mem.padron.length} clientas`);
+    try { mem.padronBase = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8")); } catch { mem.padronBase = []; }
+    try { mem.cambios = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron_cambios.json"), "utf8")); } catch { mem.cambios = []; }
+    mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
+    console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
   }
 }
 
@@ -97,6 +126,12 @@ function persistMovimiento(mov) {
       [mov.folio, mov.fecha, mov, mov.ts]
     ).catch((e) => console.error("[store] movimiento:", e.message));
   } else escribirJSON("movimientos.json", mem.movimientos);
+}
+function persistCambio(c) {
+  if (usePg) {
+    pool.query("INSERT INTO padron_cambios (id, data, ts) VALUES ($1,$2,$3)", [String(c.id || ""), c, c.ts])
+      .catch((e) => console.error("[store] cambio padrón:", e.message));
+  } else escribirJSON("padron_cambios.json", mem.cambios);
 }
 
 module.exports = {
@@ -136,4 +171,15 @@ module.exports = {
   movimientosDeFecha(fecha) {
     return mem.movimientos.filter((m) => m.fecha === fecha);
   },
+
+  // Alta / baja de clientas (capa de cambios append-only sobre el padrón base).
+  // Se re-aplica en vivo para que el buscador y la cartera reflejen el cambio al
+  // instante, y persiste para sobrevivir cualquier redespliegue.
+  agregarCambioPadron(cambio) {
+    mem.cambios.push(cambio);
+    mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
+    persistCambio(cambio);
+    return cambio;
+  },
+  cambiosPadron() { return mem.cambios; },
 };

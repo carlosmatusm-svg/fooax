@@ -233,6 +233,12 @@ app.get("/api/respaldo", requiere("direccion", "admin"), async (req, res) => {
 // mora). Se llena desde el store (PostgreSQL o archivo) en el arranque.
 let PADRON = [];
 const CUOTA = {}; // cuota por nº de socio (para faltantes/mora del día)
+// Re-lee el padrón efectivo (base + altas/bajas) y reconstruye el mapa de cuotas.
+function refrescarPadron() {
+  PADRON = store.padron();
+  for (const k in CUOTA) delete CUOTA[k];
+  PADRON.forEach((c) => { if (c.cuota > 0 && !CUOTA[c.id]) CUOTA[c.id] = c.cuota; });
+}
 
 // normaliza para buscar sin acentos ni mayúsculas
 function norm(s) {
@@ -300,6 +306,50 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
     return { ...c, pagado, saldoActual: Math.max(0, (c.saldo || 0) - pagado) };
   });
   res.json({ total: base.length, resultados: res1 });
+});
+
+// ---------- FASE 1: alta y baja de clientas ----------
+// La baja marca a la clienta inactiva (no la borra) para que NO salga en el
+// pagaré ni en el centro activo, pero conserva su historia. Todo con rastro:
+// quién y cuándo. Es justo lo que el sistema anterior nunca permitió.
+const MOTIVOS_BAJA = ["Salió del grupo", "No renovó", "Mora / mal historial",
+  "Cambió zona / cerró negocio", "Decisión FOOAX", "Otro"];
+
+app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || "").trim();
+  const nombre = (b.nombre || "").trim();
+  const centro = (b.centro || "").trim();
+  const ejecutivo = (b.ejecutivo || "").trim();
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
+  if (!centro) return res.status(400).json({ error: "Falta el centro." });
+  if (!ejecutivo) return res.status(400).json({ error: "Falta el ejecutivo." });
+  const clienta = {
+    id, nombre, producto: (b.producto || "").trim(), centro, ejecutivo,
+    saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
+    mora: 0, estatus: "VIGENTE", semana: 0,
+  };
+  store.agregarCambioPadron({
+    tipo: "alta", id, producto: clienta.producto, clienta,
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta });
+});
+
+app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || "").trim();
+  const motivo = MOTIVOS_BAJA.includes(b.motivo) ? b.motivo : null;
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!motivo) return res.status(400).json({ error: "Elige un motivo de baja válido." });
+  store.agregarCambioPadron({
+    tipo: "baja", id, producto: (b.producto || "").trim(), motivo,
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true });
 });
 
 // ---------- movimientos de dirección/caja (retiros, gastos, autorizaciones) ----------
@@ -489,8 +539,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3789;
 store.init().then(() => {
-  PADRON = store.padron();
-  PADRON.forEach((c) => { if (c.cuota > 0 && !CUOTA[c.id]) CUOTA[c.id] = c.cuota; });
+  refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });
