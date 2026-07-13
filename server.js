@@ -548,13 +548,20 @@ app.get("/", (req, res) => {
 app.get("/app", requiere("ejecutivo"), (req, res) => {
   const archivo = path.join(__dirname, "apps", req.usuario.app);
   if (!fs.existsSync(archivo)) return res.status(404).send("No se encontró el archivo de la app de este ejecutivo.");
-  // inyectar el módulo de sincronización antes de </body>
   const html = fs.readFileSync(archivo, "utf8");
+  // PWA: manifiesto + service worker (app instalable, offline robusto).
+  const cabeza =
+    '<link rel="manifest" href="/manifest.json">' +
+    '<link rel="apple-touch-icon" href="/img/logo-fooax.jpg">' +
+    '<meta name="apple-mobile-web-app-capable" content="yes">' +
+    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' +
+    '<meta name="apple-mobile-web-app-title" content="FOOAX">' +
+    '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>';
+  // Sincronización y capa de mejoras antes de </body>.
   const inyecciones = '<script src="/sync.js"></script><script src="/captura-agil.js"></script>';
-  const conSync = html.includes("</body>")
-    ? html.replace("</body>", inyecciones + "</body>")
-    : html + inyecciones;
-  res.type("html").send(conSync);
+  let out = html.includes("</head>") ? html.replace("</head>", cabeza + "</head>") : cabeza + html;
+  out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
+  res.type("html").send(out);
 });
 app.get("/tablero", requiere("direccion", "admin"), (req, res) => {
   res.sendFile(path.join(__dirname, "public", "tablero.html"));

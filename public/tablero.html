@@ -6,7 +6,12 @@
 <title>FOOAX · Tablero</title>
 <link rel="icon" href="/img/logo-fooax.jpg">
 <link rel="apple-touch-icon" href="/img/logo-fooax.jpg">
+<link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#F1228E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FOOAX">
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>
 <style>
   :root{
     /* Paleta oficial FOOAX (manual de marca, ene-2025) */
