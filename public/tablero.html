@@ -182,6 +182,14 @@
   .arq-vacio{color:var(--gris);font-size:13px;padding:4px 0}
   .arq-ejec{font-size:12px;color:var(--gris);display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--lav)}
   .arq-ejec b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .segwrap{margin:8px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px}
+  .seghint{font-size:12.5px;color:var(--gris);margin-bottom:10px;line-height:1.4}
+  .segfila{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--lav)}
+  .segfila:first-of-type{border-top:none}
+  .segfila>span{font-weight:700}
+  .segbtn{font:inherit;font-size:12px;font-weight:700;color:var(--llama);background:none;
+    border:1.5px solid var(--llama);border-radius:99px;padding:5px 12px;cursor:pointer}
+  .segmarcado{font-size:11.5px;font-weight:700;color:var(--llama)}
 </style>
 </head>
 <body>
@@ -269,6 +277,9 @@
 
   <h3>Arqueo del día · efectivo</h3>
   <div id="arqueoBox" class="arqueo"></div>
+
+  <h3>Seguridad · borrado remoto</h3>
+  <div class="segwrap" id="segWrap"></div>
 
   <div class="resp"><b>Respaldo</b> · descarga toda la cobranza sincronizada en
     <a href="/api/respaldo" download>Excel aquí</a> (cobranza detallada + movimientos de caja),
@@ -501,6 +512,23 @@ async function cargarResumen() {
   badge.textContent = d.pendientes > 0 ? String(d.pendientes) : "";
 }
 
+// ---------- seguridad: borrado remoto del teléfono ----------
+const EJECS_SEG = [["neri", "Neri"], ["karina", "Karina"], ["christopher", "Christopher"]];
+async function cargarSeg() {
+  let marcados = [];
+  try { marcados = (await (await fetch("/api/telefono/marcados", { credentials: "include" })).json()).marcados || []; } catch { return; }
+  $("segWrap").innerHTML =
+    '<div class="seghint">Si un ejecutivo pierde el teléfono o deja de trabajar, marca su teléfono aquí: la próxima vez que abra la app con señal, se borran todos sus datos.</div>' +
+    EJECS_SEG.map(([id, nom]) => '<div class="segfila"><span>' + nom + "</span>" +
+      (marcados.includes(id)
+        ? '<span class="segmarcado">marcado para borrar</span>'
+        : '<button class="segbtn" onclick="borrarTel(\'' + id + "','" + nom + '\')">Borrar teléfono</button>') + "</div>").join("");
+}
+async function borrarTel(id, nom) {
+  if (!confirm("¿Marcar el teléfono de " + nom + " para borrado remoto?\nSe borrarán todos sus datos la próxima vez que abra la app con señal.")) return;
+  try { await fetch("/api/telefono/borrar", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ usuario: id }) }); cargarSeg(); } catch {}
+}
+
 async function salir() {
   await fetch("/api/logout", { method: "POST", credentials: "include" });
   location.href = "/";
@@ -512,7 +540,8 @@ cargar();
 cargarMovs();
 cargarArqueo();
 cargarResumen();
-setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); }, 5000);
+cargarSeg();
+setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); }, 5000);
 </script>
 </body>
 </html>

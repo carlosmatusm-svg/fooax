@@ -31,6 +31,9 @@ function hoyMX() {
 
 // ---------- sesiones (cookie httpOnly) ----------
 const sesiones = new Map();
+// Borrado remoto: ejecutivos marcados para que su teléfono limpie los datos al
+// abrir la app (teléfono perdido o dejó de trabajar).
+const borrarTelefono = new Set();
 function crearSesion(usuario) {
   const sid = crypto.randomBytes(24).toString("hex");
   sesiones.set(sid, { usuario, creada: Date.now() });
@@ -83,7 +86,28 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/me", (req, res) => {
   const u = usuarioDe(req);
   if (!u) return res.status(401).json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." });
-  res.json({ usuario: u.id, nombre: u.nombre, rol: u.rol });
+  res.json({ usuario: u.id, nombre: u.nombre, rol: u.rol, wipe: borrarTelefono.has(u.id) });
+});
+
+// ---------- borrado remoto de datos del teléfono ----------
+// Dirección/Admin marca a un ejecutivo (teléfono perdido o dejó de trabajar);
+// la próxima vez que ese teléfono abra la app con señal, limpia todos los datos.
+app.post("/api/telefono/borrar", requiere("direccion", "admin"), (req, res) => {
+  const ejec = String((req.body || {}).usuario || "").toLowerCase().trim();
+  if (!USUARIOS[ejec] || USUARIOS[ejec].rol !== "ejecutivo") {
+    return res.status(400).json({ error: "Elige un ejecutivo válido." });
+  }
+  borrarTelefono.add(ejec);
+  res.json({ ok: true });
+});
+// El teléfono confirma que ya borró → se quita la bandera.
+app.post("/api/telefono/borrado-hecho", requiere("ejecutivo"), (req, res) => {
+  borrarTelefono.delete(req.usuario.id);
+  res.json({ ok: true });
+});
+// Estado (para el tablero): quién está marcado.
+app.get("/api/telefono/marcados", requiere("direccion", "admin"), (req, res) => {
+  res.json({ marcados: Array.from(borrarTelefono) });
 });
 
 // ---------- sincronización ----------

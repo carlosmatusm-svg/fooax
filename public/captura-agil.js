@@ -4,6 +4,26 @@
 //      se vuelve una etiqueta chiquita "sin ficha" → mucho menos scroll.
 //   2) Renglones más compactos: caben más clientas por pantalla.
 // La captura de "pagó su cuota completa" ya es de un toque (el ✓ de cada clienta).
+
+// Protección del teléfono (corre siempre, aunque la app cambie). Limpia TODOS
+// los datos de FOOAX del teléfono si la cuenta se deshabilitó (sesión inválida)
+// o si Dirección marcó el teléfono para borrado remoto (perdido / dejó de
+// trabajar). Los datos en tránsito ya van cifrados por HTTPS.
+window.__limpiarFooax = function () {
+  Object.keys(localStorage).forEach((k) => { if (k.indexOf("fooax_") === 0) localStorage.removeItem(k); });
+};
+(function proteccionTelefono() {
+  fetch("/api/me", { credentials: "include" }).then(async (r) => {
+    if (r.status === 401) { window.__limpiarFooax(); return; }
+    const d = await r.json().catch(() => ({}));
+    if (d && d.wipe) {
+      window.__limpiarFooax();
+      try { await fetch("/api/telefono/borrado-hecho", { method: "POST", credentials: "include" }); } catch (e) {}
+      location.reload();
+    }
+  }).catch(() => {});
+})();
+
 (function () {
   if (typeof window.fichaClienteDato !== "function" || typeof window.render !== "function") {
     console.warn("[captura-agil] app no compatible");
@@ -449,8 +469,12 @@
     salir.addEventListener("click", async () => {
       if (!confirm("¿Cerrar sesión? Tu captura ya está guardada.")) return;
       salir.disabled = true;
-      try { if (window.__forzarSync) await window.__forzarSync(); } catch (e) {}
+      let subio = false;
+      try { if (window.__forzarSync) subio = await window.__forzarSync(); } catch (e) {}
       try { await fetch("/api/logout", { method: "POST", credentials: "include" }); } catch (e) {}
+      // Limpia los datos del teléfono SOLO si ya subieron a la nube (si estaba
+      // sin señal, se conservan para no perder la captura del día).
+      if (subio && window.__limpiarFooax) window.__limpiarFooax();
       location.href = "/";
     });
     header.appendChild(salir);

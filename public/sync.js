@@ -20,10 +20,10 @@
   };
 
   async function subir() {
-    if (!pendiente) return;
-    if (!navigator.onLine) { pintar("offline"); return; }
+    if (!pendiente) return true;
+    if (!navigator.onLine) { pintar("offline"); return false; }
     const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return;
+    if (!raw) return true;
     let fecha;
     try { fecha = JSON.parse(raw).fecha; } catch { }
     fecha = fecha || new Date().toISOString().slice(0, 10);
@@ -35,10 +35,10 @@
         credentials: "include",
         body: JSON.stringify({ fecha, snapshot: raw, ts: Date.now() }),
       });
-      if (r.ok) { pendiente = false; pintar("ok"); }
-      else if (r.status === 401) pintar("sesion");
-      else pintar("error");
-    } catch { pintar("offline"); }
+      if (r.ok) { pendiente = false; pintar("ok"); return true; }
+      if (r.status === 401) { pintar("sesion"); return false; }
+      pintar("error"); return false;
+    } catch { pintar("offline"); return false; }
   }
 
   // Fuerza una subida inmediata (la usa el botón "Salir" antes de cerrar sesión).
