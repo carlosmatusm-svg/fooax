@@ -57,6 +57,9 @@ app.get("/api/health", (req, res) => {
     ok: true,
     almacen: store.modo(),               // "postgres" (persiste) o "archivos" (se borra al reiniciar)
     tieneDATABASE_URL: !!process.env.DATABASE_URL,
+    region: process.env.RAILWAY_REPLICA_REGION || process.env.RAILWAY_REGION || "desconocida",
+    proyecto: process.env.RAILWAY_PROJECT_NAME || null,
+    ambiente: process.env.RAILWAY_ENVIRONMENT_NAME || null,
     conteos: store.conteos(),
   });
 });
