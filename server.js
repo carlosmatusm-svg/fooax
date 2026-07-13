@@ -139,7 +139,9 @@ function acumular(nodo, acc) {
   Object.values(nodo).forEach(v => acumular(v, acc));
 }
 
-app.get("/api/consolidado", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
+// Vista de los TRES ejecutivos juntos: es información de dirección/administración.
+// Un ejecutivo nunca ve los números de sus compañeras (permisos finos, Fase 1).
+app.get("/api/consolidado", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const snaps = store.snapshotsDeFecha(fecha);
   const ejecutivos = {};
