@@ -8301,5 +8301,31 @@
     "plazo": 18,
     "semana": 0,
     "estatus": "ACTIVO RECUPERABLE"
+  },
+  {
+    "id": "11112739079",
+    "nombre": "LILIANA CARRION ALLENDE",
+    "producto": "Grupal-Adicional",
+    "centro": "FERRERIA",
+    "ejecutivo": "Neri",
+    "saldo": 3900,
+    "cuota": 300,
+    "mora": 0,
+    "plazo": 13,
+    "semana": 0,
+    "estatus": "ACTIVO RECUPERABLE"
+  },
+  {
+    "id": "11113004468",
+    "nombre": "JUANA GONZALES LUENGAS",
+    "producto": "Grupal-Basico 2",
+    "centro": "GHANIMA",
+    "ejecutivo": "Neri",
+    "saldo": 4032,
+    "cuota": 288,
+    "mora": 0,
+    "plazo": 18,
+    "semana": 0,
+    "estatus": "ACTIVO RECUPERABLE"
   }
 ]
