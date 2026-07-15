@@ -421,12 +421,15 @@
     "producto": "Grupal-Basico",
     "centro": "ADNACHIEL",
     "ejecutivo": "Neri",
-    "saldo": 420,
+    "saldo": 0,
     "cuota": 420,
     "mora": 0,
     "plazo": 0,
     "semana": 0,
-    "estatus": "VIGENTE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112874979",
@@ -634,7 +637,10 @@
     "mora": 0,
     "plazo": 0,
     "semana": 0,
-    "estatus": "VIGENTE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112977454",
@@ -707,12 +713,15 @@
     "producto": "Grupal-Basico 2",
     "centro": "BARCHIEL",
     "ejecutivo": "Neri",
-    "saldo": 6920,
+    "saldo": 0,
     "cuota": 357,
     "mora": 0,
     "plazo": 32,
     "semana": 0,
-    "estatus": "ACTIVO RECUPERABLE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112994997",
@@ -889,12 +898,15 @@
     "producto": "Grupal-Adicional",
     "centro": "BASTON DE DULCE",
     "ejecutivo": "Neri",
-    "saldo": 300,
+    "saldo": 0,
     "cuota": 240,
     "mora": 0,
     "plazo": 24,
     "semana": 0,
-    "estatus": "ACTIVO RECUPERABLE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112919388",
@@ -1071,12 +1083,15 @@
     "producto": "Grupal-Adicional",
     "centro": "ENEIJ",
     "ejecutivo": "Neri",
-    "saldo": 200,
+    "saldo": 0,
     "cuota": 200,
     "mora": 0,
     "plazo": 0,
     "semana": 0,
-    "estatus": "VIGENTE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112984205",
@@ -1929,12 +1944,15 @@
     "producto": "Grupal-Basico 2",
     "centro": "JESSE",
     "ejecutivo": "Neri",
-    "saldo": 576,
+    "saldo": 0,
     "cuota": 576,
     "mora": 0,
     "plazo": 18,
     "semana": 0,
-    "estatus": "VIGENTE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112972707",
@@ -3469,12 +3487,15 @@
     "producto": "Grupal-Micro",
     "centro": "YESERAYE",
     "ejecutivo": "Karina",
-    "saldo": 8424,
+    "saldo": 0,
     "cuota": 0,
     "mora": 0,
     "plazo": 0,
     "semana": 0,
-    "estatus": "VIGENTE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112886571",
@@ -4487,12 +4508,15 @@
     "producto": "Grupal-Micro",
     "centro": "SAN PABLO",
     "ejecutivo": "Karina",
-    "saldo": 3360,
+    "saldo": 0,
     "cuota": 480,
     "mora": 0,
     "plazo": 48,
     "semana": 0,
-    "estatus": "VIGENTE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112808669",
@@ -4995,12 +5019,15 @@
     "producto": "Grupal-Basico",
     "centro": "APASCO",
     "ejecutivo": "Christopher",
-    "saldo": 3840,
+    "saldo": 0,
     "cuota": 0,
     "mora": 72,
     "plazo": 0,
     "semana": 0,
-    "estatus": "VENCIDO"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112934778",
@@ -6183,7 +6210,10 @@
     "mora": 0,
     "plazo": 13,
     "semana": 0,
-    "estatus": "ACTIVO RECUPERABLE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11113299859",
@@ -7824,12 +7854,15 @@
     "producto": "Individual 1",
     "centro": "C-0",
     "ejecutivo": "Christopher",
-    "saldo": 2225,
+    "saldo": 0,
     "cuota": 581,
     "mora": 0,
     "plazo": 16,
     "semana": 0,
-    "estatus": "ACTIVO RECUPERABLE"
+    "estatus": "LIQUIDADO",
+    "activa": false,
+    "fecha_baja": "2026-07-14",
+    "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
   },
   {
     "id": "11112971606",

@@ -39,11 +39,15 @@ function crearSesion(usuario) {
   store.guardarSesion(sid, { usuario, creada: Date.now() });
   return sid;
 }
+const SESION_MAX_MS = 60 * 24 * 60 * 60 * 1000; // 60 días, igual que la cookie
 function usuarioDe(req) {
   const cookie = (req.headers.cookie || "").split(";").map(s => s.trim()).find(s => s.startsWith("sid="));
   if (!cookie) return null;
-  const ses = store.sesiones()[cookie.slice(4)];
-  return ses ? { id: ses.usuario, ...USUARIOS[ses.usuario] } : null;
+  const sid = cookie.slice(4);
+  const ses = store.sesiones()[sid];
+  if (!ses) return null;
+  if (Date.now() - (ses.creada || 0) > SESION_MAX_MS) { store.borrarSesion(sid); return null; }
+  return { id: ses.usuario, ...USUARIOS[ses.usuario] };
 }
 function requiere(...roles) {
   return (req, res, next) => {
@@ -79,10 +83,28 @@ app.get("/api/health", (req, res) => {
 });
 
 // ---------- auth ----------
+// Freno anti fuerza-bruta: máx 8 intentos fallidos por IP cada 10 minutos.
+// Un intento exitoso limpia el contador. En memoria: se reinicia con el
+// servidor, suficiente para frenar adivinanza de contraseñas.
+const intentosLogin = new Map(); // ip -> { n, desde }
+function ipDe(req) {
+  return String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "?").split(",")[0].trim();
+}
 app.post("/api/login", (req, res) => {
+  const ip = ipDe(req);
+  const reg = intentosLogin.get(ip);
+  if (reg && Date.now() - reg.desde < 10 * 60 * 1000 && reg.n >= 8) {
+    return res.status(429).json({ error: "Demasiados intentos. Espera 10 minutos e intenta de nuevo." });
+  }
+  if (reg && Date.now() - reg.desde >= 10 * 60 * 1000) intentosLogin.delete(ip);
   const { usuario, password } = req.body || {};
   const u = USUARIOS[(usuario || "").toLowerCase().trim()];
-  if (!u || u.pass !== password) return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
+  if (!u || u.pass !== password) {
+    const r = intentosLogin.get(ip) || { n: 0, desde: Date.now() };
+    r.n++; intentosLogin.set(ip, r);
+    return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
+  }
+  intentosLogin.delete(ip);
   const sid = crearSesion((usuario || "").toLowerCase().trim());
   // Max-Age: sin él la cookie muere al cerrar el navegador del celular y les
   // pedía iniciar sesión a cada rato. 60 días; el borrado remoto sigue mandando.

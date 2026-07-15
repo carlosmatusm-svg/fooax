@@ -22,7 +22,10 @@ function aplicarCambios(base, cambios) {
   const norm2 = (s) => String(s || "").toLowerCase().trim();
   for (const c of cambios) {
     if (c.tipo === "alta" && c.clienta) {
-      arr.push(Object.assign({}, c.clienta, { origen: "alta", activa: true }));
+      // Si el padrón base ya la trae (una recarga de plantillas la incluyó),
+      // no duplicar: el alta del tablero ya quedó absorbida por la base.
+      const ya = arr.some((cl) => String(cl.id) === String(c.clienta.id) && norm2(cl.producto) === norm2(c.clienta.producto));
+      if (!ya) arr.push(Object.assign({}, c.clienta, { origen: "alta", activa: true }));
     } else if (c.tipo === "baja") {
       for (const cl of arr) {
         if (String(cl.id) === String(c.id) && (!c.producto || norm2(cl.producto) === norm2(c.producto))) {

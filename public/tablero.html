@@ -426,8 +426,9 @@ async function buscar() {
   }
   resultados.innerHTML = d.resultados.map(c => {
     const esBaja = c.activa === false || c.estatus === "BAJA";
+    const badge = esBaja ? (c.estatus === "LIQUIDADO" ? "LIQUIDADO" : "BAJA") : "";
     return '<div class="rcard">'
-    + '<div class="rn">' + c.nombre + (esBaja ? ' <span class="rbadge-baja">BAJA</span>' : "") + "</div>"
+    + '<div class="rn">' + c.nombre + (badge ? ' <span class="rbadge-baja">' + badge + '</span>' : "") + "</div>"
     + '<div class="rm">ID ' + c.id + " · " + c.producto + " · " + c.centro + " · " + c.ejecutivo + "</div>"
     + '<div class="rd"><span>saldo <b>' + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
