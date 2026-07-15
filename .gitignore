@@ -19,3 +19,11 @@ rescate/backup-*/
 npm-debug.log*
 data/*.bak
 apps/*.bak
+
+# respaldos con fecha (locales) y sesiones (tokens, sensibles)
+apps/*.bak-*
+apps/*.bak2-*
+data/*.bak-*
+data/*.bak2-*
+data/*.bak3-*
+data/sesiones.json

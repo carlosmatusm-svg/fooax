@@ -6,15 +6,16 @@
 // La captura de "pagó su cuota completa" ya es de un toque (el ✓ de cada clienta).
 
 // Protección del teléfono (corre siempre, aunque la app cambie). Limpia TODOS
-// los datos de FOOAX del teléfono si la cuenta se deshabilitó (sesión inválida)
-// o si Dirección marcó el teléfono para borrado remoto (perdido / dejó de
-// trabajar). Los datos en tránsito ya van cifrados por HTTPS.
+// los datos de FOOAX del teléfono SOLO cuando Dirección marcó el borrado
+// remoto (teléfono perdido / dejó de trabajar). Una sesión vencida (401) NO
+// borra nada: la captura del día podría seguir sin sincronizar y borrar aquí
+// perdería cobranza real — la ejecutiva solo vuelve a iniciar sesión.
 window.__limpiarFooax = function () {
   Object.keys(localStorage).forEach((k) => { if (k.indexOf("fooax_") === 0) localStorage.removeItem(k); });
 };
 (function proteccionTelefono() {
   fetch("/api/me", { credentials: "include" }).then(async (r) => {
-    if (r.status === 401) { window.__limpiarFooax(); return; }
+    if (r.status === 401) return; // sesión vencida: conservar datos, solo re-login
     const d = await r.json().catch(() => ({}));
     if (d && d.wipe) {
       window.__limpiarFooax();

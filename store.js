@@ -12,7 +12,7 @@ const DATA_DIR = path.join(__dirname, "data");
 const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;
-const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [] };
+const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {} };
 
 // Aplica las altas y bajas (capa de cambios) sobre el padrón base del archivo.
 // Alta: agrega la clienta. Baja: la marca inactiva (estatus BAJA) sin borrar su
@@ -52,6 +52,11 @@ async function init() {
     );
     await pool.query("CREATE TABLE IF NOT EXISTS padron (id text, data jsonb)");
     await pool.query("CREATE TABLE IF NOT EXISTS padron_cambios (id text, data jsonb, ts bigint)");
+    // Sesiones persistentes: un redespliegue NO desloguea a las ejecutivas a
+    // media jornada (antes vivían solo en memoria y cada deploy las mataba).
+    await pool.query("CREATE TABLE IF NOT EXISTS sesiones (sid text PRIMARY KEY, usuario text, creada bigint)");
+    const se = await pool.query("SELECT sid, usuario, creada FROM sesiones").catch(() => ({ rows: [] }));
+    for (const r of se.rows) mem.sesiones[r.sid] = { usuario: r.usuario, creada: Number(r.creada) };
 
     const s = await pool.query("SELECT ejecutivo, fecha, data, ts, recibido FROM snapshots");
     for (const r of s.rows) {
@@ -96,6 +101,7 @@ async function init() {
     try { mem.movimientos = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "movimientos.json"), "utf8")); } catch { mem.movimientos = []; }
     try { mem.padronBase = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8")); } catch { mem.padronBase = []; }
     try { mem.cambios = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron_cambios.json"), "utf8")); } catch { mem.cambios = []; }
+    try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
   }
@@ -132,6 +138,17 @@ function persistCambio(c) {
     pool.query("INSERT INTO padron_cambios (id, data, ts) VALUES ($1,$2,$3)", [String(c.id || ""), c, c.ts])
       .catch((e) => console.error("[store] cambio padrón:", e.message));
   } else escribirJSON("padron_cambios.json", mem.cambios);
+}
+function persistSesion(sid, s) {
+  if (usePg) {
+    pool.query("INSERT INTO sesiones (sid, usuario, creada) VALUES ($1,$2,$3) ON CONFLICT (sid) DO NOTHING",
+      [sid, s.usuario, s.creada]).catch((e) => console.error("[store] sesión:", e.message));
+  } else escribirJSON("sesiones.json", mem.sesiones);
+}
+function eliminarSesion(sid) {
+  if (usePg) {
+    pool.query("DELETE FROM sesiones WHERE sid=$1", [sid]).catch((e) => console.error("[store] sesión:", e.message));
+  } else escribirJSON("sesiones.json", mem.sesiones);
 }
 
 module.exports = {
@@ -182,4 +199,15 @@ module.exports = {
     return cambio;
   },
   cambiosPadron() { return mem.cambios; },
+
+  // Sesiones persistentes (sobreviven redespliegues).
+  sesiones() { return mem.sesiones; },
+  guardarSesion(sid, datos) {
+    mem.sesiones[sid] = datos;
+    persistSesion(sid, datos);
+  },
+  borrarSesion(sid) {
+    delete mem.sesiones[sid];
+    eliminarSesion(sid);
+  },
 };

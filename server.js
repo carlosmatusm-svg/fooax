@@ -30,19 +30,19 @@ function hoyMX() {
 }
 
 // ---------- sesiones (cookie httpOnly) ----------
-const sesiones = new Map();
-// Borrado remoto: ejecutivos marcados para que su teléfono limpie los datos al
-// abrir la app (teléfono perdido o dejó de trabajar).
+// Persistentes vía store: un redespliegue NO desloguea a las ejecutivas a media
+// jornada. Antes vivían en un Map en memoria y cada deploy las mataba — y una
+// sesión muerta a media jornada era justo lo que hacía fallar la app en campo.
 const borrarTelefono = new Set();
 function crearSesion(usuario) {
   const sid = crypto.randomBytes(24).toString("hex");
-  sesiones.set(sid, { usuario, creada: Date.now() });
+  store.guardarSesion(sid, { usuario, creada: Date.now() });
   return sid;
 }
 function usuarioDe(req) {
   const cookie = (req.headers.cookie || "").split(";").map(s => s.trim()).find(s => s.startsWith("sid="));
   if (!cookie) return null;
-  const ses = sesiones.get(cookie.slice(4));
+  const ses = store.sesiones()[cookie.slice(4)];
   return ses ? { id: ses.usuario, ...USUARIOS[ses.usuario] } : null;
 }
 function requiere(...roles) {
@@ -79,7 +79,7 @@ app.post("/api/login", (req, res) => {
 });
 app.post("/api/logout", (req, res) => {
   const cookie = (req.headers.cookie || "").split(";").map(s => s.trim()).find(s => s.startsWith("sid="));
-  if (cookie) sesiones.delete(cookie.slice(4));
+  if (cookie) store.borrarSesion(cookie.slice(4));
   res.setHeader("Set-Cookie", "sid=; HttpOnly; Path=/; Max-Age=0");
   res.json({ ok: true });
 });

@@ -2,12 +2,36 @@
 // Guarda el "cascarón" de la app para que abra aunque no haya internet; la
 // captura offline ya vive en localStorage. Las llamadas al servidor (/api)
 // siempre van a la red (nunca se cachean), para no servir datos viejos.
-const CACHE = "fooax-v1";
-const ASSETS = ["/", "/sync.js", "/captura-agil.js", "/img/logo-fooax.jpg", "/manifest.json"];
+//
+// v2 — corrige el fallo de campo (14-jul): las respuestas REDIRIGIDAS (p.ej.
+// "/" → "/app") no pueden servirse del cache para abrir una página; el
+// navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
+// guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
+// separado (antes, si una fallaba, el cache quedaba vacío).
+const CACHE = "fooax-v2";
+const ASSETS = ["/login.html", "/sync.js", "/captura-agil.js", "/img/logo-fooax.jpg", "/manifest.json"];
+
+// Reconstruye la respuesta para que el cache la acepte al navegar sin señal.
+function limpia(r) {
+  if (!r || !r.redirected) return Promise.resolve(r);
+  return r.blob().then((b) => new Response(b, {
+    status: 200,
+    headers: { "Content-Type": r.headers.get("Content-Type") || "text/html; charset=utf-8" },
+  }));
+}
+function guardar(req, resp) {
+  return limpia(resp).then((rl) =>
+    caches.open(CACHE).then((c) => c.put(req, rl.clone()).then(() => rl))
+  );
+}
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(ASSETS)).catch(() => {}).then(() => self.skipWaiting())
+    caches.open(CACHE).then((c) =>
+      Promise.all(ASSETS.map((a) =>
+        fetch(a).then((r) => { if (r.ok) return limpia(r).then((rl) => c.put(a, rl)); }).catch(() => {})
+      ))
+    ).then(() => self.skipWaiting())
   );
 });
 
@@ -26,18 +50,24 @@ self.addEventListener("fetch", (e) => {
   if (url.pathname.startsWith("/api/")) return;     // datos: siempre frescos, nunca cache
 
   if (req.mode === "navigate") {
-    // páginas: red primero, y si no hay señal, del cache
+    // páginas: red primero; sin señal, del cache (la app del ejecutivo se
+    // guarda al primer uso con internet). Orden: la misma página → la app
+    // del ejecutivo → el login.
     e.respondWith(
-      fetch(req).then((r) => {
-        const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return r;
-      }).catch(() => caches.match(req).then((m) => m || caches.match("/")))
+      fetch(req).then((r) => (r.ok ? guardar(req, r) : r)).catch(() =>
+        caches.match(req, { ignoreSearch: true })
+          .then((m) => m || caches.match("/app"))
+          .then((m) => m || caches.match("/login.html"))
+          .then((m) => m || new Response(
+            "<meta charset=utf-8><title>FOOAX</title><body style=\"font-family:sans-serif;text-align:center;padding:40px\"><h2>Sin señal y sin datos guardados</h2><p>Abre la app una vez con internet para que quede lista para usarse sin conexión.</p>",
+            { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
+          ))
+      )
     );
   } else {
     // assets (js, imagen): cache primero para que cargue instantáneo y offline
     e.respondWith(
-      caches.match(req).then((m) => m || fetch(req).then((r) => {
-        const cp = r.clone(); caches.open(CACHE).then((c) => c.put(req, cp)); return r;
-      }))
+      caches.match(req).then((m) => m || fetch(req).then((r) => (r.ok ? guardar(req, r) : r)))
     );
   }
 });
