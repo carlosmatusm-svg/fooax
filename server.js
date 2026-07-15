@@ -179,6 +179,35 @@ app.get("/api/consolidado", requiere("direccion", "admin"), (req, res) => {
   res.json({ fecha, ejecutivos, total });
 });
 
+// ---------- total de la semana (tablero de dirección) ----------
+// Suma la cobranza de lunes → la fecha pedida (default hoy), día por día,
+// desde los snapshots ya guardados. Solo dirección/admin.
+app.get("/api/semana", requiere("direccion", "admin"), (req, res) => {
+  const hasta = req.query.fecha || hoyMX();
+  const [y, m, d] = hasta.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = dt.getUTCDay();
+  dt.setUTCDate(dt.getUTCDate() - (dow === 0 ? 6 : dow - 1)); // lunes de esa semana
+  const dias = [];
+  let totalSemana = 0;
+  for (let i = 0; i < 7; i++) {
+    const f = new Date(dt); f.setUTCDate(dt.getUTCDate() + i);
+    const fecha = f.toISOString().slice(0, 10);
+    if (fecha > hasta) break;
+    const snaps = store.snapshotsDeFecha(fecha);
+    const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+    for (const ej in snaps) {
+      let data = snaps[ej].snapshot;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
+      acumular(data.reg, acc); acumular(data.regI, acc);
+    }
+    const total = acc.pago + acc.garantias;
+    totalSemana += total;
+    dias.push({ fecha, total, efectivo: acc.efectivo, transferencia: acc.transferencia });
+  }
+  res.json({ desde: dt.toISOString().slice(0, 10), hasta, dias, totalSemana });
+});
+
 // Respaldo en EXCEL de verdad (.xlsx): cobranza detallada + movimientos de caja.
 // Lo que Monse puede abrir y usar directo, sin depender de Drive ni nada externo.
 const ExcelJS = require("exceljs");

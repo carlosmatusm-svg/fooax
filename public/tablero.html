@@ -195,6 +195,39 @@
   .segbtn{font:inherit;font-size:12px;font-weight:700;color:var(--llama);background:none;
     border:1.5px solid var(--llama);border-radius:99px;padding:5px 12px;cursor:pointer}
   .segmarcado{font-size:11.5px;font-weight:700;color:var(--llama)}
+  /* barra de fecha + actualizado */
+  .fbar{display:flex;align-items:center;gap:8px;margin:10px 16px 0;flex-wrap:wrap}
+  .fbar input[type=date]{font:inherit;font-size:13px;padding:7px 9px;border:1.5px solid var(--linea);
+    border-radius:10px;background:#fff;color:var(--tinta);-webkit-appearance:none}
+  .fhoy{font:inherit;font-size:12px;font-weight:700;color:#fff;background:var(--rio);border:none;
+    border-radius:99px;padding:7px 13px;cursor:pointer}
+  .fact{font-size:11px;color:var(--gris);margin-left:auto}
+  body.pasado .fbar input[type=date]{border-color:var(--riqueza);box-shadow:0 0 0 3px rgba(242,187,6,.18)}
+  .aviso-pasado{display:none;margin:8px 16px 0;background:#FFF6DC;border:1px solid #F0DFA0;color:#8A6D00;
+    font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:10px}
+  body.pasado .aviso-pasado{display:block}
+  /* chips de sincronización */
+  .chipsync{display:flex;gap:6px;margin:8px 16px 0;flex-wrap:wrap}
+  .cs{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+    padding:5px 10px;border-radius:99px}
+  .cs .ico{width:12px;height:12px}
+  .cs.ok{background:#E7F6EE;color:#0B7247}
+  .cs.no{background:#FDECEC;color:#B4232F}
+  /* semana */
+  .sembar{display:flex;gap:8px;align-items:flex-end;margin-top:12px}
+  .semd{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .semd .semv{width:100%;max-width:34px;background:linear-gradient(180deg,var(--aurora),var(--rio));
+    border-radius:6px 6px 3px 3px;min-height:4px}
+  .semd span{font-size:10.5px;font-weight:700;color:var(--gris)}
+  .semd small{font-size:9px;color:var(--gris)}
+  .semd.hoy span{color:var(--aurora)}
+  /* móvil: tocable y sin desbordes */
+  @media (max-width:480px){
+    input,select{font-size:16px!important}
+    .segbtn,.fhoy,.movtoggle,.altatoggle{min-height:42px}
+    .arq-tab{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .fact{width:100%;margin-left:0;text-align:right}
+  }
 </style>
 </head>
 <body>
@@ -214,6 +247,14 @@
     <div class="pc-fecha" id="pcFecha"></div>
     <div id="pcItems"></div>
   </div>
+
+  <div class="fbar">
+    <input type="date" id="fSel" aria-label="Ver otro día">
+    <button class="fhoy" id="fHoy" onclick="verHoy()" style="display:none">← volver a hoy</button>
+    <span class="fact" id="factTxt"></span>
+  </div>
+  <div class="aviso-pasado">Estás viendo un día anterior. Los números son de esa fecha.</div>
+  <div class="chipsync" id="chipSync"></div>
 
   <div class="buscador">
     <svg class="lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -258,6 +299,8 @@
     <div class="mini"><div class="eti">Clientas que pagaron</div><div class="v" id="cli">0</div></div>
   </div>
 
+  <div id="semanaBox"></div>
+
   <h3>Por ejecutivo · última sincronización</h3>
   <div id="ejecutivos"></div>
 
@@ -301,11 +344,40 @@ const IC = {
   cloud: SVG_OPEN + '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 14l2 2 4-4"/></svg>',
 };
 
+// ---------- ver otro día + actualizado a las ----------
+let FECHA_VISTA = null;   // null = hoy
+let FECHA_HOY = null;     // "hoy" según el servidor
+const fq = () => (FECHA_VISTA ? "?fecha=" + FECHA_VISTA : "");
+function refrescarVista() {
+  $("fHoy").style.display = FECHA_VISTA ? "inline-flex" : "none";
+  document.body.classList.toggle("pasado", !!FECHA_VISTA);
+  cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSemana();
+}
+function verHoy() {
+  FECHA_VISTA = null;
+  if (FECHA_HOY) $("fSel").value = FECHA_HOY;
+  refrescarVista();
+}
+$("fSel").addEventListener("change", () => {
+  const v = $("fSel").value;
+  if (!v) return;
+  FECHA_VISTA = (v === FECHA_HOY) ? null : v;
+  refrescarVista();
+});
+
 async function cargar() {
-  const r = await fetch("/api/consolidado", { credentials: "include" });
+  const r = await fetch("/api/consolidado" + fq(), { credentials: "include" });
   if (r.status === 401) { location.href = "/"; return; }
   const d = await r.json();
-  $("fecha-txt").textContent = d.fecha + " · se actualiza solo";
+  $("fecha-txt").textContent = d.fecha + (FECHA_VISTA ? " · día anterior" : " · se actualiza solo");
+  if (!FECHA_VISTA && !FECHA_HOY) { FECHA_HOY = d.fecha; $("fSel").value = d.fecha; $("fSel").max = d.fecha; }
+  $("factTxt").textContent = "actualizado " + new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  // semáforo de sincronización (solo aplica viendo el día de hoy)
+  $("chipSync").innerHTML = FECHA_VISTA ? "" : Object.values(d.ejecutivos).map((e) => {
+    const ok = !!e.ultimaSync;
+    const hora = ok ? new Date(e.ultimaSync).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "";
+    return '<span class="cs ' + (ok ? "ok" : "no") + '">' + (ok ? IC.cloud : "") + e.nombre + (ok ? " · " + hora : " · sin sincronizar") + "</span>";
+  }).join("");
   const t = d.total;
   const totalDia = t.pago + t.garantias;
   $("total").textContent = dinero(totalDia);
@@ -444,7 +516,7 @@ async function registrarMov(e) {
 }
 async function cargarMovs() {
   let d;
-  try { d = await (await fetch("/api/movimientos", { credentials: "include" })).json(); }
+  try { d = await (await fetch("/api/movimientos" + fq(), { credentials: "include" })).json(); }
   catch { return; }
   const cont = $("movLista");
   if (!d.lista || !d.lista.length) { cont.innerHTML = ""; return; }
@@ -464,7 +536,7 @@ async function cargarMovs() {
 // ---------- arqueo del día ----------
 async function cargarArqueo() {
   let d;
-  try { d = await (await fetch("/api/arqueo", { credentials: "include" })).json(); }
+  try { d = await (await fetch("/api/arqueo" + fq(), { credentials: "include" })).json(); }
   catch { return; }
   const box = $("arqueoBox");
   const etq = (dn) => (dn % 1 ? dn.toFixed(2) : String(dn));
@@ -507,7 +579,7 @@ function cerrarCampana() {
 }
 async function cargarResumen() {
   let d;
-  try { d = await (await fetch("/api/resumen", { credentials: "include" })).json(); }
+  try { d = await (await fetch("/api/resumen" + fq(), { credentials: "include" })).json(); }
   catch { return; }
   $("pcFecha").textContent = d.fecha;
   $("pcItems").innerHTML = (d.items || []).map((it) =>
@@ -534,6 +606,28 @@ async function borrarTel(id, nom) {
   try { await fetch("/api/telefono/borrar", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ usuario: id }) }); cargarSeg(); } catch {}
 }
 
+// ---------- cobranza de la semana ----------
+async function cargarSemana() {
+  let d;
+  try { d = await (await fetch("/api/semana" + fq(), { credentials: "include" })).json(); }
+  catch { return; }
+  if (!d.dias || !d.dias.length) { $("semanaBox").innerHTML = ""; return; }
+  const max = Math.max(1, ...d.dias.map(x => x.total));
+  const LET = ["D", "L", "M", "X", "J", "V", "S"];
+  const barras = d.dias.map(x => {
+    const [yy, mm, dd] = x.fecha.split("-").map(Number);
+    const dow = new Date(Date.UTC(yy, mm - 1, dd)).getUTCDay();
+    const h = Math.max(4, Math.round(x.total / max * 46));
+    const esUlt = x.fecha === d.hasta;
+    return '<div class="semd' + (esUlt ? " hoy" : "") + '"><div class="semv" style="height:' + h + 'px"></div>' +
+      "<span>" + LET[dow] + "</span><small>" + (x.total ? dinero(x.total) : "—") + "</small></div>";
+  }).join("");
+  $("semanaBox").innerHTML =
+    '<div class="tarjeta"><div class="eti">Cobranza de la semana · lunes → ' + (FECHA_VISTA ? d.hasta : "hoy") + "</div>" +
+    '<div class="cifra">' + dinero(d.totalSemana) + "</div>" +
+    '<div class="sembar">' + barras + "</div></div>";
+}
+
 async function salir() {
   await fetch("/api/logout", { method: "POST", credentials: "include" });
   location.href = "/";
@@ -546,7 +640,9 @@ cargarMovs();
 cargarArqueo();
 cargarResumen();
 cargarSeg();
-setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); }, 5000);
+cargarSemana();
+// 30s: se siente en vivo sin comerse los datos del celular (antes era cada 5s)
+setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); }, 30000);
 </script>
 </body>
 </html>
