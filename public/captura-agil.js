@@ -13,6 +13,36 @@
 window.__limpiarFooax = function () {
   Object.keys(localStorage).forEach((k) => { if (k.indexOf("fooax_") === 0) localStorage.removeItem(k); });
 };
+
+// Pedir al navegador que PROTEJA el almacenamiento: sin esto, Android puede
+// borrar localStorage al "liberar espacio" y llevarse capturas sin sincronizar.
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+
+// UNA SOLA PESTAÑA: si la app se abre dos veces (link + ícono instalado), la
+// segunda avisa en grande — dos pestañas se aplastan la captura una a la otra.
+(function unaSolaPestana() {
+  try {
+    var canal = new BroadcastChannel("fooax_pestana_" + (typeof EJECUTIVO_BASE === "string" ? EJECUTIVO_BASE : "app"));
+    var yo = Math.random().toString(36).slice(2);
+    canal.onmessage = function (e) {
+      var d = e.data || {};
+      if (d.t === "hola" && d.id !== yo) canal.postMessage({ t: "ocupado", id: yo });
+      if (d.t === "ocupado" && d.id !== yo && !document.getElementById("fooax-dos-pestanas")) {
+        var o = document.createElement("div");
+        o.id = "fooax-dos-pestanas";
+        o.style.cssText = "position:fixed;inset:0;z-index:100001;background:rgba(42,31,53,.96);color:#fff;" +
+          "display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;" +
+          "padding:30px;font:600 16px/1.5 -apple-system,Segoe UI,Roboto,sans-serif";
+        o.innerHTML = "⚠ La app ya está abierta en otra pestaña o ventana.<br>" +
+          "<span style='font-size:13.5px;font-weight:400'>Usar dos a la vez puede encimar la captura. Cierra esta y sigue en la otra.</span><br>" +
+          "<button onclick=\"document.getElementById('fooax-dos-pestanas').remove()\" style='margin-top:16px;" +
+          "font:700 14px inherit;background:#fff;color:#B4232F;border:none;border-radius:99px;padding:11px 20px'>Usar ESTA y cerrar la otra</button>";
+        document.body.appendChild(o);
+      }
+    };
+    canal.postMessage({ t: "hola", id: yo });
+  } catch (e) { /* navegador sin BroadcastChannel: se omite */ }
+})();
 (function proteccionTelefono() {
   fetch("/api/me", { credentials: "include" }).then(async (r) => {
     if (r.status === 401) return; // sesión vencida: conservar datos, solo re-login
@@ -60,6 +90,13 @@ window.__corregirFechaHoy = function (hoy) {
       window.__fechaAvisada = false;
       return;
     }
+    // La ejecutiva marcó que ese día es A PROPÓSITO (ej. re-capturar ayer de fichas)
+    if (sessionStorage.getItem("fooax_fecha_ok") === fechaApp) return;
+    // Madrugada: cobranza que cierra pasada la medianoche no es un error —
+    // si la fecha de la app es "ayer" y aún no dan las 6am, no molestar.
+    const d1 = new Date(fechaApp + "T12:00:00"), d2 = new Date(hoy + "T12:00:00");
+    const esAyer = (d2 - d1) === 86400000;
+    if (esAyer && new Date().getHours() < 6) return;
     if (window.__fechaAvisada) return;
     window.__fechaAvisada = true;
     const b = document.createElement("div");
@@ -70,7 +107,11 @@ window.__corregirFechaHoy = function (hoy) {
     b.innerHTML = "⚠ Esta app se quedó en el <u>" + fechaApp + "</u> y HOY es <u>" + hoy + "</u>." +
       "<br><span style='font-weight:600;font-size:12.5px'>Si sigues capturando así, la cobranza caerá en el día equivocado.</span><br>" +
       '<button onclick="window.__corregirFechaHoy(\'' + hoy + '\')" style="margin-top:9px;font:700 14px inherit;' +
-      'background:#fff;color:#B4232F;border:none;border-radius:99px;padding:10px 18px;cursor:pointer">Corregir a HOY (no se pierde nada)</button>';
+      'background:#fff;color:#B4232F;border:none;border-radius:99px;padding:10px 18px;cursor:pointer">Corregir a HOY (no se pierde nada)</button>' +
+      '<br><a onclick="sessionStorage.setItem(\'fooax_fecha_ok\',\'' + fechaApp + '\');' +
+      'document.getElementById(\'fooax-fecha-banner\').remove();window.__fechaAvisada=false" ' +
+      'style="display:inline-block;margin-top:7px;color:#fff;text-decoration:underline;font-weight:600;font-size:12px;cursor:pointer">' +
+      'Estoy capturando el ' + fechaApp + ' a propósito</a>';
     document.body.appendChild(b);
   }
   window.__checarFecha = checar; // para soporte/diagnóstico

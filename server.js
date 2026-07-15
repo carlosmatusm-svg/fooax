@@ -153,13 +153,33 @@ app.get("/api/telefono/marcados", requiere("direccion", "admin"), (req, res) => 
 // igual (el historial protege lo previo) pero se registra el desfase para que el
 // tablero de Dirección lo alerte, y se le responde a la app la fecha correcta.
 const desfasesFecha = {}; // ejecutivo -> { fecha, hoy, ts } (último desfase visto hoy)
+const reducciones = {};   // ejecutivo -> { fecha, antes, ahora, ts } (sync que REDUJO pagos)
+// Cuenta cuántas clientas pagaron dentro de un snapshot (para detectar cuando
+// un teléfono incompleto aplasta un día que ya tenía más cobranza).
+function contarPagos(snap) {
+  try {
+    let data = snap;
+    if (typeof data === "string") data = JSON.parse(data);
+    const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+    acumular(data.reg, acc); acumular(data.regI, acc);
+    return acc.clientasPagaron;
+  } catch { return null; }
+}
 app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   const { fecha, snapshot, ts } = req.body || {};
   if (!fecha || !snapshot) return res.status(400).json({ error: "Faltan datos para sincronizar (la fecha o la captura)." });
   const hoy = hoyMX();
+  const previo = store.snapshotsDeFecha(fecha)[req.usuario.id];
+  const antes = previo ? contarPagos(previo.snapshot) : null;
+  const ahora = contarPagos(snapshot);
   store.guardarSnapshot(req.usuario.id, fecha, { snapshot, ts: ts || Date.now() });
   if (fecha !== hoy) desfasesFecha[req.usuario.id] = { fecha, hoy, ts: Date.now() };
   else delete desfasesFecha[req.usuario.id];
+  if (antes != null && ahora != null && antes - ahora >= 3) {
+    reducciones[req.usuario.id] = { fecha, antes, ahora, ts: Date.now() };
+  } else if (reducciones[req.usuario.id] && reducciones[req.usuario.id].fecha === fecha && ahora != null && antes != null && ahora >= antes) {
+    delete reducciones[req.usuario.id];
+  }
   res.json({ ok: true, recibido: new Date().toISOString(), hoy, fechaRecibida: fecha, desfase: fecha !== hoy });
 });
 
@@ -608,6 +628,15 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
     if (d.hoy === fecha) {
       desfases++;
       items.unshift({ sev: "alto", txt: `⚠ ${USUARIOS[id] ? USUARIOS[id].nombre : id} sincronizó HOY pero con fecha ${d.fecha} — su app está en el día equivocado. Pídele cerrar y abrir la app.` });
+    }
+  }
+  // Sync que REDUJO pagos de un día (teléfono incompleto aplastando uno bueno,
+  // o una corrección deliberada): avisar; la versión anterior quedó archivada.
+  for (const id in reducciones) {
+    const rdx = reducciones[id];
+    if (Date.now() - rdx.ts < 24 * 60 * 60 * 1000) {
+      desfases++;
+      items.unshift({ sev: "alto", txt: `⚠ La sincronización de ${USUARIOS[id] ? USUARIOS[id].nombre : id} para el ${rdx.fecha} bajó de ${rdx.antes} a ${rdx.ahora} pagos. Si no fue una corrección, avísale a Karina — la versión anterior quedó archivada.` });
     }
   }
 
