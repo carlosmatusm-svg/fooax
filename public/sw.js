@@ -8,7 +8,7 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v2";
+const CACHE = "fooax-v3";
 const ASSETS = ["/login.html", "/sync.js", "/captura-agil.js", "/img/logo-fooax.jpg", "/manifest.json"];
 
 // Reconstruye la respuesta para que el cache la acepte al navegar sin señal.
@@ -65,9 +65,14 @@ self.addEventListener("fetch", (e) => {
       )
     );
   } else {
-    // assets (js, imagen): cache primero para que cargue instantáneo y offline
+    // assets (js, imagen): responde del cache al instante (offline y rápido)
+    // pero SIEMPRE refresca en segundo plano — así las mejoras llegan al
+    // teléfono en la siguiente abierta, sin quedarse congeladas en el cache.
     e.respondWith(
-      caches.match(req).then((m) => m || fetch(req).then((r) => (r.ok ? guardar(req, r) : r)))
+      caches.match(req).then((m) => {
+        const red = fetch(req).then((r) => (r.ok ? guardar(req, r) : r)).catch(() => m);
+        return m || red;
+      })
     );
   }
 });

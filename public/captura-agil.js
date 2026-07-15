@@ -117,7 +117,20 @@ window.__limpiarFooax = function () {
     "font:700 13px inherit;font-family:inherit;padding:0 15px;height:40px;min-width:40px;border-radius:99px;" +
     "cursor:pointer;display:inline-flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent}" +
     "header .fooax-salir:active{background:rgba(255,255,255,.35)}" +
-    "header .fooax-salir svg{width:16px;height:16px}";
+    "header .fooax-salir svg{width:16px;height:16px}" +
+    // móvil (pantallas chicas): todo más fácil de picar con el dedo.
+    "@media (max-width:480px){" +
+    "  .chk{width:36px;height:36px;border-radius:10px;font-size:18px}" +          // palomita grande
+    "  .forma>*{padding:11px 12px;font-size:13px!important;min-height:40px}" +    // Efe/Transf/Depósito/Mixto tocables
+    "  .cli-head{flex-wrap:wrap;row-gap:8px}" +                                   // el renglón envuelve, nada se encima
+    "  .cli-head .ci{flex:1 1 calc(100% - 50px);min-width:0}" +                    // nombre y datos a lo ancho
+    "  .cli-head .forma{margin-left:46px}" +                                       // botones abajo, alineados con el texto
+    "  .cli{padding:10px 2px}" +
+    "  input,select,textarea{font-size:16px!important}" +                          // 16px+: iOS ya no hace zoom al enfocar
+    "  .btn{min-height:44px}" +                                                    // botones al estándar táctil
+    "  .tab{padding:11px 10px;font-size:12px}" +
+    "  .card{border-radius:14px}" +
+    "}";
   document.head.appendChild(st);
 
   // 3) Alerta fuerte para dedazos gordos: si el pago es >=5x la cuota (y >=$1,000),

@@ -74,7 +74,10 @@ app.post("/api/login", (req, res) => {
   const u = USUARIOS[(usuario || "").toLowerCase().trim()];
   if (!u || u.pass !== password) return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
   const sid = crearSesion((usuario || "").toLowerCase().trim());
-  res.setHeader("Set-Cookie", `sid=${sid}; HttpOnly; Path=/; SameSite=Lax`);
+  // Max-Age: sin él la cookie muere al cerrar el navegador del celular y les
+  // pedía iniciar sesión a cada rato. 60 días; el borrado remoto sigue mandando.
+  const segura = (req.headers["x-forwarded-proto"] || "").includes("https") ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=5184000${segura}`);
   res.json({ ok: true, rol: u.rol, nombre: u.nombre });
 });
 app.post("/api/logout", (req, res) => {
