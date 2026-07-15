@@ -8,7 +8,10 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v3";
+const CACHE = "fooax-v4";
+
+// La página pide activar la versión nueva de inmediato (auto-actualización).
+self.addEventListener("message", (e) => { if (e.data === "skip") self.skipWaiting(); });
 const ASSETS = ["/login.html", "/sync.js", "/captura-agil.js", "/img/logo-fooax.jpg", "/manifest.json"];
 
 // Reconstruye la respuesta para que el cache la acepte al navegar sin señal.

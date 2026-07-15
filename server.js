@@ -622,7 +622,15 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
     '<meta name="apple-mobile-web-app-capable" content="yes">' +
     '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">' +
     '<meta name="apple-mobile-web-app-title" content="FOOAX">' +
-    '<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>';
+    // Registro del service worker CON auto-actualización: revisa si hay versión
+    // nueva al abrir y cada 2 min, y recarga sola cuando el SW nuevo toma el
+    // control. Así el teléfono ya no se queda pegado en una versión vieja.
+    '<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").then(function(reg){' +
+    'reg.update();setInterval(function(){reg.update();},120000);' +
+    'reg.addEventListener("updatefound",function(){var nw=reg.installing;if(nw)nw.addEventListener("statechange",function(){' +
+    'if(nw.state==="installed"&&navigator.serviceWorker.controller){nw.postMessage("skip");}});});' +
+    '}).catch(function(){});' +
+    'var _rc=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(_rc)return;_rc=true;location.reload();});}</script>';
   // Sincronización y capa de mejoras antes de </body>.
   const inyecciones = '<script src="/sync.js"></script><script src="/captura-agil.js"></script>';
   let out = html.includes("</head>") ? html.replace("</head>", cabeza + "</head>") : cabeza + html;
