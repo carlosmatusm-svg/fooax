@@ -26,7 +26,9 @@
     if (!raw) return true;
     let fecha;
     try { fecha = JSON.parse(raw).fecha; } catch { }
-    fecha = fecha || new Date().toISOString().slice(0, 10);
+    // Respaldo en hora de MÉXICO (no UTC): después de las 6pm, UTC ya es el día
+    // siguiente y la captura caería en el día equivocado.
+    fecha = fecha || new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
     pintar("subiendo");
     try {
       const r = await fetch("/api/sync", {
