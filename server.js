@@ -40,6 +40,10 @@ function crearSesion(usuario) {
   return sid;
 }
 const SESION_MAX_MS = 60 * 24 * 60 * 60 * 1000; // 60 días, igual que la cookie
+// Corte del 15-jul-2026 (noche): invalida TODAS las sesiones anteriores para
+// obligar a entrar de nuevo UNA vez — así cada teléfono toma la versión nueva
+// (tour, cerrar captura, protecciones). Las sesiones nuevas duran 60 días.
+const SESIONES_VALIDAS_DESDE = 1784157167380;
 function usuarioDe(req) {
   const cookie = (req.headers.cookie || "").split(";").map(s => s.trim()).find(s => s.startsWith("sid="));
   if (!cookie) return null;
@@ -47,6 +51,7 @@ function usuarioDe(req) {
   const ses = store.sesiones()[sid];
   if (!ses) return null;
   if (Date.now() - (ses.creada || 0) > SESION_MAX_MS) { store.borrarSesion(sid); return null; }
+  if ((ses.creada || 0) < SESIONES_VALIDAS_DESDE) { store.borrarSesion(sid); return null; }
   return { id: ses.usuario, ...USUARIOS[ses.usuario] };
 }
 function requiere(...roles) {

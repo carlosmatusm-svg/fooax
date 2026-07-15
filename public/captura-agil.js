@@ -121,6 +121,125 @@ window.__corregirFechaHoy = function (hoy) {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) checar(); });
 })();
 
+// ================= TOUR de bienvenida + CERRAR CAPTURA DE HOY =================
+// Tour: se muestra UNA vez al abrir la versión nueva (y con el botón ? cuando
+// quieran repasarlo). Cerrar captura: sube todo, confirma en grande que quedó
+// en la nube, y les dice cuánto llevan — el "ya puedo guardar el teléfono".
+(function tourYCierre() {
+  if (typeof STORE_KEY !== "string") return; // app no compatible
+
+  const SVGI = (p) => '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#F1228E" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + "</svg>";
+  const ICONS = {
+    fecha: SVGI('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+    nube: SVGI('<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 14l2 2 4-4"/>'),
+    check: SVGI('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'),
+    fin: SVGI('<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>'),
+  };
+  const PASOS = [
+    { ic: "fecha", t: "1 · La fecha manda", b: "Arriba debe decir el día de <b>HOY</b>. Si sale un <b>aviso rojo</b> de fecha, tócalo: corrige todo sin perder nada." },
+    { ic: "nube", t: "2 · El globito de la nube", b: "Abajo a la derecha:<br>🟢 <b>Sincronizado</b> = tu cobranza ya está segura en la nube.<br>🟠 <b>Guardado / Sin señal</b> = está en tu teléfono y se sube sola al tener señal.<br>🔴 = vuelve a iniciar sesión (no se pierde nada)." },
+    { ic: "check", t: "3 · Captura como siempre", b: "La <b>palomita</b> = pagó su cuota completa. Elige cómo pagó: <b>Efe · Transf · Depósito · Mixto</b>. Todo se guarda solo en tu teléfono." },
+    { ic: "fin", t: "4 · Al terminar tu ruta", b: "Toca <b>«Cerrar captura de hoy»</b> (botón de abajo a la izquierda). Si sale <b>verde</b>, tu cobranza quedó segura y ya puedes guardar el teléfono." },
+  ];
+  let paso = 0;
+  function verTour() {
+    paso = 0;
+    let o = document.getElementById("fooax-tour");
+    if (o) o.remove();
+    o = document.createElement("div");
+    o.id = "fooax-tour";
+    o.style.cssText = "position:fixed;inset:0;z-index:99998;background:rgba(42,31,53,.78);display:flex;" +
+      "align-items:center;justify-content:center;padding:22px;font-family:-apple-system,Segoe UI,Roboto,sans-serif";
+    o.innerHTML = '<div id="fooax-tour-card" style="background:#fff;border-radius:22px;max-width:340px;width:100%;' +
+      'padding:26px 22px 18px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)"></div>';
+    document.body.appendChild(o);
+    pintar();
+  }
+  function pintar() {
+    const p = PASOS[paso];
+    const dots = PASOS.map((_, i) => '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;' +
+      "margin:0 3px;background:" + (i === paso ? "#F1228E" : "#E8E2EE") + '"></span>').join("");
+    document.getElementById("fooax-tour-card").innerHTML =
+      '<div style="margin-bottom:10px">' + ICONS[p.ic] + "</div>" +
+      '<div style="font-size:17px;font-weight:800;color:#2A1F35;margin-bottom:8px">' + p.t + "</div>" +
+      '<div style="font-size:13.5px;line-height:1.55;color:#3a3142;text-align:left">' + p.b + "</div>" +
+      '<div style="margin:16px 0 10px">' + dots + "</div>" +
+      '<button id="fooax-tour-sig" style="width:100%;font:700 15px inherit;background:linear-gradient(120deg,#FD6E29,#F1228E,#324AB6);' +
+      'color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">' + (paso < PASOS.length - 1 ? "Siguiente →" : "¡Listo, a cobrar!") + "</button>" +
+      (paso < PASOS.length - 1 ? '<a id="fooax-tour-saltar" style="display:inline-block;margin-top:9px;font-size:12px;color:#7A6E86;text-decoration:underline;cursor:pointer">Saltar</a>' : "");
+    document.getElementById("fooax-tour-sig").onclick = () => {
+      if (paso < PASOS.length - 1) { paso++; pintar(); }
+      else { localStorage.setItem("fooax_tour_v1", "1"); document.getElementById("fooax-tour").remove(); }
+    };
+    const sk = document.getElementById("fooax-tour-saltar");
+    if (sk) sk.onclick = () => { localStorage.setItem("fooax_tour_v1", "1"); document.getElementById("fooax-tour").remove(); };
+  }
+  window.__verTour = verTour;
+
+  // ---- botón fijo: ? (tour) + Cerrar captura de hoy ----
+  const barra = document.createElement("div");
+  barra.style.cssText = "position:fixed;bottom:14px;left:14px;z-index:9999;display:flex;gap:8px;align-items:center";
+  barra.innerHTML =
+    '<button id="fooax-btn-tour" aria-label="Ver guía" style="width:38px;height:38px;border-radius:50%;border:none;' +
+    'background:#fff;color:#324AB6;font:800 16px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 3px 12px rgba(0,0,0,.25);cursor:pointer">?</button>' +
+    '<button id="fooax-btn-cerrar" style="font:700 13px -apple-system,Segoe UI,Roboto,sans-serif;background:#2A1F35;color:#fff;' +
+    'border:none;border-radius:99px;padding:11px 16px;box-shadow:0 3px 12px rgba(0,0,0,.3);cursor:pointer">Cerrar captura de hoy</button>';
+  document.body.appendChild(barra);
+  document.getElementById("fooax-btn-tour").onclick = verTour;
+
+  function totalesHoy() {
+    let n = 0, t = 0;
+    try {
+      const st = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+      const suma = (arb) => { if (!arb || typeof arb !== "object") return;
+        for (const k in arb) { const nd = arb[k];
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) {
+            const tt = (nd.pago || 0) + (nd.garantia || 0) + (nd.solidario || 0);
+            if (tt > 0) { n++; t += tt; }
+          } else if (nd && typeof nd === "object") { for (const kk in nd) {
+            const x = nd[kk]; const tt = x ? (x.pago || 0) + (x.garantia || 0) + (x.solidario || 0) : 0;
+            if (tt > 0) { n++; t += tt; } } } } };
+      suma(st.reg); suma(st.regI);
+    } catch (e) {}
+    return { n, t };
+  }
+  document.getElementById("fooax-btn-cerrar").onclick = async () => {
+    const o = document.createElement("div");
+    o.id = "fooax-cierre";
+    o.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(42,31,53,.82);display:flex;" +
+      "align-items:center;justify-content:center;padding:22px;font-family:-apple-system,Segoe UI,Roboto,sans-serif;text-align:center";
+    o.innerHTML = '<div style="background:#fff;border-radius:22px;max-width:340px;width:100%;padding:28px 22px">' +
+      '<div style="font-size:15px;font-weight:700;color:#2A1F35">Subiendo tu captura a la nube…</div></div>';
+    document.body.appendChild(o);
+    let ok = false;
+    try { ok = await (window.__forzarSync ? window.__forzarSync() : false); } catch (e) { ok = false; }
+    const { n, t } = totalesHoy();
+    const card = o.firstChild;
+    if (ok) {
+      card.innerHTML =
+        '<div style="width:64px;height:64px;border-radius:50%;background:#E7F6EE;margin:0 auto 12px;display:flex;align-items:center;justify-content:center">' +
+        '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0B7247" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+        '<div style="font-size:18px;font-weight:800;color:#0B7247">Tu cobranza quedó segura</div>' +
+        '<div style="font-size:14px;color:#3a3142;margin-top:6px">' + n + " pago(s) · <b>$" + Math.round(t).toLocaleString("es-MX") + "</b> ya están en la nube.<br>Ya puedes guardar el teléfono. 👏</div>" +
+        '<button onclick="document.getElementById(\'fooax-cierre\').remove()" style="margin-top:16px;width:100%;font:700 15px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">Listo</button>';
+    } else {
+      const motivo = navigator.onLine
+        ? "Revisa que tu sesión esté activa (si el globito dice «Vuelve a iniciar sesión», sal y entra de nuevo — no se pierde nada)."
+        : "No tienes señal en este momento. En cuanto la tengas, se sube sola — o vuelve a tocar este botón.";
+      card.innerHTML =
+        '<div style="width:64px;height:64px;border-radius:50%;background:#FDECEC;margin:0 auto 12px;display:flex;align-items:center;justify-content:center">' +
+        '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#B4232F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>' +
+        '<div style="font-size:18px;font-weight:800;color:#B4232F">Aún NO se ha subido</div>' +
+        '<div style="font-size:13.5px;color:#3a3142;margin-top:6px;text-align:left">Tu captura (' + n + " pago(s) · $" + Math.round(t).toLocaleString("es-MX") + ") <b>sigue guardada en tu teléfono</b> — no se pierde. " + motivo + "</div>" +
+        '<button onclick="document.getElementById(\'fooax-cierre\').remove()" style="margin-top:16px;width:100%;font:700 15px inherit;background:#B4232F;color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">Entendido</button>';
+    }
+  };
+
+  // mostrar el tour UNA vez (después de que la app pinte)
+  if (!localStorage.getItem("fooax_tour_v1")) setTimeout(verTour, 900);
+})();
+
 (function () {
   if (typeof window.fichaClienteDato !== "function" || typeof window.render !== "function") {
     console.warn("[captura-agil] app no compatible");
