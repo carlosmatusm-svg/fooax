@@ -55,6 +55,10 @@ async function init() {
     );
     await pool.query("CREATE TABLE IF NOT EXISTS padron (id text, data jsonb)");
     await pool.query("CREATE TABLE IF NOT EXISTS padron_cambios (id text, data jsonb, ts bigint)");
+    // Historial de snapshots: cada vez que un sync REEMPLAZA la foto de un día,
+    // la versión anterior se archiva aquí (append-only). Así una captura con
+    // fecha equivocada nunca destruye cobranza real: siempre es recuperable.
+    await pool.query("CREATE TABLE IF NOT EXISTS snapshots_hist (id serial PRIMARY KEY, ejecutivo text, fecha text, data jsonb, ts bigint, recibido bigint, archivado bigint)");
     // Sesiones persistentes: un redespliegue NO desloguea a las ejecutivas a
     // media jornada (antes vivían solo en memoria y cada deploy las mataba).
     await pool.query("CREATE TABLE IF NOT EXISTS sesiones (sid text PRIMARY KEY, usuario text, creada bigint)");
@@ -165,11 +169,29 @@ module.exports = {
   padron() { return mem.padron; },
 
   // Upsert idempotente por (ejecutivo, fecha): reenviar el mismo snapshot nunca
-  // duplica, solo reemplaza por la versión más reciente.
+  // duplica, solo reemplaza por la versión más reciente. ANTES de reemplazar,
+  // la versión anterior se archiva en el historial: una captura con fecha
+  // equivocada (teléfono pegado en el día viejo) ya no puede destruir la
+  // cobranza real de ese día — siempre se puede recuperar.
   guardarSnapshot(ejecutivo, fecha, snapshot) {
     mem.snapshots[ejecutivo] = mem.snapshots[ejecutivo] || {};
     const previo = mem.snapshots[ejecutivo][fecha];
     if (previo && previo.ts > snapshot.ts) return previo;
+    if (previo && previo.snapshot !== snapshot.snapshot) {
+      const copia = Object.assign({}, previo, { archivado: Date.now() });
+      if (usePg) {
+        pool.query(
+          "INSERT INTO snapshots_hist (ejecutivo, fecha, data, ts, recibido, archivado) VALUES ($1,$2,$3,$4,$5,$6)",
+          [ejecutivo, fecha, copia, copia.ts || 0, copia.recibido || 0, copia.archivado]
+        ).catch((e) => console.error("[store] historial:", e.message));
+      } else {
+        try {
+          const p = path.join(DATA_DIR, "snapshots_hist.jsonl");
+          fs.mkdirSync(DATA_DIR, { recursive: true });
+          fs.appendFileSync(p, JSON.stringify({ ejecutivo, fecha, ...copia }) + "\n");
+        } catch (e) { console.error("[store] historial:", e.message); }
+      }
+    }
     const rec = Object.assign({}, snapshot, { recibido: Date.now() });
     mem.snapshots[ejecutivo][fecha] = rec;
     persistSnapshot(ejecutivo, fecha, rec);

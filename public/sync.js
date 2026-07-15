@@ -46,6 +46,34 @@
   // Fuerza una subida inmediata (la usa el botón "Salir" antes de cerrar sesión).
   window.__forzarSync = function () { pendiente = true; return subir(); };
 
+  // ---- rescate: capturas de DÍAS ANTERIORES apartadas ----
+  // Cuando la app "empieza limpio hoy", la captura del día anterior queda en
+  // fooax_pend_<fecha>_<STORE_KEY>. Aquí se sube a SU fecha original y se
+  // elimina solo cuando el servidor confirma. Nada se pierde nunca.
+  async function subirPendientes() {
+    if (!navigator.onLine) return;
+    const llaves = Object.keys(localStorage).filter(
+      (k) => k.indexOf("fooax_pend_") === 0 && k.indexOf(STORE_KEY) > 0
+    );
+    for (const k of llaves) {
+      const fecha = k.slice(11, 21); // fooax_pend_YYYY-MM-DD_...
+      const raw = localStorage.getItem(k);
+      if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { localStorage.removeItem(k); continue; }
+      try {
+        const r = await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ fecha, snapshot: raw, ts: Date.now() }),
+        });
+        if (r.ok) localStorage.removeItem(k);
+      } catch (e) { /* sin señal: se reintenta después */ }
+    }
+  }
+  window.addEventListener("online", subirPendientes);
+  setInterval(subirPendientes, 60000);
+  setTimeout(subirPendientes, 3000);
+
   window.addEventListener("online", subir);
   setInterval(() => { if (pendiente) subir(); }, 30000); // reintento de respaldo
 

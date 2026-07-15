@@ -25,6 +25,61 @@ window.__limpiarFooax = function () {
   }).catch(() => {});
 })();
 
+// Vigilancia de FECHA (por la cobranza perdida del 14/15-jul): compara la fecha
+// de la app contra la fecha OFICIAL del servidor (hora de México). Si el
+// teléfono quedó pegado en un día viejo, alerta en grande y corrige de un
+// toque: lo capturado se re-etiqueta a HOY y se sincroniza — no se pierde nada.
+window.__corregirFechaHoy = function (hoy) {
+  try {
+    if (typeof STORE_KEY === "string") {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) { const d = JSON.parse(raw); d.fecha = hoy; localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
+    }
+    const inp = document.getElementById("inpFecha");
+    if (inp) inp.value = hoy;
+    if (typeof updFecha === "function") try { updFecha(); } catch (e) {}
+    if (typeof guardar === "function") guardar(); // dispara la sincronización ya con la fecha buena
+  } catch (e) {}
+  const b = document.getElementById("fooax-fecha-banner"); if (b) b.remove();
+  window.__fechaAvisada = false;
+};
+(function vigilanciaFecha() {
+  async function checar() {
+    let hoy;
+    try {
+      const r = await fetch("/api/me", { credentials: "include" });
+      if (!r.ok) return;
+      hoy = (await r.json()).hoy;
+    } catch (e) { return; }
+    if (!hoy) return;
+    const inp = document.getElementById("inpFecha");
+    const fechaApp = inp && inp.value;
+    if (!fechaApp) return;
+    if (fechaApp >= hoy) { // al día (o fecha futura elegida a propósito): sin alerta
+      const b = document.getElementById("fooax-fecha-banner"); if (b) b.remove();
+      window.__fechaAvisada = false;
+      return;
+    }
+    if (window.__fechaAvisada) return;
+    window.__fechaAvisada = true;
+    const b = document.createElement("div");
+    b.id = "fooax-fecha-banner";
+    b.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:100000;background:#B4232F;color:#fff;" +
+      "padding:12px 14px;font:700 14px/1.45 -apple-system,Segoe UI,Roboto,sans-serif;text-align:center;" +
+      "box-shadow:0 4px 16px rgba(0,0,0,.35)";
+    b.innerHTML = "⚠ Esta app se quedó en el <u>" + fechaApp + "</u> y HOY es <u>" + hoy + "</u>." +
+      "<br><span style='font-weight:600;font-size:12.5px'>Si sigues capturando así, la cobranza caerá en el día equivocado.</span><br>" +
+      '<button onclick="window.__corregirFechaHoy(\'' + hoy + '\')" style="margin-top:9px;font:700 14px inherit;' +
+      'background:#fff;color:#B4232F;border:none;border-radius:99px;padding:10px 18px;cursor:pointer">Corregir a HOY (no se pierde nada)</button>';
+    document.body.appendChild(b);
+  }
+  window.__checarFecha = checar; // para soporte/diagnóstico
+  if (document.readyState === "complete") setTimeout(checar, 1200);
+  else window.addEventListener("load", () => setTimeout(checar, 1200));
+  setInterval(checar, 120000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checar(); });
+})();
+
 (function () {
   if (typeof window.fichaClienteDato !== "function" || typeof window.render !== "function") {
     console.warn("[captura-agil] app no compatible");

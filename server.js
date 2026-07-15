@@ -121,7 +121,9 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/me", (req, res) => {
   const u = usuarioDe(req);
   if (!u) return res.status(401).json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." });
-  res.json({ usuario: u.id, nombre: u.nombre, rol: u.rol, wipe: borrarTelefono.has(u.id) });
+  // hoy: la fecha oficial del servidor (hora de México) — la app la compara
+  // con la suya y alerta si el teléfono quedó pegado en un día viejo.
+  res.json({ usuario: u.id, nombre: u.nombre, rol: u.rol, wipe: borrarTelefono.has(u.id), hoy: hoyMX() });
 });
 
 // ---------- borrado remoto de datos del teléfono ----------
@@ -147,11 +149,18 @@ app.get("/api/telefono/marcados", requiere("direccion", "admin"), (req, res) => 
 
 // ---------- sincronización ----------
 // La app manda su estado completo del día; upsert idempotente por (ejecutivo, fecha).
+// Si la fecha del snapshot NO es hoy (teléfono pegado en un día viejo), se acepta
+// igual (el historial protege lo previo) pero se registra el desfase para que el
+// tablero de Dirección lo alerte, y se le responde a la app la fecha correcta.
+const desfasesFecha = {}; // ejecutivo -> { fecha, hoy, ts } (último desfase visto hoy)
 app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   const { fecha, snapshot, ts } = req.body || {};
   if (!fecha || !snapshot) return res.status(400).json({ error: "Faltan datos para sincronizar (la fecha o la captura)." });
+  const hoy = hoyMX();
   store.guardarSnapshot(req.usuario.id, fecha, { snapshot, ts: ts || Date.now() });
-  res.json({ ok: true, recibido: new Date().toISOString() });
+  if (fecha !== hoy) desfasesFecha[req.usuario.id] = { fecha, hoy, ts: Date.now() };
+  else delete desfasesFecha[req.usuario.id];
+  res.json({ ok: true, recibido: new Date().toISOString(), hoy, fechaRecibida: fecha, desfase: fecha !== hoy });
 });
 
 // ---------- consolidado ----------
@@ -591,8 +600,18 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   for (const e of conSync) items.push({ sev: "ok", txt: `${e.nombre} sincronizó a las ${e.hora}` });
   for (const n of sinSync) items.push({ sev: "warn", txt: `${n} aún no sincroniza hoy` });
   if (movs.length) items.push({ sev: "info", txt: `${movs.length} movimiento(s) de caja: ${pesos(movs.reduce((a, m) => a + m.monto, 0))}` });
+  // ALERTA de fecha desfasada: alguien sincronizó HOY pero con fecha de otro
+  // día (teléfono pegado en el día viejo) — la causa de la cobranza "perdida".
+  let desfases = 0;
+  for (const id in desfasesFecha) {
+    const d = desfasesFecha[id];
+    if (d.hoy === fecha) {
+      desfases++;
+      items.unshift({ sev: "alto", txt: `⚠ ${USUARIOS[id] ? USUARIOS[id].nombre : id} sincronizó HOY pero con fecha ${d.fecha} — su app está en el día equivocado. Pídele cerrar y abrir la app.` });
+    }
+  }
 
-  const pendientes = sinSync.length + (faltantes > 0 ? 1 : 0);
+  const pendientes = sinSync.length + (faltantes > 0 ? 1 : 0) + desfases;
   res.json({ fecha, items, pendientes });
 });
 

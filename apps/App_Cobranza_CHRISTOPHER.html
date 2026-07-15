@@ -452,11 +452,13 @@ function restaurar(){
     if(d.fecha && d.fecha!==hoy){
       const tieneAlgo=(d.reg&&Object.keys(d.reg).length)||(d.regI&&Object.keys(d.regI).length)||(d.movs&&d.movs.length);
       if(tieneAlgo){
-        const seguir=confirm('⚠ Hay captura guardada del '+d.fecha+' (un día anterior).\n\nSi ya cerraste ese día, toca ACEPTAR para empezar limpio hoy ('+hoy+').\n\nSi NO habías terminado ese día, toca CANCELAR para recuperarlo.');
+        const seguir=confirm('⚠ Hay captura guardada del '+d.fecha+' (un día anterior).\n\nACEPTAR: empezar limpio hoy ('+hoy+'). La captura del '+d.fecha+' queda guardada y se sincroniza sola a su día — no se pierde.\n\nCANCELAR: seguir viendo la captura del '+d.fecha+'.');
         if(seguir){
+          // apartar la captura del día anterior: se sube sola a SU fecha (sync.js)
+          try{localStorage.setItem('fooax_pend_'+d.fecha+'_'+STORE_KEY,raw);}catch(e){}
           localStorage.removeItem(STORE_KEY);
           document.getElementById('inpFecha').value=hoy;
-          return; // empieza limpio con fecha de hoy
+          return; // empieza limpio; lo del día anterior quedó apartado, no borrado
         }
       }
     }
