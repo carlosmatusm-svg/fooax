@@ -54,6 +54,16 @@ function requiere(...roles) {
     next();
   };
 }
+// Guardián para PÁGINAS: si la sesión no sirve, manda al login — nunca
+// muestra el JSON de error crudo en el navegador (pasaba al recargar /app).
+function paginaRequiere(...roles) {
+  return (req, res, next) => {
+    const u = usuarioDe(req);
+    if (!u || (roles.length && !roles.includes(u.rol))) return res.redirect("/");
+    req.usuario = u;
+    next();
+  };
+}
 
 // ---------- diagnóstico (sin datos sensibles) ----------
 app.get("/api/health", (req, res) => {
@@ -550,7 +560,7 @@ app.get("/", (req, res) => {
   if (u.rol === "ejecutivo") return res.redirect("/app");
   return res.redirect("/tablero");
 });
-app.get("/app", requiere("ejecutivo"), (req, res) => {
+app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   const archivo = path.join(__dirname, "apps", req.usuario.app);
   if (!fs.existsSync(archivo)) return res.status(404).send("No se encontró el archivo de la app de este ejecutivo.");
   const html = fs.readFileSync(archivo, "utf8");
@@ -568,7 +578,7 @@ app.get("/app", requiere("ejecutivo"), (req, res) => {
   out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
   res.type("html").send(out);
 });
-app.get("/tablero", requiere("direccion", "admin"), (req, res) => {
+app.get("/tablero", paginaRequiere("direccion", "admin"), (req, res) => {
   res.sendFile(path.join(__dirname, "public", "tablero.html"));
 });
 app.use(express.static(path.join(__dirname, "public")));
