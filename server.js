@@ -582,21 +582,22 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   const snaps = store.snapshotsDeFecha(fecha);
   const movs = store.movimientosDeFecha(fecha);
   let efectivo = 0, transferencia = 0, garantias = 0, faltantes = 0, pagos = 0, clientasFaltan = 0;
-  const sinSync = [], conSync = [];
+  const sinSync = [], conSync = [], descuadres = [];
   for (const id of ["neri", "karina", "christopher"]) {
     const s = snaps[id];
     if (!s) { sinSync.push(USUARIOS[id].nombre); continue; }
     let data = s.snapshot;
     if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
-    let ef = 0, tr = 0, ga = 0, fa = 0, pa = 0, cf = 0;
+    let ef = 0, tr = 0, ga = 0, fa = 0, pa = 0, cf = 0, cobrado = 0, movido = 0;
     const acum = (n, key) => {
       if (!n || typeof n !== "object") return;
       const p = n.pago || 0, g = n.garantia || 0, so = n.solidario || 0;
       if (p + g + so <= 0 && !n.forma) return;
       const t = p + g + so; ga += g;
-      if (n.forma === "T") tr += t;
-      else if (n.forma === "M") { ef += n.mixEfe || 0; tr += n.mixTr || 0; }
-      else ef += t;
+      cobrado += t; // lo que dijo que cobró
+      if (n.forma === "T") { tr += t; movido += t; }
+      else if (n.forma === "M") { ef += n.mixEfe || 0; tr += n.mixTr || 0; movido += (n.mixEfe || 0) + (n.mixTr || 0); }
+      else { ef += t; movido += t; }
       if (p > 0) pa++;
       const cu = CUOTA[String(key).split("|")[0]];
       if (cu && p > 0 && p < cu) { fa += cu - p; cf++; }
@@ -611,6 +612,8 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
     };
     rec(data.reg); rec(data.regI);
     efectivo += ef; transferencia += tr; garantias += ga; faltantes += fa; pagos += pa; clientasFaltan += cf;
+    // descuadre por ejecutiva: lo que dijo que cobró vs cómo lo repartió (mixto mal capturado)
+    if (Math.abs(cobrado - movido) >= 1) descuadres.push({ nombre: USUARIOS[id].nombre, dif: cobrado - movido });
     conSync.push({ nombre: USUARIOS[id].nombre, hora: new Date(s.recibido).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) });
   }
   const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((a, m) => a + m.monto, 0);
@@ -625,7 +628,11 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   for (const e of conSync) items.push({ sev: "ok", txt: `${e.nombre} sincronizó a las ${e.hora}` });
   for (const n of sinSync) items.push({ sev: "warn", txt: `${n} aún no sincroniza hoy` });
   if (movs.length) items.push({ sev: "info", txt: `${movs.length} movimiento(s) de caja: ${pesos(movs.reduce((a, m) => a + m.monto, 0))}` });
-  // ALERTA de fecha desfasada: alguien sincronizó HOY pero con fecha de otro
+  // DESCUADRE: un pago mixto donde efectivo+transferencia no suma lo cobrado
+  // (típico: se capturó mal el mixto). El efectivo a entregar no cuadraría.
+  for (const d of descuadres) {
+    items.unshift({ sev: "alto", txt: `⚠ Descuadre en ${d.nombre}: lo cobrado y lo repartido (efectivo/transferencia) difieren en ${pesos(Math.abs(d.dif))}. Revisa un pago MIXTO mal capturado.` });
+  }
   // día (teléfono pegado en el día viejo) — la causa de la cobranza "perdida".
   let desfases = 0;
   for (const id in desfasesFecha) {
@@ -645,7 +652,7 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
     }
   }
 
-  const pendientes = sinSync.length + (faltantes > 0 ? 1 : 0) + desfases;
+  const pendientes = sinSync.length + (faltantes > 0 ? 1 : 0) + desfases + descuadres.length;
   res.json({ fecha, items, pendientes });
 });
 
