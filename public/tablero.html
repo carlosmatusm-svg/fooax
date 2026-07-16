@@ -428,8 +428,8 @@ async function buscar() {
     const esBaja = c.activa === false || c.estatus === "BAJA";
     const badge = esBaja ? (c.estatus === "LIQUIDADO" ? "LIQUIDADO" : "BAJA") : "";
     return '<div class="rcard">'
-    + '<div class="rn">' + c.nombre + (badge ? ' <span class="rbadge-baja">' + badge + '</span>' : "") + "</div>"
-    + '<div class="rm">ID ' + c.id + " · " + c.producto + " · " + c.centro + " · " + c.ejecutivo + "</div>"
+    + '<div class="rn">' + hesc(c.nombre) + (badge ? ' <span class="rbadge-baja">' + badge + '</span>' : "") + "</div>"
+    + '<div class="rm">ID ' + hesc(c.id) + " · " + hesc(c.producto) + " · " + hesc(c.centro) + " · " + hesc(c.ejecutivo) + "</div>"
     + '<div class="rd"><span>saldo <b>' + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
     + (c.pagado > 0 ? '<span class="rpago">pagó ' + dinero(c.pagado) + " esta sem.</span>" : "")
@@ -444,6 +444,9 @@ async function buscar() {
 const MOTIVOS_BAJA = ["Salió del grupo", "No renovó", "Mora / mal historial",
   "Cambió zona / cerró negocio", "Decisión FOOAX", "Otro"];
 function esc(s) { return String(s == null ? "" : s).replace(/'/g, "\\'"); }
+// Escapar HTML al pintar texto que alguien escribió (nombres, conceptos):
+// evita que un nombre con código se ejecute en el tablero de Dirección.
+function hesc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
 function toggleAlta() {
   const f = $("altaForm"), t = $("altaToggle");
@@ -522,10 +525,10 @@ async function cargarMovs() {
   const cont = $("movLista");
   if (!d.lista || !d.lista.length) { cont.innerHTML = ""; return; }
   cont.innerHTML = d.lista.map(m =>
-    '<div class="movitem"><div class="mi-info"><div class="mi-cat">' + m.categoria + "</div>"
-    + '<div class="mi-sub">' + m.concepto + " · " + m.metodo
-    + (m.autorizadoA ? " · a " + m.autorizadoA : "")
-    + " · registró " + m.registradoPor
+    '<div class="movitem"><div class="mi-info"><div class="mi-cat">' + hesc(m.categoria) + "</div>"
+    + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo)
+    + (m.autorizadoA ? " · a " + hesc(m.autorizadoA) : "")
+    + " · registró " + hesc(m.registradoPor)
     + " · " + new Date(m.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
     + " · " + m.folio + "</div></div>"
     + '<div class="mi-monto">−' + dinero(m.monto) + "</div></div>"

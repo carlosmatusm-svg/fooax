@@ -431,7 +431,8 @@ window.__corregirFechaHoy = function (hoy) {
           const b = document.createElement("button");
           b.type = "button";
           b.className = "otros-item";
-          b.innerHTML = "<b>" + m.nombre + "</b><span>" + m.centro + " · " + (m.producto || "") + "</span>";
+          const _h = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          b.innerHTML = "<b>" + _h(m.nombre) + "</b><span>" + _h(m.centro) + " · " + _h(m.producto || "") + "</span>";
           b.addEventListener("click", () => irA(m));
           otros.appendChild(b);
         });

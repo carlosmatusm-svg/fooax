@@ -452,6 +452,9 @@ function restaurar(){
           document.getElementById('inpFecha').value=hoy;
           return; // empieza limpio; lo del día anterior quedó apartado, no borrado
         }
+        // Eligió CANCELAR: va a terminar el día anterior A PROPÓSITO — que el
+        // aviso rojo de fecha no la tiente a re-etiquetarlo como hoy.
+        try{sessionStorage.setItem('fooax_fecha_ok',d.fecha);}catch(e){}
       }
     }
     if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs; if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
