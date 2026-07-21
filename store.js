@@ -206,6 +206,13 @@ module.exports = {
 
   // Append-only: nunca se borra ni se edita un movimiento (rastro auditable).
   agregarMovimiento(mov) {
+    // Idempotente por folio. Las ejecutivas sincronizan muchas veces al día y
+    // cada sincronización reenvía TODOS sus movimientos; sin esto, el mismo
+    // gasto se contaba una vez por sincronización y el efectivo a entregar
+    // salía inflado. En Postgres el INSERT ya trae ON CONFLICT DO NOTHING,
+    // pero la lista en memoria —que es la que lee el tablero— sí duplicaba.
+    const ya = mem.movimientos.find((m) => m.folio === mov.folio);
+    if (ya) return ya;
     mem.movimientos.push(mov);
     persistMovimiento(mov);
     return mov;

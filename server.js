@@ -195,6 +195,34 @@ function contarPagos(snap) {
     return acc.clientasPagaron;
   } catch { return null; }
 }
+// Sube a la caja los movimientos que la ejecutiva capturó en "Otros
+// movimientos". Antes se quedaban enterrados dentro del snapshot: Anel y Monse
+// NO los veían en el tablero, ni entraban al arqueo, ni salían en el respaldo
+// (la hoja de Movimientos estaba vacía aunque en campo sí se capturaban).
+function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
+  const lista = Array.isArray(snapshot && snapshot.movs) ? snapshot.movs : [];
+  for (const m of lista) {
+    const monto = Number(m && m.monto);
+    if (!(monto > 0)) continue;
+    const cve = String(m.concepto || "").toUpperCase();
+    const def = CONCEPTOS_EJEC[cve] || { etiqueta: m.concepto || "Otro", categoria: "Otro", entrada: false };
+    const quien = [m.clienta, m.socio].filter(Boolean).join(" · ");
+    store.agregarMovimiento({
+      // El folio de la app ya es único por ejecutiva y día; se le antepone el
+      // usuario para no chocar nunca con los folios DIR- de dirección. Como
+      // agregarMovimiento es append-only por folio, re-sincronizar no duplica.
+      folio: "EJE-" + usuario.id.toUpperCase() + "-" + (m.folio || Math.abs(monto) + "-" + cve),
+      fecha, monto,
+      concepto: def.etiqueta + (quien ? " · " + quien : "") + (m.nota ? " — " + m.nota : ""),
+      categoria: def.categoria,
+      metodo: m.via === "T" ? "transferencia" : "efectivo",
+      entrada: def.entrada,
+      autorizadoA: m.clienta || null,
+      registradoPor: usuario.nombre, rol: usuario.rol, ts: Date.now(),
+    });
+  }
+}
+
 app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   const { fecha, snapshot, ts } = req.body || {};
   if (!fecha || !snapshot) return res.status(400).json({ error: "Faltan datos para sincronizar (la fecha o la captura)." });
@@ -203,6 +231,7 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   const antes = previo ? contarPagos(previo.snapshot) : null;
   const ahora = contarPagos(snapshot);
   store.guardarSnapshot(req.usuario.id, fecha, { snapshot, ts: ts || Date.now() });
+  guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot);
   if (fecha !== hoy) desfasesFecha[req.usuario.id] = { fecha, hoy, ts: Date.now() };
   else delete desfasesFecha[req.usuario.id];
   if (antes != null && ahora != null && antes - ahora >= 3) {
@@ -631,6 +660,25 @@ app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
 const CATEGORIAS = ["Retiro de dirección", "Gasto operativo", "Autorización / préstamo", "Otro"];
 const METODOS = ["efectivo", "transferencia"];
 
+// Movimientos que capturan las EJECUTIVAS en la pestaña "Otros movimientos".
+// Unos meten dinero a la caja (comisión, recuperación, garantía, liquidación) y
+// otros lo sacan (gasto, desembolso). El signo importa: si se tratan todos como
+// salida, el efectivo a entregar sale mal.
+const CONCEPTOS_EJEC = {
+  COMISION:     { etiqueta: "Comisión de desembolso",   categoria: "Otro",            entrada: true },
+  RECUPERACION: { etiqueta: "Recuperación / adelanto",  categoria: "Otro",            entrada: true },
+  GARANTIA:     { etiqueta: "Garantía (ahorro)",        categoria: "Otro",            entrada: true },
+  LIQUIDACION:  { etiqueta: "Liquidación",              categoria: "Otro",            entrada: true },
+  DESEMBOLSO:   { etiqueta: "Desembolso (crédito nuevo)", categoria: "Autorización / préstamo", entrada: false },
+  GASTO:        { etiqueta: "Gasto",                    categoria: "Gasto operativo", entrada: false },
+};
+// Efectivo que SALE de la caja. Un movimiento marcado como entrada resta aquí
+// (mete dinero), por eso no se puede sumar a secas.
+function egresosEnEfectivo(movs) {
+  return movs.filter((m) => m.metodo === "efectivo")
+    .reduce((s, m) => s + (m.entrada ? -m.monto : m.monto), 0);
+}
+
 app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
   const monto = Number(b.monto);
@@ -730,7 +778,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     : idsEjecutivos(req.usuario);
   const a = calcularArqueo(fecha, ids);
   const movs = (req.usuario.rol === "ejecutivo") ? [] : store.movimientosDeFecha(fecha);
-  const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
+  const egresosEfectivo = egresosEnEfectivo(movs);
   res.json({
     fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
     denominaciones: DENOMS_ARQUEO,
@@ -744,7 +792,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   const fecha = req.query.fecha || hoyMX();
   const a = calcularArqueo(fecha, idsEjecutivos(req.usuario));
   const movs = store.movimientosDeFecha(fecha);
-  const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
+  const egresosEfectivo = egresosEnEfectivo(movs);
   const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const [y, m, d] = fecha.split("-").map(Number);
   const nomDia = dias[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
@@ -911,7 +959,7 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
     if (Math.abs(cobrado - movido) >= 1) descuadres.push({ nombre: USUARIOS[id].nombre, dif: cobrado - movido });
     conSync.push({ nombre: USUARIOS[id].nombre, hora: new Date(s.recibido).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) });
   }
-  const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((a, m) => a + m.monto, 0);
+  const egresosEfectivo = egresosEnEfectivo(movs);
   const efectivoAEntregar = efectivo - egresosEfectivo;
 
   const items = [];
