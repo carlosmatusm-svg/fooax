@@ -311,7 +311,7 @@
   <h3>Por ejecutivo · última sincronización</h3>
   <div id="ejecutivos"></div>
 
-  <h3>Movimientos de dirección / caja</h3>
+  <h3>Movimientos de caja · dirección y ejecutivas</h3>
   <div class="movwrap">
     <button class="movtoggle" id="movToggle" onclick="toggleMovForm()">+ Registrar retiro o gasto</button>
     <form class="movform" id="movForm" onsubmit="registrarMov(event)" style="display:none">
@@ -558,9 +558,14 @@ async function cargarMovs() {
     + " · registró " + hesc(m.registradoPor)
     + " · " + new Date(m.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
     + " · " + m.folio + "</div></div>"
-    + '<div class="mi-monto">−' + dinero(m.monto) + "</div></div>"
+    // Las entradas (recuperación, comisión, garantía, liquidación) METEN
+    // dinero a la caja. Pintarlas con "−" como todo lo demás hacía leer una
+    // recuperación como si fuera un gasto.
+    + '<div class="mi-monto"' + (m.entrada ? ' style="color:#0B7247"' : "") + ">"
+    + (m.entrada ? "+" : "−") + dinero(m.monto) + "</div></div>"
   ).join("")
-  + '<div class="movtot">Total del día: <b>' + dinero(d.total) + "</b> · efectivo <b>"
+  + '<div class="movtot">Entradas <b style="color:#0B7247">+' + dinero(d.entradas || 0)
+  + '</b> · Salidas <b>−' + dinero(d.salidas || 0) + "</b> · efectivo <b>"
   + dinero(d.totalEfectivo) + "</b> · transf. <b>" + dinero(d.totalTransf) + "</b></div>";
 }
 

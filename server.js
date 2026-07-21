@@ -1021,7 +1021,11 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   const lista = movsDeFecha(fecha, req.usuario).sort((a, b) => b.ts - a.ts);
   const totalEfectivo = lista.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
   const totalTransf = lista.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
-  res.json({ fecha, lista, totalEfectivo, totalTransf, total: totalEfectivo + totalTransf });
+  // Separa lo que entra de lo que sale, para que el total no mezcle una
+  // recuperación (entra) con un gasto (sale) en una sola cifra engañosa.
+  const entradas = lista.filter(m => m.entrada).reduce((s, m) => s + m.monto, 0);
+  const salidas = lista.filter(m => !m.entrada).reduce((s, m) => s + m.monto, 0);
+  res.json({ fecha, lista, totalEfectivo, totalTransf, total: totalEfectivo + totalTransf, entradas, salidas });
 });
 
 // ---------- páginas ----------
@@ -1063,8 +1067,30 @@ app.get("/tablero", paginaRequiere("direccion", "admin"), (req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3789;
+// Recupera los "Otros movimientos" que las ejecutivas capturaron ANTES de que
+// la sincronización los subiera: vivían enterrados en los snapshots ya
+// guardados. Como agregarMovimiento es idempotente por folio, correr esto en
+// cada arranque no duplica nada. Así lo de días pasados también le aparece a
+// Anel y Monse, no solo lo de hoy en adelante.
+function recuperarMovimientosHistoricos() {
+  const snaps = store.respaldo().snapshots || {};
+  let n = 0;
+  for (const ejId in snaps) {
+    const u = USUARIOS[ejId]; if (!u) continue;
+    for (const fecha in snaps[ejId]) {
+      let data = snaps[ejId][fecha].snapshot;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
+      const antes = store.movimientosDeFecha(fecha).length;
+      guardarMovimientosDeEjecutiva({ ...u, id: ejId }, fecha, data);
+      n += store.movimientosDeFecha(fecha).length - antes;
+    }
+  }
+  if (n > 0) console.log(`[movimientos] recuperados ${n} de campo que estaban solo en snapshots`);
+}
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
+  recuperarMovimientosHistoricos();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });
