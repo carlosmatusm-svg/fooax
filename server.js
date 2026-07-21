@@ -398,9 +398,12 @@ function lunesDeLaSemana(fechaISO) {
 function claveCredito(socioOKey, producto) {
   return norm(String(socioOKey).split("|")[0]) + "|" + norm(producto || "");
 }
-function pagosDeLaSemana() {
+// usuario: para respetar la burbuja de pruebas. Sin él, cuenta solo a las
+// ejecutivas reales — así una captura de prueba nunca entra a los saldos.
+function pagosDeLaSemana(usuario) {
   const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
   const map = {};
+  const permitidas = new Set(idsEjecutivos(usuario));
   const snaps = store.respaldo().snapshots || {};
   const sumar = (nodo, key) => {
     if (!nodo || typeof nodo !== "object") return;
@@ -412,6 +415,7 @@ function pagosDeLaSemana() {
     }
   };
   for (const ej in snaps) {
+    if (!permitidas.has(ej)) continue;
     for (const fecha in snaps[ej]) {
       if (fecha < lunes || fecha > hoy) continue;
       let data = snaps[ej][fecha].snapshot;
@@ -434,7 +438,7 @@ function pagosDeLaSemana() {
 // La plantilla que Monse hace a mano: saldo inicial − pagado esta semana =
 // saldo actualizado, por crédito. Generada sola. Solo dirección/admin.
 app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) => {
-  const pagos = pagosDeLaSemana();
+  const pagos = pagosDeLaSemana(req.usuario);
   const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const s = wb.addWorksheet("Saldos actualizados");
@@ -488,7 +492,7 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
   // ejecutivo solo ve sus clientas; dirección y admin ven todas
   let base = PADRON;
   if (req.usuario.rol === "ejecutivo") base = PADRON.filter(c => norm(c.ejecutivo) === norm(req.usuario.nombre));
-  const pagos = pagosDeLaSemana(); // cartera viva
+  const pagos = pagosDeLaSemana(req.usuario); // cartera viva
   const res1 = base.filter(c => {
     const heno = norm(c.nombre) + " " + c.id;
     return terminos.every(t => heno.includes(t));
