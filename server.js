@@ -21,9 +21,23 @@ const USUARIOS = {
   monse:       { nombre: "Monserrat",   rol: "admin",     pass: process.env.PASS_MONSE      || "monse2026" },
   anel:        { nombre: "Anel",        rol: "direccion", pass: process.env.PASS_ANEL       || "anel2026" },
   alejandra:   { nombre: "Alejandra",   rol: "admin",     pass: process.env.PASS_ALEJANDRA  || "alejandra2026" },
-  prueba:      { nombre: "Prueba",      rol: "ejecutivo", app: "App_Cobranza_PRUEBA.html",       pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
-  pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
+  prueba:      { nombre: "Prueba",      rol: "ejecutivo", test: true, app: "App_Cobranza_PRUEBA.html", pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
+  pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", test: true, pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
 };
+
+// Quiénes cuentan como ejecutivas para consolidado/arqueo/resumen.
+// Se deriva de USUARIOS: si mañana entra una ejecutiva nueva (sucursales),
+// aparece sola en el tablero y en el arqueo. Antes estaba escrita a mano y
+// su cobranza habría quedado invisible.
+// Las cuentas de prueba viven en su propia burbuja: un usuario de prueba solo
+// ve ejecutivas de prueba, y uno real solo ve las reales. Así lo falso nunca
+// se mezcla con el arqueo de Anel.
+function idsEjecutivos(usuario) {
+  const enPruebas = !!(usuario && usuario.test);
+  return Object.keys(USUARIOS).filter(
+    (id) => USUARIOS[id].rol === "ejecutivo" && !!USUARIOS[id].test === enPruebas
+  );
+}
 
 // Fecha de HOY en horario de México (no UTC). Evita que el "día" cambie a las
 // 6 PM y la cobranza de la tarde se parta o desaparezca del tablero.
@@ -216,7 +230,7 @@ app.get("/api/consolidado", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const snaps = store.snapshotsDeFecha(fecha);
   const ejecutivos = {};
-  for (const id of ["neri", "karina", "christopher"]) {
+  for (const id of idsEjecutivos(req.usuario)) {
     const s = snaps[id];
     const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
     let movimientos = 0, ultimaSync = null;
@@ -619,7 +633,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   const fecha = req.query.fecha || hoyMX();
   const ids = req.usuario.rol === "ejecutivo"
     ? [req.usuario.id].filter((x) => USUARIOS[x] && USUARIOS[x].rol === "ejecutivo")
-    : ["neri", "karina", "christopher"];
+    : idsEjecutivos(req.usuario);
   const a = calcularArqueo(fecha, ids);
   const movs = (req.usuario.rol === "ejecutivo") ? [] : store.movimientosDeFecha(fecha);
   const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
@@ -634,7 +648,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
 // subtotal y total, del día elegido. Solo dirección/admin.
 app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) => {
   const fecha = req.query.fecha || hoyMX();
-  const a = calcularArqueo(fecha, ["neri", "karina", "christopher"]);
+  const a = calcularArqueo(fecha, idsEjecutivos(req.usuario));
   const movs = store.movimientosDeFecha(fecha);
   const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
   const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -723,7 +737,7 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   const movs = store.movimientosDeFecha(fecha);
   let efectivo = 0, transferencia = 0, garantias = 0, faltantes = 0, pagos = 0, clientasFaltan = 0;
   const sinSync = [], conSync = [], descuadres = [];
-  for (const id of ["neri", "karina", "christopher"]) {
+  for (const id of idsEjecutivos(req.usuario)) {
     const s = snaps[id];
     if (!s) { sinSync.push(USUARIOS[id].nombre); continue; }
     let data = s.snapshot;
