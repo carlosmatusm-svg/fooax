@@ -777,20 +777,39 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   };
   seccion("BILLETES", RIO, [1000, 500, 200, 100, 50, 20]);
   seccion("MONEDAS", NARANJA, [10, 5, 2, 1, 0.5]);
-  // total efectivo
+  // TOTAL EFECTIVO = el efectivo REALMENTE cobrado, no la suma de los billetes.
+  // Antes se sumaban las denominaciones: si las ejecutivas no capturaron el
+  // conteo de billetes (que es lo normal), el arqueo decía "TOTAL EFECTIVO
+  // $0.00" un día en que entraron $31,389. Un arqueo en cero cuando sí hubo
+  // dinero es justo lo que no puede pasar.
   s.mergeCells(fila, 1, fila, 3);
   const ct = s.getCell(fila, 1); ct.value = "TOTAL EFECTIVO " + nomDia.toUpperCase();
   ct.font = { bold: true, color: { argb: "FFFFFFFF" } };
   ct.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NARANJA } };
-  const cv = s.getCell(fila, 4); cv.value = totalEfe; cv.numFmt = dinero;
+  const cv = s.getCell(fila, 4); cv.value = a.efectivo; cv.numFmt = dinero;
   cv.font = { bold: true, color: { argb: "FFFFFFFF" } };
   cv.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  fila++;
+  // Qué parte de ese efectivo trae conteo de billetes y qué parte no.
+  const sinDesglosar = Math.round((a.efectivo - totalEfe) * 100) / 100;
+  if (Math.abs(sinDesglosar) >= 0.01) {
+    const r = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c = r.getCell(1);
+    c.value = totalEfe > 0
+      ? "⚠ Falta desglosar por denominación (contado $" + totalEfe.toLocaleString("es-MX") + ")"
+      : "⚠ Este día no se capturó el conteo de billetes — el efectivo de arriba viene de los pagos registrados";
+    c.font = { bold: true, color: { argb: "FF8A5A00" } };
+    c.alignment = { wrapText: true };
+    const cd = r.getCell(4); cd.value = sinDesglosar; cd.numFmt = dinero;
+    cd.font = { bold: true, color: { argb: "FF8A5A00" } };
+  }
   fila += 2;
   // desglose de cierre
   const linea = (lbl, val) => { const r = s.getRow(fila++); r.getCell(1).value = lbl;
     const c = r.getCell(4); c.value = val; c.numFmt = dinero; c.font = { bold: true }; };
   linea("− Gastos y retiros en efectivo", -egresosEfectivo);
-  linea("Efectivo a entregar", totalEfe - egresosEfectivo);
+  linea("Efectivo a entregar", a.efectivo - egresosEfectivo);
   linea("Depósitos / transferencias", a.transferencia);
   linea("Garantías", a.garantias);
   fila++;
