@@ -21,6 +21,8 @@ const USUARIOS = {
   monse:       { nombre: "Monserrat",   rol: "admin",     pass: process.env.PASS_MONSE      || "monse2026" },
   anel:        { nombre: "Anel",        rol: "direccion", pass: process.env.PASS_ANEL       || "anel2026" },
   alejandra:   { nombre: "Alejandra",   rol: "admin",     pass: process.env.PASS_ALEJANDRA  || "alejandra2026" },
+  prueba:      { nombre: "Prueba",      rol: "ejecutivo", app: "App_Cobranza_PRUEBA.html",       pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
+  pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
 };
 
 // Fecha de HOY en horario de México (no UTC). Evita que el "día" cambie a las
