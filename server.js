@@ -910,8 +910,10 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   const linea = (lbl, val) => { const r = s.getRow(fila++); r.getCell(1).value = lbl;
     const c = r.getCell(4); c.value = val; c.numFmt = dinero; c.font = { bold: true }; };
   // Mismos renglones y mismos números que la tarjeta de arqueo del tablero,
-  // para poder compararlos lado a lado sin traducir nada.
-  linea("− Gastos y retiros en efectivo", -egresosEfectivo);
+  // para poder compararlos lado a lado sin traducir nada. egresosEfectivo es el
+  // NETO: si es negativo, la caja recibió más de lo que gastó (recuperaciones).
+  if (egresosEfectivo >= 0) linea("− Gastos y retiros en efectivo", -egresosEfectivo);
+  else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEfectivo);
   linea("Efectivo a entregar", a.efectivo - egresosEfectivo);
   linea("Depósitos / transferencias", a.transferencia);
   linea("Garantías", a.garantias);

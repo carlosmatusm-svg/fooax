@@ -592,8 +592,13 @@ async function cargarArqueo() {
       : '<div class="arq-vacio">Aún no hay efectivo capturado hoy.</div>') +
     "</div>" +
     '<div class="arq-card">' +
-    fila("Total efectivo", dinero(d.efectivo)) +
-    fila("− Gastos y retiros en efectivo", "−" + dinero(d.egresosEfectivo)) +
+    fila("Total efectivo cobrado", dinero(d.efectivo)) +
+    // egresosEfectivo es el NETO: + salió de la caja, − entró (recuperaciones que
+    // pesan más que los gastos). Antes se anteponía "−" a secas y con un neto
+    // negativo salía "−$-1,370". Ahora el renglón se adapta al signo.
+    (d.egresosEfectivo >= 0
+      ? fila("− Gastos y retiros en efectivo", "−" + dinero(d.egresosEfectivo))
+      : '<div class="arq-fila"><span style="color:#0B7247">+ Entradas de caja (recuperaciones, etc.)</span><b style="color:#0B7247">+' + dinero(-d.egresosEfectivo) + "</b></div>") +
     '<div class="arq-entregar"><span>Efectivo a entregar</span><b>' + dinero(d.efectivoAEntregar) + "</b></div>" +
     fila("Depósitos / transferencias", dinero(d.transferencia)) +
     fila("Garantías", dinero(d.garantias)) +
