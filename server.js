@@ -681,19 +681,32 @@ function egresosEnEfectivo(movs) {
 // Los movimientos también viven en su burbuja: los de una cuenta de prueba no
 // se cuelan al arqueo ni al tablero reales. Un movimiento viejo sin `usuario`
 // se considera real (así eran todos los de dirección antes de esto).
+// A qué usuario pertenece un movimiento: el sello `usuario`, o —para los
+// anteriores al sello— el ID dentro del folio "EJE-<ID>-...".
+function usuarioDeMov(m) {
+  if (m.usuario && USUARIOS[m.usuario]) return m.usuario;
+  const mm = /^EJE-([^-]+)-/.exec(String(m.folio || ""));
+  if (mm && USUARIOS[mm[1].toLowerCase()]) return mm[1].toLowerCase();
+  return null;
+}
 function movsDeFecha(fecha, usuario) {
   const enPruebas = !!(usuario && usuario.test);
   return store.movimientosDeFecha(fecha).filter((m) => {
-    let u = m.usuario && USUARIOS[m.usuario];
-    // Movimientos anteriores al sello: el folio de los de campo trae el
-    // usuario ("EJE-<ID>-..."), así que de ahí se deduce a qué burbuja
-    // pertenecen. Sin eso, un movimiento de prueba viejo contaría como real.
-    if (!u) {
-      const mm = /^EJE-([^-]+)-/.exec(String(m.folio || ""));
-      if (mm) u = USUARIOS[mm[1].toLowerCase()];
-    }
+    const id = usuarioDeMov(m);
+    const u = id && USUARIOS[id];
     return !!(u && u.test) === enPruebas;
   });
+}
+// Reparte "Otros movimientos" a cada ejecutivo del arqueo: entradas
+// (recuperaciones) y salidas (gastos) que registró, junto a su efectivo.
+function repartirMovsPorEjecutivo(porEjec, movs) {
+  for (const m of movs) {
+    const id = usuarioDeMov(m);
+    if (!id || !porEjec[id]) continue;
+    const e = porEjec[id];
+    if (m.entrada) e.movEntradas = (e.movEntradas || 0) + m.monto;
+    else e.movSalidas = (e.movSalidas || 0) + m.monto;
+  }
 }
 
 app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
@@ -796,6 +809,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   const a = calcularArqueo(fecha, ids);
   const movs = (req.usuario.rol === "ejecutivo") ? [] : movsDeFecha(fecha, req.usuario);
   const egresosEfectivo = egresosEnEfectivo(movs);
+  repartirMovsPorEjecutivo(a.porEjec, movs);
   res.json({
     fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
     denominaciones: DENOMS_ARQUEO,
@@ -810,6 +824,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   const a = calcularArqueo(fecha, idsEjecutivos(req.usuario));
   const movs = movsDeFecha(fecha, req.usuario);
   const egresosEfectivo = egresosEnEfectivo(movs);
+  repartirMovsPorEjecutivo(a.porEjec, movs);
   const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const [y, m, d] = fecha.split("-").map(Number);
   const nomDia = dias[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
@@ -921,13 +936,19 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   const cm = rm.getCell(4); cm.value = a.faltantes; cm.numFmt = dinero;
   cm.font = { bold: true, color: { argb: a.faltantes > 0 ? "FFB00020" : "FF000000" } };
   fila++;
-  // por ejecutiva: efectivo Y transferencia, igual que en el tablero
+  // por ejecutiva: efectivo, transferencia y sus otros movimientos, igual que el tablero
   const rh = s.getRow(fila++); rh.getCell(1).value = "Por ejecutiva"; rh.getCell(1).font = { bold: true, color: { argb: RIO } };
-  for (const id in a.porEjec) { const e = a.porEjec[id]; if (e.efectivo <= 0 && e.transferencia <= 0) continue;
+  const pesos = (n) => n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+  for (const id in a.porEjec) { const e = a.porEjec[id];
+    if (e.efectivo <= 0 && e.transferencia <= 0 && !e.movEntradas && !e.movSalidas) continue;
     const r = s.getRow(fila++); r.getCell(1).value = e.nombre;
     r.getCell(2).value = "efectivo"; r.getCell(2).alignment = { horizontal: "right" };
     r.getCell(3).value = e.efectivo; r.getCell(3).numFmt = dinero;
-    r.getCell(4).value = e.transferencia ? "transf. " + e.transferencia.toLocaleString("es-MX", { style: "currency", currency: "MXN" }) : "";
+    const extra = [];
+    if (e.transferencia) extra.push("transf. " + pesos(e.transferencia));
+    if (e.movEntradas) extra.push("otros +" + pesos(e.movEntradas));
+    if (e.movSalidas) extra.push("otros −" + pesos(e.movSalidas));
+    r.getCell(4).value = extra.join(" · ");
     r.getCell(4).alignment = { horizontal: "right" }; }
 
   const buf = await wb.xlsx.writeBuffer();

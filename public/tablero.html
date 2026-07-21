@@ -582,9 +582,17 @@ async function cargarArqueo() {
   }).join("");
   const fila = (lbl, val, rojo) =>
     '<div class="arq-fila' + (rojo ? " rojo" : "") + '"><span>' + lbl + "</span><b>" + val + "</b></div>";
-  const porEjec = Object.values(d.porEjec).filter((e) => e.efectivo > 0 || e.transferencia > 0).map((e) =>
-    '<div class="arq-ejec"><span>' + e.nombre + "</span><b>efectivo " + dinero(e.efectivo) +
-    " · transf. " + dinero(e.transferencia) + "</b></div>").join("");
+  const porEjec = Object.values(d.porEjec)
+    .filter((e) => e.efectivo > 0 || e.transferencia > 0 || e.movEntradas > 0 || e.movSalidas > 0)
+    .map((e) => {
+      // "Otros movimientos" de cada ejecutivo: lo que registró aparte de la
+      // cobranza (recuperaciones que entran, gastos que salen).
+      let otros = "";
+      if (e.movEntradas > 0) otros += ' · <span style="color:#0B7247">otros +' + dinero(e.movEntradas) + "</span>";
+      if (e.movSalidas > 0) otros += ' · <span style="color:var(--mora)">otros −' + dinero(e.movSalidas) + "</span>";
+      return '<div class="arq-ejec"><span>' + hesc(e.nombre) + "</span><b>efectivo " + dinero(e.efectivo) +
+        " · transf. " + dinero(e.transferencia) + otros + "</b></div>";
+    }).join("");
   box.innerHTML =
     '<div class="arq-card"><div class="arq-h">Desglose de efectivo recibido</div>' +
     (filasDenom
