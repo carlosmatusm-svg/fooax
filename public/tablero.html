@@ -338,11 +338,11 @@
 
   <h3>Descargas en Excel</h3>
   <div class="descargas">
-    <button class="dlbtn" onclick="descargar('/api/arqueo/excel')">🧾 Arqueo de caja del día</button>
+    <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')">🧾 Arqueo de caja del día</button>
     <button class="dlbtn" onclick="descargar('/api/semana/excel')">📊 Saldos actualizados de la semana</button>
     <button class="dlbtn secun" onclick="descargar('/api/respaldo')">💾 Respaldo completo (toda la cobranza)</button>
   </div>
-  <div class="dlhint">El arqueo respeta el día que elijas arriba. Los saldos actualizados son la plantilla semanal (saldo − lo pagado), lista para tu control.</div>
+  <div class="dlhint">Para bajar el arqueo de otro día, cámbialo en el selector de fecha de arriba: el botón te dice qué día va a descargar. Los saldos actualizados son la plantilla semanal (saldo − lo pagado), lista para tu control.</div>
 </div>
 <script>
 const $ = id => document.getElementById(id);
@@ -359,9 +359,24 @@ const IC = {
 let FECHA_VISTA = null;   // null = hoy
 let FECHA_HOY = null;     // "hoy" según el servidor
 const fq = () => (FECHA_VISTA ? "?fecha=" + FECHA_VISTA : "");
+// El botón de arqueo dice QUÉ DÍA va a bajar. Antes decía "del día" y bajaba
+// siempre el de hoy: si hoy no hay captura, salía vacío y parecía que el
+// arqueo de ayer "no estaba disponible" — sí estaba, solo había que elegirlo.
+const DIAS_SEM = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+function etiquetaDia(iso) {
+  const [a, m, d] = String(iso).split("-").map(Number);
+  const f = new Date(a, m - 1, d);
+  return DIAS_SEM[f.getDay()] + " " + d + "-" + ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"][m - 1];
+}
+function pintarBotonArqueo() {
+  const b = $("btnArqueo"); if (!b) return;
+  const f = FECHA_VISTA || FECHA_HOY;
+  b.textContent = "🧾 Arqueo de caja · " + (f ? etiquetaDia(f) : "del día");
+}
 function refrescarVista() {
   $("fHoy").style.display = FECHA_VISTA ? "inline-flex" : "none";
   document.body.classList.toggle("pasado", !!FECHA_VISTA);
+  pintarBotonArqueo();
   cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSemana();
 }
 function verHoy() {
@@ -381,7 +396,7 @@ async function cargar() {
   if (r.status === 401) { location.href = "/"; return; }
   const d = await r.json();
   $("fecha-txt").textContent = d.fecha + (FECHA_VISTA ? " · día anterior" : " · se actualiza solo");
-  if (!FECHA_VISTA && !FECHA_HOY) { FECHA_HOY = d.fecha; $("fSel").value = d.fecha; $("fSel").max = d.fecha; }
+  if (!FECHA_VISTA && !FECHA_HOY) { FECHA_HOY = d.fecha; $("fSel").value = d.fecha; $("fSel").max = d.fecha; pintarBotonArqueo(); }
   $("factTxt").textContent = "actualizado " + new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
   // semáforo de sincronización (solo aplica viendo el día de hoy)
   $("chipSync").innerHTML = FECHA_VISTA ? "" : Object.values(d.ejecutivos).map((e) => {

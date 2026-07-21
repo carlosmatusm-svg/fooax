@@ -400,19 +400,30 @@ function claveCredito(socioOKey, producto) {
 }
 // usuario: para respetar la burbuja de pruebas. Sin él, cuenta solo a las
 // ejecutivas reales — así una captura de prueba nunca entra a los saldos.
+// Devuelve { pago, gar, detalle }:
+//  - pago: lo que ABONA al crédito (baja el saldo)
+//  - gar : garantía cobrada — es dinero que entra a caja pero NO baja el saldo.
+//          Por eso el tablero (pago+garantía) y los saldos (solo pago) dan
+//          distinto: los dos están bien, miden cosas distintas.
+//  - detalle: quién pagó cada clave, para poder señalar los pagos que no
+//          casan con ningún crédito del padrón en vez de perderlos en silencio.
 function pagosDeLaSemana(usuario) {
   const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
-  const map = {};
+  const pago = {}, gar = {}, detalle = {};
   const permitidas = new Set(idsEjecutivos(usuario));
   const snaps = store.respaldo().snapshots || {};
-  const sumar = (nodo, key) => {
+  const sumar = (nodo, key, ej, fecha) => {
     if (!nodo || typeof nodo !== "object") return;
-    const pago = nodo.pago || 0;
-    if (pago > 0) {
-      const partes = String(key).split("|");
-      const clave = claveCredito(partes[0], partes[1]);
-      map[clave] = (map[clave] || 0) + pago;
-    }
+    const p = nodo.pago || 0, g = nodo.garantia || 0;
+    if (p <= 0 && g <= 0) return;
+    const partes = String(key).split("|");
+    const clave = claveCredito(partes[0], partes[1]);
+    if (p > 0) pago[clave] = (pago[clave] || 0) + p;
+    if (g > 0) gar[clave] = (gar[clave] || 0) + g;
+    const d = detalle[clave] || (detalle[clave] = { socio: partes[0], producto: partes[1] || "", pago: 0, gar: 0, ejec: {}, fechas: {} });
+    d.pago += p; d.gar += g;
+    if (ej) d.ejec[ej] = true;
+    if (fecha) d.fechas[fecha] = true;
   };
   for (const ej in snaps) {
     if (!permitidas.has(ej)) continue;
@@ -424,33 +435,34 @@ function pagosDeLaSemana(usuario) {
         if (!st || typeof st !== "object") return;
         for (const k in st) {
           const nd = st[k];
-          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) sumar(nd, k);
-          else if (nd && typeof nd === "object") for (const kk in nd) sumar(nd[kk], kk);
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) sumar(nd, k, ej, fecha);
+          else if (nd && typeof nd === "object") for (const kk in nd) sumar(nd[kk], kk, ej, fecha);
         }
       };
       rec(data.reg); rec(data.regI);
     }
   }
-  return map;
+  return { pago, gar, detalle };
 }
 
 // ---------- SALDOS ACTUALIZADOS de la semana en Excel ----------
 // La plantilla que Monse hace a mano: saldo inicial − pagado esta semana =
 // saldo actualizado, por crédito. Generada sola. Solo dirección/admin.
 app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) => {
-  const pagos = pagosDeLaSemana(req.usuario);
+  const { pago: pagos, gar: garantias, detalle } = pagosDeLaSemana(req.usuario);
   const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
+  const usadas = new Set();
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const s = wb.addWorksheet("Saldos actualizados");
   const AURORA = "FFF1228E", RIO = "FF324AB6";
-  s.mergeCells("A1:I1");
+  s.mergeCells("A1:J1");
   const t = s.getCell("A1");
   t.value = `FOOAX · SALDOS ACTUALIZADOS · semana ${lunes} → ${hoy}`;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
   t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
   t.alignment = { horizontal: "center", vertical: "middle" }; s.getRow(1).height = 24;
   const head = [["Ejecutivo", 13], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-    ["Saldo inicial", 13], ["Pagó semana", 13], ["Saldo actualizado", 16], ["Cuota", 10]];
+    ["Saldo inicial", 13], ["Pagó semana", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10]];
   const hr = s.getRow(2);
   head.forEach(([h2, w], i) => { const c = hr.getCell(i + 1); c.value = h2; s.getColumn(i + 1).width = w;
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -460,23 +472,74 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   let fila = 3;
   const rows = PADRON.filter(c => c.activa !== false && c.estatus !== "BAJA")
     .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) || String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
-  let tIni = 0, tPag = 0, tAct = 0;
+  let tIni = 0, tPag = 0, tAct = 0, tGar = 0;
   for (const c of rows) {
-    const pagado = pagos[claveCredito(c.id, c.producto)] || 0;
+    const clave = claveCredito(c.id, c.producto);
+    usadas.add(clave);
+    const pagado = pagos[clave] || 0, garan = garantias[clave] || 0;
     const ini = c.saldo || 0, act = Math.max(0, ini - pagado);
-    tIni += ini; tPag += pagado; tAct += act;
+    tIni += ini; tPag += pagado; tAct += act; tGar += garan;
     const r = s.getRow(fila++);
     r.getCell(1).value = c.ejecutivo || ""; r.getCell(2).value = c.centro || "";
     r.getCell(3).value = c.nombre || ""; r.getCell(4).value = c.id; r.getCell(5).value = c.producto || "";
-    r.getCell(6).value = ini; r.getCell(7).value = pagado || null; r.getCell(8).value = act; r.getCell(9).value = c.cuota || 0;
-    [6, 7, 8, 9].forEach(i => r.getCell(i).numFmt = dinero);
+    r.getCell(6).value = ini; r.getCell(7).value = pagado || null; r.getCell(8).value = act;
+    r.getCell(9).value = garan || null; r.getCell(10).value = c.cuota || 0;
+    [6, 7, 8, 9, 10].forEach(i => r.getCell(i).numFmt = dinero);
     if (pagado > 0) r.getCell(7).font = { bold: true, color: { argb: "FF0B7247" } };
+    if (garan > 0) r.getCell(9).font = { bold: true, color: { argb: "FF8A5A00" } };
     if ((fila - 3) % 2 === 1) r.eachCell({ includeEmpty: true }, c2 => { if (!c2.fill || c2.fill.type !== "pattern") c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F1F8" } }; });
   }
   const tr = s.getRow(fila);
   tr.getCell(5).value = "TOTAL"; tr.getCell(5).font = { bold: true };
-  tr.getCell(6).value = tIni; tr.getCell(7).value = tPag; tr.getCell(8).value = tAct;
-  [6, 7, 8].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
+  tr.getCell(6).value = tIni; tr.getCell(7).value = tPag; tr.getCell(8).value = tAct; tr.getCell(9).value = tGar;
+  [6, 7, 8, 9].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
+  fila++;
+
+  // Cuadre explícito contra el tablero. Sin esto, el tablero (que suma pago +
+  // garantía, o sea el dinero que entró) y este Excel (solo pago, lo que abona
+  // al crédito) parecen no cuadrar, y no es cierto: miden cosas distintas.
+  fila++;
+  const cuadre = [
+    ["Pagos aplicados al saldo", tPag],
+    ["+ Garantías recibidas (no bajan saldo)", tGar],
+    ["= Total recibido en la semana (debe cuadrar con el tablero)", tPag + tGar],
+  ];
+  for (const [txt, val] of cuadre) {
+    const r = s.getRow(fila++);
+    r.getCell(5).value = txt; r.getCell(5).alignment = { horizontal: "right" };
+    r.getCell(6).value = val; r.getCell(6).numFmt = dinero;
+    const ultima = txt.startsWith("=");
+    r.getCell(5).font = { bold: ultima };
+    r.getCell(6).font = { bold: true, color: { argb: ultima ? AURORA : "FF333333" } };
+  }
+
+  // Pagos que NO casan con ningún crédito del padrón. Antes se perdían en
+  // silencio: no salían en ninguna fila ni en el total. Si una clienta se dio
+  // de baja de la plantilla y siguió pagando, su dinero desaparecía del Excel.
+  const huerfanos = Object.keys(detalle).filter(k => !usadas.has(k) && (detalle[k].pago > 0 || detalle[k].gar > 0));
+  if (huerfanos.length) {
+    fila += 2;
+    const av = s.getRow(fila++);
+    av.getCell(1).value = "⚠ PAGOS SIN CRÉDITO ASIGNADO — se cobraron pero no bajan ningún saldo. Revisar.";
+    av.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    av.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFB00020" } };
+    s.mergeCells(`A${fila - 1}:J${fila - 1}`);
+    const hh = s.getRow(fila++);
+    ["Ejecutivo(s)", "Fecha(s)", "Socio", "Producto", "Pago", "Garantía"].forEach((h2, i) => {
+      const c = hh.getCell(i + 1); c.value = h2;
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    });
+    for (const k of huerfanos) {
+      const d = detalle[k];
+      const r = s.getRow(fila++);
+      r.getCell(1).value = Object.keys(d.ejec).join(", ");
+      r.getCell(2).value = Object.keys(d.fechas).sort().join(", ");
+      r.getCell(3).value = d.socio; r.getCell(4).value = d.producto;
+      r.getCell(5).value = d.pago || null; r.getCell(6).value = d.gar || null;
+      [5, 6].forEach(i => r.getCell(i).numFmt = dinero);
+    }
+  }
   s.views = [{ state: "frozen", ySplit: 2 }];
 
   const buf = await wb.xlsx.writeBuffer();
@@ -492,7 +555,7 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
   // ejecutivo solo ve sus clientas; dirección y admin ven todas
   let base = PADRON;
   if (req.usuario.rol === "ejecutivo") base = PADRON.filter(c => norm(c.ejecutivo) === norm(req.usuario.nombre));
-  const pagos = pagosDeLaSemana(req.usuario); // cartera viva
+  const { pago: pagos } = pagosDeLaSemana(req.usuario); // cartera viva
   const res1 = base.filter(c => {
     const heno = norm(c.nombre) + " " + c.id;
     return terminos.every(t => heno.includes(t));
