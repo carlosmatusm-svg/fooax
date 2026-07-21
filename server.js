@@ -775,8 +775,22 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
       fila++;
     }
   };
-  seccion("BILLETES", RIO, [1000, 500, 200, 100, 50, 20]);
-  seccion("MONEDAS", NARANJA, [10, 5, 2, 1, 0.5]);
+  // Igual que la tarjeta de arqueo del tablero: solo salen las denominaciones
+  // que de verdad se contaron. Antes se imprimía la lista completa en ceros y
+  // parecía un arqueo vacío aunque hubiera dinero.
+  const conConteo = (lista) => lista.filter((dn) => (a.denomTotal[dn] || 0) > 0);
+  const billetes = conConteo([1000, 500, 200, 100, 50, 20]);
+  const monedas = conConteo([10, 5, 2, 1, 0.5]);
+  if (billetes.length) seccion("BILLETES", RIO, billetes);
+  if (monedas.length) seccion("MONEDAS", NARANJA, monedas);
+  if (!billetes.length && !monedas.length) {
+    s.mergeCells(fila, 1, fila, 4);
+    const c = s.getCell(fila, 1);
+    c.value = "Este día no se capturó el conteo por denominación.";
+    c.font = { italic: true, color: { argb: "FF666666" } };
+    c.alignment = { horizontal: "center" };
+    fila++;
+  }
   // TOTAL EFECTIVO = el efectivo REALMENTE cobrado, no la suma de los billetes.
   // Antes se sumaban las denominaciones: si las ejecutivas no capturaron el
   // conteo de billetes (que es lo normal), el arqueo decía "TOTAL EFECTIVO
@@ -808,16 +822,24 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   // desglose de cierre
   const linea = (lbl, val) => { const r = s.getRow(fila++); r.getCell(1).value = lbl;
     const c = r.getCell(4); c.value = val; c.numFmt = dinero; c.font = { bold: true }; };
+  // Mismos renglones y mismos números que la tarjeta de arqueo del tablero,
+  // para poder compararlos lado a lado sin traducir nada.
   linea("− Gastos y retiros en efectivo", -egresosEfectivo);
   linea("Efectivo a entregar", a.efectivo - egresosEfectivo);
   linea("Depósitos / transferencias", a.transferencia);
   linea("Garantías", a.garantias);
+  const rm = s.getRow(fila++); rm.getCell(1).value = "Mora del día (faltantes)";
+  const cm = rm.getCell(4); cm.value = a.faltantes; cm.numFmt = dinero;
+  cm.font = { bold: true, color: { argb: a.faltantes > 0 ? "FFB00020" : "FF000000" } };
   fila++;
-  // por ejecutiva
-  const rh = s.getRow(fila++); rh.getCell(1).value = "Efectivo por ejecutiva"; rh.getCell(1).font = { bold: true, color: { argb: RIO } };
+  // por ejecutiva: efectivo Y transferencia, igual que en el tablero
+  const rh = s.getRow(fila++); rh.getCell(1).value = "Por ejecutiva"; rh.getCell(1).font = { bold: true, color: { argb: RIO } };
   for (const id in a.porEjec) { const e = a.porEjec[id]; if (e.efectivo <= 0 && e.transferencia <= 0) continue;
     const r = s.getRow(fila++); r.getCell(1).value = e.nombre;
-    r.getCell(3).value = "efectivo"; r.getCell(4).value = e.efectivo; r.getCell(4).numFmt = dinero; }
+    r.getCell(2).value = "efectivo"; r.getCell(2).alignment = { horizontal: "right" };
+    r.getCell(3).value = e.efectivo; r.getCell(3).numFmt = dinero;
+    r.getCell(4).value = e.transferencia ? "transf. " + e.transferencia.toLocaleString("es-MX", { style: "currency", currency: "MXN" }) : "";
+    r.getCell(4).alignment = { horizontal: "right" }; }
 
   const buf = await wb.xlsx.writeBuffer();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
