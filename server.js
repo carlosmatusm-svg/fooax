@@ -334,7 +334,13 @@ function filasCobranza(snaps) {
 }
 
 app.get("/api/respaldo", requiere("direccion", "admin"), async (req, res) => {
-  const { snapshots, movimientos } = store.respaldo();
+  const crudo = store.respaldo();
+  // Misma burbuja que el resto: una cuenta de prueba NO se lleva el respaldo
+  // con la cobranza real de todas las clientas.
+  const permitidas = new Set(idsEjecutivos(req.usuario));
+  const snapshots = {};
+  for (const ej in crudo.snapshots || {}) if (permitidas.has(ej)) snapshots[ej] = crudo.snapshots[ej];
+  const movimientos = crudo.movimientos || [];
   const wb = new ExcelJS.Workbook();
   wb.creator = "FOOAX";
 
