@@ -218,7 +218,7 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
       metodo: m.via === "T" ? "transferencia" : "efectivo",
       entrada: def.entrada,
       autorizadoA: m.clienta || null,
-      registradoPor: usuario.nombre, rol: usuario.rol, ts: Date.now(),
+      registradoPor: usuario.nombre, rol: usuario.rol, usuario: usuario.id, ts: Date.now(),
     });
   }
 }
@@ -678,6 +678,16 @@ function egresosEnEfectivo(movs) {
   return movs.filter((m) => m.metodo === "efectivo")
     .reduce((s, m) => s + (m.entrada ? -m.monto : m.monto), 0);
 }
+// Los movimientos también viven en su burbuja: los de una cuenta de prueba no
+// se cuelan al arqueo ni al tablero reales. Un movimiento viejo sin `usuario`
+// se considera real (así eran todos los de dirección antes de esto).
+function movsDeFecha(fecha, usuario) {
+  const enPruebas = !!(usuario && usuario.test);
+  return store.movimientosDeFecha(fecha).filter((m) => {
+    const u = m.usuario && USUARIOS[m.usuario];
+    return !!(u && u.test) === enPruebas;
+  });
+}
 
 app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
@@ -697,7 +707,7 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const mov = {
     folio, fecha, monto, concepto, categoria, metodo,
     autorizadoA: (b.autorizadoA || "").trim() || null,
-    registradoPor: req.usuario.nombre, rol: req.usuario.rol, ts: Date.now(),
+    registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);
   res.json({ ok: true, movimiento: mov });
@@ -777,7 +787,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     ? [req.usuario.id].filter((x) => USUARIOS[x] && USUARIOS[x].rol === "ejecutivo")
     : idsEjecutivos(req.usuario);
   const a = calcularArqueo(fecha, ids);
-  const movs = (req.usuario.rol === "ejecutivo") ? [] : store.movimientosDeFecha(fecha);
+  const movs = (req.usuario.rol === "ejecutivo") ? [] : movsDeFecha(fecha, req.usuario);
   const egresosEfectivo = egresosEnEfectivo(movs);
   res.json({
     fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
@@ -791,7 +801,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
 app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const a = calcularArqueo(fecha, idsEjecutivos(req.usuario));
-  const movs = store.movimientosDeFecha(fecha);
+  const movs = movsDeFecha(fecha, req.usuario);
   const egresosEfectivo = egresosEnEfectivo(movs);
   const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const [y, m, d] = fecha.split("-").map(Number);
@@ -923,7 +933,7 @@ function pesos(n) { return "$" + Math.round(n || 0).toLocaleString("es-MX"); }
 app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const snaps = store.snapshotsDeFecha(fecha);
-  const movs = store.movimientosDeFecha(fecha);
+  const movs = movsDeFecha(fecha, req.usuario);
   let efectivo = 0, transferencia = 0, garantias = 0, faltantes = 0, pagos = 0, clientasFaltan = 0;
   const sinSync = [], conSync = [], descuadres = [];
   for (const id of idsEjecutivos(req.usuario)) {
@@ -1001,7 +1011,7 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
 
 app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
-  const lista = store.movimientosDeFecha(fecha).sort((a, b) => b.ts - a.ts);
+  const lista = movsDeFecha(fecha, req.usuario).sort((a, b) => b.ts - a.ts);
   const totalEfectivo = lista.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
   const totalTransf = lista.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
   res.json({ fecha, lista, totalEfectivo, totalTransf, total: totalEfectivo + totalTransf });
