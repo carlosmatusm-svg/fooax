@@ -414,6 +414,57 @@ function pagosDeLaSemana() {
   return map;
 }
 
+// ---------- SALDOS ACTUALIZADOS de la semana en Excel ----------
+// La plantilla que Monse hace a mano: saldo inicial − pagado esta semana =
+// saldo actualizado, por crédito. Generada sola. Solo dirección/admin.
+app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) => {
+  const pagos = pagosDeLaSemana();
+  const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const s = wb.addWorksheet("Saldos actualizados");
+  const AURORA = "FFF1228E", RIO = "FF324AB6";
+  s.mergeCells("A1:I1");
+  const t = s.getCell("A1");
+  t.value = `FOOAX · SALDOS ACTUALIZADOS · semana ${lunes} → ${hoy}`;
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center", vertical: "middle" }; s.getRow(1).height = 24;
+  const head = [["Ejecutivo", 13], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+    ["Saldo inicial", 13], ["Pagó semana", 13], ["Saldo actualizado", 16], ["Cuota", 10]];
+  const hr = s.getRow(2);
+  head.forEach(([h2, w], i) => { const c = hr.getCell(i + 1); c.value = h2; s.getColumn(i + 1).width = w;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    c.alignment = { horizontal: i >= 5 ? "center" : "left", wrapText: true }; });
+  const dinero = '"$"#,##0';
+  let fila = 3;
+  const rows = PADRON.filter(c => c.activa !== false && c.estatus !== "BAJA")
+    .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) || String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
+  let tIni = 0, tPag = 0, tAct = 0;
+  for (const c of rows) {
+    const pagado = pagos[claveCredito(c.id, c.producto)] || 0;
+    const ini = c.saldo || 0, act = Math.max(0, ini - pagado);
+    tIni += ini; tPag += pagado; tAct += act;
+    const r = s.getRow(fila++);
+    r.getCell(1).value = c.ejecutivo || ""; r.getCell(2).value = c.centro || "";
+    r.getCell(3).value = c.nombre || ""; r.getCell(4).value = c.id; r.getCell(5).value = c.producto || "";
+    r.getCell(6).value = ini; r.getCell(7).value = pagado || null; r.getCell(8).value = act; r.getCell(9).value = c.cuota || 0;
+    [6, 7, 8, 9].forEach(i => r.getCell(i).numFmt = dinero);
+    if (pagado > 0) r.getCell(7).font = { bold: true, color: { argb: "FF0B7247" } };
+    if ((fila - 3) % 2 === 1) r.eachCell({ includeEmpty: true }, c2 => { if (!c2.fill || c2.fill.type !== "pattern") c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F1F8" } }; });
+  }
+  const tr = s.getRow(fila);
+  tr.getCell(5).value = "TOTAL"; tr.getCell(5).font = { bold: true };
+  tr.getCell(6).value = tIni; tr.getCell(7).value = tPag; tr.getCell(8).value = tAct;
+  [6, 7, 8].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
+  s.views = [{ state: "frozen", ySplit: 2 }];
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Saldos actualizados FOOAX ${hoy}.xlsx"`);
+  res.send(Buffer.from(buf));
+});
+
 app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
   const q = norm(req.query.q).trim();
   if (q.length < 2) return res.json({ total: PADRON.length, resultados: [] });
@@ -510,13 +561,9 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
 // entregar, depósitos (transferencias) y mora del día (faltantes).
 const DENOMS_ARQUEO = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5];
 
-app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
-  const fecha = req.query.fecha || hoyMX();
+// Cálculo del arqueo de un día (reusado por /api/arqueo y por el Excel).
+function calcularArqueo(fecha, ids) {
   const snaps = store.snapshotsDeFecha(fecha);
-  const ids = req.usuario.rol === "ejecutivo"
-    ? [req.usuario.id].filter((x) => USUARIOS[x] && USUARIOS[x].rol === "ejecutivo")
-    : ["neri", "karina", "christopher"];
-
   const porEjec = {};
   for (const id of ids) {
     const denom = {}; DENOMS_ARQUEO.forEach((d) => { denom[d] = 0; });
@@ -563,15 +610,106 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     efectivo += e.efectivo; transferencia += e.transferencia; garantias += e.garantias; faltantes += e.faltantes;
   }
 
-  // Egresos en efectivo (gastos/retiros de caja) — solo dirección/admin los ven
+  return { porEjec, denomTotal, efectivo, transferencia, garantias, faltantes };
+}
+
+app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
+  const fecha = req.query.fecha || hoyMX();
+  const ids = req.usuario.rol === "ejecutivo"
+    ? [req.usuario.id].filter((x) => USUARIOS[x] && USUARIOS[x].rol === "ejecutivo")
+    : ["neri", "karina", "christopher"];
+  const a = calcularArqueo(fecha, ids);
   const movs = (req.usuario.rol === "ejecutivo") ? [] : store.movimientosDeFecha(fecha);
   const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
-  const efectivoAEntregar = efectivo - egresosEfectivo;
-
   res.json({
-    fecha, porEjec, denomTotal, efectivo, transferencia, garantias, faltantes,
-    egresosEfectivo, efectivoAEntregar, denominaciones: DENOMS_ARQUEO,
+    fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
+    denominaciones: DENOMS_ARQUEO,
   });
+});
+
+// ---------- ARQUEO DE CAJA en Excel (formato de la ficha física) ----------
+// Botón para Monse: cuenta el efectivo por denominación (billetes/monedas),
+// subtotal y total, del día elegido. Solo dirección/admin.
+app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) => {
+  const fecha = req.query.fecha || hoyMX();
+  const a = calcularArqueo(fecha, ["neri", "karina", "christopher"]);
+  const movs = store.movimientosDeFecha(fecha);
+  const egresosEfectivo = movs.filter((m) => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
+  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const [y, m, d] = fecha.split("-").map(Number);
+  const nomDia = dias[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const s = wb.addWorksheet("Arqueo", { properties: { defaultColWidth: 16 } });
+  const AURORA = "FFF1228E", RIO = "FF324AB6", NARANJA = "FFFD6E29", RIQUEZA = "FFF2BB06";
+  s.getColumn(1).width = 20; s.getColumn(2).width = 12; s.getColumn(3).width = 14; s.getColumn(4).width = 16;
+  s.mergeCells("A1:D1");
+  const tit = s.getCell("A1");
+  tit.value = "FOOAX · ARQUEO DE CAJA · " + nomDia.toUpperCase() + " " + fecha;
+  tit.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+  tit.alignment = { horizontal: "center", vertical: "middle" };
+  tit.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  s.getRow(1).height = 26;
+  s.mergeCells("A2:D2");
+  s.getCell("A2").value = "Efectivo recibido este día, por denominación.";
+  s.getCell("A2").font = { italic: true, size: 10, color: { argb: RIO } };
+  s.getCell("A2").alignment = { horizontal: "center" };
+
+  const head = ["DENOMINACIÓN", "CANTIDAD", "VALOR UNIT.", "SUBTOTAL"];
+  const hr = s.getRow(4);
+  head.forEach((h2, i) => { const c = hr.getCell(i + 1); c.value = h2;
+    c.font = { bold: true, color: { argb: "FF2A1F35" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFECE6F1" } };
+    c.alignment = { horizontal: i === 0 ? "left" : "center" }; });
+  const dinero = '"$"#,##0.00';
+  let fila = 5, totalEfe = 0;
+  const seccion = (nombre, color, denoms) => {
+    s.mergeCells(fila, 1, fila, 4);
+    const c = s.getCell(fila, 1); c.value = nombre;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+    fila++;
+    for (const dn of denoms) {
+      const cant = a.denomTotal[dn] || 0, sub = dn * cant; totalEfe += sub;
+      const r = s.getRow(fila);
+      r.getCell(1).value = (dn >= 20 ? "Billete $" : "Moneda $") + dn;
+      const cc = r.getCell(2); cc.value = cant || null; cc.alignment = { horizontal: "center" };
+      if (cant > 0) cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIQUEZA } };
+      cc.font = { bold: true };
+      r.getCell(3).value = dn; r.getCell(3).numFmt = dinero;
+      r.getCell(4).value = sub; r.getCell(4).numFmt = dinero;
+      fila++;
+    }
+  };
+  seccion("BILLETES", RIO, [1000, 500, 200, 100, 50, 20]);
+  seccion("MONEDAS", NARANJA, [10, 5, 2, 1, 0.5]);
+  // total efectivo
+  s.mergeCells(fila, 1, fila, 3);
+  const ct = s.getCell(fila, 1); ct.value = "TOTAL EFECTIVO " + nomDia.toUpperCase();
+  ct.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  ct.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NARANJA } };
+  const cv = s.getCell(fila, 4); cv.value = totalEfe; cv.numFmt = dinero;
+  cv.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  cv.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  fila += 2;
+  // desglose de cierre
+  const linea = (lbl, val) => { const r = s.getRow(fila++); r.getCell(1).value = lbl;
+    const c = r.getCell(4); c.value = val; c.numFmt = dinero; c.font = { bold: true }; };
+  linea("− Gastos y retiros en efectivo", -egresosEfectivo);
+  linea("Efectivo a entregar", totalEfe - egresosEfectivo);
+  linea("Depósitos / transferencias", a.transferencia);
+  linea("Garantías", a.garantias);
+  fila++;
+  // por ejecutiva
+  const rh = s.getRow(fila++); rh.getCell(1).value = "Efectivo por ejecutiva"; rh.getCell(1).font = { bold: true, color: { argb: RIO } };
+  for (const id in a.porEjec) { const e = a.porEjec[id]; if (e.efectivo <= 0 && e.transferencia <= 0) continue;
+    const r = s.getRow(fila++); r.getCell(1).value = e.nombre;
+    r.getCell(3).value = "efectivo"; r.getCell(4).value = e.efectivo; r.getCell(4).numFmt = dinero; }
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Arqueo FOOAX ${fecha}.xlsx"`);
+  res.send(Buffer.from(buf));
 });
 
 // ---------- RESUMEN del día (campanita de alertas para dirección) ----------
