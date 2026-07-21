@@ -620,16 +620,21 @@ async function cargarResumen() {
 }
 
 // ---------- seguridad: borrado remoto del teléfono ----------
-const EJECS_SEG = [["neri", "Neri"], ["karina", "Karina"], ["christopher", "Christopher"]];
+// La lista viene del servidor, no escrita a mano: así una ejecutiva nueva
+// aparece sola (si pierde el teléfono se puede borrar) y una cuenta de prueba
+// nunca ve —ni puede borrar— el teléfono de una ejecutiva real.
 async function cargarSeg() {
-  let marcados = [];
-  try { marcados = (await (await fetch("/api/telefono/marcados", { credentials: "include" })).json()).marcados || []; } catch { return; }
+  let marcados = [], ejecs = [];
+  try {
+    const d = await (await fetch("/api/telefono/marcados", { credentials: "include" })).json();
+    marcados = d.marcados || []; ejecs = d.ejecutivos || [];
+  } catch { return; }
   $("segWrap").innerHTML =
     '<div class="seghint">Si un ejecutivo pierde el teléfono o deja de trabajar, marca su teléfono aquí: la próxima vez que abra la app con señal, se borran todos sus datos.</div>' +
-    EJECS_SEG.map(([id, nom]) => '<div class="segfila"><span>' + nom + "</span>" +
+    ejecs.map(({ id, nombre }) => '<div class="segfila"><span>' + hesc(nombre) + "</span>" +
       (marcados.includes(id)
         ? '<span class="segmarcado">marcado para borrar</span>'
-        : '<button class="segbtn" onclick="borrarTel(\'' + id + "','" + nom + '\')">Borrar teléfono</button>') + "</div>").join("");
+        : '<button class="segbtn" onclick="borrarTel(\'' + hesc(id) + "','" + hesc(nombre) + '\')">Borrar teléfono</button>') + "</div>").join("");
 }
 async function borrarTel(id, nom) {
   if (!confirm("¿Marcar el teléfono de " + nom + " para borrado remoto?\nSe borrarán todos sus datos la próxima vez que abra la app con señal.")) return;

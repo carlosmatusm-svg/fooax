@@ -152,7 +152,9 @@ app.get("/api/me", (req, res) => {
 // la próxima vez que ese teléfono abra la app con señal, limpia todos los datos.
 app.post("/api/telefono/borrar", requiere("direccion", "admin"), (req, res) => {
   const ejec = String((req.body || {}).usuario || "").toLowerCase().trim();
-  if (!USUARIOS[ejec] || USUARIOS[ejec].rol !== "ejecutivo") {
+  // Solo dentro de la misma burbuja: una cuenta de PRUEBA no puede borrarle el
+  // teléfono a una ejecutiva real (borrar es destructivo e irreversible).
+  if (!idsEjecutivos(req.usuario).includes(ejec)) {
     return res.status(400).json({ error: "Elige un ejecutivo válido." });
   }
   borrarTelefono.add(ejec);
@@ -165,7 +167,14 @@ app.post("/api/telefono/borrado-hecho", requiere("ejecutivo"), (req, res) => {
 });
 // Estado (para el tablero): quién está marcado.
 app.get("/api/telefono/marcados", requiere("direccion", "admin"), (req, res) => {
-  res.json({ marcados: Array.from(borrarTelefono) });
+  // Devuelve también a QUIÉNES se puede borrar. El tablero traía la lista
+  // escrita a mano: una ejecutiva nueva no aparecía (y su teléfono perdido no
+  // se podía borrar), y una cuenta de prueba veía a las ejecutivas reales.
+  const permitidas = idsEjecutivos(req.usuario);
+  res.json({
+    marcados: Array.from(borrarTelefono).filter((id) => permitidas.includes(id)),
+    ejecutivos: permitidas.map((id) => ({ id, nombre: USUARIOS[id].nombre })),
+  });
 });
 
 // ---------- sincronización ----------
@@ -268,7 +277,9 @@ app.get("/api/semana", requiere("direccion", "admin"), (req, res) => {
     if (fecha > hasta) break;
     const snaps = store.snapshotsDeFecha(fecha);
     const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+    const permitidas = new Set(idsEjecutivos(req.usuario));
     for (const ej in snaps) {
+      if (!permitidas.has(ej)) continue;
       let data = snaps[ej].snapshot;
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
       acumular(data.reg, acc); acumular(data.regI, acc);
