@@ -342,6 +342,7 @@
     <button class="dlbtn" onclick="descargar('/api/semana/excel')">📊 Saldos actualizados de la semana</button>
     <button class="dlbtn secun" onclick="descargar('/api/respaldo')">💾 Respaldo completo (toda la cobranza)</button>
   </div>
+  <div class="dlhint" id="dlAviso" style="display:none"></div>
   <div class="dlhint">Para bajar el arqueo de otro día, cámbialo en el selector de fecha de arriba: el botón te dice qué día va a descargar. Los saldos actualizados son la plantilla semanal (saldo − lo pagado), lista para tu control.</div>
 </div>
 <script>
@@ -664,10 +665,23 @@ async function cargarSemana() {
 }
 
 // Descarga de Excel respetando el día elegido (el arqueo usa la fecha vista).
+// OJO: no usar un <a download> creado por código. En iPhone (Safari, y sobre
+// todo con el tablero añadido a la pantalla de inicio) ese click se ignora en
+// SILENCIO: se toca el botón y no pasa nada — parecía que el arqueo de un día
+// anterior "no estaba disponible". Navegar a la URL sí funciona en todos lados:
+// el servidor manda Content-Disposition: attachment, así que el navegador
+// descarga el archivo sin sacarte del tablero.
 function descargar(base) {
   const url = base + (base.indexOf("/arqueo/") >= 0 ? fq() : "");
-  const a = document.createElement("a");
-  a.href = url; a.download = ""; document.body.appendChild(a); a.click(); a.remove();
+  const btns = document.querySelectorAll(".dlbtn");
+  btns.forEach((b) => (b.disabled = true));
+  const aviso = document.getElementById("dlAviso");
+  if (aviso) { aviso.textContent = "Preparando la descarga… si no aparece, revisa la carpeta de Descargas."; aviso.style.display = "block"; }
+  location.href = url;
+  setTimeout(() => {
+    btns.forEach((b) => (b.disabled = false));
+    if (aviso) aviso.style.display = "none";
+  }, 6000);
 }
 
 async function salir() {
