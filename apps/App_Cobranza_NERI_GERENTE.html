@@ -384,6 +384,10 @@ const CONCEPTOS=["pago","garantia","solidario"]; // 3 conceptos confirmados
 
 // ===== PADRÓN: editable, parte del catálogo incrustado pero actualizable =====
 const STORE_KEY="fooax_cob_"+EJECUTIVO_BASE;
+// Conteo de billetes de la pestana Arqueo, {valor: cantidad}. Antes vivia solo
+// en window._arqueo (memoria): se perdia al recargar y el servidor NUNCA lo veia,
+// por eso el arqueo de Direccion salia en ceros aunque si se contara el efectivo.
+let arqueo={};
 const PADRON_VERSION=20260722;
 const PADRON_KEY="fooax_padron_"+EJECUTIVO_BASE;
 // CENTROS e INDIVIDUALES vienen del archivo; si hay padrón importado guardado, se usa ese
@@ -435,7 +439,7 @@ const ES_GERENTE=true;
 function guardar(){
   try{
     const fecha=document.getElementById('inpFecha').value||hoyISO();
-    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,ts:Date.now()}));
+    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,arqueo,ts:Date.now()}));
     const ind=document.getElementById('guardadoMsg');
     if(ind){ind.textContent='Guardado '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
   }catch(e){}
@@ -464,6 +468,9 @@ function restaurar(){
       }
     }
     if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs; if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
+    // El conteo de billetes tambien se recupera: si cierra y abre la app a media
+    // jornada, no tiene que volver a contar la caja.
+    if(d.arqueo&&d.fecha===hoy){arqueo=d.arqueo;setTimeout(()=>{let usados={};DENOM.forEach((dd,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');if(!inp)return;const tot=arqueo[dd.v]||0;const ya=usados[dd.v]||0;const q=Math.max(0,tot-ya);if(q>0){inp.value=q;usados[dd.v]=ya+q;}});if(document.querySelector('[data-den]'))calcArqueo();},0);}
     // la fecha SIEMPRE es la de hoy al abrir, no la guardada
     document.getElementById('inpFecha').value=hoy;
   }catch(e){}
@@ -931,7 +938,11 @@ function calcArqueo(){let t=0;
   const dif=t-esperado;const de=document.getElementById('arqueoDif');
   de.textContent=(Math.abs(dif)<0.01?'$0 ✓':fmt(dif));de.style.color=Math.abs(dif)<0.01?'var(--ok)':'var(--mora)';
   window._arqueo=DENOM.map((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');return {l:d.l,q:+(inp.value||0),sub:d.v*(+(inp.value||0))};});
-  window._arqueoTotal=t; window._arqueoEsperado=esperado; window._arqueoMovsEfe=movsEfe;}
+  window._arqueoTotal=t; window._arqueoEsperado=esperado; window._arqueoMovsEfe=movsEfe;
+  // Se suman por VALOR (el billete de $20 y la moneda de $20 caen en "20"):
+  // el importe queda exacto, que es lo que cuadra la caja.
+  arqueo={};DENOM.forEach((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');const q=+(inp&&inp.value||0);if(q>0)arqueo[d.v]=(arqueo[d.v]||0)+q;});
+  guardar();}
 
 /* ===== OTROS MOVIMIENTOS ===== */
 function fillMovSelects(){

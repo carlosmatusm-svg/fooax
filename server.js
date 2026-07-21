@@ -691,6 +691,16 @@ function calcularArqueo(fecha, ids) {
       };
       recorrer(data.reg);
       recorrer(data.regI);
+      // Conteo de billetes de la pestaña ARQUEO de la app: {valor: cantidad}.
+      // Es el conteo físico de la caja que hace la ejecutiva una vez al día.
+      // Antes solo se leía el desglose por clienta (n.desglose), que nadie
+      // llena, y por eso el arqueo de Dirección salía en ceros.
+      if (data.arqueo && typeof data.arqueo === "object") {
+        for (const v in data.arqueo) {
+          const val = Number(v), q = Number(data.arqueo[v]) || 0;
+          if (!isNaN(val) && q > 0) denom[val] = (denom[val] || 0) + q;
+        }
+      }
     }
     porEjec[id] = { nombre: USUARIOS[id].nombre, ...acc };
   }
@@ -810,13 +820,19 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     const r = s.getRow(fila++);
     s.mergeCells(fila - 1, 1, fila - 1, 3);
     const c = r.getCell(1);
+    // Si SÍ contaron la caja y no cuadra, es una diferencia de caja real
+    // (falta o sobra efectivo), no un tema de formato. Se dice con todas sus
+    // letras: es el número por el que Monse tiene que preguntar.
+    const falta = sinDesglosar > 0;
     c.value = totalEfe > 0
-      ? "⚠ Falta desglosar por denominación (contado $" + totalEfe.toLocaleString("es-MX") + ")"
+      ? "⚠ DIFERENCIA DE CAJA · cobrado $" + a.efectivo.toLocaleString("es-MX") +
+        " vs contado $" + totalEfe.toLocaleString("es-MX") + " → " + (falta ? "FALTAN" : "SOBRAN")
       : "⚠ Este día no se capturó el conteo de billetes — el efectivo de arriba viene de los pagos registrados";
-    c.font = { bold: true, color: { argb: "FF8A5A00" } };
+    const color = totalEfe > 0 ? "FFB00020" : "FF8A5A00";
+    c.font = { bold: true, color: { argb: color } };
     c.alignment = { wrapText: true };
-    const cd = r.getCell(4); cd.value = sinDesglosar; cd.numFmt = dinero;
-    cd.font = { bold: true, color: { argb: "FF8A5A00" } };
+    const cd = r.getCell(4); cd.value = Math.abs(sinDesglosar); cd.numFmt = dinero;
+    cd.font = { bold: true, color: { argb: color } };
   }
   fila += 2;
   // desglose de cierre
