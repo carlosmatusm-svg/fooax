@@ -684,7 +684,14 @@ function egresosEnEfectivo(movs) {
 function movsDeFecha(fecha, usuario) {
   const enPruebas = !!(usuario && usuario.test);
   return store.movimientosDeFecha(fecha).filter((m) => {
-    const u = m.usuario && USUARIOS[m.usuario];
+    let u = m.usuario && USUARIOS[m.usuario];
+    // Movimientos anteriores al sello: el folio de los de campo trae el
+    // usuario ("EJE-<ID>-..."), así que de ahí se deduce a qué burbuja
+    // pertenecen. Sin eso, un movimiento de prueba viejo contaría como real.
+    if (!u) {
+      const mm = /^EJE-([^-]+)-/.exec(String(m.folio || ""));
+      if (mm) u = USUARIOS[mm[1].toLowerCase()];
+    }
     return !!(u && u.test) === enPruebas;
   });
 }
