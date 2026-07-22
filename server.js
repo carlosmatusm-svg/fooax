@@ -229,6 +229,7 @@ app.get("/api/telefono/marcados", requiere("direccion", "admin"), (req, res) => 
 // tablero de Dirección lo alerte, y se le responde a la app la fecha correcta.
 const desfasesFecha = {}; // ejecutivo -> { fecha, hoy, ts } (último desfase visto hoy)
 const reducciones = {};   // ejecutivo -> { fecha, antes, ahora, ts } (sync que REDUJO pagos)
+const syncRechazos = {};  // ejecutivo -> { fecha, pagosEnServidor, ts } (sync vacío rechazado)
 // Cuenta cuántas clientas pagaron dentro de un snapshot (para detectar cuando
 // un teléfono incompleto aplasta un día que ya tenía más cobranza).
 function contarPagos(snap) {
@@ -275,6 +276,15 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   const previo = store.snapshotsDeFecha(fecha)[req.usuario.id];
   const antes = previo ? contarPagos(previo.snapshot) : null;
   const ahora = contarPagos(snapshot);
+  // BLINDAJE: una captura VACÍA (0 pagos) nunca puede pisar una con cobranza.
+  // Es lo que borró el día hoy — la app abrió con localStorage limpiado y
+  // sincronizó ceros encima de lo real. Se archiva el intento y se rechaza,
+  // devolviendo el conteo real para que la app lo pueda recuperar.
+  if (antes != null && antes > 0 && (ahora === 0 || ahora == null)) {
+    console.warn(`[sync] RECHAZADO vacío de ${req.usuario.id} para ${fecha}: el servidor tiene ${antes} pagos, la app mandó 0. No se sobrescribe.`);
+    syncRechazos[req.usuario.id] = { fecha, pagosEnServidor: antes, ts: Date.now() };
+    return res.json({ ok: false, rechazado: "vacio_sobre_lleno", pagosEnServidor: antes, hoy });
+  }
   store.guardarSnapshot(req.usuario.id, fecha, { snapshot, ts: ts || Date.now() });
   guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot);
   if (fecha !== hoy) desfasesFecha[req.usuario.id] = { fecha, hoy, ts: Date.now() };
