@@ -667,6 +667,8 @@ function render(){
   let h='<div class="card"><div class="sectitle">'+centro+' <span class="pill">'+clientas.length+' integrantes</span></div>';
   h+=semBadges(s);
   h+=subtotalCentro(s);
+  h+='<button class="btn btn-wa" style="width:100%;margin:6px 0" onclick="todasPagaron(\''+centro.replace(/'/g,"\\'")+'\')">✓ Todas pagaron su cuota</button>';
+  h+='<div class="meta" style="margin:-2px 0 8px;text-align:center">Marca a todas con su cuota en efectivo. Luego quítale la palomita a las que NO pagaron.</div>';
   h+='<button class="btn btn-light" style="width:100%;margin:6px 0" onclick="toggleFicha(\''+centro.replace(/'/g,"\\'")+'\')">📋 Ver ficha del centro (cuotas)</button>';
   h+=fichaCentro(centro);
   clientas.forEach(cl=>{h+=cliRow(centro,cl);});
@@ -818,6 +820,32 @@ function editarDato(key){
   }else{
     alert('Pon números válidos (plazo y semana).');
   }
+}
+function todasPagaron(centro){
+  const clientas=CENTROS[centro]||[];
+  if(!clientas.length)return;
+  let porMarcar=0, sinCuota=0;
+  clientas.forEach(cl=>{
+    const key=cl.k||cl.f;
+    const r=getReg(reg,centro,key);
+    const dc=datosCli[key]||{};
+    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:(cl.esp||0);
+    if(r.pago>0)return;
+    if(cuota>0)porMarcar++; else sinCuota++;
+  });
+  if(porMarcar===0){alert(sinCuota>0?('Ninguna clienta tiene cuota registrada. Ponles su cuota (✎) y palom\u00e9alas.'):('Todas las clientas de este centro ya est\u00e1n marcadas.'));return;}
+  let msg='\u00bfMarcar a las '+porMarcar+' clientas que faltan con su cuota en EFECTIVO?\n\nDespu\u00e9s qu\u00edtale la palomita a las que NO pagaron.';
+  if(sinCuota>0)msg+='\n\n('+sinCuota+' no tienen cuota: ponles su cuota y palom\u00e9alas aparte.)';
+  if(!confirm(msg))return;
+  clientas.forEach(cl=>{
+    const key=cl.k||cl.f;
+    const r=getReg(reg,centro,key);
+    if(r.pago>0)return;
+    const dc=datosCli[key]||{};
+    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:(cl.esp||0);
+    if(cuota>0){r.pago=cuota;if(!r.forma)r.forma='E';}
+  });
+  render();recalc();guardar();
 }
 function palomear(centro,key,cuota){
   const r=getReg(centro?reg:regI,centro||null,key);
