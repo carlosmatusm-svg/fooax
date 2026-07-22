@@ -219,6 +219,9 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
       categoria: def.categoria,
       metodo: m.via === "T" ? "transferencia" : "efectivo",
       entrada: def.entrada,
+      // socio: para poder ligar una LIQUIDACIÓN al crédito de esa clienta y
+      // bajarle el saldo. Antes sólo iba dentro del texto del concepto.
+      socio: m.socio ? String(m.socio) : null,
       autorizadoA: m.clienta || null,
       registradoPor: usuario.nombre, rol: usuario.rol, usuario: usuario.id, ts: Date.now(),
     });
@@ -239,6 +242,10 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   if (antes != null && antes > 0 && (ahora === 0 || ahora == null)) {
     console.warn(`[sync] RECHAZADO vacío de ${req.usuario.id} para ${fecha}: el servidor tiene ${antes} pagos, la app mandó 0. No se sobrescribe.`);
     syncRechazos[req.usuario.id] = { fecha, pagosEnServidor: antes, ts: Date.now() };
+    // Los "otros movimientos" SÍ se guardan: son append-only por folio, así que
+    // no pueden borrar nada, y si no se guardaran aquí se perderían junto con
+    // el snapshot rechazado.
+    guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot);
     return res.json({ ok: false, rechazado: "vacio_sobre_lleno", pagosEnServidor: antes, hoy });
   }
   store.guardarSnapshot(req.usuario.id, fecha, { snapshot, ts: ts || Date.now() });
@@ -512,14 +519,14 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const s = wb.addWorksheet("Saldos actualizados");
   const AURORA = "FFF1228E", RIO = "FF324AB6";
-  s.mergeCells("A1:J1");
+  s.mergeCells("A1:K1");
   const t = s.getCell("A1");
   t.value = `FOOAX · SALDOS ACTUALIZADOS · semana ${lunes} → ${hoy}`;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
   t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
   t.alignment = { horizontal: "center", vertical: "middle" }; s.getRow(1).height = 24;
   const head = [["Ejecutivo", 13], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-    ["Saldo inicial", 13], ["Pagó semana", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10]];
+    ["Saldo inicial", 13], ["Pagó semana", 13], ["Liquidación", 12], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10]];
   const hr = s.getRow(2);
   head.forEach(([h2, w], i) => { const c = hr.getCell(i + 1); c.value = h2; s.getColumn(i + 1).width = w;
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -529,34 +536,10 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   let fila = 3;
   const rows = PADRON.filter(c => c.activa !== false && c.estatus !== "BAJA")
     .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) || String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
-  let tIni = 0, tPag = 0, tAct = 0, tGar = 0;
-  for (const c of rows) {
-    const clave = claveCredito(c.id, c.producto);
-    usadas.add(clave);
-    const pagado = pagos[clave] || 0, garan = garantias[clave] || 0;
-    const ini = c.saldo || 0, act = Math.max(0, ini - pagado);
-    tIni += ini; tPag += pagado; tAct += act; tGar += garan;
-    const r = s.getRow(fila++);
-    r.getCell(1).value = c.ejecutivo || ""; r.getCell(2).value = c.centro || "";
-    r.getCell(3).value = c.nombre || ""; r.getCell(4).value = c.id; r.getCell(5).value = c.producto || "";
-    r.getCell(6).value = ini; r.getCell(7).value = pagado || null; r.getCell(8).value = act;
-    r.getCell(9).value = garan || null; r.getCell(10).value = c.cuota || 0;
-    [6, 7, 8, 9, 10].forEach(i => r.getCell(i).numFmt = dinero);
-    if (pagado > 0) r.getCell(7).font = { bold: true, color: { argb: "FF0B7247" } };
-    if (garan > 0) r.getCell(9).font = { bold: true, color: { argb: "FF8A5A00" } };
-    if ((fila - 3) % 2 === 1) r.eachCell({ includeEmpty: true }, c2 => { if (!c2.fill || c2.fill.type !== "pattern") c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F1F8" } }; });
-  }
-  const tr = s.getRow(fila);
-  tr.getCell(5).value = "TOTAL"; tr.getCell(5).font = { bold: true };
-  tr.getCell(6).value = tIni; tr.getCell(7).value = tPag; tr.getCell(8).value = tAct; tr.getCell(9).value = tGar;
-  [6, 7, 8, 9].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
-  fila++;
-
-  // Otros movimientos de la semana (comisiones, liquidaciones, recuperaciones,
-  // gastos, desembolsos). Antes NO estaban en este Excel, por eso no cuadraba
-  // con las apps ni con el arqueo. Ahora se suman y se desglosan por tipo.
+  // Movimientos de la semana. Se calculan ANTES de las filas porque una
+  // LIQUIDACIÓN baja el saldo de la clienta por el monto registrado.
   let movEntradas = 0, movSalidas = 0;
-  const porTipoMov = {};
+  const porTipoMov = {}, liqPorSocio = {};
   {
     const d0 = new Date(lunes + "T12:00:00");
     for (let i = 0; i < 7; i++) {
@@ -568,9 +551,46 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
         porTipoMov[tipo] = porTipoMov[tipo] || { entra: 0, sale: 0 };
         if (m.entrada) { movEntradas += m.monto; porTipoMov[tipo].entra += m.monto; }
         else { movSalidas += m.monto; porTipoMov[tipo].sale += m.monto; }
+        if (/^liquidaci/i.test(tipo)) {
+          const soc = socioDeMov(m);
+          if (soc) liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
+        }
       }
     }
   }
+  const liqRestante = Object.assign({}, liqPorSocio); // se va consumiendo por crédito
+
+  let tIni = 0, tPag = 0, tAct = 0, tGar = 0, tLiq = 0;
+  for (const c of rows) {
+    const clave = claveCredito(c.id, c.producto);
+    usadas.add(clave);
+    const pagado = pagos[clave] || 0, garan = garantias[clave] || 0;
+    const ini = c.saldo || 0;
+    // La liquidación de esta clienta se aplica a sus créditos hasta agotarse.
+    const soc = String(c.id);
+    const disp = liqRestante[soc] || 0;
+    const liquidado = Math.min(disp, Math.max(0, ini - pagado));
+    if (liquidado > 0) liqRestante[soc] = disp - liquidado;
+    const act = Math.max(0, ini - pagado - liquidado);
+    tIni += ini; tPag += pagado; tAct += act; tGar += garan; tLiq += liquidado;
+    const r = s.getRow(fila++);
+    r.getCell(1).value = c.ejecutivo || ""; r.getCell(2).value = c.centro || "";
+    r.getCell(3).value = c.nombre || ""; r.getCell(4).value = c.id; r.getCell(5).value = c.producto || "";
+    r.getCell(6).value = ini; r.getCell(7).value = pagado || null; r.getCell(8).value = liquidado || null;
+    r.getCell(9).value = act; r.getCell(10).value = garan || null; r.getCell(11).value = c.cuota || 0;
+    [6, 7, 8, 9, 10, 11].forEach(i => r.getCell(i).numFmt = dinero);
+    if (pagado > 0) r.getCell(7).font = { bold: true, color: { argb: "FF0B7247" } };
+    if (liquidado > 0) r.getCell(8).font = { bold: true, color: { argb: "FF0B7247" } };
+    if (act <= 0 && (pagado > 0 || liquidado > 0)) r.getCell(9).font = { bold: true, color: { argb: "FF0B7247" } };
+    if (garan > 0) r.getCell(10).font = { bold: true, color: { argb: "FF8A5A00" } };
+    if ((fila - 3) % 2 === 1) r.eachCell({ includeEmpty: true }, c2 => { if (!c2.fill || c2.fill.type !== "pattern") c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F1F8" } }; });
+  }
+  const tr = s.getRow(fila);
+  tr.getCell(5).value = "TOTAL"; tr.getCell(5).font = { bold: true };
+  tr.getCell(6).value = tIni; tr.getCell(7).value = tPag; tr.getCell(8).value = tLiq;
+  tr.getCell(9).value = tAct; tr.getCell(10).value = tGar;
+  [6, 7, 8, 9, 10].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
+  fila++;
 
   // Cuadre explícito. La cobranza (pagos + garantías) cuadra con la tarjeta de
   // la semana del tablero; sumando los otros movimientos se obtiene el total en
@@ -604,7 +624,7 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
     av.getCell(1).value = "OTROS MOVIMIENTOS DE LA SEMANA (por tipo)";
     av.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
     av.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
-    s.mergeCells(`A${fila - 1}:J${fila - 1}`);
+    s.mergeCells(`A${fila - 1}:K${fila - 1}`);
     const hh = s.getRow(fila++);
     ["Tipo", "Entradas", "Salidas"].forEach((h2, i) => {
       const c = hh.getCell(i + 1); c.value = h2;
@@ -630,7 +650,7 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
     av.getCell(1).value = "⚠ PAGOS SIN CRÉDITO ASIGNADO — se cobraron pero no bajan ningún saldo. Revisar.";
     av.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
     av.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFB00020" } };
-    s.mergeCells(`A${fila - 1}:J${fila - 1}`);
+    s.mergeCells(`A${fila - 1}:K${fila - 1}`);
     const hh = s.getRow(fila++);
     ["Ejecutivo(s)", "Fecha(s)", "Socio", "Producto", "Pago", "Garantía"].forEach((h2, i) => {
       const c = hh.getCell(i + 1); c.value = h2;
@@ -749,6 +769,13 @@ function usuarioDeMov(m) {
   const mm = /^EJE-([^-]+)-/.exec(String(m.folio || ""));
   if (mm && USUARIOS[mm[1].toLowerCase()]) return mm[1].toLowerCase();
   return null;
+}
+// Socio ligado a un movimiento (para bajarle el saldo en una liquidación).
+// Los movimientos nuevos lo traen como campo; los viejos sólo dentro del texto.
+function socioDeMov(m) {
+  if (m.socio) return String(m.socio);
+  const mm = String(m.concepto || "").match(/·\s*(\d{6,})/);
+  return mm ? mm[1] : null;
 }
 function movsDeFecha(fecha, usuario) {
   const enPruebas = !!(usuario && usuario.test);
