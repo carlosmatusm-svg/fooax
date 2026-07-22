@@ -554,8 +554,16 @@ async function cargarMovs() {
   catch { return; }
   const cont = $("movLista");
   if (!d.lista || !d.lista.length) { cont.innerHTML = ""; return; }
+  // Título del movimiento: si la categoría es el genérico "Otro", mostramos el
+  // TIPO real (Liquidación, Comisión, Recuperación…) que viene al inicio del
+  // concepto, como pidió Anel — en vez de un "Otro" que no dice nada.
+  const tituloMov = (m) => {
+    if (m.categoria && m.categoria !== "Otro") return m.categoria;
+    const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim();
+    return tipo ? tipo + " · Otro" : "Otro";
+  };
   cont.innerHTML = d.lista.map(m =>
-    '<div class="movitem"><div class="mi-info"><div class="mi-cat">' + hesc(m.categoria) + "</div>"
+    '<div class="movitem"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + "</div>"
     + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo)
     + (m.autorizadoA ? " · a " + hesc(m.autorizadoA) : "")
     + " · registró " + hesc(m.registradoPor)

@@ -552,22 +552,72 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   [6, 7, 8, 9].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
   fila++;
 
-  // Cuadre explícito contra el tablero. Sin esto, el tablero (que suma pago +
-  // garantía, o sea el dinero que entró) y este Excel (solo pago, lo que abona
-  // al crédito) parecen no cuadrar, y no es cierto: miden cosas distintas.
+  // Otros movimientos de la semana (comisiones, liquidaciones, recuperaciones,
+  // gastos, desembolsos). Antes NO estaban en este Excel, por eso no cuadraba
+  // con las apps ni con el arqueo. Ahora se suman y se desglosan por tipo.
+  let movEntradas = 0, movSalidas = 0;
+  const porTipoMov = {};
+  {
+    const d0 = new Date(lunes + "T12:00:00");
+    for (let i = 0; i < 7; i++) {
+      const f = new Date(d0); f.setDate(d0.getDate() + i);
+      const fISO = f.toISOString().slice(0, 10);
+      if (fISO > hoy) break;
+      for (const m of movsDeFecha(fISO, req.usuario)) {
+        const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+        porTipoMov[tipo] = porTipoMov[tipo] || { entra: 0, sale: 0 };
+        if (m.entrada) { movEntradas += m.monto; porTipoMov[tipo].entra += m.monto; }
+        else { movSalidas += m.monto; porTipoMov[tipo].sale += m.monto; }
+      }
+    }
+  }
+
+  // Cuadre explícito. La cobranza (pagos + garantías) cuadra con la tarjeta de
+  // la semana del tablero; sumando los otros movimientos se obtiene el total en
+  // caja, que cuadra con el arqueo.
   fila++;
+  const cobranzaSemana = tPag + tGar;
+  const totalCaja = cobranzaSemana + movEntradas - movSalidas;
   const cuadre = [
-    ["Pagos aplicados al saldo", tPag],
-    ["+ Garantías recibidas (no bajan saldo)", tGar],
-    ["= Total recibido en la semana (debe cuadrar con el tablero)", tPag + tGar],
+    ["Pagos aplicados al saldo", tPag, false],
+    ["+ Garantías recibidas (no bajan saldo)", tGar, false],
+    ["= Cobranza de la semana (cuadra con la tarjeta del tablero)", cobranzaSemana, true],
+    ["", null, false],
+    ["+ Otros movimientos — entradas (comisiones, liquidaciones…)", movEntradas, false],
+    ["− Otros movimientos — salidas (gastos, desembolsos)", movSalidas ? -movSalidas : 0, false],
+    ["= Total en caja de la semana (cuadra con el arqueo)", totalCaja, true],
   ];
-  for (const [txt, val] of cuadre) {
+  for (const [txt, val, fuerte] of cuadre) {
     const r = s.getRow(fila++);
+    if (!txt) continue;
     r.getCell(5).value = txt; r.getCell(5).alignment = { horizontal: "right" };
-    r.getCell(6).value = val; r.getCell(6).numFmt = dinero;
-    const ultima = txt.startsWith("=");
-    r.getCell(5).font = { bold: ultima };
-    r.getCell(6).font = { bold: true, color: { argb: ultima ? AURORA : "FF333333" } };
+    if (val != null) { r.getCell(6).value = val; r.getCell(6).numFmt = dinero; }
+    r.getCell(5).font = { bold: fuerte };
+    r.getCell(6).font = { bold: true, color: { argb: fuerte ? AURORA : "FF333333" } };
+  }
+
+  // Detalle de otros movimientos por tipo (para que Monse vea los ~$10k).
+  const tiposMov = Object.keys(porTipoMov).filter(t => porTipoMov[t].entra > 0 || porTipoMov[t].sale > 0);
+  if (tiposMov.length) {
+    fila += 2;
+    const av = s.getRow(fila++);
+    av.getCell(1).value = "OTROS MOVIMIENTOS DE LA SEMANA (por tipo)";
+    av.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    av.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    s.mergeCells(`A${fila - 1}:J${fila - 1}`);
+    const hh = s.getRow(fila++);
+    ["Tipo", "Entradas", "Salidas"].forEach((h2, i) => {
+      const c = hh.getCell(i + 1); c.value = h2;
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      c.alignment = { horizontal: i === 0 ? "left" : "center" };
+    });
+    for (const t of tiposMov) {
+      const r = s.getRow(fila++);
+      r.getCell(1).value = t;
+      r.getCell(2).value = porTipoMov[t].entra || null; r.getCell(2).numFmt = dinero;
+      r.getCell(3).value = porTipoMov[t].sale || null; r.getCell(3).numFmt = dinero;
+    }
   }
 
   // Pagos que NO casan con ningún crédito del padrón. Antes se perdían en
