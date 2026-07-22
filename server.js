@@ -118,6 +118,42 @@ function totalPago(snap) {
 app.get("/api/_rescate", async (req, res) => {
   if (req.query.token !== RESCATE_TOKEN) return res.status(403).json({ error: "token" });
   const fecha = req.query.fecha || hoyMX();
+  // Diagnóstico del descuadre tablero vs Excel semanal.
+  if (req.query.accion === "cuadre") {
+    const usuarioReal = { test: false };
+    // TABLERO: suma todos los pagos+garantías de los snapshots (sin filtro padrón)
+    const lunes = lunesDeLaSemana(hoyMX());
+    const snaps = store.respaldo().snapshots || {};
+    const permitidas = new Set(idsEjecutivos(usuarioReal));
+    let tabPago = 0, tabGar = 0;
+    for (const ej in snaps) {
+      if (!permitidas.has(ej)) continue;
+      for (const f in snaps[ej]) {
+        if (f < lunes || f > hoyMX()) continue;
+        let d = snaps[ej][f].snapshot; if (typeof d === "string") { try { d = JSON.parse(d); } catch { continue; } }
+        const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+        acumular(d.reg, acc); acumular(d.regI, acc);
+        tabPago += acc.pago; tabGar += acc.garantias;
+      }
+    }
+    // EXCEL: itera padrón y suma pagos[clave]/garantias[clave]
+    const { pago: mapPago, gar: mapGar } = pagosDeLaSemana(usuarioReal);
+    let excPago = 0, excGar = 0;
+    const vistos = {};
+    const colisiones = [];
+    for (const c of PADRON.filter((x) => x.activa !== false && x.estatus !== "BAJA")) {
+      const clave = claveCredito(c.id, c.producto);
+      if (vistos[clave]) colisiones.push({ clave, primero: vistos[clave], repetido: c.nombre + " / " + c.id + " / " + c.producto, monto: mapPago[clave] || 0 });
+      else vistos[clave] = c.nombre + " / " + c.id + " / " + c.producto;
+      excPago += mapPago[clave] || 0; excGar += mapGar[clave] || 0;
+    }
+    return res.json({
+      tablero: { pago: tabPago, gar: tabGar, total: tabPago + tabGar },
+      excel: { pago: excPago, gar: excGar, total: excPago + excGar },
+      diferencia: (excPago + excGar) - (tabPago + tabGar),
+      colisiones,
+    });
+  }
   const reales = Object.keys(USUARIOS).filter((id) => USUARIOS[id].rol === "ejecutivo" && !USUARIOS[id].test);
   const actuales = store.snapshotsDeFecha(fecha);
   const hist = await store.historialDeFecha(fecha);
