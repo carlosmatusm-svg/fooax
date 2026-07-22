@@ -103,6 +103,51 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// ---------- RESCATE DE EMERGENCIA (temporal, quitar tras recuperar) ----------
+// Recupera de snapshots_hist la última versión NO vacía de un día que fue
+// pisado por una captura vacía. Protegido con token (no expone datos sin él).
+const RESCATE_TOKEN = "rescate-fooax-7h3n9x-mkq2";
+function totalPago(snap) {
+  try {
+    let d = snap; if (typeof d === "string") d = JSON.parse(d);
+    const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+    acumular(d && d.reg, acc); acumular(d && d.regI, acc);
+    return { pago: acc.pago, clientas: acc.clientasPagaron };
+  } catch { return { pago: 0, clientas: 0 }; }
+}
+app.get("/api/_rescate", async (req, res) => {
+  if (req.query.token !== RESCATE_TOKEN) return res.status(403).json({ error: "token" });
+  const fecha = req.query.fecha || hoyMX();
+  const reales = Object.keys(USUARIOS).filter((id) => USUARIOS[id].rol === "ejecutivo" && !USUARIOS[id].test);
+  const actuales = store.snapshotsDeFecha(fecha);
+  const hist = await store.historialDeFecha(fecha);
+  const reporte = {};
+  for (const id of reales) {
+    const act = actuales[id] ? totalPago(actuales[id].snapshot) : { pago: 0, clientas: 0 };
+    const versiones = hist.filter((h) => h.ejecutivo === id)
+      .map((h) => ({ archivado: h.archivado, ts: h.ts, ...totalPago(h.snapshot) }))
+      .sort((a, b) => b.pago - a.pago);
+    reporte[id] = {
+      actual: act,
+      mejorHistorico: versiones[0] || null,
+      totalVersiones: versiones.length,
+    };
+  }
+  // accion=restaurar&ejec=ID  → escribe la mejor versión histórica como actual
+  if (req.query.accion === "restaurar" && req.query.ejec) {
+    const id = req.query.ejec;
+    const versiones = hist.filter((h) => h.ejecutivo === id)
+      .map((h) => ({ ...h, tot: totalPago(h.snapshot) }))
+      .sort((a, b) => b.tot.pago - a.tot.pago);
+    const mejor = versiones[0];
+    if (!mejor) return res.json({ error: "sin historial para " + id, reporte });
+    // ts alto para que el upsert no lo rechace, y para que el teléfono no lo pise
+    store.guardarSnapshot(id, fecha, { snapshot: mejor.snapshot, ts: Date.now() });
+    return res.json({ restaurado: id, pago: mejor.tot.pago, clientas: mejor.tot.clientas, archivadoOriginal: mejor.archivado });
+  }
+  res.json({ fecha, reporte });
+});
+
 // ---------- auth ----------
 // Freno anti fuerza-bruta: máx 8 intentos fallidos por IP cada 10 minutos.
 // Un intento exitoso limpia el contador. En memoria: se reinicia con el

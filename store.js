@@ -202,6 +202,24 @@ module.exports = {
     for (const ej in mem.snapshots) if (mem.snapshots[ej][fecha]) out[ej] = mem.snapshots[ej][fecha];
     return out;
   },
+  // Todas las versiones archivadas de un día (para rescate). Cada vez que un
+  // snapshot se sobrescribe, la versión anterior queda aquí — así se puede
+  // recuperar la buena aunque una captura vacía la haya pisado.
+  async historialDeFecha(fecha) {
+    if (usePg) {
+      const r = await pool.query(
+        "SELECT ejecutivo, data, ts, recibido, archivado FROM snapshots_hist WHERE fecha=$1 ORDER BY archivado",
+        [fecha]
+      );
+      return r.rows.map((x) => ({ ejecutivo: x.ejecutivo, ...x.data, ts: Number(x.ts), archivado: Number(x.archivado) }));
+    }
+    try {
+      const p = path.join(DATA_DIR, "snapshots_hist.jsonl");
+      if (!fs.existsSync(p)) return [];
+      return fs.readFileSync(p, "utf8").trim().split("\n").filter(Boolean)
+        .map((l) => JSON.parse(l)).filter((x) => x.fecha === fecha);
+    } catch { return []; }
+  },
   respaldo() { return { snapshots: mem.snapshots, movimientos: mem.movimientos }; },
 
   // Append-only: nunca se borra ni se edita un movimiento (rastro auditable).
