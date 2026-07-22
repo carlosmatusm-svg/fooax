@@ -272,7 +272,10 @@ function acumular(nodo, acc) {
     const total = pago + gar + sol;
     acc.pago += pago; acc.garantias += gar; acc.solidario += sol;
     acc.clientasPagaron += 1;
-    if (nodo.forma === "T") acc.transferencia += total;
+    // 'D' = DEPÓSITO (Oxxo/tienda): el dinero va directo al banco, NO lo trae
+    // el ejecutivo en efectivo. Antes caía en el "else" y se contaba como
+    // efectivo: por eso a Monse le cuadraba el total pero no la clasificación.
+    if (nodo.forma === "T" || nodo.forma === "D") acc.transferencia += total;
     else if (nodo.forma === "M") { acc.efectivo += nodo.mixEfe || 0; acc.transferencia += nodo.mixTr || 0; }
     else acc.efectivo += total; // 'E' o sin forma marcada: efectivo
     return;
@@ -846,7 +849,8 @@ function calcularArqueo(fecha, ids) {
         if (pago + gar + sol <= 0 && !n.forma) return;
         const total = pago + gar + sol;
         acc.garantias += gar;
-        if (n.forma === "T") acc.transferencia += total;
+        // 'D' = depósito: va al banco, no es efectivo a entregar (ver acumular()).
+        if (n.forma === "T" || n.forma === "D") acc.transferencia += total;
         else if (n.forma === "M") { acc.efectivo += n.mixEfe || 0; acc.transferencia += n.mixTr || 0; }
         else acc.efectivo += total;
         if (n.desglose) for (const d in n.desglose) denom[d] = (denom[d] || 0) + (n.desglose[d] || 0);
