@@ -287,7 +287,7 @@
 <div class="wrap hidden" id="tab-liquida">
   <div class="card">
     <div class="sectitle">Liquidaciones</div>
-    <div class="meta">Clientas que cerraron o abonaron a su crédito con una liquidación. Se registran en "Otros mov." con el concepto <b>Liquidación</b>, eligiendo a la clienta.</div>
+    <div class="meta">Clientas que abonaron a su crédito fuera de su cuota: <b>liquidaciones</b> y <b>recuperaciones</b>. Se registran en "Otros mov." eligiendo a la clienta; las dos le bajan su saldo.</div>
   </div>
   <div id="liquidaBox"></div>
 </div>
@@ -763,7 +763,8 @@ function cliRow(centro,cl){
   const key=cl.k||cl.f;
   const r=getReg(centro?reg:regI,centro,key);
   const tot=rTot(r);
-  const liqCli=(typeof liquidadoDe==='function')?liquidadoDe(cl.f):0;
+  const axCli=(typeof abonosExtra==='function')?abonosExtra(cl.f):{liq:0,rec:0,total:0};
+  const liqCli=axCli.total;
   const saldoNeto=Math.max(0,(cl.saldo||0)-tot-liqCli);
   const open=tot>0||r.forma?'open':'';
   const chk=tot>0?'on':'';const chkc=tot>0?'✓':'';
@@ -775,7 +776,7 @@ function cliRow(centro,cl){
   return '<div class="cli '+open+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
     +'<div class="cli-head">'
       +'<div class="chk '+chk+'" onclick="palomear(\''+(centro||'')+'\',\''+key+'\','+cuota+')">'+chkc+'</div>'
-      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">(liquidó '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
+      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
         +(((cl.sub||'').toLowerCase().includes('micro')&&(cl.mora||0)>0)?'<div class="micromora">⚠ Micro con mora ('+fmt(cl.mora)+'). Producto de alto monto: prioriza recuperar.</div>':'')
         +fichaClienteDato(key)
         +'<div class="rowtot">'+(tot>0?('Total: '+fmt(tot)):'')+'</div></div>'
@@ -1065,34 +1066,41 @@ function fillMovClientas(){
 /* LIQUIDACIONES — una liquidación BAJA el saldo de la clienta por el monto
    registrado. Si con eso su saldo llega a cero, queda marcada como LIQUIDADO y
    aparece en la pestaña Liquidación. */
-function liquidadoDe(socio){
-  if(!socio)return 0;
-  let s=0;
+function abonosExtra(socio){
+  const out={liq:0,rec:0,total:0};
+  if(!socio)return out;
   (movs||[]).forEach(m=>{
-    if(String(m.concepto||'').toUpperCase()==='LIQUIDACION' && String(m.socio||'')===String(socio))s+=(m.monto||0);
+    if(String(m.socio||'')!==String(socio))return;
+    const c=String(m.concepto||'').toUpperCase();
+    if(c==='LIQUIDACION')out.liq+=(m.monto||0);
+    else if(c==='RECUPERACION')out.rec+=(m.monto||0);
   });
-  return s;
+  out.total=out.liq+out.rec;
+  return out;
 }
+function liquidadoDe(socio){return abonosExtra(socio).total;}
+function etiquetaAbono(ax){return (ax.liq>0&&ax.rec>0)?'abonó':(ax.rec>0?'recuperó':'liquidó');}
 function renderLiquida(){
   const cont=document.getElementById('liquidaBox');if(!cont)return;
   const filas=[];
   const meter=(cl,centro)=>{
-    const liq=liquidadoDe(cl.f);
+    const ax=abonosExtra(cl.f);
+    const liq=ax.total;
     if(liq<=0)return;
     const r=getReg(centro?reg:regI,centro||null,cl.k||cl.f);
     const pagado=rTot(r);
     const antes=cl.saldo||0;
     const despues=Math.max(0,antes-pagado-liq);
-    filas.push({n:cl.n,socio:cl.f,sub:cl.sub||'',centro:centro||'Individual',antes,liq,pagado,despues});
+    filas.push({n:cl.n,socio:cl.f,sub:cl.sub||'',centro:centro||'Individual',antes,liq,pagado,despues,ax});
   };
   for(const c in CENTROS)(CENTROS[c]||[]).forEach(cl=>meter(cl,c));
   (INDIVIDUALES||[]).forEach(cl=>meter(cl,null));
   if(!filas.length){
-    cont.innerHTML='<div class="card muted">Todavía no hay liquidaciones registradas hoy.<div class="meta" style="margin-top:6px">Ve a <b>Otros mov.</b>, elige el concepto <b>Liquidación</b>, escoge a la clienta y pon el monto. Aquí aparecerá y se le bajará su saldo.</div></div>';
+    cont.innerHTML='<div class="card muted">Todavía no hay liquidaciones ni recuperaciones hoy.<div class="meta" style="margin-top:6px">Ve a <b>Otros mov.</b>, elige <b>Liquidación</b> o <b>Recuperación</b>, escoge a la clienta y pon el monto. Aquí aparecerá y se le bajará su saldo.</div></div>';
     return;
   }
   let cerradas=0;filas.forEach(f=>{if(f.despues<=0.01)cerradas++;});
-  let h='<div class="card"><div class="kv"><span>Liquidaciones de hoy</span><b>'+filas.length+'</b></div>'
+  let h='<div class="card"><div class="kv"><span>Clientas con abono extra hoy</span><b>'+filas.length+'</b></div>'
     +'<div class="kv"><span>Créditos que quedaron en cero</span><b style="color:var(--ok)">'+cerradas+'</b></div></div>';
   filas.forEach(f=>{
     const cerrado=f.despues<=0.01;
@@ -1101,7 +1109,8 @@ function renderLiquida(){
       +'<div class="meta">Socio '+f.socio+' · '+f.sub+' · '+f.centro+'</div>'
       +'<div class="kv" style="margin-top:6px"><span>Saldo antes</span><b>'+fmt(f.antes)+'</b></div>'
       +(f.pagado>0?'<div class="kv"><span>Pago de hoy</span><b>−'+fmt(f.pagado)+'</b></div>':'')
-      +'<div class="kv"><span>Liquidación</span><b style="color:#0B7247">−'+fmt(f.liq)+'</b></div>'
+      +(f.ax.liq>0?'<div class="kv"><span>Liquidación</span><b style="color:#0B7247">−'+fmt(f.ax.liq)+'</b></div>':'')
+      +(f.ax.rec>0?'<div class="kv"><span>Recuperación / adelanto</span><b style="color:#0B7247">−'+fmt(f.ax.rec)+'</b></div>':'')
       +'<div class="kv" style="border-top:2px solid var(--linea);padding-top:6px;margin-top:4px"><span><b>Saldo después</b></span><b style="color:'+(cerrado?'var(--ok)':'var(--rio)')+'">'+fmt(f.despues)+'</b></div>'
       +'</div>';
   });
@@ -1117,8 +1126,8 @@ function agregarMov(){
   const cheque=(via==='CH')?(document.getElementById('movCheque').value||''):'';
   if(monto<=0){alert('Escribe la cantidad del movimiento.');return;}
   // Una liquidación TIENE que ir ligada a una clienta: es lo que le baja su saldo.
-  if(concepto==='LIQUIDACION' && !document.getElementById('movClienta').value){
-    alert('Elige a la CLIENTA de la liquidación.\n\nLa liquidación le baja el saldo a esa clienta, así que sin clienta no se puede registrar.');
+  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !document.getElementById('movClienta').value){
+    alert('Elige a la CLIENTA de este movimiento.\n\nLa liquidación y la recuperación le bajan el saldo a esa clienta, así que sin clienta no se pueden registrar.');
     return;
   }
   if(via==='CH' && !cheque){alert('Escribe el número de cheque.');return;}

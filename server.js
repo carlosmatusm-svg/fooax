@@ -526,7 +526,7 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
   t.alignment = { horizontal: "center", vertical: "middle" }; s.getRow(1).height = 24;
   const head = [["Ejecutivo", 13], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-    ["Saldo inicial", 13], ["Pagó semana", 13], ["Liquidación", 12], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10]];
+    ["Saldo inicial", 13], ["Pagó semana", 13], ["Liquid./recup.", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10]];
   const hr = s.getRow(2);
   head.forEach(([h2, w], i) => { const c = hr.getCell(i + 1); c.value = h2; s.getColumn(i + 1).width = w;
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -551,7 +551,9 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
         porTipoMov[tipo] = porTipoMov[tipo] || { entra: 0, sale: 0 };
         if (m.entrada) { movEntradas += m.monto; porTipoMov[tipo].entra += m.monto; }
         else { movSalidas += m.monto; porTipoMov[tipo].sale += m.monto; }
-        if (/^liquidaci/i.test(tipo)) {
+        // Liquidaciones Y recuperaciones bajan el saldo de la clienta (regla
+        // confirmada por Karina): las dos son abonos al crédito fuera de la cuota.
+        if (/^(liquidaci|recuperaci)/i.test(tipo)) {
           const soc = socioDeMov(m);
           if (soc) liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
         }
