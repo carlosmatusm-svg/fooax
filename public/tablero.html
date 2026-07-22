@@ -187,6 +187,9 @@
   .arq-vacio{color:var(--gris);font-size:13px;padding:4px 0}
   .arq-ejec{font-size:12px;color:var(--gris);display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--lav)}
   .arq-ejec b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .arq-enviar{width:100%;margin-top:12px;font:inherit;font-size:14px;font-weight:700;color:#fff;border:none;
+    border-radius:12px;padding:12px;cursor:pointer;background:linear-gradient(90deg,#0B7247,#12A15F)}
+  .arq-enviar:active{filter:brightness(.94)}
   .segwrap{margin:8px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px}
   .seghint{font-size:12.5px;color:var(--gris);margin-bottom:10px;line-height:1.4}
   .segfila{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--lav)}
@@ -612,7 +615,55 @@ async function cargarArqueo() {
     fila("Garantías", dinero(d.garantias)) +
     fila("Mora del día (faltantes)", dinero(d.faltantes), d.faltantes > 0) +
     (porEjec ? '<div style="margin-top:8px">' + porEjec + "</div>" : "") +
+    '<button class="arq-enviar" onclick="enviarArqueo()">Enviar arqueo</button>' +
     "</div>";
+  window.__ultimoArqueo = d; // para el botón de enviar
+}
+
+// Arma el texto del arqueo y lo comparte por el teléfono (WhatsApp, correo…)
+// SIN descargar nada. Es lo que pidió el equipo: mandar el arqueo directo a
+// Monse/Anel. Si el navegador no tiene "compartir", abre WhatsApp; y si no,
+// copia al portapapeles.
+function textoArqueo() {
+  const d = window.__ultimoArqueo; if (!d) return "";
+  const L = [];
+  L.push("ARQUEO DE CAJA · FOOAX");
+  L.push("Fecha: " + d.fecha);
+  L.push("");
+  L.push("Total efectivo cobrado: " + dinero(d.efectivo));
+  if (d.egresosEfectivo >= 0) { if (d.egresosEfectivo > 0) L.push("− Gastos y retiros: −" + dinero(d.egresosEfectivo)); }
+  else L.push("+ Entradas de caja: +" + dinero(-d.egresosEfectivo));
+  L.push("EFECTIVO A ENTREGAR: " + dinero(d.efectivoAEntregar));
+  L.push("Depósitos / transferencias: " + dinero(d.transferencia));
+  L.push("Garantías: " + dinero(d.garantias));
+  if (d.faltantes > 0) L.push("Mora del día: " + dinero(d.faltantes));
+  const ejs = Object.values(d.porEjec).filter((e) => e.efectivo > 0 || e.transferencia > 0 || e.movEntradas > 0 || e.movSalidas > 0);
+  if (ejs.length) {
+    L.push("");
+    L.push("Por ejecutiva:");
+    ejs.forEach((e) => {
+      let s = "• " + e.nombre + ": efectivo " + dinero(e.efectivo) + " · transf. " + dinero(e.transferencia);
+      if (e.movEntradas > 0) s += " · otros +" + dinero(e.movEntradas);
+      if (e.movSalidas > 0) s += " · otros −" + dinero(e.movSalidas);
+      L.push(s);
+    });
+  }
+  return L.join("\n");
+}
+async function enviarArqueo() {
+  const texto = textoArqueo();
+  if (!texto) { alert("Aún no hay arqueo para enviar."); return; }
+  // 1) Compartir nativo (móvil): abre WhatsApp/correo/lo que la persona elija.
+  if (navigator.share) {
+    try { await navigator.share({ title: "Arqueo FOOAX", text: texto }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  // 2) WhatsApp directo (sin destinatario fijo: la persona elige el chat).
+  const wa = "https://wa.me/?text=" + encodeURIComponent(texto);
+  const win = window.open(wa, "_blank");
+  if (win) return;
+  // 3) Último recurso: copiar al portapapeles.
+  try { await navigator.clipboard.writeText(texto); alert("Arqueo copiado. Pégalo en WhatsApp o correo."); }
+  catch { prompt("Copia el arqueo:", texto); }
 }
 
 // ---------- campanita: resumen del día ----------
