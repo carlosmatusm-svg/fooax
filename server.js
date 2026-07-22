@@ -156,6 +156,41 @@ app.get("/api/_rescate", async (req, res) => {
       colisiones,
     });
   }
+  // Detalle de garantías por clienta de un día: para saber DE QUIÉN es cada una.
+  if (req.query.accion === "garantias") {
+    const ejec = req.query.ejec;
+    const versiones = hist.filter((h) => h.ejecutivo === ejec)
+      .map((h) => ({ ...h, tot: totalPago(h.snapshot) }))
+      .sort((a, b) => b.tot.total - a.tot.total);
+    const listar = (snap) => {
+      const out = [];
+      let d = snap; if (typeof d === "string") { try { d = JSON.parse(d); } catch { return out; } }
+      const rec = (st) => {
+        if (!st || typeof st !== "object") return;
+        for (const k in st) {
+          const nd = st[k];
+          if (nd && typeof nd === "object" && ("pago" in nd || "garantia" in nd || "forma" in nd)) {
+            if ((nd.garantia || 0) > 0) out.push({ clave: k, garantia: nd.garantia });
+          } else if (nd && typeof nd === "object") for (const kk in nd) {
+            const n2 = nd[kk];
+            if (n2 && typeof n2 === "object" && (n2.garantia || 0) > 0) out.push({ clave: kk, garantia: n2.garantia });
+          }
+        }
+      };
+      rec(d.reg); rec(d.regI);
+      return out;
+    };
+    // Compara la versión con MÁS dinero total (la buena) contra la que tenía más
+    // PAGOS pero menos garantías (la del primer rescate) — ahí está el $157.
+    const porTotal = [...versiones].sort((a, b) => b.tot.total - a.tot.total)[0];
+    const porPago = [...versiones].sort((a, b) => b.tot.pago - a.tot.pago || a.tot.gar - b.tot.gar)[0];
+    const gBuena = porTotal ? listar(porTotal.snapshot) : [];
+    const gCorta = porPago ? listar(porPago.snapshot) : [];
+    const mapCorta = {}; gCorta.forEach((g) => mapCorta[g.clave] = g.garantia);
+    const diff = gBuena.filter((g) => (mapCorta[g.clave] || 0) !== g.garantia)
+      .map((g) => ({ clave: g.clave, garantiaBuena: g.garantia, garantiaCorta: mapCorta[g.clave] || 0, falta: g.garantia - (mapCorta[g.clave] || 0) }));
+    return res.json({ ejec, garBuena: gBuena.reduce((s, g) => s + g.garantia, 0), garCorta: gCorta.reduce((s, g) => s + g.garantia, 0), diferencias: diff });
+  }
   const reales = Object.keys(USUARIOS).filter((id) => USUARIOS[id].rol === "ejecutivo" && !USUARIOS[id].test);
   const actuales = store.snapshotsDeFecha(fecha);
   const hist = await store.historialDeFecha(fecha);
