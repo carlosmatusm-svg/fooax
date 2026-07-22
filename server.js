@@ -112,8 +112,10 @@ function totalPago(snap) {
     let d = snap; if (typeof d === "string") d = JSON.parse(d);
     const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
     acumular(d && d.reg, acc); acumular(d && d.regI, acc);
-    return { pago: acc.pago, clientas: acc.clientasPagaron };
-  } catch { return { pago: 0, clientas: 0 }; }
+    // "total" = todo el dinero recibido (pago+garantía+solidario). Se elige por
+    // esto, no solo por pago, para no perder garantías en el rescate.
+    return { pago: acc.pago, gar: acc.garantias, total: acc.pago + acc.garantias + acc.solidario, clientas: acc.clientasPagaron };
+  } catch { return { pago: 0, gar: 0, total: 0, clientas: 0 }; }
 }
 app.get("/api/_rescate", async (req, res) => {
   if (req.query.token !== RESCATE_TOKEN) return res.status(403).json({ error: "token" });
@@ -159,27 +161,27 @@ app.get("/api/_rescate", async (req, res) => {
   const hist = await store.historialDeFecha(fecha);
   const reporte = {};
   for (const id of reales) {
-    const act = actuales[id] ? totalPago(actuales[id].snapshot) : { pago: 0, clientas: 0 };
+    const act = actuales[id] ? totalPago(actuales[id].snapshot) : { pago: 0, gar: 0, total: 0, clientas: 0 };
     const versiones = hist.filter((h) => h.ejecutivo === id)
       .map((h) => ({ archivado: h.archivado, ts: h.ts, ...totalPago(h.snapshot) }))
-      .sort((a, b) => b.pago - a.pago);
+      .sort((a, b) => b.total - a.total);
     reporte[id] = {
       actual: act,
       mejorHistorico: versiones[0] || null,
       totalVersiones: versiones.length,
     };
   }
-  // accion=restaurar&ejec=ID  → escribe la mejor versión histórica como actual
+  // accion=restaurar&ejec=ID  → escribe la versión con MÁS dinero total (pago+gar+sol)
   if (req.query.accion === "restaurar" && req.query.ejec) {
     const id = req.query.ejec;
     const versiones = hist.filter((h) => h.ejecutivo === id)
       .map((h) => ({ ...h, tot: totalPago(h.snapshot) }))
-      .sort((a, b) => b.tot.pago - a.tot.pago);
+      .sort((a, b) => b.tot.total - a.tot.total);
     const mejor = versiones[0];
     if (!mejor) return res.json({ error: "sin historial para " + id, reporte });
     // ts alto para que el upsert no lo rechace, y para que el teléfono no lo pise
     store.guardarSnapshot(id, fecha, { snapshot: mejor.snapshot, ts: Date.now() });
-    return res.json({ restaurado: id, pago: mejor.tot.pago, clientas: mejor.tot.clientas, archivadoOriginal: mejor.archivado });
+    return res.json({ restaurado: id, pago: mejor.tot.pago, gar: mejor.tot.gar, total: mejor.tot.total, clientas: mejor.tot.clientas, archivadoOriginal: mejor.archivado });
   }
   res.json({ fecha, reporte });
 });
