@@ -699,12 +699,14 @@ window.__corregirFechaHoy = function (hoy) {
     salir.addEventListener("click", async () => {
       if (!confirm("¿Cerrar sesión? Tu captura ya está guardada.")) return;
       salir.disabled = true;
-      let subio = false;
-      try { if (window.__forzarSync) subio = await window.__forzarSync(); } catch (e) {}
+      try { if (window.__forzarSync) await window.__forzarSync(); } catch (e) {}
       try { await fetch("/api/logout", { method: "POST", credentials: "include" }); } catch (e) {}
-      // Limpia los datos del teléfono SOLO si ya subieron a la nube (si estaba
-      // sin señal, se conservan para no perder la captura del día).
-      if (subio && window.__limpiarFooax) window.__limpiarFooax();
+      // NO se borra el localStorage al salir. Antes se limpiaba "si ya subió",
+      // pero eso vaciaba la captura del teléfono: al volver a entrar la app
+      // abría vacía y sincronizaba ceros ENCIMA de la cobranza real del
+      // servidor. Ese era el "se salieron y volvieron a entrar y se borró
+      // todo". La captura se conserva; el borrado remoto (teléfono perdido)
+      // sigue disponible aparte para dirección.
       location.href = "/";
     });
     header.appendChild(salir);
