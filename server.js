@@ -120,6 +120,8 @@ function totalPago(snap) {
 app.get("/api/_rescate", async (req, res) => {
   if (req.query.token !== RESCATE_TOKEN) return res.status(403).json({ error: "token" });
   const fecha = req.query.fecha || hoyMX();
+  const actuales = store.snapshotsDeFecha(fecha);
+  const hist = await store.historialDeFecha(fecha);
   // Diagnóstico del descuadre tablero vs Excel semanal.
   if (req.query.accion === "cuadre") {
     const usuarioReal = { test: false };
@@ -192,8 +194,6 @@ app.get("/api/_rescate", async (req, res) => {
     return res.json({ ejec, garBuena: gBuena.reduce((s, g) => s + g.garantia, 0), garCorta: gCorta.reduce((s, g) => s + g.garantia, 0), diferencias: diff });
   }
   const reales = Object.keys(USUARIOS).filter((id) => USUARIOS[id].rol === "ejecutivo" && !USUARIOS[id].test);
-  const actuales = store.snapshotsDeFecha(fecha);
-  const hist = await store.historialDeFecha(fecha);
   const reporte = {};
   for (const id of reales) {
     const act = actuales[id] ? totalPago(actuales[id].snapshot) : { pago: 0, gar: 0, total: 0, clientas: 0 };
