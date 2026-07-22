@@ -297,6 +297,10 @@
     <div class="kv"><span>Total contado (físico)</span><b id="arqueoTotal" style="color:var(--rio)">$0</b></div>
     <div class="kv"><span>Diferencia (contado − esperado)</span><b id="arqueoDif">$0</b></div>
   </div>
+  <div class="card">
+    <button class="btn btn-wa" style="width:100%" onclick="enviarArqueoYCerrar()">Enviar arqueo y cerrar captura</button>
+    <div class="meta" style="margin-top:8px;text-align:center">Sube la cobranza a la nube, manda el arqueo del día y cierra la captura en este teléfono.</div>
+  </div>
 </div>
 
 <div class="wrap hidden" id="tab-resumen">
@@ -474,6 +478,63 @@ function restaurar(){
     // la fecha SIEMPRE es la de hoy al abrir, no la guardada
     document.getElementById('inpFecha').value=hoy;
   }catch(e){}
+}
+function textoArqueoApp(){
+  if(typeof calcArqueo==='function')calcArqueo();
+  const {efe,tr,acc}=totales();
+  const movEfe=(typeof movsEfectivoNeto==='function')?movsEfectivoNeto():0;
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  const L=[];
+  L.push('🧾 *FOOAX · ARQUEO DEL DÍA*');
+  L.push('👤 '+EJECUTIVO);
+  L.push('📅 '+fechaLinda);
+  L.push('━━━━━━━━━━');
+  L.push('Cobranza en efectivo: '+fmt(efe));
+  if(movEfe!==0)L.push('Otros movimientos: '+(movEfe<0?'−'+fmt(Math.abs(movEfe)):'+'+fmt(movEfe)));
+  L.push('💵 Efectivo a entregar: '+fmt(efe+movEfe));
+  if(tr>0)L.push('Transferencias: '+fmt(tr));
+  if(acc.garantia>0)L.push('Garantías: '+fmt(acc.garantia));
+  if(window._arqueo && window._arqueoTotal>0){
+    L.push('');L.push('Conteo físico:');
+    window._arqueo.forEach(a=>{if(a.q>0)L.push('  '+a.l+': '+a.q+' = '+fmt(a.sub));});
+    L.push('Total contado: '+fmt(window._arqueoTotal));
+    const dif=window._arqueoTotal-(window._arqueoEsperado||0);
+    L.push('Diferencia: '+(Math.abs(dif)<0.01?'$0 ✓':(dif<0?'−'+fmt(Math.abs(dif)):fmt(dif))));
+  }
+  return L.join('\n');
+}
+async function enviarArqueoYCerrar(){
+  if(typeof ES_GERENTE!=='undefined' && ES_GERENTE && typeof tareasGerentePendientes==='function'){
+    const faltan=tareasGerentePendientes();
+    if(faltan.length>0){alert('🔒 Antes de cerrar, cumple tus funciones de gerente:\n\n'+faltan.map(t=>'• '+t).join('\n'));showTab('gerente');return;}
+  }
+  const {t}=totales();
+  if(t<=0 && !(window._arqueoTotal>0)){alert('Aún no hay cobranza ni conteo para el arqueo de hoy.');return;}
+  const texto=textoArqueoApp();
+  const rp=(typeof renovPendientes==='function')?renovPendientes():{pendientes:0};
+  let msg='¿Enviar el arqueo del día y cerrar la captura?\n\nSe sube a la nube, se manda el arqueo, y se cierra el día en este teléfono.';
+  if(rp.pendientes>0)msg='Tienes '+rp.pendientes+' renovación(es) sin gestionar.\n\n'+msg;
+  if(!confirm(msg))return;
+  try{if(window.__forzarSync)await window.__forzarSync();}catch(e){}
+  if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
+  window._reporteEnviado=true;
+  try{
+    if(navigator.share){await navigator.share({title:'Arqueo del día',text:texto});}
+    else{window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');}
+  }catch(e){}
+  try{localStorage.removeItem(STORE_KEY);}catch(e){}
+  reg={};regI={};movs=[];
+  if(typeof gestRenov!=='undefined')gestRenov={};
+  if(typeof tareasGerente!=='undefined')tareasGerente={};
+  window._reporteEnviado=false;
+  if(typeof render==='function')render();
+  if(typeof renderIndiv==='function')renderIndiv();
+  if(typeof renderRenov==='function')renderRenov();
+  if(typeof recalc==='function')recalc();
+  if(typeof ES_GERENTE!=='undefined' && ES_GERENTE && typeof renderGerente==='function')renderGerente();
+  if(typeof calcArqueo==='function')calcArqueo();
+  alert('✅ Arqueo enviado y captura cerrada. El día quedó guardado en la nube.');
 }
 function cerrarDia(){
   // EXIGIR envío del reporte del día si hubo cobranza
