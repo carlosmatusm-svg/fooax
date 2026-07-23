@@ -1016,8 +1016,13 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   cv.font = { bold: true, color: { argb: "FFFFFFFF" } };
   cv.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
   fila++;
-  // Qué parte de ese efectivo trae conteo de billetes y qué parte no.
-  const sinDesglosar = Math.round((a.efectivo - totalEfe) * 100) / 100;
+  // La caja se compara contra el EFECTIVO A ENTREGAR (cobranza + otros
+  // movimientos en efectivo), no contra la cobranza sola: la ejecutiva trae en
+  // la mano las dos cosas. Antes se comparaba contra la cobranza y los otros
+  // movimientos salían como un "sobrante" falso — a Monse le aparecían $6,768
+  // de más cuando la diferencia real era de $848.
+  const aEntregar = a.efectivo - egresosEfectivo;
+  const sinDesglosar = Math.round((aEntregar - totalEfe) * 100) / 100;
   if (Math.abs(sinDesglosar) >= 0.01) {
     const r = s.getRow(fila++);
     s.mergeCells(fila - 1, 1, fila - 1, 3);
@@ -1027,8 +1032,10 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     // letras: es el número por el que Monse tiene que preguntar.
     const falta = sinDesglosar > 0;
     c.value = totalEfe > 0
-      ? "⚠ DIFERENCIA DE CAJA · cobrado $" + a.efectivo.toLocaleString("es-MX") +
-        " vs contado $" + totalEfe.toLocaleString("es-MX") + " → " + (falta ? "FALTAN" : "SOBRAN")
+      ? "⚠ DIFERENCIA DE CAJA · a entregar $" + aEntregar.toLocaleString("es-MX") +
+        " (cobranza $" + a.efectivo.toLocaleString("es-MX") +
+        (egresosEfectivo ? (egresosEfectivo < 0 ? " + otros $" + (-egresosEfectivo).toLocaleString("es-MX") : " − otros $" + egresosEfectivo.toLocaleString("es-MX")) : "") +
+        ") vs contado $" + totalEfe.toLocaleString("es-MX") + " → " + (falta ? "FALTAN" : "SOBRAN")
       : "⚠ Este día no se capturó el conteo de billetes — el efectivo de arriba viene de los pagos registrados";
     const color = totalEfe > 0 ? "FFB00020" : "FF8A5A00";
     c.font = { bold: true, color: { argb: color } };
