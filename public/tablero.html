@@ -159,6 +159,8 @@
   .moverr{display:none;color:#B4232F;font-size:12.5px;font-weight:600}
   .moverr.on{display:block}
   .movlista{margin:8px 16px 0;display:flex;flex-direction:column;gap:7px}
+  .movitem.anulado{opacity:.5}.movitem.anulado .mi-monto{text-decoration:line-through}
+  .mi-anulado{font-size:10px;font-weight:800;color:#B00020;letter-spacing:.04em}
   .movitem{background:var(--tarjeta);border:1px solid var(--linea);border-radius:13px;
     padding:11px 13px;display:flex;align-items:center;gap:10px}
   .movitem .mi-info{flex:1;min-width:0}
@@ -592,7 +594,7 @@ async function cargarMovs() {
     return tipo ? tipo + " · Otro" : "Otro";
   };
   cont.innerHTML = d.lista.map(m =>
-    '<div class="movitem"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + "</div>"
+    '<div class="movitem' + (m.anulado ? " anulado" : "") + '"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + (m.anulado ? ' <span class="mi-anulado">ANULADO por la ejecutiva</span>' : "") + "</div>"
     + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo)
     + (m.autorizadoA ? " · a " + hesc(m.autorizadoA) : "")
     + " · registró " + hesc(m.registradoPor)

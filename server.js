@@ -202,7 +202,21 @@ function contarPagos(snap) {
 // NO los veían en el tablero, ni entraban al arqueo, ni salían en el respaldo
 // (la hoja de Movimientos estaba vacía aunque en campo sí se capturaban).
 function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
-  const lista = Array.isArray(snapshot && snapshot.movs) ? snapshot.movs : [];
+  // La app manda SIEMPRE su lista completa del día. Si un folio ya guardado no
+  // viene en el envío, la ejecutiva lo BORRÓ en su app: aquí se marca ANULADO
+  // (nunca se borra — queda el rastro y deja de contar). Si vuelve a venir, se
+  // revive. Antes el borrado no se propagaba y el arqueo contaba movimientos
+  // fantasma que la ejecutiva ya había quitado.
+  if (!Array.isArray(snapshot && snapshot.movs)) return;
+  const lista = snapshot.movs;
+  const prefijo = "EJE-" + usuario.id.toUpperCase() + "-";
+  const presentes = new Set(lista.filter((m) => Number(m && m.monto) > 0)
+    .map((m) => prefijo + (m.folio || Math.abs(Number(m.monto)) + "-" + String(m.concepto || "").toUpperCase())));
+  for (const viejo of store.movimientosDeFecha(fecha)) {
+    if (!String(viejo.folio).startsWith(prefijo)) continue;   // solo los SUYOS
+    if (!presentes.has(viejo.folio) && !viejo.anulado) store.setMovimientoAnulado(viejo.folio, true);
+    if (presentes.has(viejo.folio) && viejo.anulado) store.setMovimientoAnulado(viejo.folio, false);
+  }
   for (const m of lista) {
     const monto = Number(m && m.monto);
     if (!(monto > 0)) continue;
@@ -453,18 +467,41 @@ app.get("/api/respaldo", requiere("direccion", "admin"), async (req, res) => {
 // Directorio de clientas (nombre, ID, producto, centro, ejecutivo, saldo, cuota,
 // mora). Se llena desde el store (PostgreSQL o archivo) en el arranque.
 let PADRON = [];
-const CUOTA = {}; // cuota por nº de socio (para faltantes/mora del día)
+const CUOTA = {};        // cuota por socio|producto (para faltantes/mora del día)
+const CREDS_SOCIO = {};  // socio -> [cuotas] (fallback cuando el producto no coincide)
 // Re-lee el padrón efectivo (base + altas/bajas) y reconstruye el mapa de cuotas.
 function refrescarPadron() {
   PADRON = store.padron();
   for (const k in CUOTA) delete CUOTA[k];
-  PADRON.forEach((c) => { if (c.cuota > 0 && !CUOTA[c.id]) CUOTA[c.id] = c.cuota; });
+  for (const k in CREDS_SOCIO) delete CREDS_SOCIO[k];
+  PADRON.forEach((c) => {
+    if (!(c.cuota > 0)) return;
+    CUOTA[c.id + "|" + nprod(c.producto)] = c.cuota;
+    (CREDS_SOCIO[c.id] = CREDS_SOCIO[c.id] || []).push(c.cuota);
+  });
+}
+// Cuota del crédito EXACTO de una captura ("socio|producto|..."). Antes el mapa
+// era solo por socio y se quedaba con la cuota del PRIMER crédito: a una
+// clienta con Básico y Micro se le comparaba el pago del Micro contra la cuota
+// del Básico y salía mora FALSA — el 23-jul, $6,777.50 de los $7,141.50 de
+// "mora" de Neri eran de este bug. Si el producto no coincide y el socio tiene
+// varios créditos, mejor no inventar mora (null).
+function cuotaDe(key) {
+  const partes = String(key).split("|");
+  const socio = partes[0], prod = partes[1] || "";
+  const exacta = CUOTA[socio + "|" + nprod(prod)];
+  if (exacta != null) return exacta;
+  const lista = CREDS_SOCIO[socio] || [];
+  return lista.length === 1 ? lista[0] : null;
 }
 
 // normaliza para buscar sin acentos ni mayúsculas
 function norm(s) {
   return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
+// Producto normalizado: sin acentos, espacios ni puntuación (conserva números).
+// "Foxi Plus - 2" y "Foxi Plus 2" son el mismo producto.
+function nprod(s) { return norm(s).replace(/[^a-z0-9]/g, ""); }
 
 // ---------- FASE 1: cartera viva ----------
 // Suma lo pagado por cada crédito (socio+producto) en la semana en curso, para
@@ -481,7 +518,7 @@ function claveCredito(socioOKey, producto) {
   // veces lo escriben distinto ("Foxi Plus 2" vs "Foxi Plus - 2") y eso hacía
   // que un pago no encontrara su crédito y cayera en "sin asignar" aunque el
   // socio fuera el mismo. Se conservan los números (Individual 1 ≠ Individual 2).
-  return norm(String(socioOKey).split("|")[0]) + "|" + norm(producto || "").replace(/[^a-z0-9]/g, "");
+  return norm(String(socioOKey).split("|")[0]) + "|" + nprod(producto);
 }
 // usuario: para respetar la burbuja de pruebas. Sin él, cuenta solo a las
 // ejecutivas reales — así una captura de prueba nunca entra a los saldos.
@@ -800,9 +837,10 @@ function socioDeMov(m) {
   const mm = String(m.concepto || "").match(/·\s*(\d{6,})/);
   return mm ? mm[1] : null;
 }
-function movsDeFecha(fecha, usuario) {
+function movsDeFecha(fecha, usuario, conAnulados) {
   const enPruebas = !!(usuario && usuario.test);
   return store.movimientosDeFecha(fecha).filter((m) => {
+    if (m.anulado && !conAnulados) return false;   // anulado = no cuenta
     const id = usuarioDeMov(m);
     const u = id && USUARIOS[id];
     return !!(u && u.test) === enPruebas;
@@ -877,8 +915,7 @@ function calcularArqueo(fecha, ids) {
         else acc.efectivo += total;
         if (n.desglose) for (const d in n.desglose) denom[d] = (denom[d] || 0) + (n.desglose[d] || 0);
         if (pago > 0) acc.clientas += 1;
-        const socio = String(key).split("|")[0];
-        const cuota = CUOTA[socio];
+        const cuota = cuotaDe(key);
         if (cuota && pago > 0 && pago < cuota) acc.faltantes += cuota - pago;
       };
       const recorrer = (store) => {
@@ -1101,11 +1138,16 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
       if (p + g + so <= 0 && !n.forma) return;
       const t = p + g + so; ga += g;
       cobrado += t; // lo que dijo que cobró
-      if (n.forma === "T") { tr += t; movido += t; }
-      else if (n.forma === "M") { ef += n.mixEfe || 0; tr += n.mixTr || 0; movido += (n.mixEfe || 0) + (n.mixTr || 0); }
+      if (n.forma === "T" || n.forma === "D") { tr += t; movido += t; }
+      else if (n.forma === "M") {
+        // misma regla del RESTO que en acumular(): el efectivo es total − transf
+        const mt = n.mixTr || 0;
+        const me = (n.mixEfe != null && (mt + (n.mixEfe || 0)) === t) ? n.mixEfe : (t - mt);
+        ef += me; tr += mt; movido += me + mt;
+      }
       else { ef += t; movido += t; }
       if (p > 0) pa++;
-      const cu = CUOTA[String(key).split("|")[0]];
+      const cu = cuotaDe(key);
       if (cu && p > 0 && p < cu) { fa += cu - p; cf++; }
     };
     const rec = (st) => {
@@ -1236,13 +1278,16 @@ app.post("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
 
 app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
-  const lista = movsDeFecha(fecha, req.usuario).sort((a, b) => b.ts - a.ts);
-  const totalEfectivo = lista.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
-  const totalTransf = lista.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
+  // La lista trae también los anulados (marcados) para que quede el rastro a la
+  // vista; los totales solo suman los vivos.
+  const lista = movsDeFecha(fecha, req.usuario, true).sort((a, b) => b.ts - a.ts);
+  const vivos = lista.filter(m => !m.anulado);
+  const totalEfectivo = vivos.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
+  const totalTransf = vivos.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
   // Separa lo que entra de lo que sale, para que el total no mezcle una
   // recuperación (entra) con un gasto (sale) en una sola cifra engañosa.
-  const entradas = lista.filter(m => m.entrada).reduce((s, m) => s + m.monto, 0);
-  const salidas = lista.filter(m => !m.entrada).reduce((s, m) => s + m.monto, 0);
+  const entradas = vivos.filter(m => m.entrada).reduce((s, m) => s + m.monto, 0);
+  const salidas = vivos.filter(m => !m.entrada).reduce((s, m) => s + m.monto, 0);
   res.json({ fecha, lista, totalEfectivo, totalTransf, total: totalEfectivo + totalTransf, entradas, salidas });
 });
 

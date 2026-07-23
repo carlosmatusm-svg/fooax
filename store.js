@@ -238,6 +238,18 @@ module.exports = {
   movimientosDeFecha(fecha) {
     return mem.movimientos.filter((m) => m.fecha === fecha);
   },
+  // Marca/desmarca un movimiento como ANULADO. Nunca se borra: si la ejecutiva
+  // lo quitó en su app, aquí queda el rastro (y deja de contar en los totales).
+  setMovimientoAnulado(folio, anulado) {
+    const m = mem.movimientos.find((x) => x.folio === folio);
+    if (!m || !!m.anulado === !!anulado) return;
+    m.anulado = !!anulado;
+    m.anuladoTs = anulado ? Date.now() : null;
+    if (usePg) {
+      pool.query("UPDATE movimientos SET data=$2 WHERE folio=$1", [folio, m])
+        .catch((e) => console.error("[store] anular:", e.message));
+    } else escribirJSON("movimientos.json", mem.movimientos);
+  },
 
   // Alta / baja de clientas (capa de cambios append-only sobre el padrón base).
   // Se re-aplica en vivo para que el buscador y la cartera reflejen el cambio al
