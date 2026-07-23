@@ -91,6 +91,51 @@ function paginaRequiere(...roles) {
 }
 
 // ---------- diagnóstico (sin datos sensibles) ----------
+// ---------- DIAGNÓSTICO TEMPORAL (quitar al terminar) ----------
+// Lista las versiones archivadas de un día con su reparto efectivo/transferencia,
+// para encontrar cuál coincide con el reporte que mandó cada ejecutiva.
+const DIAG_TOKEN = "diag-fooax-mrt-4k9x";
+function partesDe(snap) {
+  try {
+    let d = snap; if (typeof d === "string") d = JSON.parse(d);
+    const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+    acumular(d && d.reg, acc); acumular(d && d.regI, acc);
+    return { pago: acc.pago, gar: acc.garantias, efe: acc.efectivo, tr: acc.transferencia, n: acc.clientasPagaron };
+  } catch { return null; }
+}
+app.get("/api/_diag", async (req, res) => {
+  if (req.query.token !== DIAG_TOKEN) return res.status(403).json({ error: "token" });
+  const fecha = req.query.fecha || hoyMX();
+  const reales = Object.keys(USUARIOS).filter((id) => USUARIOS[id].rol === "ejecutivo" && !USUARIOS[id].test);
+  const act = store.snapshotsDeFecha(fecha);
+  const hist = await store.historialDeFecha(fecha);
+  const out = {};
+  for (const id of reales) {
+    const versiones = hist.filter((h) => h.ejecutivo === id)
+      .map((h) => ({ archivado: h.archivado, ...(partesDe(h.snapshot) || {}) }))
+      .filter((v) => v.pago != null);
+    // deduplicar por combinación de cifras
+    const vistos = new Set(); const unicas = [];
+    for (const v of versiones.sort((a, b) => b.archivado - a.archivado)) {
+      const k = [v.pago, v.gar, v.efe, v.tr].join("|");
+      if (vistos.has(k)) continue; vistos.add(k); unicas.push(v);
+    }
+    out[id] = { actual: act[id] ? partesDe(act[id].snapshot) : null, versiones: unicas.slice(0, 12) };
+  }
+  res.json({ fecha, out });
+});
+app.post("/api/_diag/restaurar", async (req, res) => {
+  if (req.query.token !== DIAG_TOKEN) return res.status(403).json({ error: "token" });
+  const { fecha, ejec, efe, tr } = req.query;
+  const hist = await store.historialDeFecha(fecha);
+  const cand = hist.filter((h) => h.ejecutivo === ejec)
+    .map((h) => ({ h, p: partesDe(h.snapshot) })).filter((x) => x.p)
+    .filter((x) => Math.abs(x.p.efe - Number(efe)) < 1 && Math.abs(x.p.tr - Number(tr)) < 1)
+    .sort((a, b) => b.h.archivado - a.h.archivado)[0];
+  if (!cand) return res.json({ error: "no hay version con ese reparto", ejec });
+  store.guardarSnapshot(ejec, fecha, { snapshot: cand.h.snapshot, ts: Date.now() });
+  res.json({ restaurado: ejec, ...cand.p });
+});
 app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
