@@ -410,6 +410,11 @@ let INDIVIDUALES=[{"n":"ANA PRUEBA INDIVIDUAL","f":"90000000004","sub":"Individu
 let reg={};
 let regI={};
 let movs=[]; // otros movimientos: {concepto,centro,clienta,socio,monto,via,nota}
+// Consecutivo de folio que NUNCA se reutiliza. Antes el folio salía del LARGO
+// de la lista: si se borraba un movimiento, el siguiente repetía un folio ya
+// enviado y el servidor lo ignoraba (los movimientos son append-only), así que
+// ese movimiento nunca llegaba al arqueo. Se persiste con el día.
+let folioSeq=0;
 let gestRenov={}; // gestión de renovaciones por llave: {estado, ts}
 let tareasGerente={}; // solo Nery: {tareaId: true}
 let datosCli={}; // datos permanentes por clienta (llave): {plazo, semana, tsSemana} — NO se borra al cerrar día
@@ -448,7 +453,7 @@ const ES_GERENTE=false;
 function guardar(){
   try{
     const fecha=document.getElementById('inpFecha').value||hoyISO();
-    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,arqueo,ts:Date.now()}));
+    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,arqueo,folioSeq,ts:Date.now()}));
     const ind=document.getElementById('guardadoMsg');
     if(ind){ind.textContent='Guardado '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
   }catch(e){}
@@ -477,6 +482,7 @@ function restaurar(){
       }
     }
     if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs; if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
+    folioSeq=Math.max(d.folioSeq||0, (movs||[]).length);
     // El conteo de billetes tambien se recupera: si cierra y abre la app a media
     // jornada, no tiene que volver a contar la caja.
     if(d.arqueo&&d.fecha===hoy){arqueo=d.arqueo;setTimeout(()=>{let usados={};DENOM.forEach((dd,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');if(!inp)return;const tot=arqueo[dd.v]||0;const ya=usados[dd.v]||0;const q=Math.max(0,tot-ya);if(q>0){inp.value=q;usados[dd.v]=ya+q;}});if(document.querySelector('[data-den]'))calcArqueo();},0);}
@@ -530,7 +536,7 @@ async function enviarArqueoYCerrar(){
     else{window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');}
   }catch(e){}
   try{localStorage.removeItem(STORE_KEY);}catch(e){}
-  reg={};regI={};movs=[];
+  reg={};regI={};movs=[];folioSeq=0;
   if(typeof gestRenov!=='undefined')gestRenov={};
   if(typeof tareasGerente!=='undefined')tareasGerente={};
   window._reporteEnviado=false;
@@ -565,7 +571,7 @@ function cerrarDia(){
   if(!confirm('¿Cerrar el día? Esto borra lo capturado de este celular. Asegúrate de haber exportado o enviado el detalle a Monse primero.'))return;
   guardarDiaEnSemana(); // guarda snapshot del día para el cierre semanal
   localStorage.removeItem(STORE_KEY);
-  reg={};regI={};movs=[];gestRenov={};tareasGerente={};window._reporteEnviado=false;
+  reg={};regI={};movs=[];folioSeq=0;gestRenov={};tareasGerente={};window._reporteEnviado=false;
   render();renderIndiv();renderRenov();recalc();
   if(ES_GERENTE)renderGerente();
   alert('Día cerrado. La app quedó lista para la próxima captura.');
@@ -1199,8 +1205,8 @@ function nuevoFolio(){
   const ini=EJECUTIVO.substring(0,3).toUpperCase();
   const f=new Date(document.getElementById('inpFecha').value||hoyISO());
   const dm=('0'+f.getDate()).slice(-2)+('0'+(f.getMonth()+1)).slice(-2);
-  const consec=(movs.length+1);
-  return ini+'-'+dm+'-'+('0'+consec).slice(-2);
+  folioSeq=Math.max(folioSeq+1, movs.length+1);
+  return ini+'-'+dm+'-'+('0'+folioSeq).slice(-2);
 }
 function eliminarMov(i){movs.splice(i,1);renderMovs();guardar();recalc();if(typeof calcArqueo==='function')calcArqueo();}
 function renderMovs(){
