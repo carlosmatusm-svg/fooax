@@ -82,6 +82,10 @@ window.__corregirFechaHoy = function (hoy) {
       hoy = (await r.json()).hoy;
     } catch (e) { return; }
     if (!hoy) return;
+    // La fecha OFICIAL (hora de México) queda disponible para toda la app: el
+    // reporte de WhatsApp y la captura la usan en vez de la del teléfono, que
+    // puede estar en otro día. Era la causa de reportes fechados mal.
+    window.__hoyServidor = hoy;
     const inp = document.getElementById("inpFecha");
     const fechaApp = inp && inp.value;
     if (!fechaApp) return;

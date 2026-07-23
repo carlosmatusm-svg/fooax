@@ -8,7 +8,7 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v6"; // v6: salir ya NO borra el localStorage (fin del borrado al re-entrar)
+const CACHE = "fooax-v7"; // v7: fecha oficial del servidor + revision antes de enviar
 
 // La página pide activar la versión nueva de inmediato (auto-actualización).
 self.addEventListener("message", (e) => { if (e.data === "skip") self.skipWaiting(); });

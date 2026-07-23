@@ -52,6 +52,8 @@
   .mixcampos .campo{flex:1}
   .mixok{margin-top:6px;font-size:12px;font-weight:800;color:var(--ok)}
   .mixerr{margin-top:6px;font-size:12px;font-weight:800;color:var(--mora)}
+  .caperr{margin-top:6px;font-size:12px;font-weight:800;color:#fff;background:var(--mora);border-radius:9px;padding:7px 10px;line-height:1.35}
+  .cli.conerr{border:2px solid var(--mora)}
   .campos{display:none;margin-top:9px;gap:7px;grid-template-columns:1fr 1fr 1fr;grid-auto-rows:auto}
   .cli.open .campos{display:grid}
   .campo label{font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
@@ -512,6 +514,7 @@ async function enviarArqueoYCerrar(){
     const faltan=tareasGerentePendientes();
     if(faltan.length>0){alert('🔒 Antes de cerrar, cumple tus funciones de gerente:\n\n'+faltan.map(t=>'• '+t).join('\n'));showTab('gerente');return;}
   }
+  if(bloqueoPorErrores('ENVIAR EL ARQUEO Y CERRAR'))return;
   const {t}=totales();
   if(t<=0 && !(window._arqueoTotal>0)){alert('Aún no hay cobranza ni conteo para el arqueo de hoy.');return;}
   const texto=textoArqueoApp();
@@ -570,7 +573,14 @@ function cerrarDia(){
 
 
 function fmt(n){return '$'+(Math.round(n)).toLocaleString('es-MX');}
-function hoyISO(){return new Date().toISOString().slice(0,10);}
+function hoyISO(){
+  // La fecha OFICIAL es la del servidor (hora de México). Antes esto usaba
+  // toISOString(), que es UTC: después de las 6pm en México ya daba el día
+  // SIGUIENTE, y la captura y el reporte se etiquetaban con la fecha mal.
+  if(window.__hoyServidor)return window.__hoyServidor;
+  try{return new Date().toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'});}
+  catch(e){return new Date().toISOString().slice(0,10);}
+}
 
 function initFecha(){document.getElementById('inpFecha').value=hoyISO();updFecha();}
 function updFecha(){
@@ -735,7 +745,8 @@ function cliRow(centro,cl){
   const dcli=datosCli[key]||{};
   const cuota=(dcli.cuota&&dcli.cuota>0)?dcli.cuota:(cl.esp||0);
   const cuotaEditada=(dcli.cuota&&dcli.cuota>0);
-  return '<div class="cli '+open+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
+  const _err=(typeof problemaDe==='function')?problemaDe(r,tot):'';
+  return '<div class="cli '+open+(_err?' conerr':'')+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
     +'<div class="cli-head">'
       +'<div class="chk '+chk+'" onclick="palomear(\''+(centro||'')+'\',\''+key+'\','+cuota+')">'+chkc+'</div>'
       +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
@@ -755,6 +766,7 @@ function cliRow(centro,cl){
       +campo(centro,key,'solidario','Solidario',r.solidario)
     +'</div>'
     +cuotaAviso(r,cuota)
+    +avisoError(r,tot)
     +(r.forma==='M'?('<div class="mixbox">'
       +'<div class="mixnota">Pago mixto: anota cuánto entró en efectivo y cuánto por transferencia. Deben sumar el total ('+fmt(tot)+').</div>'
       +'<div class="mixcampos">'
@@ -820,6 +832,61 @@ function todasPagaron(centro){
     if(cuota>0){r.pago=cuota;if(!r.forma)r.forma='E';}
   });
   render();recalc();guardar();
+}
+// ===== REVISIÓN ANTES DE ENVIAR =====
+// Nada se manda ni se cierra si la captura tiene huecos: forma de pago sin
+// marcar o un mixto que no cuadra. Antes esto pasaba callado y descuadraba el
+// arqueo de Monse (el efectivo del mixto se perdía).
+function problemaDe(r,tot){
+  if(!(tot>0))return '';
+  if(!r.forma)return 'falta marcar cómo pagó (Efe / Transf / Depósito / Mixto)';
+  if(r.forma==='M'){
+    const suma=(r.mixEfe||0)+(r.mixTr||0);
+    if(Math.abs(suma-tot)>0.01)
+      return 'el pago MIXTO no cuadra: efectivo + transferencia deben sumar '+fmt(tot)+' (hoy suman '+fmt(suma)+')';
+  }
+  return '';
+}
+function avisoError(r,tot){
+  const p=problemaDe(r,tot);
+  return p?('<div class="caperr">⚠ FALTA: '+p+'</div>'):'';
+}
+function nombreDeKey(centro,key){
+  const lista=centro?(CENTROS[centro]||[]):(typeof INDIVIDUALES!=='undefined'?INDIVIDUALES:[]);
+  const cl=lista.find(c=>(c.k||c.f)===key);
+  return cl?cl.n:key;
+}
+function problemasCaptura(){
+  const P=[];
+  for(const c in reg)for(const k in reg[c]){
+    const r=reg[c][k]; if(!r||typeof r!=='object')continue;
+    const p=problemaDe(r,rTot(r));
+    if(p)P.push({nombre:nombreDeKey(c,k),centro:c,txt:p});
+  }
+  for(const k in regI){
+    const r=regI[k]; if(!r||typeof r!=='object')continue;
+    const p=problemaDe(r,rTot(r));
+    if(p)P.push({nombre:nombreDeKey(null,k),centro:'Individuales',txt:p});
+  }
+  // Fecha: la app no puede estar en un día distinto al del servidor
+  const inp=document.getElementById('inpFecha');
+  const fa=inp&&inp.value, fs=window.__hoyServidor;
+  let fechaOk=true;
+  try{fechaOk=(sessionStorage.getItem('fooax_fecha_ok')===fa);}catch(e){}
+  if(fa&&fs&&fa!==fs&&!fechaOk)
+    P.unshift({nombre:'',centro:'FECHA',txt:'la app está en '+fa+' y hoy es '+fs+'. Corrige la fecha antes de enviar.'});
+  return P;
+}
+function bloqueoPorErrores(accion){
+  const P=problemasCaptura();
+  if(!P.length)return false;
+  let msg='⛔ NO SE PUEDE '+accion+'\n\nTe falta corregir '+P.length+' cosa(s):\n\n';
+  P.slice(0,10).forEach(p=>{msg+='• '+(p.nombre?(p.nombre+' — '):'')+p.txt+'\n\n';});
+  if(P.length>10)msg+='…y '+(P.length-10)+' más.\n\n';
+  msg+='Están marcadas en ROJO en tu lista. Corrígelas y vuelve a intentar.';
+  alert(msg);
+  try{render();renderIndiv();}catch(e){}
+  return true;
 }
 function palomear(centro,key,cuota){
   const r=getReg(centro?reg:regI,centro||null,key);
@@ -1728,6 +1795,7 @@ function fallbackCopy(data){const t=document.createElement('textarea');t.value=d
 /* ENVIAR POR WHATSAPP — manda el RESUMEN EN TEXTO (con sumas por centro y total).
    No descarga archivo, como lo pidió el Lic. para no llenar el teléfono. */
 function enviarWhatsApp(tipo){
+  if(tipo==='cobranza' && bloqueoPorErrores('ENVIAR TU REPORTE'))return;
   let texto='';
   if(tipo==='cobranza')texto=resumenTextoCobranza();
   else if(tipo==='garantias')texto=resumenTextoGarantias();
