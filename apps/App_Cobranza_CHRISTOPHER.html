@@ -599,9 +599,18 @@ function hoyISO(){
   catch(e){return new Date().toISOString().slice(0,10);}
 }
 
+// new Date("2026-07-23") se interpreta como UTC: en México (-6) getDate()
+// devuelve 22, o sea UN DÍA ANTES. Eso hacía que la app mostrara el día
+// equivocado en el encabezado, eligiera mal el día de la semana, pusiera folios
+// con la fecha de ayer, y que el reporte de la ejecutiva saliera fechado un día
+// antes (Monse comparaba contra el arqueo del día que no era).
+function fechaLocal(s){
+  s=String(s||'');
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s+'T12:00') : new Date(s);
+}
 function initFecha(){document.getElementById('inpFecha').value=hoyISO();updFecha();}
 function updFecha(){
-  const d=new Date(document.getElementById('inpFecha').value||hoyISO());
+  const d=fechaLocal(document.getElementById('inpFecha').value||hoyISO());
   document.getElementById('fechaHoy').textContent=d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const ds=DIAS[(d.getDay()+6)%7];
   const sel=document.getElementById('selDia');
@@ -1214,7 +1223,7 @@ function viaCorto(v){return v==='E'?'Efvo':(v==='T'?'Transf':(v==='CH'?'Cheque':
 function nuevoFolio(){
   // folio único corto: iniciales ejecutivo + fecha (ddmm) + consecutivo del día
   const ini=EJECUTIVO.substring(0,3).toUpperCase();
-  const f=new Date(document.getElementById('inpFecha').value||hoyISO());
+  const f=fechaLocal(document.getElementById('inpFecha').value||hoyISO());
   const dm=('0'+f.getDate()).slice(-2)+('0'+(f.getMonth()+1)).slice(-2);
   folioSeq=Math.max(folioSeq+1, movs.length+1);
   return ini+'-'+dm+'-'+('0'+folioSeq).slice(-2);
@@ -1442,7 +1451,7 @@ function renderDiagnostico(){
 
 function buildResumen(){
   const {t,efe,tr,dep,n,acc}=totales();
-  const fecha=new Date(document.getElementById('inpFecha').value||hoyISO()).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  const fecha=fechaLocal(document.getElementById('inpFecha').value||hoyISO()).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
   let lineas=[],centrosCob=0;
   for(const c in reg){let sc=0,nc=0;for(const s in reg[c]){const tt=rTot(reg[c][s]);if(tt>0){sc+=tt;nc++;}}if(sc>0){centrosCob++;lineas.push('• '+c+': '+fmt(sc)+' ('+nc+')');}}
   let iSum=0,iN=0;for(const s in regI){const tt=rTot(regI[s]);if(tt>0){iSum+=tt;iN++;}}
