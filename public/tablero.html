@@ -205,6 +205,22 @@
   .dlbtn:active{transform:translateY(1px)}
   .dlbtn.secun{background:#EEF0F8;color:var(--rio);box-shadow:none}
   .dlhint{font-size:11.5px;color:var(--gris);margin:8px 16px 0}
+  .reccard{background:#fff;border:1px solid var(--lav);border-radius:16px;padding:14px 16px;margin:0 16px}
+  .rechint{font-size:12px;color:var(--gris);line-height:1.45;margin-bottom:10px}
+  .recbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .recinput{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--lav);border-radius:10px;color:var(--tinta)}
+  .recbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--rio);border:none;border-radius:10px;padding:10px 16px;cursor:pointer}
+  .recbtn:active{filter:brightness(.94)}
+  .recej{margin-top:14px;border-top:1px solid var(--lav);padding-top:10px}
+  .recej h4{margin:0 0 2px;font-size:14px;color:var(--tinta)}
+  .recact{font-size:12px;color:var(--gris);margin-bottom:8px}
+  .recver{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:8px 10px;border:1px solid var(--lav);border-radius:10px;margin-bottom:6px;font-size:12px}
+  .recver.igual{background:#F4F7FB;border-color:#D8E0EE}
+  .recver b{font-variant-numeric:tabular-nums;color:var(--tinta)}
+  .recvbtn{font:inherit;font-size:12px;font-weight:700;color:#fff;background:#0B7247;border:none;
+    border-radius:99px;padding:7px 13px;cursor:pointer;flex-shrink:0}
+  .recvbtn[disabled]{background:#B9C2D2;cursor:default}
   /* barra de fecha + actualizado */
   .fbar{display:flex;align-items:center;gap:8px;margin:10px 16px 0;flex-wrap:wrap}
   .fbar input[type=date]{font:inherit;font-size:13px;padding:7px 9px;border:1.5px solid var(--linea);
@@ -336,6 +352,16 @@
   <h3>Arqueo del día · efectivo</h3>
   <div id="arqueoBox" class="arqueo"></div>
 
+  <h3>Recuperar cobranza de un día</h3>
+  <div class="reccard">
+    <div class="rechint">Cada vez que una captura se sobrescribe, la versión anterior queda guardada. Aquí puedes ver esas versiones y regresar la correcta si un día quedó mal.</div>
+    <div class="recbar">
+      <input type="date" id="recFecha" class="recinput">
+      <button class="recbtn" onclick="verVersiones()">Ver versiones</button>
+    </div>
+    <div id="recBox"></div>
+  </div>
+
   <h3>Seguridad · borrado remoto</h3>
   <div class="segwrap" id="segWrap"></div>
 
@@ -400,7 +426,10 @@ async function cargar() {
   if (r.status === 401) { location.href = "/"; return; }
   const d = await r.json();
   $("fecha-txt").textContent = d.fecha + (FECHA_VISTA ? " · día anterior" : " · se actualiza solo");
-  if (!FECHA_VISTA && !FECHA_HOY) { FECHA_HOY = d.fecha; $("fSel").value = d.fecha; $("fSel").max = d.fecha; pintarBotonArqueo(); }
+  if (!FECHA_VISTA && !FECHA_HOY) {
+    FECHA_HOY = d.fecha; $("fSel").value = d.fecha; $("fSel").max = d.fecha; pintarBotonArqueo();
+    const rf = $("recFecha"); if (rf && !rf.value) { rf.value = d.fecha; rf.max = d.fecha; }
+  }
   $("factTxt").textContent = "actualizado " + new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
   // semáforo de sincronización (solo aplica viendo el día de hoy)
   $("chipSync").innerHTML = FECHA_VISTA ? "" : Object.values(d.ejecutivos).map((e) => {
@@ -759,6 +788,57 @@ function descargar(base) {
     btns.forEach((b) => (b.disabled = false));
     if (aviso) aviso.style.display = "none";
   }, 6000);
+}
+
+// ---------- recuperar cobranza de un día ----------
+// Muestra las versiones archivadas de cada ejecutiva y deja regresar la buena.
+// Las versiones vienen ordenadas por dinero y, si empatan, la MÁS RECIENTE
+// primero — el empate fue justo lo que salió mal al restaurar el 21-jul.
+async function verVersiones() {
+  const f = $("recFecha").value || FECHA_HOY;
+  if (!f) return;
+  const box = $("recBox");
+  box.innerHTML = '<div class="rechint">Buscando…</div>';
+  let d;
+  try { d = await (await fetch("/api/recuperar?fecha=" + f, { credentials: "include" })).json(); }
+  catch { box.innerHTML = '<div class="rechint">Sin conexión con el servidor.</div>'; return; }
+  const ejs = Object.entries(d.ejecutivos || {});
+  if (!ejs.length) { box.innerHTML = '<div class="rechint">No hay ejecutivas para ese día.</div>'; return; }
+  const linea = (c) => "efectivo <b>" + dinero(c.efectivo) + "</b> · transf. <b>" + dinero(c.transferencia) +
+    "</b> · " + c.clientas + " pagos";
+  box.innerHTML = ejs.map(([id, e]) => {
+    const act = e.actual ? linea(e.actual) : "<b>sin captura</b>";
+    if (!e.versiones.length) {
+      return '<div class="recej"><h4>' + hesc(e.nombre) + '</h4><div class="recact">Ahora: ' + act +
+        '</div><div class="rechint">No hay versiones guardadas de este día.</div></div>';
+    }
+    const filas = e.versiones.map((v) => {
+      const c = v.cifras;
+      const igual = e.actual && c.efectivo === e.actual.efectivo && c.transferencia === e.actual.transferencia &&
+        c.pago === e.actual.pago && c.garantias === e.actual.garantias;
+      const hora = new Date(v.archivado).toLocaleString("es-MX", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      return '<div class="recver' + (igual ? " igual" : "") + '"><span>' + linea(c) +
+        '<br><span style="color:var(--gris)">guardada ' + hora + "</span></span>" +
+        (igual
+          ? '<button class="recvbtn" disabled>Es la actual</button>'
+          : '<button class="recvbtn" onclick="restaurarVersion(\'' + hesc(id) + "','" + hesc(f) + "'," + v.archivado + ')">Regresar esta</button>') +
+        "</div>";
+    }).join("");
+    return '<div class="recej"><h4>' + hesc(e.nombre) + '</h4><div class="recact">Ahora: ' + act + "</div>" + filas + "</div>";
+  }).join("");
+}
+async function restaurarVersion(ejec, fecha, archivado) {
+  if (!confirm("¿Regresar esta versión de la cobranza?\n\nLa que está ahora queda guardada también, por si te arrepientes.")) return;
+  try {
+    const r = await fetch("/api/recuperar", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fecha, ejec, archivado }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) { alert(d.error || "No se pudo recuperar."); return; }
+    alert("Listo. Quedó en: efectivo " + dinero(d.cifras.efectivo) + " · transferencia " + dinero(d.cifras.transferencia) + ".");
+    verVersiones(); cargar(); cargarArqueo(); cargarSemana();
+  } catch { alert("Sin conexión con el servidor."); }
 }
 
 async function salir() {

@@ -1151,6 +1151,78 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   res.json({ fecha, items, pendientes });
 });
 
+// ---------- RECUPERAR COBRANZA DE UN DÍA ----------
+// Cada vez que un snapshot se sobrescribe, la versión anterior queda archivada.
+// Aquí Dirección puede VER esas versiones y restaurar la correcta, sin depender
+// de nadie. Nació del incidente del 21-jul: la cobranza se borró y, al
+// restaurarla, había dos versiones con el MISMO dinero total pero distinto
+// reparto efectivo/transferencia — por eso el criterio desempata por la MÁS
+// RECIENTE, no solo por el monto.
+function cifrasDeSnapshot(snap) {
+  try {
+    let d = snap; if (typeof d === "string") d = JSON.parse(d);
+    const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+    acumular(d && d.reg, acc); acumular(d && d.regI, acc);
+    return {
+      pago: acc.pago, garantias: acc.garantias, efectivo: acc.efectivo,
+      transferencia: acc.transferencia, clientas: acc.clientasPagaron,
+      total: acc.pago + acc.garantias + acc.solidario,
+    };
+  } catch { return null; }
+}
+// Ordena candidatas: primero la que trae MÁS dinero; si empatan, la MÁS RECIENTE.
+function mejorPrimero(a, b) {
+  return (b.cifras.total - a.cifras.total) || ((b.archivado || 0) - (a.archivado || 0));
+}
+app.get("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
+  const fecha = req.query.fecha || hoyMX();
+  const ids = idsEjecutivos(req.usuario);
+  const actuales = store.snapshotsDeFecha(fecha);
+  let hist = [];
+  try { hist = await store.historialDeFecha(fecha); } catch (e) { hist = []; }
+  const ejecutivos = {};
+  for (const id of ids) {
+    const actual = actuales[id] ? cifrasDeSnapshot(actuales[id].snapshot) : null;
+    const vistas = new Set();
+    const versiones = [];
+    for (const h of hist.filter((x) => x.ejecutivo === id).sort((a, b) => (b.archivado || 0) - (a.archivado || 0))) {
+      const c = cifrasDeSnapshot(h.snapshot);
+      if (!c || c.total <= 0) continue;            // versiones vacías no sirven
+      const clave = [c.pago, c.garantias, c.efectivo, c.transferencia].join("|");
+      if (vistas.has(clave)) continue;             // misma cifra: sólo la más reciente
+      vistas.add(clave);
+      versiones.push({ archivado: h.archivado, cifras: c });
+    }
+    ejecutivos[id] = {
+      nombre: USUARIOS[id].nombre,
+      actual,
+      versiones: versiones.sort(mejorPrimero).slice(0, 15),
+    };
+  }
+  res.json({ fecha, ejecutivos });
+});
+app.post("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
+  const b = req.body || {};
+  const fecha = String(b.fecha || "").trim();
+  const ejec = String(b.ejec || "").trim();
+  if (!fecha || !ejec) return res.status(400).json({ error: "Falta la fecha o el ejecutivo." });
+  if (!idsEjecutivos(req.usuario).includes(ejec)) return res.status(400).json({ error: "Ejecutivo no válido." });
+  let hist = [];
+  try { hist = await store.historialDeFecha(fecha); } catch (e) { hist = []; }
+  const candidatas = hist.filter((x) => x.ejecutivo === ejec)
+    .map((h) => ({ h, cifras: cifrasDeSnapshot(h.snapshot), archivado: h.archivado }))
+    .filter((x) => x.cifras && x.cifras.total > 0);
+  if (!candidatas.length) return res.status(404).json({ error: "No hay versiones guardadas de ese día." });
+  let elegida;
+  if (b.archivado) elegida = candidatas.find((x) => String(x.archivado) === String(b.archivado));
+  else elegida = candidatas.sort(mejorPrimero)[0];   // automático: más dinero, desempata la más reciente
+  if (!elegida) return res.status(404).json({ error: "No encontré esa versión." });
+  // guardarSnapshot archiva la versión actual antes de reemplazarla: si esto se
+  // hace por error, la de ahora también queda recuperable.
+  store.guardarSnapshot(ejec, fecha, { snapshot: elegida.h.snapshot, ts: Date.now() });
+  res.json({ ok: true, ejec, fecha, cifras: elegida.cifras, archivado: elegida.archivado });
+});
+
 app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const lista = movsDeFecha(fecha, req.usuario).sort((a, b) => b.ts - a.ts);
