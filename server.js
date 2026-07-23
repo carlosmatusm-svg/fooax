@@ -477,7 +477,11 @@ function lunesDeLaSemana(fechaISO) {
   return dt.toISOString().slice(0, 10);
 }
 function claveCredito(socioOKey, producto) {
-  return norm(String(socioOKey).split("|")[0]) + "|" + norm(producto || "");
+  // El producto se compara SIN espacios ni puntuación: la app y el padrón a
+  // veces lo escriben distinto ("Foxi Plus 2" vs "Foxi Plus - 2") y eso hacía
+  // que un pago no encontrara su crédito y cayera en "sin asignar" aunque el
+  // socio fuera el mismo. Se conservan los números (Individual 1 ≠ Individual 2).
+  return norm(String(socioOKey).split("|")[0]) + "|" + norm(producto || "").replace(/[^a-z0-9]/g, "");
 }
 // usuario: para respetar la burbuja de pruebas. Sin él, cuenta solo a las
 // ejecutivas reales — así una captura de prueba nunca entra a los saldos.
