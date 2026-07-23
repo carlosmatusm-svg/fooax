@@ -276,7 +276,15 @@ function acumular(nodo, acc) {
     // el ejecutivo en efectivo. Antes caía en el "else" y se contaba como
     // efectivo: por eso a Monse le cuadraba el total pero no la clasificación.
     if (nodo.forma === "T" || nodo.forma === "D") acc.transferencia += total;
-    else if (nodo.forma === "M") { acc.efectivo += nodo.mixEfe || 0; acc.transferencia += nodo.mixTr || 0; }
+    else if (nodo.forma === "M") {
+      // MIXTO: la transferencia es lo capturado y el efectivo es el RESTO —
+      // igual que en la app. Antes se leía sólo mixEfe: si la ejecutiva llenaba
+      // nada más la transferencia, ese efectivo DESAPARECÍA del total (por eso
+      // a Monse no le cuadraba el martes: faltaban $1,008 de clasificación).
+      const mt = nodo.mixTr || 0;
+      const me = (nodo.mixEfe != null && (mt + (nodo.mixEfe || 0)) === total) ? nodo.mixEfe : (total - mt);
+      acc.efectivo += me; acc.transferencia += mt;
+    }
     else acc.efectivo += total; // 'E' o sin forma marcada: efectivo
     return;
   }
@@ -320,14 +328,15 @@ app.get("/api/semana", requiere("direccion", "admin"), (req, res) => {
   const dow = dt.getUTCDay();
   dt.setUTCDate(dt.getUTCDate() - (dow === 0 ? 6 : dow - 1)); // lunes de esa semana
   const dias = [];
-  let totalSemana = 0;
+  let totalSemana = 0, moraSemana = 0;
+  const ids = idsEjecutivos(req.usuario);
   for (let i = 0; i < 7; i++) {
     const f = new Date(dt); f.setUTCDate(dt.getUTCDate() + i);
     const fecha = f.toISOString().slice(0, 10);
     if (fecha > hasta) break;
     const snaps = store.snapshotsDeFecha(fecha);
     const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
-    const permitidas = new Set(idsEjecutivos(req.usuario));
+    const permitidas = new Set(ids);
     for (const ej in snaps) {
       if (!permitidas.has(ej)) continue;
       let data = snaps[ej].snapshot;
@@ -335,10 +344,15 @@ app.get("/api/semana", requiere("direccion", "admin"), (req, res) => {
       acumular(data.reg, acc); acumular(data.regI, acc);
     }
     const total = acc.pago + acc.garantias;
+    // Mora ACUMULADA de la semana: se reusa el MISMO cálculo diario del arqueo
+    // (cuota − lo que pagó, en quien pagó de menos) sumado día por día, para
+    // que Monse pueda comparar varios días contra su control sin re-sumar a mano.
+    const mora = calcularArqueo(fecha, ids).faltantes || 0;
+    moraSemana += mora;
     totalSemana += total;
-    dias.push({ fecha, total, efectivo: acc.efectivo, transferencia: acc.transferencia });
+    dias.push({ fecha, total, efectivo: acc.efectivo, transferencia: acc.transferencia, mora });
   }
-  res.json({ desde: dt.toISOString().slice(0, 10), hasta, dias, totalSemana });
+  res.json({ desde: dt.toISOString().slice(0, 10), hasta, dias, totalSemana, moraSemana });
 });
 
 // Respaldo en EXCEL de verdad (.xlsx): cobranza detallada + movimientos de caja.
@@ -851,7 +865,11 @@ function calcularArqueo(fecha, ids) {
         acc.garantias += gar;
         // 'D' = depósito: va al banco, no es efectivo a entregar (ver acumular()).
         if (n.forma === "T" || n.forma === "D") acc.transferencia += total;
-        else if (n.forma === "M") { acc.efectivo += n.mixEfe || 0; acc.transferencia += n.mixTr || 0; }
+        else if (n.forma === "M") {
+          const mt = n.mixTr || 0;
+          const me = (n.mixEfe != null && (mt + (n.mixEfe || 0)) === total) ? n.mixEfe : (total - mt);
+          acc.efectivo += me; acc.transferencia += mt;
+        }
         else acc.efectivo += total;
         if (n.desglose) for (const d in n.desglose) denom[d] = (denom[d] || 0) + (n.desglose[d] || 0);
         if (pago > 0) acc.clientas += 1;
