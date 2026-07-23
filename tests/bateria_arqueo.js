@@ -124,6 +124,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("arqueo y consolidado ven el MISMO efectivo", Math.abs(a.efectivo - c.total.efectivo) < 0.01,
      a.efectivo + " vs " + c.total.efectivo);
 
+  console.log("\n— 8. FECHA CORREGIDA: el día equivocado NO se cuenta doble —");
+  const semana = async () => j(await fetch(U + "/api/semana", { headers: H(cd) }));
+  const AYER = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10); })();
+  const syncF = (fecha, snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha, snapshot: snap, ts: Date.now() }) });
+  const s0 = (await semana()).totalSemana;
+  // el teléfono capturó $5,000 con la fecha de AYER (pegado en el día viejo)
+  await syncF(AYER, { reg: { "C-99": { "sx|P": { pago: 5000, forma: "E" } } }, regI: {}, movs: [] });
+  // corrige la fecha: lo mismo se re-sincroniza HOY (ya está en la captura de hoy previa)…
+  let sm = (await semana()).totalSemana;
+  ok("mientras no se corrige, la semana trae el día duplicado (+5000)", Math.abs(sm - (s0 + 5000)) < 0.01, sm + " vs " + (s0 + 5000));
+  // …y la app avisa al servidor que AYER estaba mal etiquetado
+  let rr = await j(await fetch(U + "/api/reetiquetado", { method: "POST", headers: H(ce), body: JSON.stringify({ de: AYER }) }));
+  sm = (await semana()).totalSemana;
+  ok("tras corregir la fecha, el día equivocado se retira (semana vuelve a cuadrar)", rr.retirado === true && Math.abs(sm - s0) < 0.01, "retirado " + rr.retirado + " · semana " + sm + " vs " + s0);
+  rr = await j(await fetch(U + "/api/reetiquetado", { method: "POST", headers: H(ce), body: JSON.stringify({ de: HOY }) }));
+  ok("blindaje: no se puede retirar la captura de HOY", !!rr.error, JSON.stringify(rr).slice(0, 60));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -140,6 +140,20 @@ app.post("/api/logout", (req, res) => {
   res.setHeader("Set-Cookie", "sid=; HttpOnly; Path=/; Max-Age=0");
   res.json({ ok: true });
 });
+// Cuando la app corrige su fecha (estaba pegada en ayer), lo capturado se
+// re-etiqueta a HOY y se re-sincroniza. Este endpoint retira el snapshot que
+// quedó bajo la fecha EQUIVOCADA (se archiva antes) — sin esto, la tarjeta de
+// la semana sumaba ese dinero DOS veces, una por cada fecha.
+app.post("/api/reetiquetado", requiere("ejecutivo"), (req, res) => {
+  const de = String((req.body || {}).de || "").trim();
+  const hoy = hoyMX();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(de)) return res.status(400).json({ error: "Fecha inválida." });
+  if (de === hoy) return res.status(400).json({ error: "No se puede retirar la captura de HOY." });
+  const habia = store.retirarSnapshot(req.usuario.id, de);
+  if (habia) console.log(`[reetiquetado] ${req.usuario.id}: retirado el snapshot mal fechado de ${de} (archivado en historial)`);
+  res.json({ ok: true, retirado: habia, de, hoy });
+});
+
 app.get("/api/me", (req, res) => {
   const u = usuarioDe(req);
   if (!u) return res.status(401).json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." });

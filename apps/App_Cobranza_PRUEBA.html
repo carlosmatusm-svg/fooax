@@ -540,6 +540,7 @@ async function enviarArqueoYCerrar(){
   }catch(e){}
   try{localStorage.removeItem(STORE_KEY);}catch(e){}
   reg={};regI={};movs=[];folioSeq=0;
+  arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});if(typeof calcArqueo==='function')try{calcArqueo();}catch(e){}
   if(typeof gestRenov!=='undefined')gestRenov={};
   if(typeof tareasGerente!=='undefined')tareasGerente={};
   window._reporteEnviado=false;
@@ -575,13 +576,14 @@ function cerrarDia(){
   guardarDiaEnSemana(); // guarda snapshot del día para el cierre semanal
   localStorage.removeItem(STORE_KEY);
   reg={};regI={};movs=[];folioSeq=0;gestRenov={};tareasGerente={};window._reporteEnviado=false;
+  arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
   render();renderIndiv();renderRenov();recalc();
   if(ES_GERENTE)renderGerente();
   alert('Día cerrado. La app quedó lista para la próxima captura.');
 }
 
 
-function fmt(n){return '$'+(Math.round(n)).toLocaleString('es-MX');}
+function fmt(n){const v=Math.round((+n||0)*100)/100;return '$'+v.toLocaleString('es-MX',{minimumFractionDigits:(v%1)?2:0,maximumFractionDigits:2});}
 function hoyISO(){
   // La fecha OFICIAL es la del servidor (hora de México). Antes esto usaba
   // toISOString(), que es UTC: después de las 6pm en México ya daba el día

@@ -238,6 +238,31 @@ module.exports = {
   movimientosDeFecha(fecha) {
     return mem.movimientos.filter((m) => m.fecha === fecha);
   },
+  // Retira el snapshot de un día (lo archiva en el historial ANTES de quitarlo).
+  // Se usa cuando una captura estaba MAL FECHADA y ya se re-etiquetó al día
+  // correcto: sin esto, la semana contaba ese dinero dos veces (una por fecha).
+  retirarSnapshot(ejecutivo, fecha) {
+    const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
+    if (!rec) return false;
+    const copia = Object.assign({}, rec, { archivado: Date.now(), motivo: "reetiquetado" });
+    if (usePg) {
+      pool.query(
+        "INSERT INTO snapshots_hist (ejecutivo, fecha, data, ts, recibido, archivado) VALUES ($1,$2,$3,$4,$5,$6)",
+        [ejecutivo, fecha, copia, copia.ts || 0, copia.recibido || 0, copia.archivado]
+      ).catch((e) => console.error("[store] hist reetiquetado:", e.message));
+      pool.query("DELETE FROM snapshots WHERE ejecutivo=$1 AND fecha=$2", [ejecutivo, fecha])
+        .catch((e) => console.error("[store] retirar:", e.message));
+    } else {
+      try {
+        const ph = path.join(DATA_DIR, "snapshots_hist.jsonl");
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.appendFileSync(ph, JSON.stringify({ ejecutivo, fecha, ...copia }) + "\n");
+      } catch (e) { console.error("[store] hist reetiquetado:", e.message); }
+    }
+    delete mem.snapshots[ejecutivo][fecha];
+    if (!usePg) escribirJSON("snapshots.json", mem.snapshots);
+    return true;
+  },
   // Marca/desmarca un movimiento como ANULADO. Nunca se borra: si la ejecutiva
   // lo quitó en su app, aquí queda el rastro (y deja de contar en los totales).
   setMovimientoAnulado(folio, anulado) {

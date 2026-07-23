@@ -60,15 +60,22 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
 // teléfono quedó pegado en un día viejo, alerta en grande y corrige de un
 // toque: lo capturado se re-etiqueta a HOY y se sincroniza — no se pierde nada.
 window.__corregirFechaHoy = function (hoy) {
+  var fechaVieja = null;
   try {
     if (typeof STORE_KEY === "string") {
       const raw = localStorage.getItem(STORE_KEY);
-      if (raw) { const d = JSON.parse(raw); d.fecha = hoy; localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
+      if (raw) { const d = JSON.parse(raw); fechaVieja = d.fecha || null; d.fecha = hoy; localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
     }
     const inp = document.getElementById("inpFecha");
     if (inp) inp.value = hoy;
     if (typeof updFecha === "function") try { updFecha(); } catch (e) {}
     if (typeof guardar === "function") guardar(); // dispara la sincronización ya con la fecha buena
+    // Retira del servidor la captura que quedó bajo la fecha equivocada (se
+    // archiva primero). Sin esto, la semana contaba ese dinero dos veces.
+    if (fechaVieja && fechaVieja !== hoy) {
+      fetch("/api/reetiquetado", { method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ de: fechaVieja }) }).catch(function () {});
+    }
   } catch (e) {}
   const b = document.getElementById("fooax-fecha-banner"); if (b) b.remove();
   window.__fechaAvisada = false;

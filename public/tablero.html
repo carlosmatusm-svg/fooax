@@ -378,7 +378,7 @@
 </div>
 <script>
 const $ = id => document.getElementById(id);
-const dinero = n => "$" + (n || 0).toLocaleString("es-MX");
+const dinero = n => { const v = Math.round((+n || 0) * 100) / 100; return "$" + v.toLocaleString("es-MX", { minimumFractionDigits: (v % 1) ? 2 : 0, maximumFractionDigits: 2 }); };
 const COLORES = { neri: "#F44C5D", karina: "#F1228E", christopher: "#FD6E29" };
 const SVG_OPEN = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
 const IC = {
