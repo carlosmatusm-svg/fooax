@@ -501,7 +501,10 @@ function textoArqueoApp(){
   const {efe,tr,acc}=totales();
   const movEfe=(typeof movsEfectivoNeto==='function')?movsEfectivoNeto():0;
   const fecha=document.getElementById('inpFecha').value||hoyISO();
-  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
   const L=[];
   L.push('🧾 *FOOAX · ARQUEO DEL DÍA*');
   L.push('👤 '+EJECUTIVO);
@@ -1619,7 +1622,10 @@ function copiarWA(){const txt=window._wa||'';
    No descarga archivo; manda texto legible (lo pidió el Lic.). */
 function resumenTextoCobranza(){
   const fecha=document.getElementById('inpFecha').value||hoyISO();
-  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
   let txt='🌸 *FOOAX · COBRANZA DEL DÍA*\n';
   txt+='👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n';
   txt+='━━━━━━━━━━━━━━━\n';
@@ -1688,7 +1694,10 @@ function resumenTextoCobranza(){
 }
 function resumenTextoGarantias(){
   const fecha=document.getElementById('inpFecha').value||hoyISO();
-  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
   let txt='🔐 *FOOAX · GARANTÍAS DEL DÍA*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
   let gran=0, granN=0;
   for(const centroKey in reg){
@@ -1711,7 +1720,10 @@ function resumenTextoGarantias(){
 }
 function resumenTextoMovs(){
   const fecha=document.getElementById('inpFecha').value||hoyISO();
-  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
   if(movs.length===0)return '';
   let txt='📋 *FOOAX · OTROS MOVIMIENTOS*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
   const porConcepto={}; let gran=0;
