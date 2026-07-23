@@ -539,6 +539,7 @@ async function enviarArqueoYCerrar(){
   if(!confirm(msg))return;
   try{if(window.__forzarSync)await window.__forzarSync();}catch(e){}
   if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
+  avisarCierre();
   window._reporteEnviado=true;
   try{
     if(navigator.share){await navigator.share({title:'Arqueo del día',text:texto});}
@@ -557,6 +558,14 @@ async function enviarArqueoYCerrar(){
   if(typeof ES_GERENTE!=='undefined' && ES_GERENTE && typeof renderGerente==='function')renderGerente();
   if(typeof calcArqueo==='function')calcArqueo();
   alert('✅ Arqueo enviado y captura cerrada. El día quedó guardado en la nube.');
+}
+// Avisa al servidor que la ejecutiva CERRÓ su día (para que el tablero
+// muestre quién usó el botón y quién se lo saltó).
+function avisarCierre(){
+  try{
+    var f=document.getElementById('inpFecha').value||hoyISO();
+    fetch('/api/cierre',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:f})}).catch(function(){});
+  }catch(e){}
 }
 function cerrarDia(){
   // EXIGIR envío del reporte del día si hubo cobranza
@@ -580,6 +589,7 @@ function cerrarDia(){
   }
   if(!confirm('¿Cerrar el día? Esto borra lo capturado de este celular. Asegúrate de haber exportado o enviado el detalle a Monse primero.'))return;
   guardarDiaEnSemana(); // guarda snapshot del día para el cierre semanal
+  avisarCierre();
   localStorage.removeItem(STORE_KEY);
   reg={};regI={};movs=[];folioSeq=0;gestRenov={};tareasGerente={};window._reporteEnviado=false;
   arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});

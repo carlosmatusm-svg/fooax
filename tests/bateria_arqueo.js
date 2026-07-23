@@ -142,6 +142,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   rr = await j(await fetch(U + "/api/reetiquetado", { method: "POST", headers: H(ce), body: JSON.stringify({ de: HOY }) }));
   ok("blindaje: no se puede retirar la captura de HOY", !!rr.error, JSON.stringify(rr).slice(0, 60));
 
+  console.log("\n— 9. CIERRE DEL DÍA: queda registrado quién usó el botón —");
+  let cc = await j(await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: HOY }) }));
+  const cons = await consolidado();
+  ok("el cierre se marca y el tablero lo ve", cc.marcado === true && !!cons.ejecutivos.prueba.cierre,
+     "marcado " + cc.marcado + " · cierre " + cons.ejecutivos.prueba.cierre);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

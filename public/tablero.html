@@ -437,7 +437,9 @@ async function cargar() {
   $("chipSync").innerHTML = FECHA_VISTA ? "" : Object.values(d.ejecutivos).map((e) => {
     const ok = !!e.ultimaSync;
     const hora = ok ? new Date(e.ultimaSync).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "";
-    return '<span class="cs ' + (ok ? "ok" : "no") + '">' + (ok ? IC.cloud : "") + e.nombre + (ok ? " · " + hora : " · sin sincronizar") + "</span>";
+    // "cerró ✓" = tocó el botón de enviar arqueo/cerrar; sin eso, se lo saltó.
+    const cerro = e.cierre ? " · cerró " + new Date(e.cierre).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) + " ✓" : "";
+    return '<span class="cs ' + (ok ? "ok" : "no") + '">' + (ok ? IC.cloud : "") + e.nombre + (ok ? " · " + hora + cerro : " · sin sincronizar") + "</span>";
   }).join("");
   const t = d.total;
   const totalDia = t.pago + t.garantias;

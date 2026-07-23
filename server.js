@@ -144,6 +144,15 @@ app.post("/api/logout", (req, res) => {
 // re-etiqueta a HOY y se re-sincroniza. Este endpoint retira el snapshot que
 // quedó bajo la fecha EQUIVOCADA (se archiva antes) — sin esto, la tarjeta de
 // la semana sumaba ese dinero DOS veces, una por cada fecha.
+// La ejecutiva avisa que CERRÓ su día (tocó el botón de enviar arqueo /
+// cerrar). Queda la hora en el snapshot: el tablero muestra quién cerró con el
+// botón y quién se lo saltó — antes no había forma de saberlo.
+app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
+  const fecha = String((req.body || {}).fecha || hoyMX()).trim();
+  const marcado = store.marcarCierre(req.usuario.id, fecha);
+  res.json({ ok: true, marcado, fecha });
+});
+
 app.post("/api/reetiquetado", requiere("ejecutivo"), (req, res) => {
   const de = String((req.body || {}).de || "").trim();
   const hoy = hoyMX();
@@ -337,7 +346,7 @@ app.get("/api/consolidado", requiere("direccion", "admin"), (req, res) => {
       movimientos = Array.isArray(data.movs) ? data.movs.length : 0;
       ultimaSync = s.recibido;
     }
-    ejecutivos[id] = { nombre: USUARIOS[id].nombre, ...acc, movimientos, ultimaSync };
+    ejecutivos[id] = { nombre: USUARIOS[id].nombre, ...acc, movimientos, ultimaSync, cierre: (s && s.cierre) || null };
   }
   const total = Object.values(ejecutivos).reduce((t, e) => ({
     pago: t.pago + e.pago, garantias: t.garantias + e.garantias,

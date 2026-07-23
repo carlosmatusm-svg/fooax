@@ -238,6 +238,16 @@ module.exports = {
   movimientosDeFecha(fecha) {
     return mem.movimientos.filter((m) => m.fecha === fecha);
   },
+  // Marca la hora en que la ejecutiva CERRÓ su día (botón "Enviar arqueo y
+  // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
+  // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.
+  marcarCierre(ejecutivo, fecha) {
+    const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
+    if (!rec) return false;
+    rec.cierre = Date.now();
+    persistSnapshot(ejecutivo, fecha, rec);
+    return true;
+  },
   // Retira el snapshot de un día (lo archiva en el historial ANTES de quitarlo).
   // Se usa cuando una captura estaba MAL FECHADA y ya se re-etiquetó al día
   // correcto: sin esto, la semana contaba ese dinero dos veces (una por fecha).
