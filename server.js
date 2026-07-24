@@ -91,6 +91,46 @@ function paginaRequiere(...roles) {
 }
 
 // ---------- diagnóstico (sin datos sensibles) ----------
+// ---------- DIAGNÓSTICO/REPARACIÓN TEMPORAL del arqueo (token; quitar al terminar) ----------
+const DIAG_ARQ_TOKEN = "arq-fooax-848-fix-9k";
+function contadoDe(arqueo) {
+  let t = 0; for (const d in (arqueo || {})) t += Number(d) * (Number(arqueo[d]) || 0); return t;
+}
+app.get("/api/_arq", async (req, res) => {
+  if (req.query.token !== DIAG_ARQ_TOKEN) return res.status(403).json({ error: "token" });
+  const fecha = req.query.fecha || hoyMX();
+  const reales = Object.keys(USUARIOS).filter((id) => USUARIOS[id].rol === "ejecutivo" && !USUARIOS[id].test);
+  const snaps = store.snapshotsDeFecha(fecha);
+  const out = {};
+  for (const id of reales) {
+    const rec = snaps[id]; if (!rec) { out[id] = null; continue; }
+    let d = rec.snapshot; if (typeof d === "string") { try { d = JSON.parse(d); } catch { d = {}; } }
+    const acc = { pago: 0, garantias: 0, solidario: 0, efectivo: 0, transferencia: 0, clientasPagaron: 0 };
+    acumular(d.reg, acc); acumular(d.regI, acc);
+    const movs = movsDeFecha(fecha, { ...USUARIOS[id], id });   // sus movimientos vivos
+    const egr = egresosEnEfectivo(movs);
+    const aEntregar = acc.efectivo - egr;
+    const contado = contadoDe(d.arqueo);
+    out[id] = {
+      efectivo: acc.efectivo, aEntregar,
+      contadoBilletes: contado,
+      diferencia: Math.round((contado - aEntregar) * 100) / 100,
+      inflado: contado > aEntregar + 1,
+      arqueo: d.arqueo || {},
+    };
+  }
+  // historial de conteos de ese día (para hallar el conteo bueno antes de doblar)
+  if (req.query.hist) {
+    let hist = []; try { hist = await store.historialDeFecha(fecha); } catch (e) {}
+    out._historial = {};
+    for (const h of hist) {
+      let d = h.snapshot; if (typeof d === "string") { try { d = JSON.parse(d); } catch { d = {}; } }
+      (out._historial[h.ejecutivo] = out._historial[h.ejecutivo] || []).push({ archivado: h.archivado, contado: contadoDe(d.arqueo), arqueo: d.arqueo || {} });
+    }
+  }
+  res.json({ fecha, ejecutivos: out });
+});
+
 app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
