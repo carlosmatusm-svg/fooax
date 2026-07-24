@@ -115,6 +115,21 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   a = await arqueo();
   ok("si lo reenvía, revive y vuelve a contar", a.efectivoAEntregar === 1700, "aEntregar " + a.efectivoAEntregar);
 
+  console.log("\n— 5c. EL BUG DEL MARTES: un sync VACÍO no anula los movimientos —");
+  // La app abrió limpia (o el blindaje la rechaza) y manda movs:[]. NADIE borró
+  // nada: los movimientos del día deben SEGUIR contando. Antes esto anulaba todo.
+  await j(await sync({ reg: {}, regI: {}, movs: [] }));   // rechazado por blindaje
+  a = await arqueo();
+  ok("sync vacío rechazado NO anula: 'a entregar' se mantiene en 1700", a.efectivoAEntregar === 1700, "aEntregar " + a.efectivoAEntregar);
+  let lm5c = await j(await fetch(U + "/api/movimientos", { headers: H(cd) }));
+  const vivos5c = lm5c.lista.filter((m) => !m.anulado).length;
+  ok("los movimientos siguen VIVOS tras el sync vacío (nadie los borró): 2 vivos",
+     vivos5c === 2, "vivos " + vivos5c);
+  // captura con cobranza pero SIN movimientos (movs:[]) tampoco anula
+  await sync({ reg: { "C-99": { "s1|P": { pago: 1000, forma: "E" } } }, regI: {}, movs: [], arqueo: { "1000": 1, "500": 1, "20": 5 } });
+  a = await arqueo();
+  ok("captura con cobranza y movs:[] tampoco anula (a entregar 1700)", a.efectivoAEntregar === 1700, "aEntregar " + a.efectivoAEntregar);
+
   console.log("\n— 6. BLINDAJES —");
   let r = await j(await sync({ reg: {}, regI: {}, movs: [] }));
   ok("captura vacía NO pisa cobranza (rechazada)", r.rechazado === "vacio_sobre_lleno", JSON.stringify(r).slice(0, 80));

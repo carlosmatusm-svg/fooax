@@ -247,6 +247,7 @@ module.exports = {
   movimientosDeFecha(fecha) {
     return mem.movimientos.filter((m) => m.fecha === fecha);
   },
+  todosMovimientos() { return mem.movimientos; },
   // Marca la hora en que la ejecutiva CERRÓ su día (botón "Enviar arqueo y
   // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
   // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.

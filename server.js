@@ -225,21 +225,26 @@ function contarPagos(snap) {
 // movimientos". Antes se quedaban enterrados dentro del snapshot: Anel y Monse
 // NO los veían en el tablero, ni entraban al arqueo, ni salían en el respaldo
 // (la hoja de Movimientos estaba vacía aunque en campo sí se capturaban).
-function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
-  // La app manda SIEMPRE su lista completa del día. Si un folio ya guardado no
-  // viene en el envío, la ejecutiva lo BORRÓ en su app: aquí se marca ANULADO
-  // (nunca se borra — queda el rastro y deja de contar). Si vuelve a venir, se
-  // revive. Antes el borrado no se propagaba y el arqueo contaba movimientos
-  // fantasma que la ejecutiva ya había quitado.
+function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular) {
+  // La app manda su lista completa de la sesión. Si un folio ya guardado no
+  // viene, la ejecutiva lo BORRÓ → se marca ANULADO (nunca se borra; queda el
+  // rastro y deja de contar); si vuelve a venir, revive.
   if (!Array.isArray(snapshot && snapshot.movs)) return;
   const lista = snapshot.movs;
   const prefijo = "EJE-" + usuario.id.toUpperCase() + "-";
   const presentes = new Set(lista.filter((m) => Number(m && m.monto) > 0)
     .map((m) => prefijo + (m.folio || Math.abs(Number(m.monto)) + "-" + String(m.concepto || "").toUpperCase())));
-  for (const viejo of store.movimientosDeFecha(fecha)) {
-    if (!String(viejo.folio).startsWith(prefijo)) continue;   // solo los SUYOS
-    if (!presentes.has(viejo.folio) && !viejo.anulado) store.setMovimientoAnulado(viejo.folio, true);
-    if (presentes.has(viejo.folio) && viejo.anulado) store.setMovimientoAnulado(viejo.folio, false);
+  // ANULAR es PELIGROSO: solo cuando la sincronización es una edición real de la
+  // sesión (permitirAnular) Y trae al menos un movimiento. Una lista VACÍA NO
+  // anula — casi siempre significa "la app abrió limpia / sync rechazada /
+  // arranque del servidor", no "la ejecutiva borró todo". Ese era el bug que
+  // anulaba los movimientos del martes en cada deploy y en cada sync vacío.
+  if (permitirAnular && lista.length > 0) {
+    for (const viejo of store.movimientosDeFecha(fecha)) {
+      if (!String(viejo.folio).startsWith(prefijo)) continue;   // solo los SUYOS
+      if (!presentes.has(viejo.folio) && !viejo.anulado) store.setMovimientoAnulado(viejo.folio, true);
+      if (presentes.has(viejo.folio) && viejo.anulado) store.setMovimientoAnulado(viejo.folio, false);
+    }
   }
   for (const m of lista) {
     const monto = Number(m && m.monto);
@@ -247,7 +252,7 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
     const cve = String(m.concepto || "").toUpperCase();
     const def = CONCEPTOS_EJEC[cve] || { etiqueta: m.concepto || "Otro", categoria: "Otro", entrada: false };
     const quien = [m.clienta, m.socio].filter(Boolean).join(" · ");
-    store.agregarMovimiento({
+    const nuevo = {
       // El folio de la app ya es único por ejecutiva y día; se le antepone el
       // usuario para no chocar nunca con los folios DIR- de dirección. Como
       // agregarMovimiento es append-only por folio, re-sincronizar no duplica.
@@ -262,7 +267,21 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
       socio: m.socio ? String(m.socio) : null,
       autorizadoA: m.clienta || null,
       registradoPor: usuario.nombre, rol: usuario.rol, usuario: usuario.id, ts: Date.now(),
-    });
+    };
+    // Red de seguridad para FOLIOS REINICIADOS: la sesión nueva (tras cerrar)
+    // vuelve a numerar desde 1, así que un folio puede repetirse con CONTENIDO
+    // DISTINTO — es un movimiento NUEVO. Si ya existe ese folio con otra
+    // cantidad/concepto/método, se re-etiqueta (folio~2, ~3…) para no perderlo;
+    // mismo contenido = mismo movimiento y agregarMovimiento lo deja idempotente.
+    const mismo = (x) => Number(x.monto) === monto && String(x.concepto) === nuevo.concepto && x.metodo === nuevo.metodo;
+    const choques = store.movimientosDeFecha(fecha)
+      .filter((x) => x.folio === nuevo.folio || String(x.folio).indexOf(nuevo.folio + "~") === 0);
+    if (choques.length && !choques.some(mismo)) {
+      const base = nuevo.folio;
+      let i = 2; while (store.movimientosDeFecha(fecha).some((x) => x.folio === base + "~" + i)) i++;
+      nuevo.folio = base + "~" + i;
+    }
+    store.agregarMovimiento(nuevo);
   }
 }
 
@@ -344,10 +363,9 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   if (antes != null && antes > 0 && (ahora === 0 || ahora == null)) {
     console.warn(`[sync] RECHAZADO vacío de ${req.usuario.id} para ${fecha}: el servidor tiene ${antes} pagos, la app mandó 0. No se sobrescribe.`);
     syncRechazos[req.usuario.id] = { fecha, pagosEnServidor: antes, ts: Date.now() };
-    // Los "otros movimientos" SÍ se guardan: son append-only por folio, así que
-    // no pueden borrar nada, y si no se guardaran aquí se perderían junto con
-    // el snapshot rechazado.
-    guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot);
+    // Los "otros movimientos" SÍ se guardan (append-only por folio) — pero NO se
+    // anula nada: la sincronización viene vacía/rechazada, no es una edición.
+    guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot, false);
     return res.json({ ok: false, rechazado: "vacio_sobre_lleno", pagosEnServidor: antes, hoy });
   }
   // FUSIÓN POST-CIERRE: si el día ya se cerró (enviaron el arqueo) y llega más
@@ -378,7 +396,12 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
     }
   } catch (e) { snapFinal = snapshot; }
   store.guardarSnapshot(req.usuario.id, fecha, { snapshot: snapFinal, ts: ts || Date.now() });
-  guardarMovimientosDeEjecutiva(req.usuario, fecha, snapFinal);
+  // ANULAR solo se permite en la sesión ABIERTA (antes del cierre): ahí sí, si
+  // la ejecutiva quitó un movimiento, su envío completo lo omite y se anula. YA
+  // CERRADO, los movimientos se acumulan por la fusión y NUNCA se anulan por una
+  // sesión nueva que no los reenvíe — si no, los movimientos comprometidos de la
+  // mañana desaparecían al capturar en la tarde (misma familia del bug del martes).
+  guardarMovimientosDeEjecutiva(req.usuario, fecha, snapFinal, !(previo && previo.cierre));
   if (fecha !== hoy) desfasesFecha[req.usuario.id] = { fecha, hoy, ts: Date.now() };
   else delete desfasesFecha[req.usuario.id];
   const ahoraFinal = (snapFinal === snapshot) ? ahora : contarPagos(snapFinal);
@@ -1584,16 +1607,35 @@ function recuperarMovimientosHistoricos() {
       let data = snaps[ejId][fecha].snapshot;
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
       const antes = store.movimientosDeFecha(fecha).length;
-      guardarMovimientosDeEjecutiva({ ...u, id: ejId }, fecha, data);
+      guardarMovimientosDeEjecutiva({ ...u, id: ejId }, fecha, data, false);
       n += store.movimientosDeFecha(fecha).length - antes;
     }
   }
   if (n > 0) console.log(`[movimientos] recuperados ${n} de campo que estaban solo en snapshots`);
 }
 
+// Reparación de los ANULADOS FALSOS: hasta este fix, la anulación corría con
+// lista vacía (sync rechazada / arranque) y marcaba ANULADO movimientos que
+// NADIE borró — por eso el martes se descuadró. Corregida ya la causa, esto
+// des-anula los que quedaron marcados ANTES del corte (todos los falsos). Una
+// anulación LEGÍTIMA futura (posterior al corte) trae anuladoTs mayor y se
+// respeta. Es idempotente: una vez des-anulado, ya no hay nada que tocar.
+const REPARACION_ANULADOS_CORTE = 1784920524523; // 2026-07-24 ~19:15 UTC
+function repararAnuladosFalsos() {
+  let n = 0;
+  for (const m of store.todosMovimientos()) {
+    if (m.anulado && (!m.anuladoTs || m.anuladoTs < REPARACION_ANULADOS_CORTE)) {
+      store.setMovimientoAnulado(m.folio, false);
+      n++;
+    }
+  }
+  if (n > 0) console.log(`[reparación] des-anulados ${n} movimientos que el bug marcó ANULADO por error`);
+}
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
   recuperarMovimientosHistoricos();
+  repararAnuladosFalsos();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });
