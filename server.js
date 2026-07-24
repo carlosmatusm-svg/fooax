@@ -1830,12 +1830,14 @@ function repararAnuladosFalsos() {
 // Reparación ÚNICA de la captura de Karina del 24-jul-2026: su app NUNCA
 // alcanzó a subir la versión correcta (el tablero solo tenía la doblada por
 // re-entrada). Reconstruida desde sus CSV y verificada contra su reporte:
-// cobranza $24,736.50 · 48 pagos · efectivo a entregar $40,876.50. Se aplica una
-// sola vez (centinela), marca cierre para que quede estable, y agrega las 9
-// liquidaciones SOLO si faltan (idempotente por folio). La versión que había se
-// archiva sola en guardarSnapshot, así que sigue siendo recuperable.
+// cobranza $24,736.50 · 48 pagos · efectivo a entregar $40,876.50.
+// v2: además de reconstruir la cobranza, DEJA LOS MOVIMIENTOS EXACTOS del día:
+// anula CUALQUIER movimiento de Karina del 24-jul que NO sea una de las 9
+// liquidaciones correctas (el día doblado había dejado movimientos basura que
+// inflaban "otros" a $37,992 en vez de $16,380). Nada se borra: los extras
+// quedan ANULADOS (con rastro) y dejan de contar. Corre una sola vez (centinela).
 function repararCapturaKarina24jul() {
-  const CENTINELA = "MIGR-KARINA-2026-07-24";
+  const CENTINELA = "MIGR-KARINA-2026-07-24-v2";
   if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;   // ya aplicada
   const FECHA = "2026-07-24", EJ = "karina";
   let datos;
@@ -1855,10 +1857,21 @@ function repararCapturaKarina24jul() {
     ["KAR-2407-12", 1080, "11113116034", "WENDI EDITH AVENDAÑO ZEPEDA"],
     ["KAR-2407-13", 1620, "11113315176", "ITZEL ZUZUNAGA SOSA"],
   ];
+  const foliosOK = new Set(LIQ.map(([f]) => "EJE-KARINA-" + f));
+  // 1) Anula los movimientos BASURA de Karina del día (los que no son de los 9);
+  //    revive los 9 correctos por si alguno quedó anulado.
+  let anulados = 0;
+  for (const m of store.movimientosDeFecha(FECHA)) {
+    if (usuarioDeMov(m) !== EJ) continue;                 // solo los de Karina
+    if (m.folio === CENTINELA) continue;
+    if (foliosOK.has(m.folio)) { if (m.anulado) store.setMovimientoAnulado(m.folio, false); }
+    else if (!m.anulado) { store.setMovimientoAnulado(m.folio, true); anulados++; }
+  }
+  // 2) Asegura que las 9 correctas existan (idempotente por folio).
   let addl = 0;
   for (const [f, monto, socio, clienta] of LIQ) {
     const folio = "EJE-KARINA-" + f;
-    if (store.todosMovimientos().some((m) => m.folio === folio)) continue;   // ya existe: no duplicar
+    if (store.todosMovimientos().some((m) => m.folio === folio)) continue;
     store.agregarMovimiento({
       folio, fecha: FECHA, monto, concepto: "Liquidación · " + clienta + " · " + socio,
       categoria: "Otro", metodo: "efectivo", entrada: true, socio,
@@ -1868,9 +1881,8 @@ function repararCapturaKarina24jul() {
   }
   // Que el teléfono de Karina suelte su sesión (para que no re-suba la doblada).
   try { borrarTelefono.add(EJ); } catch (e) {}
-  // Centinela invisible (fecha vieja + anulado) para correr una sola vez.
   store.agregarMovimiento({ folio: CENTINELA, fecha: "2000-01-01", monto: 0, concepto: "migración", anulado: true, usuario: EJ, ts: Date.now() });
-  console.log(`[reparación] captura correcta de Karina 24-jul inyectada (cobranza reconstruida, ${addl} liquidaciones agregadas)`);
+  console.log(`[reparación] Karina 24-jul: cobranza reconstruida · ${addl} liquidaciones agregadas · ${anulados} movimientos basura anulados`);
 }
 
 store.init().then(() => {
