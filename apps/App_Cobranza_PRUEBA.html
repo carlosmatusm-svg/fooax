@@ -468,17 +468,19 @@ function restaurar(){
     if(d.fecha && d.fecha!==hoy){
       const tieneAlgo=(d.reg&&Object.keys(d.reg).length)||(d.regI&&Object.keys(d.regI).length)||(d.movs&&d.movs.length);
       if(tieneAlgo){
-        const seguir=confirm('⚠ Hay captura guardada del '+d.fecha+' (un día anterior).\n\nACEPTAR: empezar limpio hoy ('+hoy+'). La captura del '+d.fecha+' queda guardada y se sincroniza sola a su día — no se pierde.\n\nCANCELAR: seguir viendo la captura del '+d.fecha+'.');
-        if(seguir){
-          // apartar la captura del día anterior: se sube sola a SU fecha (sync.js)
-          try{localStorage.setItem('fooax_pend_'+d.fecha+'_'+STORE_KEY,raw);}catch(e){}
-          localStorage.removeItem(STORE_KEY);
-          document.getElementById('inpFecha').value=hoy;
-          return; // empieza limpio; lo del día anterior quedó apartado, no borrado
-        }
-        // Eligió CANCELAR: va a terminar el día anterior A PROPÓSITO — que el
-        // aviso rojo de fecha no la tiente a re-etiquetarlo como hoy.
+        // BLOQUEO TOTAL (regla Karina 23-jul): un día anterior sin enviar su
+        // arqueo detiene la app. Se carga tal cual (con SU fecha) y lo único
+        // que se puede hacer es tocar "Enviar arqueo". Al enviarlo, la app
+        // queda lista para hoy; sin señal, la captura sigue guardada.
+        if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs;
+        if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
+        folioSeq=Math.max(d.folioSeq||0,(movs||[]).length);
+        if(d.arqueo){arqueo=d.arqueo;setTimeout(()=>{let usados={};DENOM.forEach((dd,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');if(!inp)return;const tot=arqueo[dd.v]||0;const ya=usados[dd.v]||0;const q=Math.max(0,tot-ya);if(q>0){inp.value=q;usados[dd.v]=ya+q;}});if(document.querySelector('[data-den]'))calcArqueo();},0);}
+        document.getElementById('inpFecha').value=d.fecha; // conserva SU fecha real
         try{sessionStorage.setItem('fooax_fecha_ok',d.fecha);}catch(e){}
+        if(typeof updFecha==='function')try{updFecha();}catch(e){}
+        setTimeout(function(){mostrarBloqueoArqueo(d.fecha);},60);
+        return;
       }
     }
     if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs; if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
@@ -518,6 +520,83 @@ function textoArqueoApp(){
   }
   return L.join('\n');
 }
+// —— "Vas a mandar esto": confirmación con palomita (regla Karina 23-jul).
+// Sin la palomita de "es verdad", el botón de enviar no se activa.
+function confirmarArqueo(texto,nota){
+  return new Promise(function(res){
+    var o=document.createElement('div');o.id='fooax-conf-arqueo';
+    o.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(42,31,53,.96);display:flex;align-items:center;justify-content:center;padding:16px';
+    o.innerHTML='<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;max-height:86vh;display:flex;flex-direction:column;overflow:hidden">'
+      +'<div style="padding:14px 16px 10px;font:800 16px/1.3 inherit;color:#2A1F35">Vas a mandar esto</div>'
+      +(nota?'<div style="margin:0 16px 8px;padding:8px 11px;background:#FBF0DD;border-radius:10px;font:600 12px/1.4 inherit;color:#8A5A00">'+nota+'</div>':'')
+      +'<pre style="margin:0 16px;padding:10px 12px;background:#F6F3F9;border-radius:12px;white-space:pre-wrap;font:12.5px/1.5 inherit;color:#2A1F35;overflow:auto;flex:1">'+String(texto).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</pre>'
+      +'<label style="display:flex;gap:9px;align-items:flex-start;padding:12px 16px 4px;font:600 13px/1.4 inherit;color:#2A1F35;cursor:pointer">'
+      +'<input id="fooaxChkVerdad" type="checkbox" style="width:20px;height:20px;flex:none;accent-color:#0B7247">'
+      +'<span>Confirmo que lo que capturé es <b>verdadero</b> y está completo.</span></label>'
+      +'<div style="display:flex;gap:8px;padding:12px 16px 16px">'
+      +'<button id="fooaxConfNo" style="flex:1;font:700 14px inherit;background:#EEF0F8;color:#324AB6;border:none;border-radius:12px;padding:12px">Volver</button>'
+      +'<button id="fooaxConfSi" disabled style="flex:2;font:800 14px inherit;background:#B9C2D2;color:#fff;border:none;border-radius:12px;padding:12px">Enviar arqueo</button>'
+      +'</div></div>';
+    document.body.appendChild(o);
+    var chk=o.querySelector('#fooaxChkVerdad'),si=o.querySelector('#fooaxConfSi');
+    chk.onchange=function(){si.disabled=!chk.checked;si.style.background=chk.checked?'#0B7247':'#B9C2D2';};
+    o.querySelector('#fooaxConfNo').onclick=function(){o.remove();res(false);};
+    si.onclick=function(){if(!chk.checked)return;o.remove();res(true);};
+  });
+}
+// Limpieza común después de enviar el arqueo (día cerrado, app lista para HOY).
+function __despuesDeEnviar(){
+  try{localStorage.removeItem(STORE_KEY);}catch(e){}
+  reg={};regI={};movs=[];folioSeq=0;
+  arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
+  if(typeof gestRenov!=='undefined')gestRenov={};
+  if(typeof tareasGerente!=='undefined')tareasGerente={};
+  window._reporteEnviado=false;
+  try{document.getElementById('inpFecha').value=(window.__hoyServidor||hoyISO());}catch(e){}
+  if(typeof updFecha==='function')try{updFecha();}catch(e){}
+  if(typeof render==='function')render();
+  if(typeof renderIndiv==='function')renderIndiv();
+  if(typeof renderRenov==='function')renderRenov();
+  if(typeof recalc==='function')recalc();
+  if(typeof ES_GERENTE!=='undefined'&&ES_GERENTE&&typeof renderGerente==='function')renderGerente();
+  if(typeof calcArqueo==='function')try{calcArqueo();}catch(e){}
+}
+// —— BLOQUEO TOTAL: día anterior sin enviar = la app no se puede usar hasta
+// mandar ese arqueo (regla Karina 23-jul). Un solo botón: Enviar arqueo.
+function mostrarBloqueoArqueo(fechaVieja){
+  if(document.getElementById('fooax-bloqueo'))return;
+  var tt=0,nn=0;try{var x=totales();tt=x.t;nn=x.n;}catch(e){}
+  var o=document.createElement('div');o.id='fooax-bloqueo';
+  o.style.cssText='position:fixed;inset:0;z-index:100001;background:rgba(42,31,53,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;font-family:inherit';
+  o.innerHTML='<div style="font-size:44px">🔒</div>'
+    +'<div style="font:800 19px/1.3 inherit;margin-top:8px">Por favor envía el arqueo</div>'
+    +'<div style="font:600 13.5px/1.5 inherit;opacity:.92;margin-top:8px;max-width:320px">Tienes la captura del <u>'+fechaVieja+'</u> sin enviar ('+fmt(tt)+' · '+nn+' pagos).<br>Para seguir usando la app, primero mándala.</div>'
+    +'<button onclick="__enviarArqueoBloqueado()" style="margin-top:18px;font:800 15px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:14px 28px;cursor:pointer">Enviar arqueo</button>'
+    +'<div id="fooaxBloqueoMsg" style="font:600 12px/1.45 inherit;color:#FFD9A8;margin-top:12px;max-width:300px"></div>';
+  document.body.appendChild(o);
+}
+async function __enviarArqueoBloqueado(){
+  if(bloqueoPorErrores('ENVIAR EL ARQUEO'))return;
+  var texto=textoArqueoApp();
+  var okc=await confirmarArqueo(texto);
+  if(!okc)return;
+  var subio=false;try{if(window.__forzarSync)subio=await window.__forzarSync();}catch(e){}
+  if(!subio){
+    var m=document.getElementById('fooaxBloqueoMsg');
+    if(m)m.innerHTML='Sin señal ahora mismo. Tu captura está guardada: en cuanto el teléfono tenga internet, vuelve a tocar <b>Enviar arqueo</b>.';
+    return;
+  }
+  if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
+  avisarCierre();
+  try{
+    if(navigator.share){await navigator.share({title:'Arqueo del día',text:texto});}
+    else{window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');}
+  }catch(e){}
+  __despuesDeEnviar();
+  try{sessionStorage.removeItem('fooax_fecha_ok');}catch(e){}
+  var b=document.getElementById('fooax-bloqueo');if(b)b.remove();
+  alert('✅ Arqueo del día anterior enviado. La app quedó lista para HOY.');
+}
 async function enviarArqueoYCerrar(){
   if(typeof ES_GERENTE!=='undefined' && ES_GERENTE && typeof tareasGerentePendientes==='function'){
     const faltan=tareasGerentePendientes();
@@ -528,9 +607,9 @@ async function enviarArqueoYCerrar(){
   if(t<=0 && !(window._arqueoTotal>0)){alert('Aún no hay cobranza ni conteo para el arqueo de hoy.');return;}
   const texto=textoArqueoApp();
   const rp=(typeof renovPendientes==='function')?renovPendientes():{pendientes:0};
-  let msg='¿Enviar el arqueo del día y cerrar la captura?\n\nSe sube a la nube, se manda el arqueo, y se cierra el día en este teléfono.';
-  if(rp.pendientes>0)msg='Tienes '+rp.pendientes+' renovación(es) sin gestionar.\n\n'+msg;
-  if(!confirm(msg))return;
+  const nota=(rp.pendientes>0)?('Tienes '+rp.pendientes+' renovación(es) sin gestionar.'):'';
+  const okc=await confirmarArqueo(texto,nota);
+  if(!okc)return;
   try{if(window.__forzarSync)await window.__forzarSync();}catch(e){}
   if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
   avisarCierre();
@@ -539,18 +618,7 @@ async function enviarArqueoYCerrar(){
     if(navigator.share){await navigator.share({title:'Arqueo del día',text:texto});}
     else{window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');}
   }catch(e){}
-  try{localStorage.removeItem(STORE_KEY);}catch(e){}
-  reg={};regI={};movs=[];folioSeq=0;
-  arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});if(typeof calcArqueo==='function')try{calcArqueo();}catch(e){}
-  if(typeof gestRenov!=='undefined')gestRenov={};
-  if(typeof tareasGerente!=='undefined')tareasGerente={};
-  window._reporteEnviado=false;
-  if(typeof render==='function')render();
-  if(typeof renderIndiv==='function')renderIndiv();
-  if(typeof renderRenov==='function')renderRenov();
-  if(typeof recalc==='function')recalc();
-  if(typeof ES_GERENTE!=='undefined' && ES_GERENTE && typeof renderGerente==='function')renderGerente();
-  if(typeof calcArqueo==='function')calcArqueo();
+  __despuesDeEnviar();
   alert('✅ Arqueo enviado y captura cerrada. El día quedó guardado en la nube.');
 }
 // Avisa al servidor que la ejecutiva CERRÓ su día (para que el tablero
@@ -558,7 +626,7 @@ async function enviarArqueoYCerrar(){
 function avisarCierre(){
   try{
     var f=document.getElementById('inpFecha').value||hoyISO();
-    fetch('/api/cierre',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:f})}).catch(function(){});
+    fetch('/api/cierre',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:f,confirmado:true})}).catch(function(){});
   }catch(e){}
 }
 function cerrarDia(){

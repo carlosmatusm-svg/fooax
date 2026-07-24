@@ -148,9 +148,10 @@ app.post("/api/logout", (req, res) => {
 // cerrar). Queda la hora en el snapshot: el tablero muestra quién cerró con el
 // botón y quién se lo saltó — antes no había forma de saberlo.
 app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
-  const fecha = String((req.body || {}).fecha || hoyMX()).trim();
-  const marcado = store.marcarCierre(req.usuario.id, fecha);
-  res.json({ ok: true, marcado, fecha });
+  const b = req.body || {};
+  const fecha = String(b.fecha || hoyMX()).trim();
+  const marcado = store.marcarCierre(req.usuario.id, fecha, !!b.confirmado);
+  res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado });
 });
 
 app.post("/api/reetiquetado", requiere("ejecutivo"), (req, res) => {

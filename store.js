@@ -241,10 +241,12 @@ module.exports = {
   // Marca la hora en que la ejecutiva CERRÓ su día (botón "Enviar arqueo y
   // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
   // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.
-  marcarCierre(ejecutivo, fecha) {
+  marcarCierre(ejecutivo, fecha, confirmado) {
     const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
     if (!rec) return false;
     rec.cierre = Date.now();
+    // confirmado = la ejecutiva marcó la palomita "lo que capturé es verdad".
+    if (confirmado) rec.confirmado = Date.now();
     persistSnapshot(ejecutivo, fecha, rec);
     return true;
   },

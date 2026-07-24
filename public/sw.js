@@ -8,7 +8,7 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v8"; // v8: centavos, conteo limpio al cerrar, reetiquetado de fecha
+const CACHE = "fooax-v9"; // v9: palomita de confirmacion + bloqueo por arqueo sin enviar
 
 // La página pide activar la versión nueva de inmediato (auto-actualización).
 self.addEventListener("message", (e) => { if (e.data === "skip") self.skipWaiting(); });
