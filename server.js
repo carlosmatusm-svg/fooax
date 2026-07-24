@@ -154,6 +154,16 @@ app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
   res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado });
 });
 
+// "Capturar TODO de nuevo" tras cerrar: la ejecutiva eligió empezar de cero en
+// la pregunta de la app. La versión que había queda archivada (recuperable en
+// el tablero) y la siguiente sincronización REEMPLAZA el día en vez de sumarse.
+app.post("/api/dia/reinicio", requiere("ejecutivo"), (req, res) => {
+  const fecha = String((req.body || {}).fecha || "").trim() || hoyMX();
+  const habia = store.reiniciarDia(req.usuario.id, fecha);
+  if (habia) console.log(`[reinicio] ${req.usuario.id}: el día ${fecha} contará desde cero (la versión anterior quedó archivada)`);
+  res.json({ ok: true, habia });
+});
+
 app.post("/api/reetiquetado", requiere("ejecutivo"), (req, res) => {
   const de = String((req.body || {}).de || "").trim();
   const hoy = hoyMX();
@@ -1654,15 +1664,32 @@ app.get("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
   const ejecutivos = {};
   for (const id of ids) {
     const actual = actuales[id] ? cifrasDeSnapshot(actuales[id].snapshot) : null;
+    // Las capturas se archivan a cada rato MIENTRAS la ejecutiva va capturando:
+    // decenas de versiones "a medias". Un HITO es una versión final de sesión:
+    // la última antes de una pausa larga, la última antes de que el total BAJARA
+    // (algo se reemplazó o reinició), o la más reciente. Antes se ordenaba por
+    // "más dinero primero" y las versiones a medias/dobladas llenaban los 15
+    // lugares — la versión CERRADA correcta no aparecía (pasó el 24-jul).
+    const propias = hist.filter((x) => x.ejecutivo === id)
+      .map((h) => ({ archivado: h.archivado || 0, cifras: cifrasDeSnapshot(h.snapshot) }))
+      .filter((x) => x.cifras && x.cifras.total > 0)
+      .sort((a, b) => a.archivado - b.archivado);
+    const HITO_PAUSA = 30 * 60 * 1000;
+    const hitos = [], resto = [];
+    for (let i = 0; i < propias.length; i++) {
+      const cur = propias[i], sig = propias[i + 1];
+      const esHito = !sig || (sig.archivado - cur.archivado > HITO_PAUSA) || (sig.cifras.total < cur.cifras.total);
+      (esHito ? hitos : resto).push(cur);
+    }
     const vistas = new Set();
     const versiones = [];
-    for (const h of hist.filter((x) => x.ejecutivo === id).sort((a, b) => (b.archivado || 0) - (a.archivado || 0))) {
-      const c = cifrasDeSnapshot(h.snapshot);
-      if (!c || c.total <= 0) continue;            // versiones vacías no sirven
+    for (const v of hitos.sort((a, b) => b.archivado - a.archivado).concat(resto.sort(mejorPrimero))) {
+      const c = v.cifras;
       const clave = [c.pago, c.garantias, c.efectivo, c.transferencia].join("|");
-      if (vistas.has(clave)) continue;             // misma cifra: sólo la más reciente
+      if (vistas.has(clave)) continue;             // misma cifra: sólo una vez
       vistas.add(clave);
-      versiones.push({ archivado: h.archivado, cifras: c });
+      versiones.push({ archivado: v.archivado, cifras: c });
+      if (versiones.length >= 15) break;
     }
     // La FOTO DEL CIERRE (baseCerrada) es la captura correcta ANTES de cualquier
     // re-entrada/fusión. Se ofrece como opción "al cerrar": si al re-entrar la
@@ -1677,7 +1704,9 @@ app.get("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
       nombre: USUARIOS[id].nombre,
       actual,
       alCerrar,
-      versiones: versiones.sort(mejorPrimero).slice(0, 15),
+      // ya vienen ordenadas: HITOS primero (los más recientes arriba), luego el
+      // resto por monto — no se reordena para que la cerrada no se hunda.
+      versiones,
     };
   }
   res.json({ fecha, ejecutivos });

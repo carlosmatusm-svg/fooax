@@ -372,6 +372,33 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      Math.abs((ag.efectivoAEntregar) - 800) < 0.01 && Math.abs(Object.entries(ag.denomTotal).reduce((s, [d, q]) => s + Number(d) * q, 0) - 800) < 0.01,
      "aEntregar " + ag.efectivoAEntregar);
 
+  console.log("\n— 17. VOLVER TRAS CERRAR: 'capturar todo de nuevo' (reinicio) + filtro de hitos —");
+  const D2 = "2026-04-15";
+  const sync2 = (snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D2, snapshot: snap, ts: Date.now() }) });
+  const cons2 = async () => { const c = await j(await fetch(U + "/api/consolidado?fecha=" + D2, { headers: H(cd) })); return (c.ejecutivos || {}).prueba || {}; };
+  // captura PROGRESIVA (como en la vida real: se archiva versión a cada rato)
+  const capP = { reg: { "C-9": {} }, regI: {}, movs: [], arqueo: { "500": 2 } };
+  for (let i = 1; i <= 6; i++) { capP.reg["C-9"]["p" + i + "|P"] = { pago: 100 * i, forma: "E" }; await sync2(JSON.parse(JSON.stringify(capP))); }
+  const cerr2 = await cons2();   // 100+200+...+600 = 2100
+  await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D2, confirmado: true }) });
+  // eligió "CAPTURAR TODO de nuevo" en la pregunta de la app
+  let ri = await j(await fetch(U + "/api/dia/reinicio", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D2 }) }));
+  ok("el reinicio responde ok (y había día que reiniciar)", ri.ok === true && ri.habia === true, JSON.stringify(ri).slice(0, 60));
+  await sync2({ reg: { "C-9": { "p1|P": { pago: 150, forma: "E" } } }, regI: {}, movs: [], arqueo: { "100": 1, "50": 1 } });
+  const nuevo2 = await cons2();
+  ok("tras el reinicio, el día cuenta DESDE CERO (150, no " + (cerr2.efectivo + 150) + ")", Math.abs(nuevo2.efectivo - 150) < 0.01, "efectivo " + nuevo2.efectivo);
+  ok("y el cierre viejo ya no aparece (día abierto otra vez)", !nuevo2.cierre, "cierre " + nuevo2.cierre);
+  const rv2 = await j(await fetch(U + "/api/recuperar?fecha=" + D2, { headers: H(cd) }));
+  const ep2 = (rv2.ejecutivos || {}).prueba || {};
+  ok("la versión CERRADA ($2,100) sigue recuperable en el tablero", (ep2.versiones || []).some((v) => Math.abs(v.cifras.total - 2100) < 0.01), "versiones " + (ep2.versiones || []).length);
+  ok("filtro de HITOS: la cerrada aparece PRIMERO (no enterrada por las 'a medias')",
+     ep2.versiones && ep2.versiones[0] && Math.abs(ep2.versiones[0].cifras.total - 2100) < 0.01,
+     "primera " + (ep2.versiones && ep2.versiones[0] ? ep2.versiones[0].cifras.total : "—"));
+  // restaurarla la deja de vuelta exacta
+  const rr4 = await j(await fetch(U + "/api/recuperar", { method: "POST", headers: H(cd), body: JSON.stringify({ fecha: D2, ejec: "prueba", archivado: ep2.versiones[0].archivado }) }));
+  const rest2 = await cons2();
+  ok("y 'Regresar esta' la restaura exacta ($2,100)", rr4.ok === true && Math.abs(rest2.efectivo - 2100) < 0.01, "efectivo " + rest2.efectivo);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

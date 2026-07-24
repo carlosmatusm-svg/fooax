@@ -568,6 +568,9 @@ function confirmarArqueo(texto,nota){
 }
 // Limpieza común después de enviar el arqueo (día cerrado, app lista para HOY).
 function __despuesDeEnviar(){
+  // recuerda que HOY ya se envio el arqueo: si vuelve a entrar, la app pregunta
+  // si va a AGREGAR algo o a CAPTURAR TODO de nuevo (evita el dia doblado 24-jul)
+  try{localStorage.setItem('fooax_cerrado_'+STORE_KEY,(document.getElementById('inpFecha')||{}).value||hoyISO());}catch(e){}
   try{localStorage.removeItem(STORE_KEY);}catch(e){}
   reg={};regI={};movs=[];folioSeq=0;
   arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
@@ -670,6 +673,7 @@ function cerrarDia(){
   if(!confirm('¿Cerrar el día? Esto borra lo capturado de este celular. Asegúrate de haber exportado o enviado el detalle a Monse primero.'))return;
   guardarDiaEnSemana(); // guarda snapshot del día para el cierre semanal
   avisarCierre();
+  try{localStorage.setItem('fooax_cerrado_'+STORE_KEY,(document.getElementById('inpFecha')||{}).value||hoyISO());}catch(e){}
   localStorage.removeItem(STORE_KEY);
   reg={};regI={};movs=[];folioSeq=0;gestRenov={};tareasGerente={};window._reporteEnviado=false;
   arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
@@ -2098,7 +2102,44 @@ function avisarWebView(){
   }
 }
 
-initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
+// —— PREGUNTA AL VOLVER DESPUES DE CERRAR (regla Karina 24-jul): si hoy ya
+// envio su arqueo y vuelve a entrar, la app pregunta QUE va a hacer.
+// AGREGAR = lo nuevo se SUMA a lo ya enviado. CAPTURAR TODO de nuevo = el dia
+// cuenta desde cero con lo que capture ahora (lo anterior queda de respaldo en
+// el servidor, recuperable por Direccion). Sin esto, recapturar DOBLABA el dia.
+function preguntarPostCierre(){
+  var KEYC='fooax_cerrado_'+STORE_KEY, f=null;
+  try{f=localStorage.getItem(KEYC);}catch(e){}
+  if(!f)return;
+  if(f!==hoyISO()){try{localStorage.removeItem(KEYC);}catch(e){}return;}
+  if(localStorage.getItem(STORE_KEY))return; // ya hay captura nueva en curso
+  var o=document.createElement('div');o.id='fooax-postcierre';
+  o.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(42,31,53,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px;font-family:inherit;overflow:auto';
+  o.innerHTML='<div style="font:800 20px/1.3 inherit">Ya enviaste tu arqueo de hoy</div>'
+    +'<div style="font:600 13.5px/1.5 inherit;opacity:.92;margin-top:8px;max-width:330px">Antes de seguir, dinos que vas a hacer:</div>'
+    +'<button id="fooaxPcAdd" style="margin-top:20px;width:100%;max-width:330px;font:800 15px/1.35 inherit;background:#0B7247;color:#fff;border:none;border-radius:14px;padding:14px 18px;cursor:pointer">Voy a AGREGAR algo que falto<br><span style="font:600 11.5px/1.4 inherit;opacity:.85">Un pago o movimiento nuevo. Lo que ya mandaste se queda igual y esto se le suma.</span></button>'
+    +'<button id="fooaxPcCero" style="margin-top:12px;width:100%;max-width:330px;font:800 15px/1.35 inherit;background:transparent;color:#FFD9A8;border:2px solid #FFD9A8;border-radius:14px;padding:14px 18px;cursor:pointer">Voy a CAPTURAR TODO de nuevo<br><span style="font:600 11.5px/1.4 inherit;opacity:.85">Empezar de cero: tu dia contara SOLO con lo que captures ahora. Lo anterior queda guardado de respaldo.</span></button>'
+    +'<div id="fooaxPcMsg" style="font:600 12px/1.45 inherit;color:#FFD9A8;margin-top:12px;max-width:320px"></div>';
+  document.body.appendChild(o);
+  document.getElementById('fooaxPcAdd').onclick=function(){
+    try{localStorage.removeItem(KEYC);}catch(e){}
+    o.remove();
+  };
+  document.getElementById('fooaxPcCero').onclick=function(){
+    if(!confirm('SEGURA que vas a capturar TODO el dia otra vez?\n\nTu dia contara SOLO con lo que captures desde ahora. La version que ya habias enviado queda guardada de respaldo para Direccion.'))return;
+    var b=this;b.disabled=true;
+    fetch('/api/dia/reinicio',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({fecha:hoyISO()})})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
+      .then(function(x){
+        if(!x.ok){document.getElementById('fooaxPcMsg').textContent=(x.d&&x.d.error)||'No se pudo. Intenta otra vez.';b.disabled=false;return;}
+        try{localStorage.removeItem(KEYC);}catch(e){}
+        o.remove();
+        alert('Listo. Captura tu dia completo: contara desde cero.');
+      })
+      .catch(function(){document.getElementById('fooaxPcMsg').textContent='Para empezar de cero necesitas internet. Conectate y vuelve a intentarlo.';b.disabled=false;});
+  };
+}
+initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();preguntarPostCierre();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
 avisarWebView();reforzarToque();
 // reforzar toque cada vez que se redibuja contenido
 const _obs=new MutationObserver(()=>reforzarToque());

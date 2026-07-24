@@ -278,6 +278,30 @@ module.exports = {
     persistSnapshot(ejecutivo, fecha, rec);
     return true;
   },
+  // "Capturar todo de nuevo": la ejecutiva decidió que su día cuente desde cero.
+  // Archiva la versión actual en el historial (recuperable siempre) y quita el
+  // cierre y su foto congelada, para que la siguiente sincronización REEMPLACE
+  // el día en lugar de fusionarse (sumarse) con lo anterior.
+  reiniciarDia(ejecutivo, fecha) {
+    const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
+    if (!rec) return false;
+    const copia = Object.assign({}, rec, { archivado: Date.now(), motivo: "reinicio" });
+    if (usePg) {
+      pool.query(
+        "INSERT INTO snapshots_hist (ejecutivo, fecha, data, ts, recibido, archivado) VALUES ($1,$2,$3,$4,$5,$6)",
+        [ejecutivo, fecha, copia, copia.ts || 0, copia.recibido || 0, copia.archivado]
+      ).catch((e) => console.error("[store] hist reinicio:", e.message));
+    } else {
+      try {
+        const ph = path.join(DATA_DIR, "snapshots_hist.jsonl");
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.appendFileSync(ph, JSON.stringify({ ejecutivo, fecha, ...copia }) + "\n");
+      } catch (e) { console.error("[store] hist reinicio:", e.message); }
+    }
+    delete rec.cierre; delete rec.confirmado; delete rec.baseCerrada;
+    persistSnapshot(ejecutivo, fecha, rec);
+    return true;
+  },
   // Retira el snapshot de un día (lo archiva en el historial ANTES de quitarlo).
   // Se usa cuando una captura estaba MAL FECHADA y ya se re-etiquetó al día
   // correcto: sin esto, la semana contaba ese dinero dos veces (una por fecha).
