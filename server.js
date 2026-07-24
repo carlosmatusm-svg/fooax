@@ -1827,10 +1827,57 @@ function repararAnuladosFalsos() {
   if (n > 0) console.log(`[reparación] des-anulados ${n} movimientos que el bug marcó ANULADO por error`);
 }
 
+// Reparación ÚNICA de la captura de Karina del 24-jul-2026: su app NUNCA
+// alcanzó a subir la versión correcta (el tablero solo tenía la doblada por
+// re-entrada). Reconstruida desde sus CSV y verificada contra su reporte:
+// cobranza $24,736.50 · 48 pagos · efectivo a entregar $40,876.50. Se aplica una
+// sola vez (centinela), marca cierre para que quede estable, y agrega las 9
+// liquidaciones SOLO si faltan (idempotente por folio). La versión que había se
+// archiva sola en guardarSnapshot, así que sigue siendo recuperable.
+function repararCapturaKarina24jul() {
+  const CENTINELA = "MIGR-KARINA-2026-07-24";
+  if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;   // ya aplicada
+  const FECHA = "2026-07-24", EJ = "karina";
+  let datos;
+  try { datos = JSON.parse(fs.readFileSync(path.join(__dirname, "migraciones", "karina_24jul.json"), "utf8")); }
+  catch (e) { console.error("[reparación Karina] no pude leer la reconstrucción:", e.message); return; }
+  const snapshot = { reg: datos.reg, regI: {}, movs: [], arqueo: datos.arqueo, fecha: FECHA };
+  store.guardarSnapshot(EJ, FECHA, { snapshot, ts: Date.now() });
+  store.marcarCierre(EJ, FECHA, true);   // baseCerrada = esta versión buena
+  const LIQ = [
+    ["KAR-2407-04", 2352, "11112754934", "ALEJANDRA MAYTE ESPINOZA DIEZO"],
+    ["KAR-2407-05", 960, "11112626649", "ALI OSMAR CHAVEZ ARANGO"],
+    ["KAR-2407-07", 960, "11112622956", "ANDRES DANIEL CHAVEZ ARANGO"],
+    ["KAR-2407-08", 2352, "11112658700", "ANGELA ARANGO FLORES"],
+    ["KAR-2407-09", 2352, "11112748267", "JUANA ARANGO FLORES"],
+    ["KAR-2407-10", 2352, "11113022524", "MARIA TERESA DIEZO MORENO"],
+    ["KAR-2407-11", 2352, "11113101306", "SOFIA LOPEZ HERNANDEZ"],
+    ["KAR-2407-12", 1080, "11113116034", "WENDI EDITH AVENDAÑO ZEPEDA"],
+    ["KAR-2407-13", 1620, "11113315176", "ITZEL ZUZUNAGA SOSA"],
+  ];
+  let addl = 0;
+  for (const [f, monto, socio, clienta] of LIQ) {
+    const folio = "EJE-KARINA-" + f;
+    if (store.todosMovimientos().some((m) => m.folio === folio)) continue;   // ya existe: no duplicar
+    store.agregarMovimiento({
+      folio, fecha: FECHA, monto, concepto: "Liquidación · " + clienta + " · " + socio,
+      categoria: "Otro", metodo: "efectivo", entrada: true, socio,
+      registradoPor: "Karina", rol: "ejecutivo", usuario: EJ, ts: Date.now(),
+    });
+    addl++;
+  }
+  // Que el teléfono de Karina suelte su sesión (para que no re-suba la doblada).
+  try { borrarTelefono.add(EJ); } catch (e) {}
+  // Centinela invisible (fecha vieja + anulado) para correr una sola vez.
+  store.agregarMovimiento({ folio: CENTINELA, fecha: "2000-01-01", monto: 0, concepto: "migración", anulado: true, usuario: EJ, ts: Date.now() });
+  console.log(`[reparación] captura correcta de Karina 24-jul inyectada (cobranza reconstruida, ${addl} liquidaciones agregadas)`);
+}
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
   recuperarMovimientosHistoricos();
   repararAnuladosFalsos();
+  repararCapturaKarina24jul();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });
