@@ -870,6 +870,9 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   // clientas falsas al padrón de verdad).
   if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." });
   if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  // Solo dígitos: un socio con letras o espacios jamás hará match con sus
+  // pagos (la llave de crédito es socio+producto) — sería basura en el padrón.
+  if (!/^\d{5,15}$/.test(id)) return res.status(400).json({ error: "El número de socio debe ser solo dígitos (ej. 11113075182)." });
   if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
   if (!centro) return res.status(400).json({ error: "Falta el centro." });
   if (!ejecutivo) return res.status(400).json({ error: "Falta el ejecutivo." });

@@ -200,6 +200,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la cuenta de PRUEBA no puede tocar el padrón real (alta)", !!rc.error && /PRUEBA/.test(rc.error), JSON.stringify(rc).slice(0, 70));
   rc = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cd), body: JSON.stringify({ numero: "97", nombre: "CENTRO PIRATA", ejecutivo: "Prueba" }) }));
   ok("ni registrar centros", !!rc.error, JSON.stringify(rc).slice(0, 60));
+  rc = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "ABC 123", nombre: "X", producto: "P", centro: "CENTRO BATERIA", ejecutivo: "Neri" }) }));
+  ok("socio con letras/espacios se rechaza (basura que nunca haría match)", !!rc.error && /dígitos/.test(rc.error), JSON.stringify(rc).slice(0, 70));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

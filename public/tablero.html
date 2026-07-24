@@ -137,6 +137,11 @@
   .altasubmit{font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--verde);
     border:none;border-radius:12px;padding:12px;cursor:pointer}
   .altasubmit:disabled{opacity:.6}
+  .tbnav{position:sticky;top:0;z-index:40;display:flex;gap:7px;padding:10px 16px 9px;
+    background:var(--fondo);border-bottom:1px solid var(--linea)}
+  .tbt{flex:1;font:700 13px var(--fuente);padding:9px 2px;border-radius:99px;cursor:pointer;
+    background:var(--tarjeta);color:var(--gris);border:1px solid var(--linea)}
+  .tbt.active{background:var(--grad);color:#fff;border-color:transparent}
   .cnuevo{background:#F6F3F9;border:1.5px dashed var(--rio);border-radius:12px;padding:10px 12px;margin:2px 0 8px}
   .cn-t{font-weight:800;font-size:12.5px;color:var(--rio);margin-bottom:7px}
   .altaerr{font-size:12.5px;font-weight:600}
@@ -286,6 +291,16 @@
   <div class="aviso-pasado">Estás viendo un día anterior. Los números son de esa fecha.</div>
   <div class="chipsync" id="chipSync"></div>
 
+  <!-- Pestañas del tablero (petición Anel/Monse vía Karina 24-jul): antes era
+       un rollo largo con todo desplegado; ahora cada quien abre lo que ocupa. -->
+  <div class="tbnav">
+    <button class="tbt active" data-tb="hoy" onclick="tbShow('hoy')">Hoy</button>
+    <button class="tbt" data-tb="caja" onclick="tbShow('caja')">Caja</button>
+    <button class="tbt" data-tb="clientas" onclick="tbShow('clientas')">Clientas</button>
+    <button class="tbt" data-tb="mas" onclick="tbShow('mas')">Más</button>
+  </div>
+
+  <div class="tbtab" id="tb-clientas" style="display:none">
   <div class="buscador">
     <svg class="lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input id="q" type="search" placeholder="Buscar clienta por nombre o ID…" autocomplete="off" enterkeyhint="search">
@@ -330,7 +345,9 @@
       <div class="altaerr" id="altaErr"></div>
     </form>
   </div>
+  </div>
 
+  <div class="tbtab" id="tb-hoy">
   <div class="tarjeta">
     <div class="eti">Cobranza de hoy · Total FOOAX</div>
     <div class="cifra" id="total">$0</div>
@@ -351,7 +368,10 @@
   <h3>Por ejecutivo · última sincronización</h3>
   <div id="ejecutivos"></div>
 
-  <h3>Movimientos de caja · dirección y ejecutivas</h3>
+  </div>
+
+  <div class="tbtab" id="tb-caja" style="display:none">
+  <h3 style="margin-top:6px">Movimientos de caja · dirección y ejecutivas</h3>
   <div class="movwrap">
     <button class="movtoggle" id="movToggle" onclick="toggleMovForm()">+ Registrar retiro o gasto</button>
     <form class="movform" id="movForm" onsubmit="registrarMov(event)" style="display:none">
@@ -373,7 +393,10 @@
   <h3>Arqueo del día · efectivo</h3>
   <div id="arqueoBox" class="arqueo"></div>
 
-  <h3>Recuperar cobranza de un día</h3>
+  </div>
+
+  <div class="tbtab" id="tb-mas" style="display:none">
+  <h3 style="margin-top:6px">Recuperar cobranza de un día</h3>
   <div class="reccard">
     <div class="rechint">Cada vez que una captura se sobrescribe, la versión anterior queda guardada. Aquí puedes ver esas versiones y regresar la correcta si un día quedó mal.</div>
     <div class="recbar">
@@ -394,6 +417,7 @@
   </div>
   <div class="dlhint" id="dlAviso" style="display:none"></div>
   <div class="dlhint">Para bajar el arqueo de otro día, cámbialo en el selector de fecha de arriba: el botón te dice qué día va a descargar. Los saldos actualizados son la plantilla semanal (saldo − lo pagado), lista para tu control.</div>
+  </div>
 </div>
 <script>
 const $ = id => document.getElementById(id);
@@ -903,6 +927,17 @@ async function registrarCentro() {
     $("cnNum").value = ""; $("cnNombre").value = "";
   } catch { err.textContent = "Sin conexión con el servidor."; }
 }
+
+// ---------- pestañas del tablero ----------
+function tbShow(name) {
+  document.querySelectorAll(".tbt").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
+  ["hoy", "caja", "clientas", "mas"].forEach((t) => {
+    const el = document.getElementById("tb-" + t);
+    if (el) el.style.display = (t === name) ? "" : "none";
+  });
+  try { localStorage.setItem("fooax_tb_tab", name); } catch (e) {}
+}
+try { const t0 = localStorage.getItem("fooax_tb_tab"); if (t0 && t0 !== "hoy") tbShow(t0); } catch (e) {}
 
 async function salir() {
   await fetch("/api/logout", { method: "POST", credentials: "include" });
