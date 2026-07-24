@@ -712,6 +712,56 @@ function pagosDeLaSemana(usuario) {
   return { pago, gar, detalle };
 }
 
+// Liquidaciones y recuperaciones de la semana, por socio: abonos al crédito
+// FUERA de la cuota que también bajan el saldo. Antes esto vivía SOLO dentro
+// del Excel; por eso el tablero (búsqueda y panel) no las restaba y una clienta
+// que liquidó seguía mostrando su saldo viejo.
+function liquidacionesDeLaSemana(usuario) {
+  const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
+  const liqPorSocio = {};
+  const d0 = new Date(lunes + "T12:00:00");
+  for (let i = 0; i < 7; i++) {
+    const f = new Date(d0); f.setDate(d0.getDate() + i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+      if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+      const soc = socioDeMov(m);
+      if (soc) liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
+    }
+  }
+  return liqPorSocio;
+}
+// CARTERA VIVA · fuente ÚNICA del saldo actual por crédito, para que el Excel y
+// el tablero siempre cuadren. Para cada crédito activo: lo pagado y lo liquidado
+// esta semana, y saldoActual = saldo − pago − liquidación. La liquidación es por
+// SOCIO y se agota entre sus créditos en un orden fijo (ejecutivo, centro,
+// nombre), el mismo que usa el Excel.
+function carteraViva(usuario) {
+  const { pago: pagos, gar: garantias } = pagosDeLaSemana(usuario);
+  const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario));
+  const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
+    .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) ||
+      String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
+  const porCredito = new Map();
+  for (const c of activos) {
+    const clave = claveCredito(c.id, c.producto);
+    const pagado = pagos[clave] || 0;
+    const soc = String(c.id);
+    const disp = liqRestante[soc] || 0;
+    const liquidado = Math.min(disp, Math.max(0, (c.saldo || 0) - pagado));
+    if (liquidado > 0) liqRestante[soc] = disp - liquidado;
+    porCredito.set(clave, { pagado, liquidado, garantia: garantias[clave] || 0,
+      saldoActual: Math.max(0, (c.saldo || 0) - pagado - liquidado) });
+  }
+  return { porCredito, pagos, garantias };
+}
+function infoCredito(cv, c) {
+  return cv.porCredito.get(claveCredito(c.id, c.producto)) ||
+    { pagado: 0, liquidado: 0, garantia: 0, saldoActual: Math.max(0, c.saldo || 0) };
+}
+
 // ---------- SALDOS ACTUALIZADOS de la semana en Excel ----------
 // La plantilla que Monse hace a mano: saldo inicial − pagado esta semana =
 // saldo actualizado, por crédito. Generada sola. Solo dirección/admin.
@@ -743,7 +793,7 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   // Movimientos de la semana. Se calculan ANTES de las filas porque una
   // LIQUIDACIÓN baja el saldo de la clienta por el monto registrado.
   let movEntradas = 0, movSalidas = 0;
-  const porTipoMov = {}, liqPorSocio = {};
+  const porTipoMov = {};
   {
     const d0 = new Date(lunes + "T12:00:00");
     for (let i = 0; i < 7; i++) {
@@ -755,29 +805,22 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
         porTipoMov[tipo] = porTipoMov[tipo] || { entra: 0, sale: 0 };
         if (m.entrada) { movEntradas += m.monto; porTipoMov[tipo].entra += m.monto; }
         else { movSalidas += m.monto; porTipoMov[tipo].sale += m.monto; }
-        // Liquidaciones Y recuperaciones bajan el saldo de la clienta (regla
-        // confirmada por Karina): las dos son abonos al crédito fuera de la cuota.
-        if (/^(liquidaci|recuperaci)/i.test(tipo)) {
-          const soc = socioDeMov(m);
-          if (soc) liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
-        }
       }
     }
   }
-  const liqRestante = Object.assign({}, liqPorSocio); // se va consumiendo por crédito
+  // Saldos vivos (pago + liquidación) desde la fuente ÚNICA: el mismo cálculo que
+  // ve el tablero, para que el Excel y el panel siempre cuadren.
+  const cv = carteraViva(req.usuario);
 
   let tIni = 0, tPag = 0, tAct = 0, tGar = 0, tLiq = 0, tMora = 0;
   for (const c of rows) {
     const clave = claveCredito(c.id, c.producto);
     usadas.add(clave);
-    const pagado = pagos[clave] || 0, garan = garantias[clave] || 0;
+    const info = infoCredito(cv, c);
+    const pagado = info.pagado, garan = garantias[clave] || 0;
     const ini = c.saldo || 0;
-    // La liquidación de esta clienta se aplica a sus créditos hasta agotarse.
-    const soc = String(c.id);
-    const disp = liqRestante[soc] || 0;
-    const liquidado = Math.min(disp, Math.max(0, ini - pagado));
-    if (liquidado > 0) liqRestante[soc] = disp - liquidado;
-    const act = Math.max(0, ini - pagado - liquidado);
+    const liquidado = info.liquidado;
+    const act = info.saldoActual;
     tIni += ini; tPag += pagado; tAct += act; tGar += garan; tLiq += liquidado;
     const r = s.getRow(fila++);
     r.getCell(1).value = c.ejecutivo || ""; r.getCell(2).value = c.centro || "";
@@ -893,13 +936,13 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
   // ejecutivo solo ve sus clientas; dirección y admin ven todas
   let base = PADRON;
   if (req.usuario.rol === "ejecutivo") base = PADRON.filter(c => norm(c.ejecutivo) === norm(req.usuario.nombre));
-  const { pago: pagos } = pagosDeLaSemana(req.usuario); // cartera viva
+  const cv = carteraViva(req.usuario); // cartera viva (pago + liquidación)
   const res1 = base.filter(c => {
     const heno = norm(c.nombre) + " " + c.id;
     return terminos.every(t => heno.includes(t));
   }).slice(0, 40).map(c => {
-    const pagado = pagos[claveCredito(c.id, c.producto)] || 0;
-    return { ...c, pagado, saldoActual: Math.max(0, (c.saldo || 0) - pagado) };
+    const i = infoCredito(cv, c);
+    return { ...c, pagado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual };
   });
   res.json({ total: base.length, resultados: res1 });
 });
@@ -1039,18 +1082,13 @@ function creditoActivo(id, producto) {
   return PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" &&
     String(c.id) === sid && (producto == null || nprod(c.producto) === nprod(String(producto || ""))));
 }
-function saldoActualDe(c, pagos) {
-  const pagado = pagos[claveCredito(c.id, c.producto)] || 0;
-  return { pagado, saldoActual: Math.max(0, (c.saldo || 0) - pagado) };
-}
-
 // Lista de créditos para el panel: liquidadas (saldo 0), vencidas, o por texto.
 app.get("/api/creditos", soloAnelMonse, (req, res) => {
   const estado = String(req.query.estado || "").toLowerCase();
   const q = norm(req.query.q).trim();
-  const { pago: pagos } = pagosDeLaSemana(req.usuario);
+  const cv = carteraViva(req.usuario);
   let base = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
-  const conSaldo = base.map((c) => ({ ...c, ...saldoActualDe(c, pagos) }));
+  const conSaldo = base.map((c) => ({ ...c, ...infoCredito(cv, c) }));
   let lista = conSaldo;
   if (estado === "liquidadas") lista = conSaldo.filter((c) => (c.saldo || 0) > 0 && c.saldoActual <= 0);
   else if (estado === "vencidas") lista = conSaldo.filter((c) => c.estatus === "VENCIDA");
@@ -1122,9 +1160,9 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   if (choca) return res.status(400).json({ error: "Ya tiene un crédito activo \"" + choca.producto + "\". Ponle otro nombre al crédito nuevo (ej. \"" + producto + " 2\")." });
   // Aviso (no bloqueo): si aún debe en otro crédito, se informa — la decisión es
   // de Anel/Monse. La regla es re-dar cuando ya llegó a 0.
-  const { pago: pagos } = pagosDeLaSemana(req.usuario);
+  const cv = carteraViva(req.usuario);
   const debeEnOtros = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id)
-    .reduce((s, c) => s + saldoActualDe(c, pagos).saldoActual, 0);
+    .reduce((s, c) => s + infoCredito(cv, c).saldoActual, 0);
   const clienta = { id, nombre, producto, centro, ejecutivo, saldo, cuota, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: previa.producto || null };
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,

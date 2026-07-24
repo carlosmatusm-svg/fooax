@@ -307,6 +307,17 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   let sb = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("CARTERA TEST"), { headers: H(ca) }));
   ok("conviven el crédito viejo y el nuevo (historial intacto)", (sb.resultados || []).filter(c => String(c.id) === "70000000050").length >= 2, "créditos " + (sb.resultados || []).filter(c => String(c.id) === "70000000050").length);
 
+  console.log("\n— 13. LIQUIDACIÓN baja el saldo en el TABLERO (no solo en el Excel) —");
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000060", nombre: "LIQ TEST", producto: "Grupal-Basico", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 200 }) }));
+  const cn = await login("neri", "neri2026");   // ejecutiva REAL (local)
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: HOY, snapshot: { reg: {}, regI: {}, movs: [{ folio: "L1", concepto: "LIQUIDACION", monto: 600, via: "E", socio: "70000000060", clienta: "LIQ TEST" }], arqueo: {} }, ts: Date.now() }) });
+  let sl = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("LIQ TEST"), { headers: H(ca) }));
+  const liqCl = (sl.resultados || []).find(c => String(c.id) === "70000000060") || {};
+  ok("la liquidación ($600) baja el saldo en la BÚSQUEDA del tablero (1000→400)", liqCl.saldoActual === 400 && liqCl.liquidado === 600, "saldoActual " + liqCl.saldoActual + " · liquidado " + liqCl.liquidado);
+  let cl2 = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("LIQ TEST"), { headers: H(cm) }));
+  const liqCl2 = (cl2.resultados || []).find(c => String(c.id) === "70000000060") || {};
+  ok("y también en el PANEL de créditos (mismo saldo)", liqCl2.saldoActual === 400, "saldoActual " + liqCl2.saldoActual);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
