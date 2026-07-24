@@ -122,6 +122,28 @@
   .motbtn{font:inherit;font-size:11.5px;font-weight:600;color:var(--tinta);background:var(--lav);
     border:1px solid var(--linea);border-radius:99px;padding:6px 11px;cursor:pointer}
   .motbtn:active{background:#FDECEC;color:#B4232F}
+  /* Créditos y saldos · solo Anel y Monse */
+  .credpanel{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:2px 16px 10px}
+  .credlbl{font-size:11px;font-weight:800;color:var(--rio,#324AB6);letter-spacing:.02em;width:100%}
+  .credchip{font:inherit;font-size:12px;font-weight:700;color:var(--rio,#324AB6);background:none;
+    border:1.5px solid var(--rio,#324AB6);border-radius:99px;padding:6px 13px;cursor:pointer}
+  .credchip:active{background:#E5EAFB}
+  .credchip.credx{color:var(--gris);border-color:var(--linea)}
+  .rbadge-venc{font-size:10px;font-weight:800;color:#fff;background:#B00020;
+    border-radius:99px;padding:2px 8px;vertical-align:middle;letter-spacing:.03em}
+  .credacc{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
+  .credbtn{font:inherit;font-size:12px;font-weight:700;background:none;border-radius:99px;
+    border:1.5px solid var(--rio,#324AB6);color:var(--rio,#324AB6);padding:5px 12px;cursor:pointer}
+  .credbtn.venc{border-color:#B00020;color:#B00020}
+  .credbtn.reda{border-color:var(--verde,#0B7247);color:var(--verde,#0B7247)}
+  .credbox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
+  .credbox>span{font-size:11.5px;font-weight:700;color:var(--gris);width:100%}
+  .credin{font:inherit;font-size:12.5px;border:1px solid var(--linea);border-radius:9px;padding:7px 9px;width:110px;background:var(--tarjeta);color:var(--tinta)}
+  .credin.ancho{width:100%}
+  .credok{font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--verde,#0B7247);
+    border:none;border-radius:99px;padding:7px 14px;cursor:pointer}
+  .credno{font:inherit;font-size:12px;font-weight:700;color:var(--gris);background:none;border:1px solid var(--linea);border-radius:99px;padding:7px 12px;cursor:pointer}
+  .crederr{width:100%;font-size:11.5px;font-weight:700;color:#B00020}
   .altawrap{margin:8px 16px 0}
   .altatoggle{width:100%;font:inherit;font-size:14px;font-weight:700;color:var(--verde);
     background:var(--tarjeta);border:1.5px dashed #B7DEC8;border-radius:14px;padding:12px;cursor:pointer}
@@ -304,6 +326,12 @@
   <div class="buscador">
     <svg class="lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input id="q" type="search" placeholder="Buscar clienta por nombre o ID…" autocomplete="off" enterkeyhint="search">
+  </div>
+  <div id="credPanel" class="credpanel" style="display:none">
+    <span class="credlbl">Créditos y saldos · Anel y Monse</span>
+    <button type="button" class="credchip" onclick="verCreditos('liquidadas')">Liquidadas (saldo 0)</button>
+    <button type="button" class="credchip" onclick="verCreditos('vencidas')">Vencidas</button>
+    <button type="button" class="credchip credx" onclick="limpiarCreditos()">Limpiar</button>
   </div>
   <div id="resultados" class="resultados"></div>
 
@@ -530,20 +558,124 @@ async function buscar() {
     resultados.innerHTML = '<div class="rvacio">Sin resultados para “' + term + '”.</div>';
     return;
   }
-  resultados.innerHTML = d.resultados.map(c => {
-    const esBaja = c.activa === false || c.estatus === "BAJA";
-    const badge = esBaja ? (c.estatus === "LIQUIDADO" ? "LIQUIDADO" : "BAJA") : "";
-    return '<div class="rcard">'
-    + '<div class="rn">' + hesc(c.nombre) + (badge ? ' <span class="rbadge-baja">' + badge + '</span>' : "") + "</div>"
+  window.__CRED_MODO = "buscar";
+  resultados.innerHTML = (window.__CRED_ROWS = d.resultados).map(tarjetaCredito).join("");
+}
+
+// ---------- créditos y saldos · solo Anel y Monse ----------
+// Saber quién entró para revelar el panel y las acciones de cartera.
+async function cargarYo() {
+  try {
+    const d = await (await fetch("/api/me", { credentials: "include" })).json();
+    window.__YO = d.usuario || null;
+    window.__PUEDE_CREDITO = (d.usuario === "anel" || d.usuario === "monse");
+    if (window.__PUEDE_CREDITO) { const p = $("credPanel"); if (p) p.style.display = "flex"; }
+  } catch {}
+}
+function credRow(i) { return (window.__CRED_ROWS || [])[i] || {}; }
+function refrescarLista() { if (window.__CRED_MODO && window.__CRED_MODO !== "buscar") verCreditos(window.__CRED_MODO); else buscar(); }
+function limpiarCreditos() { window.__CRED_MODO = "buscar"; resultados.innerHTML = ""; q.value = ""; }
+async function verCreditos(estado) {
+  window.__CRED_MODO = estado;
+  let d;
+  try { d = await (await fetch("/api/creditos?estado=" + encodeURIComponent(estado), { credentials: "include" })).json(); }
+  catch { resultados.innerHTML = '<div class="rvacio">Sin conexión con el servidor.</div>'; return; }
+  if (!d.resultados || !d.resultados.length) { resultados.innerHTML = '<div class="rvacio">No hay clientas en esta lista.</div>'; return; }
+  resultados.innerHTML = (window.__CRED_ROWS = d.resultados).map(tarjetaCredito).join("");
+}
+// Tarjeta reutilizada por la búsqueda y por las listas de liquidadas/vencidas.
+function tarjetaCredito(c, i) {
+  const esBaja = c.activa === false || c.estatus === "BAJA";
+  const saldoAct = (c.saldoActual != null ? c.saldoActual : c.saldo) || 0;
+  let badge = "";
+  if (esBaja) badge = '<span class="rbadge-baja">' + (c.estatus === "LIQUIDADO" ? "LIQUIDADO" : "BAJA") + "</span>";
+  else if (c.estatus === "VENCIDA") badge = '<span class="rbadge-venc">VENCIDA</span>';
+  let acc = "";
+  if (!esBaja && window.__PUEDE_CREDITO) {
+    const reda = saldoAct <= 0
+      ? '<button class="credbtn reda" onclick="pedirRecredito(this,' + i + ')">Re-dar crédito</button>' : "";
+    acc = '<div class="credacc">'
+      + '<button class="credbtn" onclick="pedirAjuste(this,' + i + ')">Ajustar saldo</button>'
+      + '<button class="credbtn venc" onclick="pedirMora(this,' + i + ')">' + (c.estatus === "VENCIDA" ? "Editar mora" : "Marcar vencida") + "</button>"
+      + reda + "</div>";
+  }
+  return '<div class="rcard">'
+    + '<div class="rn">' + hesc(c.nombre) + (badge ? " " + badge : "") + "</div>"
     + '<div class="rm">ID ' + hesc(c.id) + " · " + hesc(c.producto) + " · " + hesc(c.centro) + " · " + hesc(c.ejecutivo) + "</div>"
-    + '<div class="rd"><span>saldo <b>' + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</b></span>"
+    + '<div class="rd"><span>saldo <b>' + dinero(saldoAct) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
     + (c.pagado > 0 ? '<span class="rpago">pagó ' + dinero(c.pagado) + " esta sem.</span>" : "")
     + (c.mora > 0 ? '<span class="rmora">mora ' + dinero(c.mora) + "</span>" : "")
     + "</div>"
-    + (esBaja ? "" : '<div class="racc"><button class="rbaja" onclick="pedirBaja(this,\'' + c.id + "','" + esc(c.producto) + '\')">Dar de baja</button></div>')
-    + "</div>";
-  }).join("");
+    + (esBaja ? "" : '<div class="racc"><button class="rbaja" onclick="pedirBaja(this,\'' + esc(c.id) + "','" + esc(c.producto) + '\')">Dar de baja</button></div>')
+    + acc + "</div>";
+}
+function pedirAjuste(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  box.className = "credbox";
+  box.innerHTML = '<span>Ajustar saldo de ' + hesc(c.nombre) + " (hoy " + dinero((c.saldoActual != null ? c.saldoActual : c.saldo) || 0) + "):</span>"
+    + '<input class="credin" id="ajSaldo" inputmode="decimal" placeholder="nuevo saldo">'
+    + '<input class="credin" id="ajCuota" inputmode="decimal" placeholder="cuota (opcional)">'
+    + '<input class="credin ancho" id="ajMotivo" placeholder="motivo (ej. condonación, error de captura)">'
+    + '<button class="credok" onclick="hacerAjuste(this,' + i + ')">Guardar</button>'
+    + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
+    + '<div class="crederr" id="ajErr"></div>';
+  $("ajSaldo").focus();
+}
+async function hacerAjuste(btn, i) {
+  const c = credRow(i), err = $("ajErr"); btn.disabled = true;
+  const body = { id: c.id, producto: c.producto, saldo: $("ajSaldo").value, cuota: $("ajCuota").value, motivo: $("ajMotivo").value };
+  try {
+    const r = await fetch("/api/creditos/ajuste", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = d.error || "No se pudo ajustar."; btn.disabled = false; return; }
+    refrescarLista();
+  } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
+}
+function pedirMora(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  box.className = "credbox";
+  box.innerHTML = "<span>¿Cuánto debe de MORA " + hesc(c.nombre) + "? (0 le quita lo vencido)</span>"
+    + '<input class="credin" id="moMonto" inputmode="decimal" placeholder="mora $" value="' + (c.mora > 0 ? c.mora : "") + '">'
+    + '<input class="credin" id="moSaldo" inputmode="decimal" placeholder="corregir saldo (opcional)">'
+    + '<button class="credok" onclick="hacerMora(this,' + i + ')">Guardar</button>'
+    + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
+    + '<div class="crederr" id="moErr"></div>';
+  $("moMonto").focus();
+}
+async function hacerMora(btn, i) {
+  const c = credRow(i), err = $("moErr"); btn.disabled = true;
+  const body = { id: c.id, producto: c.producto, mora: $("moMonto").value, saldo: $("moSaldo").value };
+  try {
+    const r = await fetch("/api/creditos/mora", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = d.error || "No se pudo."; btn.disabled = false; return; }
+    refrescarLista();
+  } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
+}
+function pedirRecredito(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  box.className = "credbox";
+  box.innerHTML = "<span>Crédito NUEVO para " + hesc(c.nombre) + " · mismo grupo (" + hesc(c.centro) + "):</span>"
+    + '<input class="credin ancho" id="rcProd" placeholder="nombre del crédito nuevo (ej. ' + hesc(c.producto) + ' 2)">'
+    + '<input class="credin" id="rcSaldo" inputmode="decimal" placeholder="monto $">'
+    + '<input class="credin" id="rcCuota" inputmode="decimal" placeholder="cuota $">'
+    + '<button class="credok" onclick="hacerRecredito(this,' + i + ')">Dar crédito</button>'
+    + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
+    + '<div class="crederr" id="rcErr"></div>';
+  $("rcProd").focus();
+}
+async function hacerRecredito(btn, i) {
+  const c = credRow(i), err = $("rcErr"); btn.disabled = true;
+  const body = { id: c.id, nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo,
+    producto: $("rcProd").value, saldo: $("rcSaldo").value, cuota: $("rcCuota").value };
+  try {
+    const r = await fetch("/api/creditos/recredito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = d.error || "No se pudo."; btn.disabled = false; return; }
+    if (d.avisoDeuda > 0) alert("Ojo: " + hesc(c.nombre) + " todavía debe " + dinero(d.avisoDeuda) + " en otro crédito. El crédito nuevo se creó de todos modos.");
+    refrescarLista();
+  } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
 }
 
 // ---------- alta / baja de clientas ----------
@@ -953,6 +1085,7 @@ cargarResumen();
 cargarSeg();
 cargarSemana();
 cargarCentros();
+cargarYo();
 // 30s: se siente en vivo sin comerse los datos del celular (antes era cada 5s)
 setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); }, 30000);
 </script>

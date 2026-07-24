@@ -722,14 +722,15 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const s = wb.addWorksheet("Saldos actualizados");
   const AURORA = "FFF1228E", RIO = "FF324AB6";
-  s.mergeCells("A1:K1");
+  s.mergeCells("A1:M1");
   const t = s.getCell("A1");
   t.value = `FOOAX · SALDOS ACTUALIZADOS · semana ${lunes} → ${hoy}`;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
   t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
   t.alignment = { horizontal: "center", vertical: "middle" }; s.getRow(1).height = 24;
   const head = [["Ejecutivo", 13], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-    ["Saldo inicial", 13], ["Pagó semana", 13], ["Liquid./recup.", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10]];
+    ["Saldo inicial", 13], ["Pagó semana", 13], ["Liquid./recup.", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10],
+    ["Mora", 11], ["Estatus", 12]];
   const hr = s.getRow(2);
   head.forEach(([h2, w], i) => { const c = hr.getCell(i + 1); c.value = h2; s.getColumn(i + 1).width = w;
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -765,7 +766,7 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   }
   const liqRestante = Object.assign({}, liqPorSocio); // se va consumiendo por crédito
 
-  let tIni = 0, tPag = 0, tAct = 0, tGar = 0, tLiq = 0;
+  let tIni = 0, tPag = 0, tAct = 0, tGar = 0, tLiq = 0, tMora = 0;
   for (const c of rows) {
     const clave = claveCredito(c.id, c.producto);
     usadas.add(clave);
@@ -783,18 +784,23 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
     r.getCell(3).value = c.nombre || ""; r.getCell(4).value = c.id; r.getCell(5).value = c.producto || "";
     r.getCell(6).value = ini; r.getCell(7).value = pagado || null; r.getCell(8).value = liquidado || null;
     r.getCell(9).value = act; r.getCell(10).value = garan || null; r.getCell(11).value = c.cuota || 0;
-    [6, 7, 8, 9, 10, 11].forEach(i => r.getCell(i).numFmt = dinero);
+    const mora = Number(c.mora) > 0 ? Number(c.mora) : 0; tMora += mora;
+    r.getCell(12).value = mora || null;
+    r.getCell(13).value = (c.estatus && c.estatus !== "VIGENTE" && c.estatus !== "BAJA") ? c.estatus : "";
+    [6, 7, 8, 9, 10, 11, 12].forEach(i => r.getCell(i).numFmt = dinero);
     if (pagado > 0) r.getCell(7).font = { bold: true, color: { argb: "FF0B7247" } };
     if (liquidado > 0) r.getCell(8).font = { bold: true, color: { argb: "FF0B7247" } };
     if (act <= 0 && (pagado > 0 || liquidado > 0)) r.getCell(9).font = { bold: true, color: { argb: "FF0B7247" } };
     if (garan > 0) r.getCell(10).font = { bold: true, color: { argb: "FF8A5A00" } };
+    if (mora > 0) r.getCell(12).font = { bold: true, color: { argb: "FFB00020" } };
+    if (c.estatus === "VENCIDA") r.getCell(13).font = { bold: true, color: { argb: "FFB00020" } };
     if ((fila - 3) % 2 === 1) r.eachCell({ includeEmpty: true }, c2 => { if (!c2.fill || c2.fill.type !== "pattern") c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F1F8" } }; });
   }
   const tr = s.getRow(fila);
   tr.getCell(5).value = "TOTAL"; tr.getCell(5).font = { bold: true };
   tr.getCell(6).value = tIni; tr.getCell(7).value = tPag; tr.getCell(8).value = tLiq;
-  tr.getCell(9).value = tAct; tr.getCell(10).value = tGar;
-  [6, 7, 8, 9, 10].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
+  tr.getCell(9).value = tAct; tr.getCell(10).value = tGar; tr.getCell(12).value = tMora || null;
+  [6, 7, 8, 9, 10, 12].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
   fila++;
 
   // Cuadre explícito. La cobranza (pagos + garantías) cuadra con la tarjeta de
@@ -1012,6 +1018,119 @@ app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
   });
   refrescarPadron();
   res.json({ ok: true });
+});
+
+// ---------- CRÉDITOS Y SALDOS · solo Anel y Monse ----------
+// Manejo de cartera reservado a las dos personas de confianza (regla Karina):
+// marcar morosas (VENCIDA + mora), re-dar crédito a las que liquidaron, y
+// ajustar saldos. Todo deja rastro en la capa de cambios del padrón. La cuenta
+// de prueba nunca toca el padrón real.
+function soloAnelMonse(req, res, next) {
+  const u = usuarioDe(req);
+  if (!u) return res.status(401).json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." });
+  if (u.id !== "anel" && u.id !== "monse")
+    return res.status(403).json({ error: "Solo Anel y Monse pueden mover créditos y saldos." });
+  req.usuario = u;
+  next();
+}
+// Crédito exacto (socio + producto) del padrón activo, con su saldo actual.
+function creditoActivo(id, producto) {
+  const sid = String(id || "").replace(/[\s\-.]/g, "").trim();
+  return PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" &&
+    String(c.id) === sid && (producto == null || nprod(c.producto) === nprod(String(producto || ""))));
+}
+function saldoActualDe(c, pagos) {
+  const pagado = pagos[claveCredito(c.id, c.producto)] || 0;
+  return { pagado, saldoActual: Math.max(0, (c.saldo || 0) - pagado) };
+}
+
+// Lista de créditos para el panel: liquidadas (saldo 0), vencidas, o por texto.
+app.get("/api/creditos", soloAnelMonse, (req, res) => {
+  const estado = String(req.query.estado || "").toLowerCase();
+  const q = norm(req.query.q).trim();
+  const { pago: pagos } = pagosDeLaSemana(req.usuario);
+  let base = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
+  const conSaldo = base.map((c) => ({ ...c, ...saldoActualDe(c, pagos) }));
+  let lista = conSaldo;
+  if (estado === "liquidadas") lista = conSaldo.filter((c) => (c.saldo || 0) > 0 && c.saldoActual <= 0);
+  else if (estado === "vencidas") lista = conSaldo.filter((c) => c.estatus === "VENCIDA");
+  else if (q.length >= 2) {
+    const t = q.split(/\s+/);
+    lista = conSaldo.filter((c) => { const h = norm(c.nombre) + " " + c.id; return t.every((x) => h.includes(x)); });
+  } else lista = [];
+  lista = lista.sort((a, b) => String(a.centro).localeCompare(String(b.centro), "es") || String(a.nombre).localeCompare(String(b.nombre), "es")).slice(0, 120);
+  res.json({ total: base.length, resultados: lista });
+});
+
+// Marcar / quitar VENCIDA con su mora (y, si hace falta, corregir el saldo).
+app.post("/api/creditos/mora", soloAnelMonse, (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const mora = Number(b.mora);
+  if (!Number.isFinite(mora) || mora < 0) return res.status(400).json({ error: "La mora debe ser un monto válido (0 la quita)." });
+  const campos = { mora, estatus: mora > 0 ? "VENCIDA" : "VIGENTE" };
+  if (b.saldo != null && b.saldo !== "" && Number.isFinite(Number(b.saldo))) campos.saldo = Number(b.saldo);
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto, campos,
+    motivo: mora > 0 ? ("Vencida · mora " + mora) : "Se quita la mora",
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
+// Ajustar el SALDO (y opcionalmente la cuota) de un crédito, con motivo obligatorio.
+app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const saldo = Number(b.saldo);
+  if (!Number.isFinite(saldo) || saldo < 0) return res.status(400).json({ error: "El nuevo saldo debe ser un monto válido." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo del ajuste (queda en la bitácora)." });
+  const campos = { saldo };
+  if (b.cuota != null && b.cuota !== "" && Number.isFinite(Number(b.cuota)) && Number(b.cuota) >= 0) campos.cuota = Number(b.cuota);
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
+    saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
+// Re-dar crédito a una clienta que LIQUIDÓ: crédito NUEVO (monto+cuota), mismo
+// grupo, con nombre de producto distinto. El crédito anterior queda en el
+// historial (no se toca). Reusa la protección de socio y centro del alta.
+app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
+  if (!/^\d{5,15}$/.test(id)) return res.status(400).json({ error: "Número de socio inválido (solo dígitos)." });
+  const previa = PADRON.find((c) => String(c.id) === id);
+  if (!previa) return res.status(400).json({ error: "Ese socio no está en el padrón. Si es clienta nueva, usa \"Dar de alta\"." });
+  const nombre = String(b.nombre || previa.nombre || "").trim();
+  const centro = String(b.centro || previa.centro || "").trim();
+  const ejecutivo = String(b.ejecutivo || previa.ejecutivo || "").trim();
+  const producto = String(b.producto || "").trim();
+  if (!producto) return res.status(400).json({ error: "Ponle nombre al crédito nuevo (ej. \"Grupal-Basico 2\")." });
+  const saldo = Number(b.saldo), cuota = Number(b.cuota);
+  if (!Number.isFinite(saldo) || saldo <= 0) return res.status(400).json({ error: "El monto del crédito nuevo debe ser mayor a 0." });
+  if (!Number.isFinite(cuota) || cuota <= 0) return res.status(400).json({ error: "La cuota del crédito nuevo debe ser mayor a 0." });
+  if (!/^c-?0$/i.test(centro) && !listaCentros().some((x) => norm(x.centro) === norm(centro)))
+    return res.status(400).json({ error: "Ese centro no existe. Elígelo de la lista." });
+  const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(producto));
+  if (choca) return res.status(400).json({ error: "Ya tiene un crédito activo \"" + choca.producto + "\". Ponle otro nombre al crédito nuevo (ej. \"" + producto + " 2\")." });
+  // Aviso (no bloqueo): si aún debe en otro crédito, se informa — la decisión es
+  // de Anel/Monse. La regla es re-dar cuando ya llegó a 0.
+  const { pago: pagos } = pagosDeLaSemana(req.usuario);
+  const debeEnOtros = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id)
+    .reduce((s, c) => s + saldoActualDe(c, pagos).saldoActual, 0);
+  const clienta = { id, nombre, producto, centro, ejecutivo, saldo, cuota, plazo: Number(b.plazo) || 0,
+    mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: previa.producto || null };
+  store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
+  refrescarPadron();
+  res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0 });
 });
 
 // ---------- movimientos de dirección/caja (retiros, gastos, autorizaciones) ----------

@@ -33,6 +33,20 @@ function aplicarCambios(base, cambios) {
           cl.motivo_baja = c.motivo || null; cl.fecha_baja = c.fecha || null; cl.baja_por = c.por || null;
         }
       }
+    } else if (c.tipo === "ajuste") {
+      // EDICIÓN de un crédito por dirección (Anel/Monse): ajuste de saldo/cuota o
+      // marcar VENCIDA con su mora. Nunca borra; deja rastro (quién, cuándo, por
+      // qué y el saldo anterior). Se aplica al crédito exacto (socio + producto).
+      for (const cl of arr) {
+        if (String(cl.id) !== String(c.id)) continue;
+        if (c.producto && norm2(cl.producto) !== norm2(c.producto)) continue;
+        const k = c.campos || {};
+        if (k.saldo != null && Number.isFinite(Number(k.saldo))) { cl.saldo_anterior = cl.saldo; cl.saldo = Number(k.saldo); }
+        if (k.cuota != null && Number.isFinite(Number(k.cuota))) cl.cuota = Number(k.cuota);
+        if (k.mora != null && Number.isFinite(Number(k.mora))) cl.mora = Number(k.mora);
+        if (k.estatus) cl.estatus = k.estatus;
+        cl.ajuste_motivo = c.motivo || null; cl.ajuste_por = c.por || null; cl.ajuste_fecha = c.fecha || null;
+      }
     }
   }
   for (const cl of arr) if (cl.activa === undefined) cl.activa = cl.estatus !== "BAJA";

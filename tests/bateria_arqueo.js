@@ -281,6 +281,32 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   rr2 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "1111-3077-000", nombre: "COPIA CON GUIONES", producto: "Reestructura", centro: "REESTRUCTURA TEST", ejecutivo: "Neri" }) }));
   ok("socio copiado con guiones/espacios se limpia y SÍ entra", rr2.ok === true && rr2.clienta.id === "11113077000", JSON.stringify(rr2).slice(0, 80));
 
+  console.log("\n— 12. CRÉDITOS Y SALDOS · solo Anel y Monse —");
+  const cm = await login("monse", "monse2026");           // admin real (local)
+  const cal = await login("alejandra", "alejandra2026");  // admin, pero NO es Anel/Monse
+  let cr = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", nombre: "CARTERA TEST", producto: "Credito Prueba", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
+  ok("alta de clienta con saldo para la cartera", cr.ok === true, JSON.stringify(cr).slice(0, 60));
+  cr = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cal), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", mora: 300 }) }));
+  ok("otro admin (Alejandra) NO puede tocar créditos", !!cr.error && /Anel y Monse/.test(cr.error), (cr.error || "").slice(0, 70));
+  cr = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cd), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", mora: 300 }) }));
+  ok("la cuenta de prueba tampoco", !!cr.error, (cr.error || "").slice(0, 60));
+  cr = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", mora: 300 }) }));
+  ok("Monse marca VENCIDA + mora", cr.ok === true && cr.clienta.estatus === "VENCIDA" && cr.clienta.mora === 300, JSON.stringify(cr.clienta || {}).slice(0, 90));
+  let lv = await j(await fetch(U + "/api/creditos?estado=vencidas", { headers: H(ca) }));
+  ok("la vencida aparece en la lista de vencidas", (lv.resultados || []).some(c => String(c.id) === "70000000050"), "vencidas " + (lv.resultados || []).length);
+  cr = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", saldo: 400, motivo: "corrección de captura" }) }));
+  ok("Anel ajusta el saldo (con motivo)", cr.ok === true && cr.clienta.saldo === 400, JSON.stringify(cr.clienta || {}).slice(0, 80));
+  cr = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", saldo: 400 }) }));
+  ok("ajuste SIN motivo se rechaza (queda bitácora)", !!cr.error && /motivo/.test(cr.error), (cr.error || "").slice(0, 60));
+  cr = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", mora: 0 }) }));
+  ok("mora 0 le quita lo VENCIDA (vuelve a VIGENTE)", cr.ok === true && cr.clienta.estatus === "VIGENTE" && (cr.clienta.mora || 0) === 0, JSON.stringify(cr.clienta || {}).slice(0, 80));
+  cr = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba 2", saldo: 1500, cuota: 150 }) }));
+  ok("re-dar crédito crea uno NUEVO, mismo grupo, guardando el anterior", cr.ok === true && cr.clienta.producto === "Credito Prueba 2" && cr.clienta.recredito === true, JSON.stringify(cr.clienta || {}).slice(0, 90));
+  cr = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba 2", saldo: 1500, cuota: 150 }) }));
+  ok("re-crédito con producto que choca se rechaza (pide otro nombre)", !!cr.error && /otro nombre/.test(cr.error), (cr.error || "").slice(0, 70));
+  let sb = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("CARTERA TEST"), { headers: H(ca) }));
+  ok("conviven el crédito viejo y el nuevo (historial intacto)", (sb.resultados || []).filter(c => String(c.id) === "70000000050").length >= 2, "créditos " + (sb.resultados || []).filter(c => String(c.id) === "70000000050").length);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
