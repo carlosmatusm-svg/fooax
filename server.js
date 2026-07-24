@@ -301,8 +301,12 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
         const regI = Object.assign({}, base.regI || {}, inc.regI || {});
         const folios = new Set((base.movs || []).map((m) => m && m.folio));
         const movs = (base.movs || []).concat((inc.movs || []).filter((m) => m && !folios.has(m.folio)));
-        const arq = Object.assign({}, base.arqueo || {});
-        for (const d in (inc.arqueo || {})) arq[d] = (arq[d] || 0) + (Number(inc.arqueo[d]) || 0);
+        // El conteo de billetes NO se suma: es la FOTO más reciente del cajón,
+        // no un delta. La app manda siempre el conteo completo, así que sumarlo
+        // lo duplicaba — una re-sincronización después de cerrar inflaba el
+        // arqueo (fue el descuadre de $848 del 23-jul). Gana el conteo más
+        // reciente que traiga algo; si el nuevo viene vacío, se conserva el previo.
+        const arq = (inc.arqueo && Object.keys(inc.arqueo).length) ? inc.arqueo : (base.arqueo || {});
         snapFinal = Object.assign({}, inc, { reg, regI, movs, arqueo: arq });
       }
     }

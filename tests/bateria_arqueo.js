@@ -176,6 +176,21 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      Math.abs(desp10b.efectivo - (desp10.efectivo + 100)) < 0.01,
      desp10.efectivo + " → " + desp10b.efectivo);
   ok("el 'cerró ✓' sigue visible después de los tardíos", !!desp10b.cierre, "cierre " + desp10b.cierre);
+
+  console.log("\n— 10b. CONTEO DE BILLETES tras cerrar: NO se duplica —");
+  await sync({ reg: { "C-99": { "bills|P": { pago: 1000, forma: "E" } } }, regI: {}, movs: [], arqueo: { "500": 2 } });
+  let ar1 = await arqueo();
+  await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: HOY, confirmado: true }) });
+  const cnt1 = ar1.denomTotal["500"];
+  // re-sincroniza con el MISMO conteo (la app lo persiste): no debe duplicar
+  await sync({ reg: { "C-99": { "bills2|P": { pago: 100, forma: "E" } } }, regI: {}, movs: [], arqueo: { "500": 2 } });
+  let ar2 = await arqueo();
+  ok("el conteo de billetes NO se duplica al re-sincronizar tras cerrar (bug $848)",
+     ar2.denomTotal["500"] === cnt1, "antes " + cnt1 + " → después " + ar2.denomTotal["500"]);
+  // un re-conteo MÁS ALTO sí actualiza (gana el más reciente)
+  await sync({ reg: { "C-99": { "bills3|P": { pago: 100, forma: "E" } } }, regI: {}, movs: [], arqueo: { "500": 3 } });
+  let ar3 = await arqueo();
+  ok("un re-conteo más alto SÍ actualiza (gana el último)", ar3.denomTotal["500"] === cnt1 + 1, "billetes de $500: " + ar3.denomTotal["500"]);
   // y sin FALSA ALARMA de "bajó de X a Y pagos" en el resumen de Anel
   const resu = await j(await fetch(U + "/api/resumen", { headers: H(cd) }));
   const falsa = (resu.items || []).some((it) => /bajó de/.test(it.txt || ""));
