@@ -317,15 +317,33 @@ function fusionarPagoNodo(vi, nu) {
   }
   return out;
 }
+// Dos registros de pago son EL MISMO (no un pago adicional): mismo pago,
+// garantía, solidario y forma/mixto. Clave para no duplicar cuando la ejecutiva
+// vuelve a ENTRAR y su app re-manda la MISMA captura del día ya cerrado.
+function igualPago(a, b) {
+  return !!a && !!b &&
+    (a.pago || 0) === (b.pago || 0) &&
+    (a.garantia || 0) === (b.garantia || 0) &&
+    (a.solidario || 0) === (b.solidario || 0) &&
+    (a.forma || "E") === (b.forma || "E") &&
+    (a.mixEfe || 0) === (b.mixEfe || 0) &&
+    (a.mixTr || 0) === (b.mixTr || 0);
+}
 function fusionarSesion(base, inc) {
+  // Fusiona una clienta del envío nuevo contra la base congelada del cierre. Si
+  // el nodo es IDÉNTICO al de la base, es la MISMA captura re-enviada (la
+  // ejecutiva volvió a entrar): se conserva la base, NO se suma — antes esto
+  // duplicaba el día entero al re-entrar aunque solo hubiera registrado una vez.
+  // Solo se SUMA cuando el monto/forma es DISTINTO (un pago realmente adicional).
+  const fusC = (viejo, nuevo) => !viejo ? nuevo : (igualPago(viejo, nuevo) ? viejo : fusionarPagoNodo(viejo, nuevo));
   const reg = {};
   for (const c in (base.reg || {})) reg[c] = Object.assign({}, base.reg[c]);
   for (const c in (inc.reg || {})) {
     reg[c] = reg[c] || {};
-    for (const k in inc.reg[c]) reg[c][k] = reg[c][k] ? fusionarPagoNodo(reg[c][k], inc.reg[c][k]) : inc.reg[c][k];
+    for (const k in inc.reg[c]) reg[c][k] = fusC(reg[c][k], inc.reg[c][k]);
   }
   const regI = Object.assign({}, base.regI || {});
-  for (const k in (inc.regI || {})) regI[k] = regI[k] ? fusionarPagoNodo(regI[k], inc.regI[k]) : inc.regI[k];
+  for (const k in (inc.regI || {})) regI[k] = fusC(regI[k], inc.regI[k]);
   // Movimientos: la sesión nueva REINICIA su consecutivo. Un folio repetido con
   // el MISMO contenido es el mismo movimiento (idempotente); con contenido
   // DISTINTO es uno NUEVO y se re-etiqueta (antes se descartaba en silencio).
@@ -1629,9 +1647,19 @@ app.get("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
       vistas.add(clave);
       versiones.push({ archivado: h.archivado, cifras: c });
     }
+    // La FOTO DEL CIERRE (baseCerrada) es la captura correcta ANTES de cualquier
+    // re-entrada/fusión. Se ofrece como opción "al cerrar": si al re-entrar la
+    // app duplicó el día, esta es la buena y la versión actual no.
+    const rec = actuales[id];
+    let alCerrar = null;
+    if (rec && rec.baseCerrada != null) {
+      const cb = cifrasDeSnapshot(rec.baseCerrada);
+      if (cb && cb.total > 0) alCerrar = cb;
+    }
     ejecutivos[id] = {
       nombre: USUARIOS[id].nombre,
       actual,
+      alCerrar,
       versiones: versiones.sort(mejorPrimero).slice(0, 15),
     };
   }
@@ -1643,6 +1671,16 @@ app.post("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
   const ejec = String(b.ejec || "").trim();
   if (!fecha || !ejec) return res.status(400).json({ error: "Falta la fecha o el ejecutivo." });
   if (!idsEjecutivos(req.usuario).includes(ejec)) return res.status(400).json({ error: "Ejecutivo no válido." });
+  // Opción especial: restaurar la FOTO DEL CIERRE (la captura correcta antes de
+  // re-entrar). Es la que arregla el descuadre por re-captura duplicada.
+  if (String(b.archivado) === "alCerrar") {
+    const rec = store.snapshotsDeFecha(fecha)[ejec];
+    const base = rec && rec.baseCerrada;
+    const cif = base != null ? cifrasDeSnapshot(base) : null;
+    if (!base || !cif || cif.total <= 0) return res.status(404).json({ error: "No hay foto del cierre para ese día." });
+    store.guardarSnapshot(ejec, fecha, { snapshot: base, ts: Date.now() });
+    return res.json({ ok: true, ejec, fecha, cifras: cif, archivado: "alCerrar" });
+  }
   let hist = [];
   try { hist = await store.historialDeFecha(fecha); } catch (e) { hist = []; }
   const candidatas = hist.filter((x) => x.ejecutivo === ejec)

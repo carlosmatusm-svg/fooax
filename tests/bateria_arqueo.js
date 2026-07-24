@@ -318,6 +318,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const liqCl2 = (cl2.resultados || []).find(c => String(c.id) === "70000000060") || {};
   ok("y también en el PANEL de créditos (mismo saldo)", liqCl2.saldoActual === 400, "saldoActual " + liqCl2.saldoActual);
 
+  console.log("\n— 14. RE-ENTRAR con la MISMA captura NO duplica (bug 'solo registré una vez') —");
+  const D = "2026-06-10";
+  const syncD = (snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D, snapshot: snap, ts: Date.now() }) });
+  const consD = async () => { const c = await j(await fetch(U + "/api/consolidado?fecha=" + D, { headers: H(cd) })); return (c.ejecutivos && c.ejecutivos.prueba) || {}; };
+  const capD = { reg: { "C-77": { "z1|P": { pago: 500, forma: "E" }, "z2|P": { pago: 300, forma: "T" } } }, regI: {}, movs: [], arqueo: { "500": 1, "200": 1, "100": 1 } };
+  await syncD(capD);
+  const antesD = await consD();
+  await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D, confirmado: true }) });
+  await syncD(JSON.parse(JSON.stringify(capD)));   // re-entra: misma captura
+  await syncD(JSON.parse(JSON.stringify(capD)));   // y otra vez
+  const despD = await consD();
+  ok("re-entrar y re-mandar la MISMA captura NO duplica el día",
+     Math.abs(despD.efectivo - antesD.efectivo) < 0.01 && Math.abs(despD.transferencia - antesD.transferencia) < 0.01,
+     "efe " + antesD.efectivo + "→" + despD.efectivo + " · tr " + antesD.transferencia + "→" + despD.transferencia);
+  const capMas = JSON.parse(JSON.stringify(capD)); capMas.reg["C-77"]["z3|P"] = { pago: 200, forma: "E" };
+  await syncD(capMas);
+  const masD = await consD();
+  ok("un pago NUEVO distinto sí se suma tras cerrar", Math.abs(masD.efectivo - (antesD.efectivo + 200)) < 0.01, antesD.efectivo + "→" + masD.efectivo);
+
+  console.log("\n— 15. RESTAURAR la versión DEL CIERRE (arregla el descuadre por re-captura) —");
+  const capDist = JSON.parse(JSON.stringify(capD)); capDist.reg["C-77"]["z1|P"] = { pago: 900, forma: "E" };
+  await syncD(capDist);   // monto distinto → se suma → descuadre a propósito
+  const sucio = await consD();
+  ok("un monto DISTINTO tras cerrar se suma (descuadre a propósito)", sucio.efectivo > masD.efectivo, "efe " + sucio.efectivo);
+  const rv = await j(await fetch(U + "/api/recuperar?fecha=" + D, { headers: H(cd) }));
+  const alc = rv.ejecutivos && rv.ejecutivos.prueba && rv.ejecutivos.prueba.alCerrar;
+  ok("el restaurador OFRECE la versión al cerrar con la cifra correcta",
+     !!alc && alc.efectivo === antesD.efectivo && alc.transferencia === antesD.transferencia,
+     alc ? ("efe " + alc.efectivo + " · tr " + alc.transferencia) : "sin alCerrar");
+  const rr3 = await j(await fetch(U + "/api/recuperar", { method: "POST", headers: H(cd), body: JSON.stringify({ fecha: D, ejec: "prueba", archivado: "alCerrar" }) }));
+  const rest = await consD();
+  ok("restaurar la del cierre deja el día correcto otra vez",
+     rr3.ok === true && Math.abs(rest.efectivo - antesD.efectivo) < 0.01 && Math.abs(rest.transferencia - antesD.transferencia) < 0.01,
+     "efe " + rest.efectivo + " · tr " + rest.transferencia);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

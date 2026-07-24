@@ -248,6 +248,7 @@
   .recver{display:flex;justify-content:space-between;align-items:center;gap:10px;
     padding:8px 10px;border:1px solid var(--lav);border-radius:10px;margin-bottom:6px;font-size:12px}
   .recver.igual{background:#F4F7FB;border-color:#D8E0EE}
+  .recver.alcierre{background:#EAF7EF;border:2px solid #0B7247}
   .recver b{font-variant-numeric:tabular-nums;color:var(--tinta)}
   .recvbtn{font:inherit;font-size:12px;font-weight:700;color:#fff;background:#0B7247;border:none;
     border-radius:99px;padding:7px 13px;cursor:pointer;flex-shrink:0}
@@ -990,7 +991,19 @@ async function verVersiones() {
     "</b> · " + c.clientas + " pagos";
   box.innerHTML = ejs.map(([id, e]) => {
     const act = e.actual ? linea(e.actual) : "<b>sin captura</b>";
-    if (!e.versiones.length) {
+    // Fila especial: la versión AL CERRAR (la correcta antes de re-entrar). Es la
+    // que arregla el descuadre cuando la app re-mandó la misma captura y se dobló.
+    let alc = "";
+    if (e.alCerrar) {
+      const cc = e.alCerrar;
+      const igualA = e.actual && cc.efectivo === e.actual.efectivo && cc.transferencia === e.actual.transferencia &&
+        cc.pago === e.actual.pago && cc.garantias === e.actual.garantias;
+      alc = '<div class="recver alcierre"><span><b>Versión al cerrar</b> (la correcta, antes de re-entrar):<br>' + linea(cc) + "</span>" +
+        (igualA ? '<button class="recvbtn" disabled>Es la actual</button>'
+                : '<button class="recvbtn" onclick="restaurarVersion(\'' + hesc(id) + "','" + hesc(f) + "','alCerrar')\">Regresar la del cierre</button>") +
+        "</div>";
+    }
+    if (!e.versiones.length && !alc) {
       return '<div class="recej"><h4>' + hesc(e.nombre) + '</h4><div class="recact">Ahora: ' + act +
         '</div><div class="rechint">No hay versiones guardadas de este día.</div></div>';
     }
@@ -1006,7 +1019,7 @@ async function verVersiones() {
           : '<button class="recvbtn" onclick="restaurarVersion(\'' + hesc(id) + "','" + hesc(f) + "'," + v.archivado + ')">Regresar esta</button>') +
         "</div>";
     }).join("");
-    return '<div class="recej"><h4>' + hesc(e.nombre) + '</h4><div class="recact">Ahora: ' + act + "</div>" + filas + "</div>";
+    return '<div class="recej"><h4>' + hesc(e.nombre) + '</h4><div class="recact">Ahora: ' + act + "</div>" + alc + filas + "</div>";
   }).join("");
 }
 async function restaurarVersion(ejec, fecha, archivado) {
