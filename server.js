@@ -1359,6 +1359,15 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   const movs = (req.usuario.rol === "ejecutivo") ? [] : movsDeFecha(fecha, req.usuario);
   const egresosEfectivo = egresosEnEfectivo(movs);
   repartirMovsPorEjecutivo(a.porEjec, movs);
+  // Cuadre POR EJECUTIVA: lo que contó de billetes vs lo que debe entregar
+  // (su efectivo + sus entradas − sus salidas). Antes solo existía el
+  // consolidado, así que no se veía CUÁL ejecutiva estaba descuadrada.
+  for (const id in a.porEjec) {
+    const e = a.porEjec[id];
+    e.contado = Math.round(Object.entries(e.denom).reduce((s, [d, q]) => s + Number(d) * (Number(q) || 0), 0) * 100) / 100;
+    e.aEntregar = Math.round((e.efectivo + (e.movEntradas || 0) - (e.movSalidas || 0)) * 100) / 100;
+    e.dif = Math.round((e.contado - e.aEntregar) * 100) / 100;
+  }
   res.json({
     fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
     denominaciones: DENOMS_ARQUEO,

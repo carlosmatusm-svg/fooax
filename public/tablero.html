@@ -216,8 +216,14 @@
     background:#EAF7EF;border:1px solid #C6EAD6;border-radius:12px;font-weight:700;color:#0B7247}
   .arq-entregar b{font-size:19px;font-variant-numeric:tabular-nums}
   .arq-vacio{color:var(--gris);font-size:13px;padding:4px 0}
-  .arq-ejec{font-size:12px;color:var(--gris);display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--lav)}
+  .arq-ejecblk{border-top:1px solid var(--lav)}
+  .arq-ejec{font-size:12px;color:var(--gris);display:flex;justify-content:space-between;gap:8px;padding:4px 0}
+  .arq-ejecblk .arq-ejec{border-top:none}
   .arq-ejec b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .arq-cuadre{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--gris);padding:0 0 6px}
+  .arq-cuadre b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .arq-cuadre .cuadraok{color:#0B7247;font-weight:800}
+  .arq-cuadre .cuadrano{color:#B00020;font-weight:800}
   .arq-enviar{width:100%;margin-top:12px;font:inherit;font-size:14px;font-weight:700;color:#fff;border:none;
     border-radius:12px;padding:12px;cursor:pointer;background:linear-gradient(90deg,#0B7247,#12A15F)}
   .arq-enviar:active{filter:brightness(.94)}
@@ -810,8 +816,15 @@ async function cargarArqueo() {
       let otros = "";
       if (e.movEntradas > 0) otros += ' · <span style="color:#0B7247">otros +' + dinero(e.movEntradas) + "</span>";
       if (e.movSalidas > 0) otros += ' · <span style="color:var(--mora)">otros −' + dinero(e.movSalidas) + "</span>";
-      return '<div class="arq-ejec"><span>' + hesc(e.nombre) + "</span><b>efectivo " + dinero(e.efectivo) +
-        " · transf. " + dinero(e.transferencia) + otros + "</b></div>";
+      // Cuadre de SU caja: lo que contó de billetes vs lo que debe entregar.
+      const cuadra = Math.abs(e.dif || 0) < 1;
+      const difTxt = e.dif > 0 ? "sobra " + dinero(e.dif) : e.dif < 0 ? "falta " + dinero(-e.dif) : "cuadra ✓";
+      const cuadre = (e.contado > 0 || e.aEntregar > 0)
+        ? '<div class="arq-cuadre"><span>contó <b>' + dinero(e.contado || 0) + "</b> · debe entregar <b>" + dinero(e.aEntregar || 0) + "</b></span>" +
+          '<span class="' + (cuadra ? "cuadraok" : "cuadrano") + '">' + difTxt + "</span></div>"
+        : "";
+      return '<div class="arq-ejecblk"><div class="arq-ejec"><span>' + hesc(e.nombre) + "</span><b>efectivo " + dinero(e.efectivo) +
+        " · transf. " + dinero(e.transferencia) + otros + "</b></div>" + cuadre + "</div>";
     }).join("");
   box.innerHTML =
     '<div class="arq-card"><div class="arq-h">Desglose de efectivo recibido</div>' +
