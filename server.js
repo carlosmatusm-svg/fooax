@@ -862,7 +862,9 @@ app.post("/api/centros", requiere("direccion", "admin"), (req, res) => {
 
 app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
-  const id = String(b.id || "").trim();
+  // El socio se limpia de espacios y guiones antes de validar: al copiarlo de
+  // otra hoja a veces viene "1111 3077 777" o "1111-3077-777".
+  const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
   const nombre = (b.nombre || "").trim();
   const centro = (b.centro || "").trim();
   const ejecutivo = (b.ejecutivo || "").trim();
@@ -880,9 +882,17 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   if (!/^c-?0$/i.test(centro) && !listaCentros().some((c) => norm(c.centro) === norm(centro)))
     return res.status(400).json({ error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." });
   // Duplicado exacto: mismo socio + mismo producto ya activo. Antes el alta se
-  // IGNORABA en silencio y parecía que sí se registró.
-  if (PADRON.some((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(String(b.producto || ""))))
-    return res.status(400).json({ error: "Esa clienta ya existe con ese mismo producto." });
+  // IGNORABA en silencio y parecía que sí se registró. El mensaje dice DÓNDE
+  // está el crédito que choca y cómo seguir — clave en reestructuras, donde la
+  // clienta suele existir ya con su crédito original.
+  const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(String(b.producto || "")));
+  if (choca) {
+    const donde = [choca.centro, choca.ejecutivo].filter(Boolean).join(" · ");
+    return res.status(400).json({
+      error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
+        (donde ? " en " + donde : "") + ". Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + (String(b.producto || "Crédito").trim()) + " 2\").",
+    });
+  }
   const clienta = {
     id, nombre, producto: (b.producto || "").trim(), centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,

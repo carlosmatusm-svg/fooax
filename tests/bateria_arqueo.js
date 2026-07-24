@@ -201,7 +201,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   rc = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cd), body: JSON.stringify({ numero: "97", nombre: "CENTRO PIRATA", ejecutivo: "Prueba" }) }));
   ok("ni registrar centros", !!rc.error, JSON.stringify(rc).slice(0, 60));
   rc = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "ABC 123", nombre: "X", producto: "P", centro: "CENTRO BATERIA", ejecutivo: "Neri" }) }));
-  ok("socio con letras/espacios se rechaza (basura que nunca haría match)", !!rc.error && /dígitos/.test(rc.error), JSON.stringify(rc).slice(0, 70));
+  ok("socio con letras se rechaza (basura que nunca haría match)", !!rc.error && /dígitos/.test(rc.error), JSON.stringify(rc).slice(0, 70));
+
+  console.log("\n— 11b. REESTRUCTURA: centro nuevo + clienta de reestructura —");
+  let rr2 = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(ca), body: JSON.stringify({ numero: "95", nombre: "REESTRUCTURA TEST", ejecutivo: "Neri", dia: "Lunes" }) }));
+  ok("se crea el centro de reestructura", rr2.ok === true, JSON.stringify(rr2).slice(0, 60));
+  rr2 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "11113001966", nombre: "ODEETTE", producto: "Reestructura", centro: "REESTRUCTURA TEST", ejecutivo: "Neri", saldo: 5000, cuota: 300 }) }));
+  ok("reestructura de clienta que YA existe: mensaje dice DÓNDE está y cómo seguir",
+     !!rr2.error && /YA tiene un crédito/.test(rr2.error) && /otro nombre de producto/.test(rr2.error), (rr2.error || "").slice(0, 90));
+  rr2 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "11113001966", nombre: "ODEETTE", producto: "Reestructura 2", centro: "REESTRUCTURA TEST", ejecutivo: "Neri", saldo: 5000, cuota: 300 }) }));
+  ok("con otro nombre de producto SÍ entra (reestructura aparte)", rr2.ok === true, JSON.stringify(rr2).slice(0, 60));
+  rr2 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "1111-3077-000", nombre: "COPIA CON GUIONES", producto: "Reestructura", centro: "REESTRUCTURA TEST", ejecutivo: "Neri" }) }));
+  ok("socio copiado con guiones/espacios se limpia y SÍ entra", rr2.ok === true && rr2.clienta.id === "11113077000", JSON.stringify(rr2).slice(0, 80));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
