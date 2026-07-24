@@ -193,6 +193,14 @@ module.exports = {
       }
     }
     const rec = Object.assign({}, snapshot, { recibido: Date.now() });
+    // El sello de CIERRE (y su confirmación) sobrevive a los reemplazos: sin
+    // esto, el primer pago tardío después de cerrar borraba el sello, el
+    // SEGUNDO ya no fusionaba (reemplazaba y perdía el día), y el "cerró ✓"
+    // desaparecía del tablero.
+    if (previo) {
+      if (previo.cierre && !rec.cierre) rec.cierre = previo.cierre;
+      if (previo.confirmado && !rec.confirmado) rec.confirmado = previo.confirmado;
+    }
     mem.snapshots[ejecutivo][fecha] = rec;
     persistSnapshot(ejecutivo, fecha, rec);
     return rec;

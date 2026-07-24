@@ -160,6 +160,20 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("los movimientos del día NO se anulan por la captura tardía",
      lm10.lista.some((m) => !m.anulado && /Comisión|Liquidación/.test(m.concepto)),
      "vivos: " + lm10.lista.filter((m) => !m.anulado).length);
+  // SEGUNDO y TERCER pago tardío: el sello de cierre debe sobrevivir a cada
+  // reemplazo — sin eso, el 2º tardío reemplazaba el día entero (bug cazado).
+  await sync({ reg: { "C-99": { "tardio2|P": { pago: 40, forma: "E" } } }, regI: {}, movs: [] });
+  await sync({ reg: { "C-99": { "tardio3|P": { pago: 60, forma: "E" } } }, regI: {}, movs: [] });
+  const desp10b = (await consolidado()).ejecutivos.prueba;
+  ok("2º y 3º tardío también SUMAN (el cierre sobrevive a los reemplazos)",
+     Math.abs(desp10b.efectivo - (desp10.efectivo + 100)) < 0.01,
+     desp10.efectivo + " → " + desp10b.efectivo);
+  ok("el 'cerró ✓' sigue visible después de los tardíos", !!desp10b.cierre, "cierre " + desp10b.cierre);
+  // y sin FALSA ALARMA de "bajó de X a Y pagos" en el resumen de Anel
+  const resu = await j(await fetch(U + "/api/resumen", { headers: H(cd) }));
+  const falsa = (resu.items || []).some((it) => /bajó de/.test(it.txt || ""));
+  ok("sin falsa alarma de reducción tras capturas post-cierre", !falsa,
+     JSON.stringify((resu.items || []).map((i) => i.txt).filter((t) => /bajó/.test(t))).slice(0, 120));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
