@@ -200,6 +200,7 @@ module.exports = {
     if (previo) {
       if (previo.cierre && !rec.cierre) rec.cierre = previo.cierre;
       if (previo.confirmado && !rec.confirmado) rec.confirmado = previo.confirmado;
+      if (previo.baseCerrada != null && rec.baseCerrada == null) rec.baseCerrada = previo.baseCerrada;
     }
     mem.snapshots[ejecutivo][fecha] = rec;
     persistSnapshot(ejecutivo, fecha, rec);
@@ -255,6 +256,10 @@ module.exports = {
     rec.cierre = Date.now();
     // confirmado = la ejecutiva marcó la palomita "lo que capturé es verdad".
     if (confirmado) rec.confirmado = Date.now();
+    // FOTO CONGELADA del día al momento del cierre: las capturas de la sesión
+    // siguiente se fusionan SIEMPRE contra esta base (no contra el último
+    // merge), para que re-sincronizar sea idempotente y nada se duplique.
+    rec.baseCerrada = rec.snapshot;
     persistSnapshot(ejecutivo, fecha, rec);
     return true;
   },

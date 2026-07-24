@@ -266,6 +266,70 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot) {
   }
 }
 
+// ---------- fusión post-cierre ----------
+// CONTRATO: tras el cierre, la app arranca limpia y cada sync manda el estado
+// COMPLETO de la sesión nueva (acumulado desde el cierre). La fusión SIEMPRE
+// parte de la foto CONGELADA al cierre (baseCerrada) — nunca del último merge —
+// para que re-sincronizar la misma sesión sea idempotente. (La familia del bug
+// de los $848: tratar fotos como sumas y sumas como fotos.)
+function fusionarPagoNodo(vi, nu) {
+  // La MISMA clienta pagó otra vez después del cierre: es dinero ADICIONAL, se
+  // SUMA (antes lo nuevo pisaba lo de la mañana). Si las formas difieren, el
+  // resultado es MIXTO con cada parte en su bolsa (efectivo/banco).
+  const tot = (r) => (r.pago || 0) + (r.garantia || 0) + (r.solidario || 0);
+  const efeDe = (r) => {
+    if (r.forma === "T" || r.forma === "D") return 0;
+    if (r.forma === "M") {
+      const mt = r.mixTr || 0;
+      return (r.mixEfe != null && (mt + (r.mixEfe || 0)) === tot(r)) ? r.mixEfe : tot(r) - mt;
+    }
+    return tot(r);
+  };
+  const out = Object.assign({}, nu);
+  out.pago = (vi.pago || 0) + (nu.pago || 0);
+  out.garantia = (vi.garantia || 0) + (nu.garantia || 0);
+  out.solidario = (vi.solidario || 0) + (nu.solidario || 0);
+  const fv = vi.forma || "E", fn = nu.forma || "E";
+  if (fv === fn && fv !== "M") { out.forma = fv; delete out.mixEfe; delete out.mixTr; }
+  else {
+    out.forma = "M";
+    out.mixEfe = Math.round((efeDe(vi) + efeDe(nu)) * 100) / 100;
+    out.mixTr = Math.round(((tot(vi) - efeDe(vi)) + (tot(nu) - efeDe(nu))) * 100) / 100;
+  }
+  return out;
+}
+function fusionarSesion(base, inc) {
+  const reg = {};
+  for (const c in (base.reg || {})) reg[c] = Object.assign({}, base.reg[c]);
+  for (const c in (inc.reg || {})) {
+    reg[c] = reg[c] || {};
+    for (const k in inc.reg[c]) reg[c][k] = reg[c][k] ? fusionarPagoNodo(reg[c][k], inc.reg[c][k]) : inc.reg[c][k];
+  }
+  const regI = Object.assign({}, base.regI || {});
+  for (const k in (inc.regI || {})) regI[k] = regI[k] ? fusionarPagoNodo(regI[k], inc.regI[k]) : inc.regI[k];
+  // Movimientos: la sesión nueva REINICIA su consecutivo. Un folio repetido con
+  // el MISMO contenido es el mismo movimiento (idempotente); con contenido
+  // DISTINTO es uno NUEVO y se re-etiqueta (antes se descartaba en silencio).
+  const movs = (base.movs || []).slice();
+  const igual = (a, b) => a && b && String(a.concepto || "") === String(b.concepto || "") &&
+    Number(a.monto || 0) === Number(b.monto || 0) && String(a.via || "") === String(b.via || "") &&
+    String(a.socio || "") === String(b.socio || "");
+  for (const m of (inc.movs || [])) {
+    if (!m) continue;
+    if (movs.some((x) => igual(x, m) && (x.folio === m.folio || String(x.folio || "").indexOf(m.folio + "~") === 0))) continue;
+    let folio = m.folio;
+    if (movs.some((x) => x.folio === folio)) {
+      let i = 2; while (movs.some((x) => x.folio === folio + "~" + i)) i++;
+      folio = folio + "~" + i;
+    }
+    movs.push(Object.assign({}, m, { folio }));
+  }
+  // El conteo de billetes es FOTO, no delta (bug de los $848): gana el último
+  // conteo con datos; si la sesión nueva no ha contado, se conserva el previo.
+  const arqueo = (inc.arqueo && Object.keys(inc.arqueo).length) ? inc.arqueo : (base.arqueo || {});
+  return Object.assign({}, inc, { reg, regI, movs, arqueo });
+}
+
 app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   const { fecha, snapshot, ts } = req.body || {};
   if (!fecha || !snapshot) return res.status(400).json({ error: "Faltan datos para sincronizar (la fecha o la captura)." });
@@ -293,21 +357,23 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   let snapFinal = snapshot;
   try {
     if (previo && previo.cierre) {
-      let base = previo.snapshot; if (typeof base === "string") base = JSON.parse(base);
+      // Fusión contra la foto CONGELADA al cierre (idempotente). Días cerrados
+      // antes de esta versión no tienen baseCerrada: comportamiento anterior.
+      let base = previo.baseCerrada != null ? previo.baseCerrada : previo.snapshot;
+      if (typeof base === "string") base = JSON.parse(base);
       let inc = snapshot; if (typeof inc === "string") inc = JSON.parse(inc);
       if (base && typeof base === "object" && inc && typeof inc === "object") {
-        const reg = {}; for (const c in (base.reg || {})) reg[c] = Object.assign({}, base.reg[c]);
-        for (const c in (inc.reg || {})) reg[c] = Object.assign({}, reg[c] || {}, inc.reg[c]);
-        const regI = Object.assign({}, base.regI || {}, inc.regI || {});
-        const folios = new Set((base.movs || []).map((m) => m && m.folio));
-        const movs = (base.movs || []).concat((inc.movs || []).filter((m) => m && !folios.has(m.folio)));
-        // El conteo de billetes NO se suma: es la FOTO más reciente del cajón,
-        // no un delta. La app manda siempre el conteo completo, así que sumarlo
-        // lo duplicaba — una re-sincronización después de cerrar inflaba el
-        // arqueo (fue el descuadre de $848 del 23-jul). Gana el conteo más
-        // reciente que traiga algo; si el nuevo viene vacío, se conserva el previo.
-        const arq = (inc.arqueo && Object.keys(inc.arqueo).length) ? inc.arqueo : (base.arqueo || {});
-        snapFinal = Object.assign({}, inc, { reg, regI, movs, arqueo: arq });
+        if (previo.baseCerrada != null) {
+          snapFinal = fusionarSesion(base, inc);
+        } else {
+          const reg = {}; for (const c in (base.reg || {})) reg[c] = Object.assign({}, base.reg[c]);
+          for (const c in (inc.reg || {})) reg[c] = Object.assign({}, reg[c] || {}, inc.reg[c]);
+          const regI = Object.assign({}, base.regI || {}, inc.regI || {});
+          const folios = new Set((base.movs || []).map((m) => m && m.folio));
+          const movs = (base.movs || []).concat((inc.movs || []).filter((m) => m && !folios.has(m.folio)));
+          const arq = (inc.arqueo && Object.keys(inc.arqueo).length) ? inc.arqueo : (base.arqueo || {});
+          snapFinal = Object.assign({}, inc, { reg, regI, movs, arqueo: arq });
+        }
       }
     }
   } catch (e) { snapFinal = snapshot; }

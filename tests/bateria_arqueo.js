@@ -157,8 +157,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      "marcado " + cc.marcado + " · confirmado " + cc.confirmado + " · cierre " + cons.ejecutivos.prueba.cierre);
 
   console.log("\n— 10. CAPTURA DESPUÉS DEL CIERRE: se SUMA, no reemplaza —");
+  // CONTRATO de sesión: tras el cierre la app arranca limpia y cada sync manda
+  // el estado COMPLETO de la sesión (acumulado). La batería imita eso.
   const antes10 = (await consolidado()).ejecutivos.prueba;
-  await sync({ reg: { "C-99": { "tardio|P": { pago: 111, forma: "E" } } }, regI: {}, movs: [] });
+  const ses1 = { "tardio|P": { pago: 111, forma: "E" } };
+  await sync({ reg: { "C-99": Object.assign({}, ses1) }, regI: {}, movs: [] });
   const desp10 = (await consolidado()).ejecutivos.prueba;
   ok("el pago tardío se SUMA al día cerrado (antes borraba lo anterior)",
      Math.abs(desp10.efectivo - (antes10.efectivo + 111)) < 0.01,
@@ -167,35 +170,69 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("los movimientos del día NO se anulan por la captura tardía",
      lm10.lista.some((m) => !m.anulado && /Comisión|Liquidación/.test(m.concepto)),
      "vivos: " + lm10.lista.filter((m) => !m.anulado).length);
-  // SEGUNDO y TERCER pago tardío: el sello de cierre debe sobrevivir a cada
-  // reemplazo — sin eso, el 2º tardío reemplazaba el día entero (bug cazado).
-  await sync({ reg: { "C-99": { "tardio2|P": { pago: 40, forma: "E" } } }, regI: {}, movs: [] });
-  await sync({ reg: { "C-99": { "tardio3|P": { pago: 60, forma: "E" } } }, regI: {}, movs: [] });
+  // 2º y 3º pago tardío (sesión acumulada): el cierre sobrevive a los reemplazos
+  ses1["tardio2|P"] = { pago: 40, forma: "E" };
+  await sync({ reg: { "C-99": Object.assign({}, ses1) }, regI: {}, movs: [] });
+  ses1["tardio3|P"] = { pago: 60, forma: "E" };
+  await sync({ reg: { "C-99": Object.assign({}, ses1) }, regI: {}, movs: [] });
   const desp10b = (await consolidado()).ejecutivos.prueba;
   ok("2º y 3º tardío también SUMAN (el cierre sobrevive a los reemplazos)",
      Math.abs(desp10b.efectivo - (desp10.efectivo + 100)) < 0.01,
      desp10.efectivo + " → " + desp10b.efectivo);
   ok("el 'cerró ✓' sigue visible después de los tardíos", !!desp10b.cierre, "cierre " + desp10b.cierre);
+  // re-sincronizar la MISMA sesión no duplica nada (fusión idempotente)
+  await sync({ reg: { "C-99": Object.assign({}, ses1) }, regI: {}, movs: [] });
+  const desp10c = (await consolidado()).ejecutivos.prueba;
+  ok("re-sincronizar la misma sesión NO duplica (fusión idempotente)",
+     Math.abs(desp10c.efectivo - desp10b.efectivo) < 0.01,
+     desp10b.efectivo + " → " + desp10c.efectivo);
 
   console.log("\n— 10b. CONTEO DE BILLETES tras cerrar: NO se duplica —");
-  await sync({ reg: { "C-99": { "bills|P": { pago: 1000, forma: "E" } } }, regI: {}, movs: [], arqueo: { "500": 2 } });
+  ses1["bills|P"] = { pago: 1000, forma: "E" };
+  await sync({ reg: { "C-99": Object.assign({}, ses1) }, regI: {}, movs: [], arqueo: { "500": 2 } });
   let ar1 = await arqueo();
   await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: HOY, confirmado: true }) });
   const cnt1 = ar1.denomTotal["500"];
-  // re-sincroniza con el MISMO conteo (la app lo persiste): no debe duplicar
-  await sync({ reg: { "C-99": { "bills2|P": { pago: 100, forma: "E" } } }, regI: {}, movs: [], arqueo: { "500": 2 } });
+  // SEGUNDA sesión del día (la app vuelve a arrancar limpia)
+  const ses2 = { "bills2|P": { pago: 100, forma: "E" } };
+  await sync({ reg: { "C-99": Object.assign({}, ses2) }, regI: {}, movs: [], arqueo: { "500": 2 } });
   let ar2 = await arqueo();
   ok("el conteo de billetes NO se duplica al re-sincronizar tras cerrar (bug $848)",
      ar2.denomTotal["500"] === cnt1, "antes " + cnt1 + " → después " + ar2.denomTotal["500"]);
-  // un re-conteo MÁS ALTO sí actualiza (gana el más reciente)
-  await sync({ reg: { "C-99": { "bills3|P": { pago: 100, forma: "E" } } }, regI: {}, movs: [], arqueo: { "500": 3 } });
+  ses2["bills3|P"] = { pago: 100, forma: "E" };
+  await sync({ reg: { "C-99": Object.assign({}, ses2) }, regI: {}, movs: [], arqueo: { "500": 3 } });
   let ar3 = await arqueo();
   ok("un re-conteo más alto SÍ actualiza (gana el último)", ar3.denomTotal["500"] === cnt1 + 1, "billetes de $500: " + ar3.denomTotal["500"]);
-  // y sin FALSA ALARMA de "bajó de X a Y pagos" en el resumen de Anel
   const resu = await j(await fetch(U + "/api/resumen", { headers: H(cd) }));
   const falsa = (resu.items || []).some((it) => /bajó de/.test(it.txt || ""));
   ok("sin falsa alarma de reducción tras capturas post-cierre", !falsa,
      JSON.stringify((resu.items || []).map((i) => i.txt).filter((t) => /bajó/.test(t))).slice(0, 120));
+
+  console.log("\n— 10c. LOS HERMANOS DEL BUG $848: doble pago y folios reiniciados —");
+  // La MISMA clienta (bills|P, pagó E $1,000 antes del cierre) vuelve a pagar
+  // T $200 en la sesión nueva: debe SUMAR (antes el pago de la mañana se perdía)
+  const c0 = (await consolidado()).ejecutivos.prueba;
+  ses2["bills|P"] = { pago: 200, forma: "T" };
+  await sync({ reg: { "C-99": Object.assign({}, ses2) }, regI: {}, movs: [], arqueo: { "500": 3 } });
+  let cA = (await consolidado()).ejecutivos.prueba;
+  ok("doble pago cruzando el cierre: se SUMA, no reemplaza (mañana E$1,000 + tarde T$200)",
+     Math.abs(cA.pago - (c0.pago + 200)) < 0.01 && Math.abs(cA.transferencia - (c0.transferencia + 200)) < 0.01 && Math.abs(cA.efectivo - c0.efectivo) < 0.01,
+     "pago " + c0.pago + "→" + cA.pago + " · tr " + c0.transferencia + "→" + cA.transferencia + " · efe " + c0.efectivo + "→" + cA.efectivo);
+  await sync({ reg: { "C-99": Object.assign({}, ses2) }, regI: {}, movs: [], arqueo: { "500": 3 } });
+  let cB = (await consolidado()).ejecutivos.prueba;
+  ok("y re-sincronizar ese doble pago NO lo duplica", Math.abs(cB.pago - cA.pago) < 0.01, cA.pago + " → " + cB.pago);
+  // FOLIO REINICIADO: la sesión nueva vuelve a empezar en -01; un folio repetido
+  // con contenido DISTINTO es un movimiento NUEVO (antes se descartaba en silencio)
+  const lmA = await j(await fetch(U + "/api/movimientos", { headers: H(cd) }));
+  const movsSes = [{ folio: "C1", concepto: "COMISION", monto: 300, via: "E" }];   // C1 ya existió en la mañana con $500
+  await sync({ reg: { "C-99": Object.assign({}, ses2) }, regI: {}, movs: movsSes, arqueo: { "500": 3 } });
+  const lmB = await j(await fetch(U + "/api/movimientos", { headers: H(cd) }));
+  ok("folio reiniciado con contenido distinto = movimiento NUEVO (ya no se pierde)",
+     Math.abs(lmB.entradas - (lmA.entradas + 300)) < 0.01, "entradas " + lmA.entradas + " → " + lmB.entradas);
+  await sync({ reg: { "C-99": Object.assign({}, ses2) }, regI: {}, movs: movsSes, arqueo: { "500": 3 } });
+  const lmC = await j(await fetch(U + "/api/movimientos", { headers: H(cd) }));
+  ok("y re-sincronizarlo NO lo duplica (idempotente por contenido)",
+     Math.abs(lmC.entradas - lmB.entradas) < 0.01, "entradas " + lmB.entradas + " → " + lmC.entradas);
 
   console.log("\n— 11. ALTAS: centros reales, sin fantasmas, y el padrón protegido —");
   const ca = await login("anel", "anel2026");   // dirección REAL (solo local)
