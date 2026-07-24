@@ -812,16 +812,74 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
 const MOTIVOS_BAJA = ["Salió del grupo", "No renovó", "Mora / mal historial",
   "Cambió zona / cerró negocio", "Decisión FOOAX", "Otro"];
 
+// ---------- centros ----------
+// Lista de centros REALES (del padrón activo + los registrados desde el
+// tablero). Sirve para que el alta de clientas elija de una lista en vez de
+// texto libre: un dedazo creaba un "centro fantasma" que partía los reportes.
+function listaCentros() {
+  const mapa = new Map();
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const nom = String(c.centro || "").trim();
+    if (!nom || /^c-?0$/i.test(nom)) continue;   // C-0 = créditos individuales
+    const e = mapa.get(nom) || { centro: nom, clientas: 0, ejecutivos: new Set() };
+    e.clientas++; if (c.ejecutivo) e.ejecutivos.add(c.ejecutivo);
+    mapa.set(nom, e);
+  }
+  for (const cb of store.cambiosPadron()) {
+    if (cb.tipo === "centro" && cb.centro && !mapa.has(cb.centro))
+      mapa.set(cb.centro, { centro: cb.centro, clientas: 0, ejecutivos: new Set(cb.ejecutivo ? [cb.ejecutivo] : []) });
+  }
+  return [...mapa.values()]
+    .map((x) => ({ centro: x.centro, clientas: x.clientas, ejecutivos: [...x.ejecutivos] }))
+    .sort((a, b) => a.centro.localeCompare(b.centro, "es"));
+}
+app.get("/api/centros", requiere("direccion", "admin"), (req, res) => {
+  res.json({
+    centros: listaCentros(),
+    ejecutivos: idsEjecutivos(req.usuario).map((id) => ({ id, nombre: USUARIOS[id].nombre })),
+  });
+});
+// Alta de un CENTRO nuevo (con bitácora de quién y cuándo).
+app.post("/api/centros", requiere("direccion", "admin"), (req, res) => {
+  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede tocar el padrón real." });
+  const b = req.body || {};
+  const numero = String(b.numero || "").trim();
+  const nombre = String(b.nombre || "").trim().toUpperCase();
+  const ejecutivo = String(b.ejecutivo || "").trim();
+  if (!/^\d{1,3}$/.test(numero)) return res.status(400).json({ error: "Número de centro inválido (ej. 86)." });
+  if (nombre.length < 3) return res.status(400).json({ error: "Escribe el nombre del centro." });
+  const nombresEjec = idsEjecutivos(req.usuario).map((id) => USUARIOS[id].nombre);
+  if (!nombresEjec.includes(ejecutivo)) return res.status(400).json({ error: "Elige la ejecutiva del centro." });
+  if (listaCentros().some((c) => norm(c.centro) === norm(nombre)))
+    return res.status(400).json({ error: "Ese centro ya existe: elígelo de la lista." });
+  if (store.cambiosPadron().some((cb) => cb.tipo === "centro" && String(cb.numero) === numero))
+    return res.status(400).json({ error: "Ese número de centro ya está usado." });
+  store.agregarCambioPadron({ tipo: "centro", numero, centro: nombre, ejecutivo,
+    dia: String(b.dia || "").trim(), fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
+  res.json({ ok: true, centro: nombre, numero });
+});
+
 app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
   const id = String(b.id || "").trim();
   const nombre = (b.nombre || "").trim();
   const centro = (b.centro || "").trim();
   const ejecutivo = (b.ejecutivo || "").trim();
+  // La cuenta de prueba NO toca el padrón real (probar el alta metía
+  // clientas falsas al padrón de verdad).
+  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." });
   if (!id) return res.status(400).json({ error: "Falta el número de socio." });
   if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
   if (!centro) return res.status(400).json({ error: "Falta el centro." });
   if (!ejecutivo) return res.status(400).json({ error: "Falta el ejecutivo." });
+  // El centro debe EXISTIR (evita centros fantasma por dedazo). "C-0" = individual.
+  if (!/^c-?0$/i.test(centro) && !listaCentros().some((c) => norm(c.centro) === norm(centro)))
+    return res.status(400).json({ error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." });
+  // Duplicado exacto: mismo socio + mismo producto ya activo. Antes el alta se
+  // IGNORABA en silencio y parecía que sí se registró.
+  if (PADRON.some((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(String(b.producto || ""))))
+    return res.status(400).json({ error: "Esa clienta ya existe con ese mismo producto." });
   const clienta = {
     id, nombre, producto: (b.producto || "").trim(), centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
@@ -836,6 +894,7 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
 });
 
 app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
+  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dar de baja en el padrón real." });
   const b = req.body || {};
   const id = String(b.id || "").trim();
   const motivo = MOTIVOS_BAJA.includes(b.motivo) ? b.motivo : null;

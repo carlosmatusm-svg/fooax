@@ -3,6 +3,7 @@
 // OJO: requiere DATOS LIMPIOS (no es re-ejecutable sobre un día ya cerrado —
 // la fusión post-cierre sumaría las corridas). Antes de correr:
 //   printf '{}' > data/snapshots.json; printf '[]' > data/movimientos.json
+//   printf '[]' > data/padron_cambios.json
 //   rm -f data/snapshots_hist.jsonl && reiniciar el servidor
 const U = "http://localhost:3899";
 let PASS = 0, FAIL = 0;
@@ -180,6 +181,25 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const falsa = (resu.items || []).some((it) => /bajó de/.test(it.txt || ""));
   ok("sin falsa alarma de reducción tras capturas post-cierre", !falsa,
      JSON.stringify((resu.items || []).map((i) => i.txt).filter((t) => /bajó/.test(t))).slice(0, 120));
+
+  console.log("\n— 11. ALTAS: centros reales, sin fantasmas, y el padrón protegido —");
+  const ca = await login("anel", "anel2026");   // dirección REAL (solo local)
+  let dc = await j(await fetch(U + "/api/centros", { headers: H(ca) }));
+  ok("la lista de centros reales carga", (dc.centros || []).length > 10, "centros " + (dc.centros || []).length);
+  let rc = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(ca), body: JSON.stringify({ numero: "99", nombre: "CENTRO BATERIA", ejecutivo: "Neri", dia: "Lunes" }) }));
+  ok("se registra un centro NUEVO", rc.ok === true && rc.centro === "CENTRO BATERIA", JSON.stringify(rc).slice(0, 80));
+  rc = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(ca), body: JSON.stringify({ numero: "98", nombre: "centro bateria", ejecutivo: "Neri" }) }));
+  ok("centro duplicado (aunque cambie mayúsculas) se rechaza", !!rc.error, JSON.stringify(rc).slice(0, 60));
+  rc = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000001", nombre: "CLIENTA BATERIA", producto: "Grupal-Basico", centro: "CENTRO QUE NO EXISTE", ejecutivo: "Neri", saldo: 100, cuota: 50 }) }));
+  ok("alta con centro inexistente se rechaza (adiós centros fantasma)", !!rc.error, JSON.stringify(rc).slice(0, 70));
+  rc = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000001", nombre: "CLIENTA BATERIA", producto: "Grupal-Basico", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 100, cuota: 50 }) }));
+  ok("alta con el centro nuevo funciona", rc.ok === true, JSON.stringify(rc).slice(0, 60));
+  rc = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000001", nombre: "CLIENTA BATERIA", producto: "Grupal - Basico", centro: "CENTRO BATERIA", ejecutivo: "Neri" }) }));
+  ok("alta DUPLICADA (mismo socio+producto, aunque cambie el guion) se rechaza", !!rc.error, JSON.stringify(rc).slice(0, 60));
+  rc = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cd), body: JSON.stringify({ id: "70000000002", nombre: "X", producto: "P", centro: "CENTRO BATERIA", ejecutivo: "Prueba" }) }));
+  ok("la cuenta de PRUEBA no puede tocar el padrón real (alta)", !!rc.error && /PRUEBA/.test(rc.error), JSON.stringify(rc).slice(0, 70));
+  rc = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cd), body: JSON.stringify({ numero: "97", nombre: "CENTRO PIRATA", ejecutivo: "Prueba" }) }));
+  ok("ni registrar centros", !!rc.error, JSON.stringify(rc).slice(0, 60));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

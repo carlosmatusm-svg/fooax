@@ -137,6 +137,8 @@
   .altasubmit{font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--verde);
     border:none;border-radius:12px;padding:12px;cursor:pointer}
   .altasubmit:disabled{opacity:.6}
+  .cnuevo{background:#F6F3F9;border:1.5px dashed var(--rio);border-radius:12px;padding:10px 12px;margin:2px 0 8px}
+  .cn-t{font-weight:800;font-size:12.5px;color:var(--rio);margin-bottom:7px}
   .altaerr{font-size:12.5px;font-weight:600}
   .altaerr.err{color:#B4232F}.altaerr.ok{color:var(--verde)}
   .rvacio{color:var(--gris);font-size:13px;text-align:center;padding:12px}
@@ -299,8 +301,25 @@
         <div class="acampo"><label>Producto</label><input id="aProducto" placeholder="Grupal-Basico"></div>
       </div>
       <div class="arow">
-        <div class="acampo"><label>Centro</label><input id="aCentro" placeholder="C-13 · YA MUGHNI" required></div>
+        <div class="acampo"><label>Centro</label>
+          <select id="aCentro" required onchange="document.getElementById('centroNuevo').style.display=(this.value==='__nuevo__')?'block':'none'">
+            <option value="" disabled selected>— Elige el centro —</option>
+            <option value="__nuevo__">➕ Centro NUEVO…</option>
+          </select></div>
         <div class="acampo"><label>Ejecutivo</label><select id="aEjecutivo"><option>Neri</option><option>Karina</option><option>Christopher</option></select></div>
+      </div>
+      <div id="centroNuevo" class="cnuevo" style="display:none">
+        <div class="cn-t">➕ Alta de centro nuevo</div>
+        <div class="arow">
+          <div class="acampo"><label>Número</label><input id="cnNum" inputmode="numeric" placeholder="86"></div>
+          <div class="acampo"><label>Nombre del centro</label><input id="cnNombre" placeholder="LAS ORQUIDEAS"></div>
+        </div>
+        <div class="arow">
+          <div class="acampo"><label>Ejecutiva</label><select id="cnEjec"><option>Neri</option><option>Karina</option><option>Christopher</option></select></div>
+          <div class="acampo"><label>Día de pago</label><select id="cnDia"><option value=""></option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div>
+        </div>
+        <button type="button" class="altasubmit" onclick="registrarCentro()">Registrar centro</button>
+        <div class="altaerr" id="cnErr"></div>
       </div>
       <div class="arow">
         <div class="acampo"><label>Saldo</label><input id="aSaldo" type="number" inputmode="decimal"></div>
@@ -848,6 +867,43 @@ async function restaurarVersion(ejec, fecha, archivado) {
   } catch { alert("Sin conexión con el servidor."); }
 }
 
+// ---------- centros: lista real + alta de centro nuevo ----------
+// El centro ya no es texto libre: se elige de la lista (un dedazo creaba un
+// "centro fantasma" que partía los reportes). Si es nuevo, se registra en su
+// propia pestaña y queda en la bitácora con quién y cuándo.
+async function cargarCentros() {
+  let d;
+  try { d = await (await fetch("/api/centros", { credentials: "include" })).json(); } catch { return; }
+  const sel = $("aCentro");
+  if (sel && d.centros) {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="" disabled' + (cur ? "" : " selected") + '>— Elige el centro —</option>'
+      + d.centros.map((c) => '<option value="' + hesc(c.centro) + '">' + hesc(c.centro)
+        + (c.clientas ? " (" + c.clientas + ")" : " (nuevo)") + "</option>").join("")
+      + '<option value="__nuevo__">➕ Centro NUEVO…</option>';
+    if (cur && cur !== "__nuevo__") sel.value = cur;
+  }
+  const ops = (d.ejecutivos || []).map((e) => "<option>" + hesc(e.nombre) + "</option>").join("");
+  if (ops) { const a = $("aEjecutivo"), b = $("cnEjec"); if (a) a.innerHTML = ops; if (b) b.innerHTML = ops; }
+}
+async function registrarCentro() {
+  const err = $("cnErr"); err.textContent = "";
+  const ejElegida = $("cnEjec").value;   // antes de recargar la lista (la resetea)
+  try {
+    const r = await fetch("/api/centros", {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numero: $("cnNum").value, nombre: $("cnNombre").value, ejecutivo: $("cnEjec").value, dia: $("cnDia").value }),
+    });
+    const d = await r.json();
+    if (!r.ok) { err.textContent = d.error || "No se pudo registrar el centro."; return; }
+    await cargarCentros();
+    $("aCentro").value = d.centro;
+    $("aEjecutivo").value = ejElegida;
+    $("centroNuevo").style.display = "none";
+    $("cnNum").value = ""; $("cnNombre").value = "";
+  } catch { err.textContent = "Sin conexión con el servidor."; }
+}
+
 async function salir() {
   await fetch("/api/logout", { method: "POST", credentials: "include" });
   location.href = "/";
@@ -861,6 +917,7 @@ cargarArqueo();
 cargarResumen();
 cargarSeg();
 cargarSemana();
+cargarCentros();
 // 30s: se siente en vivo sin comerse los datos del celular (antes era cada 5s)
 setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); }, 30000);
 </script>
