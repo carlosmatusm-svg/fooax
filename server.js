@@ -335,7 +335,12 @@ function acumular(nodo, acc) {
     // 'D' = DEPÓSITO (Oxxo/tienda): el dinero va directo al banco, NO lo trae
     // el ejecutivo en efectivo. Antes caía en el "else" y se contaba como
     // efectivo: por eso a Monse le cuadraba el total pero no la clasificación.
-    if (nodo.forma === "T" || nodo.forma === "D") acc.transferencia += total;
+    if (nodo.forma === "T" || nodo.forma === "D") {
+      acc.transferencia += total;
+      // subconjunto visible: cuánto de eso fue DEPÓSITO Oxxo/tienda — el
+      // reporte de la app los separa y Monse necesita cotejarlos igual.
+      if (nodo.forma === "D") acc.deposito = (acc.deposito || 0) + total;
+    }
     else if (nodo.forma === "M") {
       // MIXTO: la transferencia es lo capturado y el efectivo es el RESTO —
       // igual que en la app. Antes se leía sólo mixEfe: si la ejecutiva llenaba
@@ -374,7 +379,8 @@ app.get("/api/consolidado", requiere("direccion", "admin"), (req, res) => {
   const total = Object.values(ejecutivos).reduce((t, e) => ({
     pago: t.pago + e.pago, garantias: t.garantias + e.garantias,
     efectivo: t.efectivo + e.efectivo, transferencia: t.transferencia + e.transferencia,
-  }), { pago: 0, garantias: 0, efectivo: 0, transferencia: 0 });
+    deposito: t.deposito + (e.deposito || 0),
+  }), { pago: 0, garantias: 0, efectivo: 0, transferencia: 0, deposito: 0 });
   res.json({ fecha, ejecutivos, total });
 });
 
@@ -952,7 +958,10 @@ function calcularArqueo(fecha, ids) {
         const total = pago + gar + sol;
         acc.garantias += gar;
         // 'D' = depósito: va al banco, no es efectivo a entregar (ver acumular()).
-        if (n.forma === "T" || n.forma === "D") acc.transferencia += total;
+        if (n.forma === "T" || n.forma === "D") {
+          acc.transferencia += total;
+          if (n.forma === "D") acc.deposito = (acc.deposito || 0) + total;
+        }
         else if (n.forma === "M") {
           const mt = n.mixTr || 0;
           const me = (n.mixEfe != null && (mt + (n.mixEfe || 0)) === total) ? n.mixEfe : (total - mt);
@@ -990,14 +999,15 @@ function calcularArqueo(fecha, ids) {
 
   // Totales consolidados de denominaciones y efectivo
   const denomTotal = {}; DENOMS_ARQUEO.forEach((d) => { denomTotal[d] = 0; });
-  let efectivo = 0, transferencia = 0, garantias = 0, faltantes = 0;
+  let efectivo = 0, transferencia = 0, garantias = 0, faltantes = 0, deposito = 0;
   for (const id in porEjec) {
     const e = porEjec[id];
     DENOMS_ARQUEO.forEach((d) => { denomTotal[d] += e.denom[d] || 0; });
     efectivo += e.efectivo; transferencia += e.transferencia; garantias += e.garantias; faltantes += e.faltantes;
+    deposito += e.deposito || 0;
   }
 
-  return { porEjec, denomTotal, efectivo, transferencia, garantias, faltantes };
+  return { porEjec, denomTotal, efectivo, transferencia, garantias, faltantes, deposito };
 }
 
 app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) => {
@@ -1136,7 +1146,12 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   if (egresosEfectivo >= 0) linea("− Gastos y retiros en efectivo", -egresosEfectivo);
   else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEfectivo);
   linea("Efectivo a entregar", a.efectivo - egresosEfectivo);
-  linea("Depósitos / transferencias", a.transferencia);
+  if (a.deposito > 0) {
+    linea("Transferencias", a.transferencia - a.deposito);
+    linea("Depósitos Oxxo / tienda", a.deposito);
+  } else {
+    linea("Depósitos / transferencias", a.transferencia);
+  }
   linea("Garantías", a.garantias);
   const rm = s.getRow(fila++); rm.getCell(1).value = "Mora del día (faltantes)";
   const cm = rm.getCell(4); cm.value = a.faltantes; cm.numFmt = dinero;

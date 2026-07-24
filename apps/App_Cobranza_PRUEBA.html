@@ -876,7 +876,7 @@ function cliRow(centro,cl){
     +cuotaAviso(r,cuota)
     +avisoError(r,tot)
     +(r.forma==='M'?('<div class="mixbox">'
-      +'<div class="mixnota">Pago mixto: anota cuánto entró en efectivo y cuánto por transferencia. Deben sumar el total ('+fmt(tot)+').</div>'
+      +'<div class="mixnota">Pago mixto: anota UNO de los dos (el otro se calcula solo). Deben sumar el total ('+fmt(tot)+').</div>'
       +'<div class="mixcampos">'
         +'<div class="campo"><label>En efectivo</label><input type="number" inputmode="decimal" placeholder="0" value="'+((r.mixEfe&&r.mixEfe>0)?r.mixEfe:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixEfe\',this.value)"></div>'
         +'<div class="campo"><label>Transferencia</label><input type="number" inputmode="decimal" placeholder="0" value="'+((r.mixTr&&r.mixTr>0)?r.mixTr:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixTr\',this.value)"></div>'
@@ -1069,6 +1069,11 @@ function setANombre(centro,socio,v){
 function setMix(centro,socio,key,v){
   const r=getReg(centro?reg:regI,centro||null,socio);
   r[key]=parseFloat(v)||0;
+  // El OTRO campo se calcula solo: siempre suman el total del pago. Si teclea
+  // de más, el otro queda en 0 y el error rojo avisa (pago mayor al total).
+  const tot=rTot(r);
+  const otro=(key==='mixTr')?'mixEfe':'mixTr';
+  r[otro]=Math.max(0,Math.round((tot-(r[key]||0))*100)/100);
   if(centro)render(); else renderIndiv();
   recalc();guardar();
 }

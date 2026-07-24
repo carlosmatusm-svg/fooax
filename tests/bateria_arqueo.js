@@ -1,5 +1,9 @@
 // BATERÍA DE PRUEBAS DEL ARQUEO — problemas comunes de campo, de punta a punta.
 // Corre contra el servidor local (3899) con la burbuja de prueba.
+// OJO: requiere DATOS LIMPIOS (no es re-ejecutable sobre un día ya cerrado —
+// la fusión post-cierre sumaría las corridas). Antes de correr:
+//   printf '{}' > data/snapshots.json; printf '[]' > data/movimientos.json
+//   rm -f data/snapshots_hist.jsonl && reiniciar el servidor
 const U = "http://localhost:3899";
 let PASS = 0, FAIL = 0;
 const ok = (nombre, cond, detalle) => {
@@ -48,6 +52,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("mixto solo-transf: el efectivo es el RESTO", Math.abs(a.efectivo - efeEsp) < 0.01, "efe " + a.efectivo + " esperado " + efeEsp);
   ok("depósito va a transferencias, no a efectivo", Math.abs(a.transferencia - trEsp) < 0.01, "tr " + a.transferencia + " esperado " + trEsp);
   ok("garantía sola sí entra al total", a.garantias === 250, "gar " + a.garantias);
+  ok("el DEPÓSITO Oxxo se ve por separado (subconjunto de transferencias)",
+     a.deposito === 1500, "deposito " + a.deposito);
 
   console.log("\n— 2. MORA: clienta con DOS créditos (caso NOEMI real) —");
   // NOEMI 11113163277: Grupal-Basico 2 cuota $1,008 · Grupal-Micro cuota $512 (padrón real)

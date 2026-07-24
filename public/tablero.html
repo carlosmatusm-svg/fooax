@@ -652,7 +652,10 @@ async function cargarArqueo() {
       ? fila("− Gastos y retiros en efectivo", "−" + dinero(d.egresosEfectivo))
       : '<div class="arq-fila"><span style="color:#0B7247">+ Entradas de caja (recuperaciones, etc.)</span><b style="color:#0B7247">+' + dinero(-d.egresosEfectivo) + "</b></div>") +
     '<div class="arq-entregar"><span>Efectivo a entregar</span><b>' + dinero(d.efectivoAEntregar) + "</b></div>" +
-    fila("Depósitos / transferencias", dinero(d.transferencia)) +
+    (d.deposito > 0
+      ? fila("Transferencias", dinero(d.transferencia - d.deposito)) +
+        fila("Depósitos Oxxo / tienda", dinero(d.deposito))
+      : fila("Depósitos / transferencias", dinero(d.transferencia))) +
     fila("Garantías", dinero(d.garantias)) +
     fila("Mora del día (faltantes)", dinero(d.faltantes), d.faltantes > 0) +
     (porEjec ? '<div style="margin-top:8px">' + porEjec + "</div>" : "") +
