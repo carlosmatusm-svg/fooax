@@ -286,13 +286,35 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
     guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot);
     return res.json({ ok: false, rechazado: "vacio_sobre_lleno", pagosEnServidor: antes, hoy });
   }
-  store.guardarSnapshot(req.usuario.id, fecha, { snapshot, ts: ts || Date.now() });
-  guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot);
+  // FUSIÓN POST-CIERRE: si el día ya se cerró (enviaron el arqueo) y llega más
+  // captura, se SUMA a lo que había en vez de reemplazarlo. Sin esto, capturar
+  // después de cerrar (candado al volver / pago tardío) borraba del día todo lo
+  // anterior — quedaba en el historial, pero el tablero solo enseñaba lo nuevo.
+  let snapFinal = snapshot;
+  try {
+    if (previo && previo.cierre) {
+      let base = previo.snapshot; if (typeof base === "string") base = JSON.parse(base);
+      let inc = snapshot; if (typeof inc === "string") inc = JSON.parse(inc);
+      if (base && typeof base === "object" && inc && typeof inc === "object") {
+        const reg = {}; for (const c in (base.reg || {})) reg[c] = Object.assign({}, base.reg[c]);
+        for (const c in (inc.reg || {})) reg[c] = Object.assign({}, reg[c] || {}, inc.reg[c]);
+        const regI = Object.assign({}, base.regI || {}, inc.regI || {});
+        const folios = new Set((base.movs || []).map((m) => m && m.folio));
+        const movs = (base.movs || []).concat((inc.movs || []).filter((m) => m && !folios.has(m.folio)));
+        const arq = Object.assign({}, base.arqueo || {});
+        for (const d in (inc.arqueo || {})) arq[d] = (arq[d] || 0) + (Number(inc.arqueo[d]) || 0);
+        snapFinal = Object.assign({}, inc, { reg, regI, movs, arqueo: arq });
+      }
+    }
+  } catch (e) { snapFinal = snapshot; }
+  store.guardarSnapshot(req.usuario.id, fecha, { snapshot: snapFinal, ts: ts || Date.now() });
+  guardarMovimientosDeEjecutiva(req.usuario, fecha, snapFinal);
   if (fecha !== hoy) desfasesFecha[req.usuario.id] = { fecha, hoy, ts: Date.now() };
   else delete desfasesFecha[req.usuario.id];
-  if (antes != null && ahora != null && antes - ahora >= 3) {
-    reducciones[req.usuario.id] = { fecha, antes, ahora, ts: Date.now() };
-  } else if (reducciones[req.usuario.id] && reducciones[req.usuario.id].fecha === fecha && ahora != null && antes != null && ahora >= antes) {
+  const ahoraFinal = (snapFinal === snapshot) ? ahora : contarPagos(snapFinal);
+  if (antes != null && ahoraFinal != null && antes - ahoraFinal >= 3) {
+    reducciones[req.usuario.id] = { fecha, antes, ahora: ahoraFinal, ts: Date.now() };
+  } else if (reducciones[req.usuario.id] && reducciones[req.usuario.id].fecha === fecha && ahoraFinal != null && antes != null && ahoraFinal >= antes) {
     delete reducciones[req.usuario.id];
   }
   res.json({ ok: true, recibido: new Date().toISOString(), hoy, fechaRecibida: fecha, desfase: fecha !== hoy });

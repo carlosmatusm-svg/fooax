@@ -149,6 +149,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      cc.marcado === true && cc.confirmado === true && !!cons.ejecutivos.prueba.cierre,
      "marcado " + cc.marcado + " · confirmado " + cc.confirmado + " · cierre " + cons.ejecutivos.prueba.cierre);
 
+  console.log("\n— 10. CAPTURA DESPUÉS DEL CIERRE: se SUMA, no reemplaza —");
+  const antes10 = (await consolidado()).ejecutivos.prueba;
+  await sync({ reg: { "C-99": { "tardio|P": { pago: 111, forma: "E" } } }, regI: {}, movs: [] });
+  const desp10 = (await consolidado()).ejecutivos.prueba;
+  ok("el pago tardío se SUMA al día cerrado (antes borraba lo anterior)",
+     Math.abs(desp10.efectivo - (antes10.efectivo + 111)) < 0.01,
+     antes10.efectivo + " → " + desp10.efectivo);
+  const lm10 = await j(await fetch(U + "/api/movimientos", { headers: H(cd) }));
+  ok("los movimientos del día NO se anulan por la captura tardía",
+     lm10.lista.some((m) => !m.anulado && /Comisión|Liquidación/.test(m.concepto)),
+     "vivos: " + lm10.lista.filter((m) => !m.anulado).length);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
