@@ -353,6 +353,25 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      rr3.ok === true && Math.abs(rest.efectivo - antesD.efectivo) < 0.01 && Math.abs(rest.transferencia - antesD.transferencia) < 0.01,
      "efe " + rest.efectivo + " · tr " + rest.transferencia);
 
+  console.log("\n— 16. GASTOS: un gasto en efectivo cuadra; en transferencia no toca la caja —");
+  const DG = "2026-05-20";
+  const syncG = (snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: DG, snapshot: snap, ts: Date.now() }) });
+  const arqG = async () => j(await fetch(U + "/api/arqueo?fecha=" + DG, { headers: H(cd) }));
+  // cobranza $1000 efectivo + gasto $200 EFECTIVO + gasto $300 TRANSFERENCIA;
+  // cuenta la caja DESPUÉS del gasto en efectivo → $800 en billetes.
+  await syncG({ reg: { "C-1": { "g1|P": { pago: 1000, forma: "E" } } }, regI: {}, movs: [
+    { folio: "GG1", concepto: "GASTO", monto: 200, via: "E", nota: "transporte" },
+    { folio: "GG2", concepto: "GASTO", monto: 300, via: "T", nota: "pago banco" },
+  ], arqueo: { "500": 1, "200": 1, "100": 1 } });
+  const ag = await arqG();
+  const pg = (ag.porEjec || {}).prueba || {};
+  ok("gasto en efectivo baja el 'a entregar' exacto (1000 − 200 = 800)", pg.aEntregar === 800, "aEntregar " + pg.aEntregar);
+  ok("la caja CUADRA con el gasto en efectivo (contó 800 = debe 800, dif 0)", pg.contado === 800 && pg.dif === 0, "contó " + pg.contado + " · dif " + pg.dif);
+  ok("el gasto por TRANSFERENCIA no descuadra la caja (sigue en 800, no 500)", pg.aEntregar === 800, "aEntregar " + pg.aEntregar);
+  ok("el consolidado también cuadra con el gasto (a entregar 800 = billetes 800)",
+     Math.abs((ag.efectivoAEntregar) - 800) < 0.01 && Math.abs(Object.entries(ag.denomTotal).reduce((s, [d, q]) => s + Number(d) * q, 0) - 800) < 0.01,
+     "aEntregar " + ag.efectivoAEntregar);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

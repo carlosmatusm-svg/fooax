@@ -1247,6 +1247,11 @@ function repartirMovsPorEjecutivo(porEjec, movs) {
     const e = porEjec[id];
     if (m.entrada) e.movEntradas = (e.movEntradas || 0) + m.monto;
     else e.movSalidas = (e.movSalidas || 0) + m.monto;
+    // SOLO el efectivo afecta el arqueo de billetes: una transferencia va al
+    // banco, no a la caja. Sin esto, un gasto por transferencia bajaba el
+    // efectivo a entregar y descuadraba la caja sin razón. egresoEfectivo =
+    // lo que SALE en efectivo menos lo que ENTRA en efectivo.
+    if (m.metodo === "efectivo") e.egresoEfectivo = (e.egresoEfectivo || 0) + (m.entrada ? -m.monto : m.monto);
   }
 }
 
@@ -1365,7 +1370,10 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   for (const id in a.porEjec) {
     const e = a.porEjec[id];
     e.contado = Math.round(Object.entries(e.denom).reduce((s, [d, q]) => s + Number(d) * (Number(q) || 0), 0) * 100) / 100;
-    e.aEntregar = Math.round((e.efectivo + (e.movEntradas || 0) - (e.movSalidas || 0)) * 100) / 100;
+    // A entregar = su efectivo cobrado − lo que salió en efectivo (gastos) + lo
+    // que entró en efectivo (recuperaciones/liquidaciones). Solo efectivo: la
+    // transferencia va al banco y no toca la caja.
+    e.aEntregar = Math.round((e.efectivo - (e.egresoEfectivo || 0)) * 100) / 100;
     e.dif = Math.round((e.contado - e.aEntregar) * 100) / 100;
   }
   res.json({
