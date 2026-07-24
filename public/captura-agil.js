@@ -14,6 +14,23 @@ window.__limpiarFooax = function () {
   Object.keys(localStorage).forEach((k) => { if (k.indexOf("fooax_") === 0) localStorage.removeItem(k); });
 };
 
+// Si intenta CERRAR la app con captura sin enviar, el navegador la frena con
+// su aviso de "¿salir de esta página?" (no se puede personalizar, pero es el
+// alto). El candado fuerte es el del botón Salir + el bloqueo al reabrir.
+window.addEventListener("beforeunload", function (e) {
+  try {
+    if (typeof STORE_KEY !== "string") return;
+    const st = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+    let t = 0;
+    const suma = (arb) => { if (!arb || typeof arb !== "object") return;
+      for (const k in arb) { const nd = arb[k];
+        if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) t += (nd.pago || 0) + (nd.garantia || 0) + (nd.solidario || 0);
+        else if (nd && typeof nd === "object") for (const kk in nd) { const x = nd[kk]; if (x) t += (x.pago || 0) + (x.garantia || 0) + (x.solidario || 0); } } };
+    suma(st.reg); suma(st.regI);
+    if (t > 0) { e.preventDefault(); e.returnValue = ""; }
+  } catch (err) {}
+});
+
 // Pedir al navegador que PROTEJA el almacenamiento: sin esto, Android puede
 // borrar localStorage al "liberar espacio" y llevarse capturas sin sincronizar.
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
@@ -708,6 +725,28 @@ window.__corregirFechaHoy = function (hoy) {
       'stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>' +
       '<polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Salir</span>';
     salir.addEventListener("click", async () => {
+      // ⛔ Regla Karina 23-jul: puso algo y se quiere salir SIN enviar el
+      // arqueo → se bloquea aquí mismo y se le marca el error. La única salida
+      // es "Enviar arqueo y cerrar captura" (que limpia la captura del día).
+      var pendN = 0, pendT = 0;
+      try {
+        const st = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+        const suma = (arb) => { if (!arb || typeof arb !== "object") return;
+          for (const k in arb) { const nd = arb[k];
+            if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) {
+              const tt = (nd.pago || 0) + (nd.garantia || 0) + (nd.solidario || 0);
+              if (tt > 0) { pendN++; pendT += tt; }
+            } else if (nd && typeof nd === "object") { for (const kk in nd) {
+              const x = nd[kk]; const tt = x ? (x.pago || 0) + (x.garantia || 0) + (x.solidario || 0) : 0;
+              if (tt > 0) { pendN++; pendT += tt; } } } } };
+        suma(st.reg); suma(st.regI);
+      } catch (e) {}
+      if (pendT > 0) {
+        const monto = "$" + (Math.round(pendT * 100) / 100).toLocaleString("es-MX");
+        alert("⛔ NO PUEDES SALIR TODAVÍA.\n\nTienes " + pendN + " pago(s) capturados (" + monto + ") y NO has enviado el arqueo.\n\nVe a la pestaña Arqueo y toca \"Enviar arqueo y cerrar captura\". Después podrás salir.");
+        if (typeof showTab === "function") try { showTab("arqueo"); } catch (e) {}
+        return;
+      }
       if (!confirm("¿Cerrar sesión? Tu captura ya está guardada.")) return;
       salir.disabled = true;
       try { if (window.__forzarSync) await window.__forzarSync(); } catch (e) {}
