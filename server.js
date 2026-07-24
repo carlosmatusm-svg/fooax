@@ -1431,6 +1431,23 @@ app.get("/", (req, res) => {
   if (u.rol === "ejecutivo") return res.redirect("/app");
   return res.redirect("/tablero");
 });
+// Altas hechas desde el tablero (clientas/centros nuevos) que le tocan a esta
+// ejecutiva. Se inyectan en su app al abrir para que APAREZCAN y les pueda
+// cobrar el mismo día — antes solo salían en los reportes de dirección, no en
+// la app, así que la clienta nueva quedaba sin poder cobrarse.
+function altasParaApp(nombreEjec) {
+  const centros = {};
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "centro" && cb.centro) centros[norm(cb.centro)] = "C-" + cb.numero + " · " + cb.centro;
+  const altas = [];
+  for (const cb of store.cambiosPadron()) {
+    if (cb.tipo !== "alta" || !cb.clienta) continue;
+    if (norm(cb.clienta.ejecutivo) !== norm(nombreEjec)) continue;
+    const c = cb.clienta;
+    altas.push({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro, saldo: c.saldo || 0, cuota: c.cuota || 0 });
+  }
+  return { altas, centros };
+}
 app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   const archivo = path.join(__dirname, "apps", req.usuario.app);
   if (!fs.existsSync(archivo)) return res.status(404).send("No se encontró el archivo de la app de este ejecutivo.");
@@ -1452,7 +1469,27 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
     '}).catch(function(){});' +
     'var _rc=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(_rc)return;_rc=true;location.reload();});}</script>';
   // Sincronización y capa de mejoras antes de </body>.
-  const inyecciones = '<script src="/sync.js"></script><script src="/captura-agil.js"></script>';
+  // Script que mete las altas del tablero en CENTROS/INDIVIDUALES de la app.
+  const dA = altasParaApp(req.usuario.nombre);
+  const scriptAltas = dA.altas.length ? (
+    "<script>(function(){try{" +
+    "var _A=" + JSON.stringify(dA.altas) + ";var _CN=" + JSON.stringify(dA.centros) + ";" +
+    "if(!_A.length)return;" +
+    "function _n(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\s+/g,' ').trim();}" +
+    "function _ind(c,p){var n=_n(c);return !n||n==='c-0'||n==='0'||n==='individual'||/individual|foxi/.test(_n(p));}" +
+    "var _bn={};for(var k in CENTROS){_bn[_n(String(k).split('·').pop())]=k;}" +
+    "_A.forEach(function(a){" +
+    "var cl={n:a.nombre,f:String(a.id),sub:a.producto,k:a.id+'|'+a.producto+'|'+a.nombre+'|0',imp:a.saldo||0,saldo:a.saldo||0,esp:a.cuota||0,impOrig:a.saldo||0,mora:0,sug:Math.round((a.saldo||0)*1.2),des:'',dia:'',_nueva:true};" +
+    "if(_ind(a.centro,a.producto)){if(!INDIVIDUALES.some(function(c){return String(c.f)===String(a.id)&&_n(c.sub)===_n(a.producto);}))INDIVIDUALES.push(cl);}" +
+    "else{var nm=_n(a.centro);var lv=_bn[nm];if(!lv){lv=_CN[nm]||a.centro;CENTROS[lv]=CENTROS[lv]||[];_bn[nm]=lv;}" +
+    "if(!CENTROS[lv].some(function(c){return String(c.f)===String(a.id)&&_n(c.sub)===_n(a.producto);}))CENTROS[lv].push(cl);}" +
+    "});" +
+    "if(typeof fillCentros==='function')try{fillCentros();}catch(e){}" +
+    "if(typeof renderIndiv==='function')try{renderIndiv();}catch(e){}" +
+    "if(typeof render==='function')try{render();}catch(e){}" +
+    "}catch(e){}})();</script>"
+  ) : "";
+  const inyecciones = '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' + scriptAltas;
   let out = html.includes("</head>") ? html.replace("</head>", cabeza + "</head>") : cabeza + html;
   out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
   res.type("html").send(out);
