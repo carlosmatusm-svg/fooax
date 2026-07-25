@@ -24,7 +24,12 @@ function aplicarCambios(base, cambios) {
     if (c.tipo === "alta" && c.clienta) {
       // Si el padrón base ya la trae (una recarga de plantillas la incluyó),
       // no duplicar: el alta del tablero ya quedó absorbida por la base.
-      const ya = arr.some((cl) => String(cl.id) === String(c.clienta.id) && norm2(cl.producto) === norm2(c.clienta.producto));
+      // Un crédito DADO DE BAJA no cuenta como duplicado: es justo el caso de la
+      // renovación con el mismo nombre (se cierra el ciclo viejo y se abre otro
+      // "Grupal-Basico"). Antes el alta nueva se tragaba en silencio aquí.
+      const ya = arr.some((cl) => String(cl.id) === String(c.clienta.id) &&
+        norm2(cl.producto) === norm2(c.clienta.producto) &&
+        cl.activa !== false && cl.estatus !== "BAJA");
       if (!ya) arr.push(Object.assign({}, c.clienta, { origen: "alta", activa: true }));
     } else if (c.tipo === "baja") {
       for (const cl of arr) {

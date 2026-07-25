@@ -348,7 +348,15 @@
       <div class="acampo"><label>Nombre de la clienta</label><input id="aNombre" required></div>
       <div class="arow">
         <div class="acampo"><label>Socio (ID)</label><input id="aSocio" inputmode="numeric" required></div>
-        <div class="acampo"><label>Producto</label><input id="aProducto" placeholder="Grupal-Basico"></div>
+        <div class="acampo"><label>Producto</label>
+          <select id="aProducto" required onchange="document.getElementById('prodNuevoBox').style.display=(this.value==='__nuevo__')?'block':'none'">
+            <option value="" disabled selected>— Elige el tipo de crédito —</option>
+            <option value="__nuevo__">➕ Producto NUEVO…</option>
+          </select></div>
+      </div>
+      <div class="acampo" id="prodNuevoBox" style="display:none">
+        <label>Nombre del producto nuevo</label>
+        <input id="aProductoNuevo" placeholder="ej. Grupal-Especial">
       </div>
       <div class="arow">
         <div class="acampo"><label>Centro</label>
@@ -663,10 +671,32 @@ async function hacerMora(btn, i) {
 function pedirRecredito(btn, i) {
   const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
   box.className = "credbox";
+  // El nombre del crédito viene YA PUESTO con el mismo que traía: renovar el
+  // mismo tipo (Grupal-Basico otra vez) es el caso normal, y antes obligaba a
+  // escribirlo con un "2" pegado. Si de verdad es otro producto, se edita.
+  // Quién lo va a cobrar: viene seleccionado el MISMO ejecutivo que lo traía
+  // (el caso normal es confirmar), pero se puede reasignar aquí mismo. Si por
+  // lo que sea no cargó la lista, se deja el actual como única opción para no
+  // mandar el crédito a un ejecutivo inventado.
+  const ejecs = (window.__EJECS && window.__EJECS.length) ? window.__EJECS : [c.ejecutivo];
+  const opsEj = ejecs.map((n) =>
+    '<option' + (String(n).toLowerCase() === String(c.ejecutivo || "").toLowerCase() ? " selected" : "") + ">" + hesc(n) + "</option>").join("");
+  // Tipo de crédito: se ELIGE de los que ya existen, con el mismo que traía ya
+  // seleccionado (renovar el mismo tipo es el caso normal). Escribirlo a mano
+  // creaba productos gemelos por un guion de diferencia.
+  const prods = (window.__PRODS && window.__PRODS.length)
+    ? window.__PRODS.map((p) => p.producto) : [c.producto];
+  if (!prods.some((p) => String(p).toLowerCase() === String(c.producto || "").toLowerCase())) prods.unshift(c.producto);
+  const opsProd = prods.map((p) =>
+    '<option' + (String(p).toLowerCase() === String(c.producto || "").toLowerCase() ? " selected" : "") + ">" + hesc(p) + "</option>").join("")
+    + '<option value="__nuevo__">➕ Producto NUEVO…</option>';
   box.innerHTML = "<span>Crédito NUEVO para " + hesc(c.nombre) + " · mismo grupo (" + hesc(c.centro) + "):</span>"
-    + '<input class="credin ancho" id="rcProd" placeholder="nombre del crédito nuevo (ej. ' + hesc(c.producto) + ' 2)">'
+    + '<span class="credlbl">Tipo de crédito:</span>'
+    + '<select class="credin ancho" id="rcProd" onchange="document.getElementById(\'rcProdNuevo\').style.display=(this.value===\'__nuevo__\')?\'block\':\'none\'">' + opsProd + "</select>"
+    + '<input class="credin ancho" id="rcProdNuevo" style="display:none" placeholder="nombre del producto nuevo (ej. Grupal-Especial)">'
     + '<input class="credin" id="rcSaldo" inputmode="decimal" placeholder="monto $">'
     + '<input class="credin" id="rcCuota" inputmode="decimal" placeholder="cuota $">'
+    + '<span class="credlbl">Lo cobra:</span><select class="credin" id="rcEjec">' + opsEj + "</select>"
     + '<button class="credok" onclick="hacerRecredito(this,' + i + ')">Dar crédito</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
     + '<div class="crederr" id="rcErr"></div>';
@@ -674,13 +704,21 @@ function pedirRecredito(btn, i) {
 }
 async function hacerRecredito(btn, i) {
   const c = credRow(i), err = $("rcErr"); btn.disabled = true;
-  const body = { id: c.id, nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo,
-    producto: $("rcProd").value, saldo: $("rcSaldo").value, cuota: $("rcCuota").value };
+  const body = { id: c.id, nombre: c.nombre, centro: c.centro,
+    ejecutivo: ($("rcEjec") && $("rcEjec").value) || c.ejecutivo,
+    producto: productoElegido("rcProd", "rcProdNuevo"), saldo: $("rcSaldo").value, cuota: $("rcCuota").value };
   try {
     const r = await fetch("/api/creditos/recredito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { err.textContent = d.error || "No se pudo."; btn.disabled = false; return; }
+    // Si se renovó con el MISMO nombre, el ciclo anterior se cerró solo. Hay que
+    // decirlo: es un movimiento en el padrón que ella no pidió explícitamente.
+    if (d.cerroAnterior) alert("Listo. Se cerró el crédito \"" + d.cerroAnterior + "\" que ya estaba liquidado y se abrió el nuevo con el mismo nombre. El ciclo anterior queda en el historial.");
+    // Reasignación: se dice a quién le quedó, porque le va a aparecer en SU app
+    // la próxima vez que la abra (y le desaparece a quien lo traía).
+    if (d.reasignadoDe) alert("Este crédito pasó de " + hesc(d.reasignadoDe) + " a " + hesc(d.ejecutivo) + ".\n\nLe va a aparecer a " + hesc(d.ejecutivo) + " en su app la próxima vez que la abra con señal, y le desaparece a " + hesc(d.reasignadoDe) + ".");
     if (d.avisoDeuda > 0) alert("Ojo: " + hesc(c.nombre) + " todavía debe " + dinero(d.avisoDeuda) + " en otro crédito. El crédito nuevo se creó de todos modos.");
+    cargarCentros();   // si se usó un producto NUEVO, que quede ya en el menú
     refrescarLista();
   } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
 }
@@ -704,7 +742,7 @@ async function registrarAlta(e) {
   const err = $("altaErr"); err.className = "altaerr";
   const btn = e.target.querySelector(".altasubmit"); btn.disabled = true;
   const body = {
-    nombre: $("aNombre").value, id: $("aSocio").value, producto: $("aProducto").value,
+    nombre: $("aNombre").value, id: $("aSocio").value, producto: productoElegido("aProducto", "aProductoNuevo"),
     centro: $("aCentro").value, ejecutivo: $("aEjecutivo").value,
     saldo: $("aSaldo").value, cuota: $("aCuota").value, plazo: $("aPlazo").value,
   };
@@ -716,7 +754,13 @@ async function registrarAlta(e) {
     const d = await r.json();
     if (!r.ok) { err.textContent = d.error || "No se pudo dar de alta."; err.className = "altaerr err"; btn.disabled = false; return; }
     e.target.reset();
-    err.textContent = "✓ " + d.clienta.nombre + " dada de alta"; err.className = "altaerr ok";
+    $("prodNuevoBox").style.display = "none";
+    // Recargar las listas: si se dio de alta con un PRODUCTO NUEVO, tiene que
+    // quedar ya disponible en el menú para la siguiente clienta (si no, había
+    // que recargar el tablero y se volvía a escribir a mano — justo el dedazo
+    // que estamos evitando).
+    cargarCentros();
+    err.textContent = "✓ " + d.clienta.nombre + " dada de alta (" + d.clienta.producto + ")"; err.className = "altaerr ok";
     setTimeout(() => { err.textContent = ""; }, 3500);
   } catch { err.textContent = "Sin conexión con el servidor."; err.className = "altaerr err"; }
   btn.disabled = false;
@@ -817,7 +861,10 @@ async function cargarArqueo() {
       if (e.movEntradas > 0) otros += ' · <span style="color:#0B7247">otros +' + dinero(e.movEntradas) + "</span>";
       if (e.movSalidas > 0) otros += ' · <span style="color:var(--mora)">otros −' + dinero(e.movSalidas) + "</span>";
       // Cuadre de SU caja: lo que contó de billetes vs lo que debe entregar.
-      const cuadra = Math.abs(e.dif || 0) < 1;
+      // Tolerancia de 1 centavo, no de 1 peso: con $1 de holgura una caja con
+      // 50 centavos de diferencia se pintaba VERDE mientras el texto decía
+      // "sobra $0.50". O cuadra o no cuadra.
+      const cuadra = Math.abs(e.dif || 0) < 0.01;
       const difTxt = e.dif > 0 ? "sobra " + dinero(e.dif) : e.dif < 0 ? "falta " + dinero(-e.dif) : "cuadra ✓";
       const cuadre = (e.contado > 0 || e.aEntregar > 0)
         ? '<div class="arq-cuadre"><span>contó <b>' + dinero(e.contado || 0) + "</b> · debe entregar <b>" + dinero(e.aEntregar || 0) + "</b></span>" +
@@ -1049,6 +1096,15 @@ async function restaurarVersion(ejec, fecha, archivado) {
   } catch { alert("Sin conexión con el servidor."); }
 }
 
+// Lee el producto elegido: el del menú, o el escrito si se pidió uno NUEVO.
+// Devuelve "" si eligieron "nuevo" y no escribieron nada — así el servidor lo
+// rechaza en vez de dar de alta un crédito sin tipo.
+function productoElegido(idSel, idNuevo) {
+  const sel = $(idSel); if (!sel) return "";
+  if (sel.value === "__nuevo__") { const n = $(idNuevo); return n ? n.value.trim() : ""; }
+  return sel.value;
+}
+
 // ---------- centros: lista real + alta de centro nuevo ----------
 // El centro ya no es texto libre: se elige de la lista (un dedazo creaba un
 // "centro fantasma" que partía los reportes). Si es nuevo, se registra en su
@@ -1067,6 +1123,22 @@ async function cargarCentros() {
   }
   const ops = (d.ejecutivos || []).map((e) => "<option>" + hesc(e.nombre) + "</option>").join("");
   if (ops) { const a = $("aEjecutivo"), b = $("cnEjec"); if (a) a.innerHTML = ops; if (b) b.innerHTML = ops; }
+  // Se guardan para el formulario de "Re-dar crédito", que se arma al vuelo y
+  // necesita las mismas listas.
+  window.__EJECS = (d.ejecutivos || []).map((e) => e.nombre);
+  window.__PRODS = d.productos || [];
+  // El producto dejó de ser texto libre: se elige de los que YA existen. Un
+  // dedazo ("Grupal Basico" por "Grupal-Basico") creaba un tipo de crédito
+  // nuevo y el pago no cuadraba con el crédito de la clienta.
+  const selP = $("aProducto");
+  if (selP && window.__PRODS.length) {
+    const cur = selP.value;
+    selP.innerHTML = '<option value="" disabled' + (cur ? "" : " selected") + '>— Elige el tipo de crédito —</option>'
+      + window.__PRODS.map((p) => '<option value="' + hesc(p.producto) + '">' + hesc(p.producto)
+        + " (" + p.creditos + ")</option>").join("")
+      + '<option value="__nuevo__">➕ Producto NUEVO…</option>';
+    if (cur && cur !== "__nuevo__") selP.value = cur;
+  }
 }
 async function registrarCentro() {
   const err = $("cnErr"); err.textContent = "";

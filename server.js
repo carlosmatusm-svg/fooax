@@ -1004,10 +1004,36 @@ function listaCentros() {
     .map((x) => ({ centro: x.centro, clientas: x.clientas, ejecutivos: [...x.ejecutivos] }))
     .sort((a, b) => a.centro.localeCompare(b.centro, "es"));
 }
+// Productos (tipos de crédito) que EXISTEN en el padrón, del más usado al menos.
+// El producto dejó de ser texto libre por la misma razón que el centro: la llave
+// de un crédito es socio+producto, así que un dedazo lo manda a un crédito que
+// no existe y el pago no cuadra. En el padrón ya quedó la prueba: "Foxi Plus - 2"
+// y "Foxi Plus 2" son el MISMO producto escrito de dos formas.
+function listaProductos() {
+  const cuenta = new Map();
+  for (const c of PADRON) {
+    const p = String(c.producto || "").trim();
+    if (!p) continue;
+    cuenta.set(p, (cuenta.get(p) || 0) + 1);
+  }
+  return [...cuenta.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
+    .map(([producto, creditos]) => ({ producto, creditos }));
+}
+// Si lo que se escribió es un producto que YA existe pero con otra puntuación o
+// espaciado ("Foxi Plus 2" vs "Foxi Plus - 2"), se devuelve el nombre que ya usa
+// el padrón. Así no nacen dos versiones del mismo tipo de crédito.
+function productoCanonico(nombre) {
+  const limpio = String(nombre || "").trim();
+  if (!limpio) return limpio;
+  const igual = PADRON.find((c) => c.producto && nprod(c.producto) === nprod(limpio));
+  return igual ? String(igual.producto).trim() : limpio;
+}
 app.get("/api/centros", requiere("direccion", "admin"), (req, res) => {
   res.json({
     centros: listaCentros(),
     ejecutivos: idsEjecutivos(req.usuario).map((id) => ({ id, nombre: USUARIOS[id].nombre })),
+    productos: listaProductos(),
   });
 });
 // Alta de un CENTRO nuevo (con bitácora de quién y cuándo).
@@ -1055,16 +1081,22 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   // IGNORABA en silencio y parecía que sí se registró. El mensaje dice DÓNDE
   // está el crédito que choca y cómo seguir — clave en reestructuras, donde la
   // clienta suele existir ya con su crédito original.
-  const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(String(b.producto || "")));
+  // Si escribieron un producto que ya existe con otra puntuación, se guarda con
+  // el nombre que ya usa el padrón (no nace un "Foxi Plus 2" al lado del
+  // "Foxi Plus - 2" que ya estaba).
+  const productoAlta = productoCanonico(b.producto);
+  if (!productoAlta) return res.status(400).json({ error: "Elige el tipo de crédito." });
+  const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(productoAlta));
   if (choca) {
     const donde = [choca.centro, choca.ejecutivo].filter(Boolean).join(" · ");
     return res.status(400).json({
       error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
-        (donde ? " en " + donde : "") + ". Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + (String(b.producto || "Crédito").trim()) + " 2\").",
+        (donde ? " en " + donde : "") + ". Si está RENOVANDO ese mismo crédito, no la des de alta: usa \"Re-dar crédito\" en Créditos y saldos — ahí sí puede conservar el mismo nombre. " +
+        "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\").",
     });
   }
   const clienta = {
-    id, nombre, producto: (b.producto || "").trim(), centro, ejecutivo,
+    id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0,
   };
@@ -1176,27 +1208,66 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   if (!previa) return res.status(400).json({ error: "Ese socio no está en el padrón. Si es clienta nueva, usa \"Dar de alta\"." });
   const nombre = String(b.nombre || previa.nombre || "").trim();
   const centro = String(b.centro || previa.centro || "").trim();
+  // EJECUTIVO DE LA RENOVACIÓN (regla Karina 25-jul): al re-dar el crédito se
+  // CONFIRMA o se REASIGNA a quién le toca cobrarlo. Se valida contra las
+  // ejecutivas reales: un nombre a mano ("Nery", "neri ") mandaba el crédito a
+  // un ejecutivo que no existe y no le aparecía a nadie en su app.
   const ejecutivo = String(b.ejecutivo || previa.ejecutivo || "").trim();
-  const producto = String(b.producto || "").trim();
-  if (!producto) return res.status(400).json({ error: "Ponle nombre al crédito nuevo (ej. \"Grupal-Basico 2\")." });
+  const nombresEjec = idsEjecutivos(req.usuario).map((x) => USUARIOS[x].nombre);
+  const ejecOK = nombresEjec.find((n) => norm(n) === norm(ejecutivo));
+  if (!ejecOK) {
+    return res.status(400).json({
+      error: "Elige a quién le toca cobrar este crédito. Ejecutivos válidos: " + nombresEjec.join(", ") + ".",
+    });
+  }
+  // Mismo criterio que el alta: se respeta el nombre que ya usa el padrón.
+  const producto = productoCanonico(b.producto);
+  if (!producto) return res.status(400).json({ error: "Elige el tipo de crédito de la lista." });
   const saldo = Number(b.saldo), cuota = Number(b.cuota);
   if (!Number.isFinite(saldo) || saldo <= 0) return res.status(400).json({ error: "El monto del crédito nuevo debe ser mayor a 0." });
   if (!Number.isFinite(cuota) || cuota <= 0) return res.status(400).json({ error: "La cuota del crédito nuevo debe ser mayor a 0." });
   if (!/^c-?0$/i.test(centro) && !listaCentros().some((x) => norm(x.centro) === norm(centro)))
     return res.status(400).json({ error: "Ese centro no existe. Elígelo de la lista." });
-  const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(producto));
-  if (choca) return res.status(400).json({ error: "Ya tiene un crédito activo \"" + choca.producto + "\". Ponle otro nombre al crédito nuevo (ej. \"" + producto + " 2\")." });
-  // Aviso (no bloqueo): si aún debe en otro crédito, se informa — la decisión es
-  // de Anel/Monse. La regla es re-dar cuando ya llegó a 0.
   const cv = carteraViva(req.usuario);
-  const debeEnOtros = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id)
+  // RENOVAR CON EL MISMO NOMBRE (regla Karina 25-jul): si la clienta renueva su
+  // "Grupal-Basico", debe poder llamarse igual — no "Grupal-Basico 2". Como la
+  // llave de un crédito es socio+producto, no pueden convivir DOS activos con el
+  // mismo nombre: los pagos del ciclo nuevo se le abonarían al viejo. Entonces,
+  // si el ciclo anterior ya está liquidado, se CIERRA aquí mismo y el nombre
+  // queda libre. Si todavía debe, se bloquea como antes: ahí sí son dos créditos
+  // de verdad y necesitan nombres distintos para no revolver los pagos.
+  const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(producto));
+  if (choca && infoCredito(cv, choca).saldoActual > 0) {
+    return res.status(400).json({
+      error: "\"" + choca.producto + "\" todavía tiene saldo de " + infoCredito(cv, choca).saldoActual.toFixed(2) +
+        ". Si de verdad es un crédito APARTE, ponle otro nombre (ej. \"" + producto + " 2\"). Si es la renovación, primero liquídalo.",
+    });
+  }
+  // Aviso (no bloqueo): si aún debe en otro crédito, se informa — la decisión es
+  // de Anel/Monse. La regla es re-dar cuando ya llegó a 0. El ciclo que se está
+  // renovando no cuenta: ya está en cero.
+  const debeEnOtros = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && c !== choca)
     .reduce((s, c) => s + infoCredito(cv, c).saldoActual, 0);
-  const clienta = { id, nombre, producto, centro, ejecutivo, saldo, cuota, plazo: Number(b.plazo) || 0,
-    mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: previa.producto || null };
+  // Se guarda el nombre CANÓNICO (el de USUARIOS), no el que llegó tecleado:
+  // la app de cada ejecutiva se arma comparando este nombre.
+  const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
+    mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null,
+    reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
+  // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
+  // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
+  // nuevo y dejarlo dado de baja el mismo día que se abrió.
+  const ts = Date.now();
+  if (choca) {
+    store.agregarCambioPadron({ tipo: "baja", id, producto: choca.producto,
+      motivo: "Liquidó y renovó (recrédito)", porRecredito: true,
+      fecha: hoyMX(), por: req.usuario.nombre, ts });
+  }
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
-    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
+    fecha: hoyMX(), por: req.usuario.nombre, ts: ts + 1 });
   refrescarPadron();
-  res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0 });
+  res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
+    cerroAnterior: choca ? choca.producto : null,
+    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
 });
 
 // ---------- movimientos de dirección/caja (retiros, gastos, autorizaciones) ----------
@@ -1438,7 +1509,9 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     for (const dn of denoms) {
       const cant = a.denomTotal[dn] || 0, sub = dn * cant; totalEfe += sub;
       const r = s.getRow(fila);
-      r.getCell(1).value = (dn >= 20 ? "Billete $" : "Moneda $") + dn;
+      // dn puede traer decimales (la moneda de 50 centavos): sin esto el Excel
+      // imprimía "Moneda $0.5".
+      r.getCell(1).value = (dn >= 20 ? "Billete $" : "Moneda $") + (dn % 1 ? dn.toFixed(2) : dn);
       const cc = r.getCell(2); cc.value = cant || null; cc.alignment = { horizontal: "center" };
       if (cant > 0) cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIQUEZA } };
       cc.font = { bold: true };
@@ -1773,14 +1846,28 @@ function altasParaApp(nombreEjec) {
   const centros = {};
   for (const cb of store.cambiosPadron())
     if (cb.tipo === "centro" && cb.centro) centros[norm(cb.centro)] = "C-" + cb.numero + " · " + cb.centro;
-  const altas = [];
-  for (const cb of store.cambiosPadron()) {
-    if (cb.tipo !== "alta" || !cb.clienta) continue;
-    if (norm(cb.clienta.ejecutivo) !== norm(nombreEjec)) continue;
-    const c = cb.clienta;
-    altas.push({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro, saldo: c.saldo || 0, cuota: c.cuota || 0 });
-  }
-  return { altas, centros };
+  // Se arma desde el PADRÓN YA APLICADO, no desde la lista cruda de cambios.
+  // Antes se leían los cambios tal cual, y eso traía dos fallas: (1) un crédito
+  // dado de baja seguía inyectándose, y (2) el monto era el del día del alta,
+  // ignorando los ajustes de saldo posteriores. Con la renovación con el mismo
+  // nombre la (1) se volvía grave: el ciclo VIEJO ganaba (la app no duplica por
+  // socio+producto, se queda con el primero) y la ejecutiva cobraba el saldo
+  // anterior. `origen === "alta"` = las que nacieron en el tablero; las del
+  // padrón base ya vienen escritas dentro del HTML de cada app.
+  const mia = (c) => norm(c.ejecutivo) === norm(nombreEjec);
+  const viva = (c) => c.activa !== false && c.estatus !== "BAJA";
+  const altas = PADRON
+    .filter((c) => c.origen === "alta" && viva(c) && mia(c))
+    .map((c) => ({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
+      saldo: c.saldo || 0, cuota: c.cuota || 0 }));
+  // QUITAR: créditos de esta ejecutiva que ya se dieron de baja (liquidados y
+  // renovados, o reasignados a otra). Sin esto el crédito viejo se le quedaba
+  // pegado en el teléfono: los montos viven EMBEBIDOS en el HTML de cada app,
+  // así que darlo de baja en el servidor no lo borraba de su pantalla.
+  const quitar = PADRON
+    .filter((c) => !viva(c) && mia(c))
+    .map((c) => ({ id: String(c.id), producto: c.producto }));
+  return { altas, centros, quitar };
 }
 app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   const archivo = path.join(__dirname, "apps", req.usuario.app);
@@ -1805,12 +1892,20 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   // Sincronización y capa de mejoras antes de </body>.
   // Script que mete las altas del tablero en CENTROS/INDIVIDUALES de la app.
   const dA = altasParaApp(req.usuario.nombre);
-  const scriptAltas = dA.altas.length ? (
+  const scriptAltas = (dA.altas.length || dA.quitar.length) ? (
     "<script>(function(){try{" +
     "var _A=" + JSON.stringify(dA.altas) + ";var _CN=" + JSON.stringify(dA.centros) + ";" +
-    "if(!_A.length)return;" +
+    "var _Q=" + JSON.stringify(dA.quitar) + ";" +
     "function _n(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\s+/g,' ').trim();}" +
     "function _ind(c,p){var n=_n(c);return !n||n==='c-0'||n==='0'||n==='individual'||/individual|foxi/.test(_n(p));}" +
+    // QUITAR VA PRIMERO, SIEMPRE. Al renovar con el mismo nombre y el mismo
+    // ejecutivo, el crédito viejo (de baja) y el nuevo comparten socio+producto:
+    // si se agregara antes de quitar, el "quitar" borraría el crédito NUEVO y la
+    // clienta desaparecería de la app. Se saca en el lugar (splice) para no
+    // romper referencias que la app ya tenga a esos arreglos.
+    "var _rm=function(arr){if(!arr||!arr.length)return;for(var i=arr.length-1;i>=0;i--){var c=arr[i];" +
+    "if(_Q.some(function(q){return String(c.f)===String(q.id)&&_n(c.sub)===_n(q.producto);}))arr.splice(i,1);}};" +
+    "if(_Q.length){for(var _qk in CENTROS)_rm(CENTROS[_qk]);if(typeof INDIVIDUALES!=='undefined')_rm(INDIVIDUALES);}" +
     "var _bn={};for(var k in CENTROS){_bn[_n(String(k).split('·').pop())]=k;}" +
     "_A.forEach(function(a){" +
     "var cl={n:a.nombre,f:String(a.id),sub:a.producto,k:a.id+'|'+a.producto+'|'+a.nombre+'|0',imp:a.saldo||0,saldo:a.saldo||0,esp:a.cuota||0,impOrig:a.saldo||0,mora:0,sug:Math.round((a.saldo||0)*1.2),des:'',dia:'',_nueva:true};" +
