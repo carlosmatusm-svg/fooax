@@ -1316,51 +1316,6 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
 });
 
-// ---------- diagnóstico TEMPORAL del viernes (solo LECTURA; quitar tras usar) ----------
-app.get("/api/_vierdiag", (req, res) => {
-  if (req.query.t !== "diag-vier-27jul") return res.status(404).end();
-  const fecha = req.query.fecha || hoyMX();
-  const u = { id: "_diag", rol: "direccion" };
-  const corte = corteSaldos();
-  // pagos SOLO de ese día (ventana de un día): qué créditos cobraron el viernes
-  const delDia = pagosDeLaSemana(u, fecha, fecha);   // ventana de UN día
-  const hasta = {};
-  for (const k in delDia.pago) hasta[k] = true;
-  for (const k in delDia.gar) hasta[k] = true;
-  const cv = carteraViva(u);   // saldos vivos (acumulado desde el corte)
-  const activas = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
-  const porClave = new Map();
-  for (const c of activas) porClave.set(claveCredito(c.id, c.producto), c);
-  const filas = [], sinCredito = [];
-  for (const k of Object.keys(hasta)) {
-    const d = delDia.detalle[k] || {};
-    const c = porClave.get(k);
-    if (!c) { sinCredito.push({ clave: k, socio: d.socio, producto: d.producto, pago: d.pago || 0, gar: d.gar || 0, ejec: Object.keys(d.ejec || {}) }); continue; }
-    const i = infoCredito(cv, c);
-    filas.push({ socio: String(c.id), producto: c.producto, nombre: c.nombre, ejecutivo: c.ejecutivo,
-      pagoViernes: Math.round((delDia.pago[k] || 0) * 100) / 100,
-      saldoPlantilla: c.saldo || 0,
-      abonado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual,
-      descuenta: i.pagado >= (delDia.pago[k] || 0) - 0.01 });
-  }
-  // consulta puntual de socios (para revisar liquidaciones de quien no pagó cuota)
-  const pedidos = String(req.query.socios || "").split(",").map((x) => x.trim()).filter(Boolean);
-  const consulta = [];
-  for (const s of pedidos) {
-    for (const c of activas.filter((x) => String(x.id) === s)) {
-      const i = infoCredito(cv, c);
-      consulta.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto,
-        saldoPlantilla: c.saldo || 0, abonado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual });
-    }
-  }
-  res.json({ fecha, corte, consulta,
-    creditosQuePagaron: filas.length, sinCredito: sinCredito.length,
-    pagoDelDia: Math.round(Object.values(delDia.pago).reduce((a, b) => a + b, 0) * 100) / 100,
-    garDelDia: Math.round(Object.values(delDia.gar).reduce((a, b) => a + b, 0) * 100) / 100,
-    noDescuentan: filas.filter((f) => !f.descuenta).length,
-    listaSinCredito: sinCredito, filas });
-});
-
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
 // cargar plantillas nuevas). Queda en la bitácora del padrón con quién y cuándo.
 app.get("/api/saldos/corte", requiere("direccion", "admin"), (req, res) => {
