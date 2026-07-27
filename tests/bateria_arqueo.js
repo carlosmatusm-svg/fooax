@@ -461,6 +461,27 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      pe4.contado === 600 && pe4.aEntregar === 600 && pe4.dif === 0,
      "contó " + pe4.contado + " · debe " + pe4.aEntregar + " · dif " + pe4.dif);
 
+  console.log("\n— 20. SALDOS: descuentan lo abonado de SEMANAS PASADAS (corte de saldos) —");
+  // El bug del lunes 27-jul: los saldos solo restaban la semana en curso; el
+  // lunes la ventana se vaciaba y lo pagado el viernes dejaba de descontar.
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000095", nombre: "SALDO TEST", producto: "Credito Saldo", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
+  const D5 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 5); return d.toISOString().slice(0, 10); })();
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: D5, snapshot: JSON.stringify({ fecha: D5, reg: { "C-88": { "70000000095|Credito Saldo": { pago: 200, forma: "E" } } }, regI: {}, movs: [] }), ts: Date.now() }) });
+  const saldoDe = async () => { const s = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("SALDO TEST"), { headers: H(ca) })); return ((s.resultados || []).find((c) => String(c.id) === "70000000095") || {}).saldoActual; };
+  ok("un pago de la SEMANA PASADA sigue bajando el saldo (1000 − 200 = 800)", (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
+  let ct = await j(await fetch(U + "/api/saldos/corte", { headers: H(ca) }));
+  ok("el corte de saldos es visible para dirección", /^\d{4}-\d{2}-\d{2}$/.test(ct.corte || ""), "corte " + ct.corte);
+  const DC3 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cal), body: JSON.stringify({ fecha: DC3 }) }));
+  ok("otro admin NO puede mover el corte (solo Anel y Monse)", !!ct.error, (ct.error || "").slice(0, 50));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: DC3 }) }));
+  ok("Monse mueve el corte (cargó plantillas nuevas)", ct.ok === true && ct.corte === DC3, JSON.stringify(ct).slice(0, 50));
+  ok("un pago ANTERIOR al corte ya no descuenta (la plantilla ya lo traía)", (await saldoDe()) === 1000, "saldoActual " + (await saldoDe()));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) }));
+  ok("y al regresar el corte, vuelve a descontar", ct.ok === true && (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2099-01-01" }) }));
+  ok("un corte en el futuro se rechaza", !!ct.error, (ct.error || "").slice(0, 50));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

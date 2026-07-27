@@ -721,8 +721,13 @@ function claveCredito(socioOKey, producto) {
 //          distinto: los dos están bien, miden cosas distintas.
 //  - detalle: quién pagó cada clave, para poder señalar los pagos que no
 //          casan con ningún crédito del padrón en vez de perderlos en silencio.
-function pagosDeLaSemana(usuario) {
-  const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
+function pagosDeLaSemana(usuario, desde) {
+  // Sin `desde`: la ventana semanal de siempre (lunes → hoy). Con `desde`: el
+  // acumulado desde esa fecha — lo usan los SALDOS, que deben descontar TODO lo
+  // abonado desde el corte de plantillas, no solo esta semana (los lunes la
+  // semana se reinicia y "lo que se le debe" regresaba al saldo viejo: el bug
+  // del viernes de Neri que se notó el lunes 27-jul).
+  const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
   const pago = {}, gar = {}, detalle = {};
   const permitidas = new Set(idsEjecutivos(usuario));
   const snaps = store.respaldo().snapshots || {};
@@ -763,11 +768,12 @@ function pagosDeLaSemana(usuario) {
 // FUERA de la cuota que también bajan el saldo. Antes esto vivía SOLO dentro
 // del Excel; por eso el tablero (búsqueda y panel) no las restaba y una clienta
 // que liquidó seguía mostrando su saldo viejo.
-function liquidacionesDeLaSemana(usuario) {
-  const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
+function liquidacionesDeLaSemana(usuario, desde) {
+  const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
   const liqPorSocio = {};
   const d0 = new Date(lunes + "T12:00:00");
-  for (let i = 0; i < 7; i++) {
+  // Tope 400 días: con `desde` (corte de saldos) la ventana puede ser larga.
+  for (let i = 0; i < (desde ? 400 : 7); i++) {
     const f = new Date(d0); f.setDate(d0.getDate() + i);
     const fISO = f.toISOString().slice(0, 10);
     if (fISO > hoy) break;
@@ -785,9 +791,22 @@ function liquidacionesDeLaSemana(usuario) {
 // esta semana, y saldoActual = saldo − pago − liquidación. La liquidación es por
 // SOCIO y se agota entre sus créditos en un orden fijo (ejecutivo, centro,
 // nombre), el mismo que usa el Excel.
+// CORTE DE SALDOS: la fecha desde la que los saldos descuentan lo abonado.
+// Es el día en que Monse cargó las plantillas (saldos frescos). Cuando cargue
+// plantillas nuevas, Anel/Monse actualizan el corte en el tablero — si no,
+// lo ya descontado en la plantilla se restaría DOBLE.
+const CORTE_SALDOS_DEFECTO = "2026-07-21";   // plantillas nuevas del 21-jul
+function corteSaldos() {
+  const cortes = store.cambiosPadron().filter((c) => c.tipo === "corte" && /^\d{4}-\d{2}-\d{2}$/.test(c.fecha || ""));
+  return cortes.length ? cortes[cortes.length - 1].fecha : CORTE_SALDOS_DEFECTO;
+}
+
 function carteraViva(usuario) {
-  const { pago: pagos, gar: garantias } = pagosDeLaSemana(usuario);
-  const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario));
+  // Saldos = saldo de plantilla − TODO lo abonado desde el corte (no solo la
+  // semana: los lunes la ventana semanal se vacía y los saldos "rebotaban").
+  const corte = corteSaldos();
+  const { pago: pagos, gar: garantias } = pagosDeLaSemana(usuario, corte);
+  const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario, corte));
   const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
     .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) ||
       String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
@@ -813,7 +832,11 @@ function infoCredito(cv, c) {
 // La plantilla que Monse hace a mano: saldo inicial − pagado esta semana =
 // saldo actualizado, por crédito. Generada sola. Solo dirección/admin.
 app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) => {
-  const { pago: pagos, gar: garantias, detalle } = pagosDeLaSemana(req.usuario);
+  // Los SALDOS descuentan TODO lo abonado desde el corte de plantillas (si solo
+  // restaran la semana, cada lunes "rebotaban" al saldo viejo — el viernes de
+  // Neri se perdía). detalle/garantías van con la misma ventana del corte.
+  const corte = corteSaldos();
+  const { gar: garantias, detalle } = pagosDeLaSemana(req.usuario, corte);
   const hoy = hoyMX(), lunes = lunesDeLaSemana(hoy);
   const usadas = new Set();
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
@@ -821,12 +844,12 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   const AURORA = "FFF1228E", RIO = "FF324AB6";
   s.mergeCells("A1:M1");
   const t = s.getCell("A1");
-  t.value = `FOOAX · SALDOS ACTUALIZADOS · semana ${lunes} → ${hoy}`;
+  t.value = `FOOAX · SALDOS ACTUALIZADOS · abonos desde el corte ${corte} · al ${hoy}`;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
   t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
   t.alignment = { horizontal: "center", vertical: "middle" }; s.getRow(1).height = 24;
   const head = [["Ejecutivo", 13], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-    ["Saldo inicial", 13], ["Pagó semana", 13], ["Liquid./recup.", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10],
+    ["Saldo al corte", 13], ["Abonado", 13], ["Liquid./recup.", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10],
     ["Mora", 11], ["Estatus", 12]];
   const hr = s.getRow(2);
   head.forEach(([h2, w], i) => { const c = hr.getCell(i + 1); c.value = h2; s.getColumn(i + 1).width = w;
@@ -893,15 +916,18 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   [6, 7, 8, 9, 10, 12].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
   fila++;
 
-  // Cuadre explícito. La cobranza (pagos + garantías) cuadra con la tarjeta de
-  // la semana del tablero; sumando los otros movimientos se obtiene el total en
-  // caja, que cuadra con el arqueo.
+  // Cuadre explícito — SIEMPRE con la ventana SEMANAL (lunes → hoy), aunque
+  // las columnas de saldos sean acumuladas desde el corte: la cobranza de la
+  // semana es la que cuadra con la tarjeta del tablero y con el arqueo.
   fila++;
-  const cobranzaSemana = tPag + tGar;
+  const sem = pagosDeLaSemana(req.usuario);
+  const wPag = Object.values(sem.pago).reduce((a, b) => a + b, 0);
+  const wGar = Object.values(sem.gar).reduce((a, b) => a + b, 0);
+  const cobranzaSemana = wPag + wGar;
   const totalCaja = cobranzaSemana + movEntradas - movSalidas;
   const cuadre = [
-    ["Pagos aplicados al saldo", tPag, false],
-    ["+ Garantías recibidas (no bajan saldo)", tGar, false],
+    ["Pagos de ESTA semana", wPag, false],
+    ["+ Garantías de ESTA semana (no bajan saldo)", wGar, false],
     ["= Cobranza de la semana (cuadra con la tarjeta del tablero)", cobranzaSemana, true],
     ["", null, false],
     ["+ Otros movimientos — entradas (comisiones, liquidaciones…)", movEntradas, false],
@@ -1287,6 +1313,40 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
     ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
+});
+
+// ---------- diagnóstico TEMPORAL de saldos (solo LECTURA; quitar tras usar) ----------
+app.get("/api/_salddiag", (req, res) => {
+  if (req.query.t !== "diag-sald-27jul") return res.status(404).end();
+  const u = { id: "_diag", rol: "direccion" };
+  const corte = corteSaldos();
+  const { pago, gar, detalle } = pagosDeLaSemana(u, corte);
+  const activas = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
+  const usadas = new Set(activas.map((c) => claveCredito(c.id, c.producto)));
+  const huerf = Object.keys(detalle).filter((k) => !usadas.has(k) && (detalle[k].pago > 0 || detalle[k].gar > 0))
+    .map((k) => ({ socio: detalle[k].socio, producto: detalle[k].producto, pago: detalle[k].pago, gar: detalle[k].gar, ejec: Object.keys(detalle[k].ejec), fechas: Object.keys(detalle[k].fechas) }));
+  res.json({
+    corte,
+    abonosDesdeCorte: Math.round(Object.values(pago).reduce((a, b) => a + b, 0) * 100) / 100,
+    garantiasDesdeCorte: Math.round(Object.values(gar).reduce((a, b) => a + b, 0) * 100) / 100,
+    creditosActivos: activas.length,
+    huerfanos: huerf.length,
+    montoHuerfano: Math.round(huerf.reduce((s, x) => s + x.pago, 0) * 100) / 100,
+    listaHuerfanos: huerf.slice(0, 40),
+  });
+});
+
+// Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
+// cargar plantillas nuevas). Queda en la bitácora del padrón con quién y cuándo.
+app.get("/api/saldos/corte", requiere("direccion", "admin"), (req, res) => {
+  res.json({ corte: corteSaldos() });
+});
+app.post("/api/saldos/corte", soloAnelMonse, (req, res) => {
+  const fecha = String((req.body || {}).fecha || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
+  if (fecha > hoyMX()) return res.status(400).json({ error: "El corte no puede ser una fecha futura." });
+  store.agregarCambioPadron({ tipo: "corte", fecha, por: req.usuario.nombre, ts: Date.now() });
+  res.json({ ok: true, corte: fecha });
 });
 
 // ---------- movimientos de dirección/caja (retiros, gastos, autorizaciones) ----------
