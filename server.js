@@ -1343,7 +1343,17 @@ app.get("/api/_vierdiag", (req, res) => {
       abonado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual,
       descuenta: i.pagado >= (delDia.pago[k] || 0) - 0.01 });
   }
-  res.json({ fecha, corte,
+  // consulta puntual de socios (para revisar liquidaciones de quien no pagó cuota)
+  const pedidos = String(req.query.socios || "").split(",").map((x) => x.trim()).filter(Boolean);
+  const consulta = [];
+  for (const s of pedidos) {
+    for (const c of activas.filter((x) => String(x.id) === s)) {
+      const i = infoCredito(cv, c);
+      consulta.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto,
+        saldoPlantilla: c.saldo || 0, abonado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual });
+    }
+  }
+  res.json({ fecha, corte, consulta,
     creditosQuePagaron: filas.length, sinCredito: sinCredito.length,
     pagoDelDia: Math.round(Object.values(delDia.pago).reduce((a, b) => a + b, 0) * 100) / 100,
     garDelDia: Math.round(Object.values(delDia.gar).reduce((a, b) => a + b, 0) * 100) / 100,
