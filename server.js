@@ -154,6 +154,18 @@ app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
   res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado });
 });
 
+// ---------- diagnóstico TEMPORAL de cheques (solo LECTURA; quitar tras usar) ----------
+app.get("/api/_chqdiag", (req, res) => {
+  if (req.query.t !== "diag-chq-27jul") return res.status(404).end();
+  const fecha = req.query.fecha || hoyMX();
+  const todos = store.movimientosDeFecha(fecha);
+  res.json({
+    fecha,
+    porMetodo: todos.filter((m) => !m.anulado).reduce((acc, m) => { acc[m.metodo || "?"] = (acc[m.metodo || "?"] || 0) + m.monto; return acc; }, {}),
+    lista: todos.map((m) => ({ folio: m.folio, monto: m.monto, metodo: m.metodo, cheque: m.cheque || null, anulado: !!m.anulado, concepto: String(m.concepto || "").slice(0, 60) })),
+  });
+});
+
 // "Capturar TODO de nuevo" tras cerrar: la ejecutiva eligió empezar de cero en
 // la pregunta de la app. La versión que había queda archivada (recuperable en
 // el tablero) y la siguiente sincronización REEMPLAZA el día en vez de sumarse.
@@ -270,7 +282,11 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
       fecha, monto,
       concepto: def.etiqueta + (quien ? " · " + quien : "") + (m.nota ? " — " + m.nota : ""),
       categoria: def.categoria,
-      metodo: m.via === "T" ? "transferencia" : "efectivo",
+      // CH = CHEQUE: dinero que entra pero NO en billetes — si cayera en
+      // "efectivo", el arqueo exigiría en caja billetes que son papeles
+      // (el faltante de $2,280 de Neri del sábado 25-jul).
+      metodo: m.via === "T" ? "transferencia" : (m.via === "CH" ? "cheque" : "efectivo"),
+      cheque: (m.via === "CH" && m.cheque) ? String(m.cheque) : null,
       entrada: def.entrada,
       // socio: para poder ligar una LIQUIDACIÓN al crédito de esa clienta y
       // bajarle el saldo. Antes sólo iba dentro del texto del concepto.
@@ -280,13 +296,21 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
     };
     // Red de seguridad para FOLIOS REINICIADOS: la sesión nueva (tras cerrar)
     // vuelve a numerar desde 1, así que un folio puede repetirse con CONTENIDO
-    // DISTINTO — es un movimiento NUEVO. Si ya existe ese folio con otra
-    // cantidad/concepto/método, se re-etiqueta (folio~2, ~3…) para no perderlo;
-    // mismo contenido = mismo movimiento y agregarMovimiento lo deja idempotente.
-    const mismo = (x) => Number(x.monto) === monto && String(x.concepto) === nuevo.concepto && x.metodo === nuevo.metodo;
+    // DISTINTO (otra cantidad/concepto) — es un movimiento NUEVO y se
+    // re-etiqueta (folio~2, ~3…) para no perderlo. El MÉTODO no cuenta como
+    // contenido: si solo cambia la forma (efectivo→cheque), es el MISMO
+    // movimiento y se le CORRIGE la forma — así el rescate del arranque repara
+    // los cheques que se guardaron como efectivo, sin duplicarlos.
+    const mismo = (x) => Number(x.monto) === monto && String(x.concepto) === nuevo.concepto;
     const choques = store.movimientosDeFecha(fecha)
       .filter((x) => x.folio === nuevo.folio || String(x.folio).indexOf(nuevo.folio + "~") === 0);
-    if (choques.length && !choques.some(mismo)) {
+    const ya = choques.find(mismo);
+    if (ya) {
+      if (ya.metodo !== nuevo.metodo || String(ya.cheque || "") !== String(nuevo.cheque || ""))
+        store.corregirMovimiento(ya.folio, { metodo: nuevo.metodo, cheque: nuevo.cheque });
+      continue;
+    }
+    if (choques.length) {
       const base = nuevo.folio;
       let i = 2; while (store.movimientosDeFecha(fecha).some((x) => x.folio === base + "~" + i)) i++;
       nuevo.folio = base + "~" + i;
@@ -1279,7 +1303,7 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
 
 // ---------- movimientos de dirección/caja (retiros, gastos, autorizaciones) ----------
 const CATEGORIAS = ["Retiro de dirección", "Gasto operativo", "Autorización / préstamo", "Otro"];
-const METODOS = ["efectivo", "transferencia"];
+const METODOS = ["efectivo", "transferencia", "cheque"];
 
 // Movimientos que capturan las EJECUTIVAS en la pestaña "Otros movimientos".
 // Unos meten dinero a la caja (comisión, recuperación, garantía, liquidación) y
@@ -1831,11 +1855,14 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   const vivos = lista.filter(m => !m.anulado);
   const totalEfectivo = vivos.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
   const totalTransf = vivos.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
+  // Cheques: dinero que entra pero NO en billetes — se reporta aparte para que
+  // Monse sepa qué papeles esperar (y el arqueo no los exija en caja).
+  const totalCheques = vivos.filter(m => m.metodo === "cheque").reduce((s, m) => s + m.monto, 0);
   // Separa lo que entra de lo que sale, para que el total no mezcle una
   // recuperación (entra) con un gasto (sale) en una sola cifra engañosa.
   const entradas = vivos.filter(m => m.entrada).reduce((s, m) => s + m.monto, 0);
   const salidas = vivos.filter(m => !m.entrada).reduce((s, m) => s + m.monto, 0);
-  res.json({ fecha, lista, totalEfectivo, totalTransf, total: totalEfectivo + totalTransf, entradas, salidas });
+  res.json({ fecha, lista, totalEfectivo, totalTransf, totalCheques, total: totalEfectivo + totalTransf, entradas, salidas });
 });
 
 // ---------- páginas ----------

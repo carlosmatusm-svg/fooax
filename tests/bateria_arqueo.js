@@ -425,6 +425,42 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const pe3 = (a3.porEjec || {}).prueba || {};
   ok("y el arqueo cuadra con ellos (contó 950 = 700 + 250, dif 0)", pe3.contado === 950 && pe3.dif === 0, "contó " + pe3.contado + " · dif " + pe3.dif);
 
+  console.log("\n— 19. CHEQUES en otros movimientos: NO son efectivo de caja —");
+  const D4 = "2026-02-11";
+  const syncCh = (snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D4, snapshot: JSON.stringify(snap), ts: Date.now() }) });
+  // sesión con: cobranza $500 E · liquidación $2,280 en CHEQUE · recuperación
+  // $100 E · y una liquidación $300 mal guardada como EFECTIVO (caso Neri:
+  // registro viejo de antes del arreglo, para probar la reparación)
+  const movsCh = [
+    { folio: "CQ1", concepto: "LIQUIDACION", monto: 2280, via: "CH", cheque: "0012345", socio: "70000000080", clienta: "CHEQUE TEST" },
+    { folio: "CQ2", concepto: "RECUPERACION", monto: 100, via: "E" },
+    { folio: "CQ3", concepto: "LIQUIDACION", monto: 300, via: "E", socio: "70000000081", clienta: "REPARA TEST" },
+  ];
+  const capCh = { fecha: D4, reg: { "C-7": { "chx|P": { pago: 500, forma: "E" } } }, regI: {}, movs: movsCh, arqueo: { "500": 1, "100": 1 } };
+  await syncCh(capCh);
+  let m4 = await j(await fetch(U + "/api/movimientos?fecha=" + D4, { headers: H(cd) }));
+  const cq1 = (m4.lista || []).find((m) => /CQ1$/.test(m.folio)) || {};
+  ok("el cheque se guarda como CHEQUE con su número", cq1.metodo === "cheque" && cq1.cheque === "0012345", "metodo " + cq1.metodo + " · #" + cq1.cheque);
+  ok("y se reporta aparte (totalCheques $2,280)", Math.abs((m4.totalCheques || 0) - 2280) < 0.01, "cheques " + m4.totalCheques);
+  const cq3a = (m4.lista || []).find((m) => /CQ3$/.test(m.folio)) || {};
+  ok("(estado viejo simulado: la liquidación $300 quedó como efectivo)", cq3a.metodo === "efectivo", "metodo " + cq3a.metodo);
+  // la app re-manda el MISMO movimiento ya con su via correcta (CH) — como hace
+  // el rescate del arranque al re-procesar los snapshots
+  const capCh2 = JSON.parse(JSON.stringify(capCh));
+  capCh2.movs[2] = { folio: "CQ3", concepto: "LIQUIDACION", monto: 300, via: "CH", cheque: "0077", socio: "70000000081", clienta: "REPARA TEST" };
+  await syncCh(capCh2);
+  m4 = await j(await fetch(U + "/api/movimientos?fecha=" + D4, { headers: H(cd) }));
+  const cq3b = (m4.lista || []).find((m) => /CQ3$/.test(m.folio)) || {};
+  ok("la REPARACIÓN corrige el método a cheque SIN duplicar (caso Neri 25-jul)",
+     cq3b.metodo === "cheque" && cq3b.cheque === "0077" && (m4.lista || []).filter((m) => /CQ3/.test(m.folio)).length === 1,
+     "metodo " + cq3b.metodo + " · #" + cq3b.cheque);
+  ok("totalCheques ya con los dos ($2,580)", Math.abs((m4.totalCheques || 0) - 2580) < 0.01, "cheques " + m4.totalCheques);
+  const a4 = await j(await fetch(U + "/api/arqueo?fecha=" + D4, { headers: H(cd) }));
+  const pe4 = (a4.porEjec || {}).prueba || {};
+  ok("el arqueo NO exige los cheques en billetes: contó 600 = debe 600 (500+100), dif 0",
+     pe4.contado === 600 && pe4.aEntregar === 600 && pe4.dif === 0,
+     "contó " + pe4.contado + " · debe " + pe4.aEntregar + " · dif " + pe4.dif);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -68,6 +68,7 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   const fol = (n) => "SMK-" + RUN + "-" + n;
   const cap1 = { fecha: FECHA, reg: { "C-SMK": {} }, regI: {}, movs: [
     { folio: fol("01"), concepto: "RECUPERACION", monto: 39, via: "E", socio: "70000000090", clienta: "SMOKE TEST" },
+    { folio: fol("02"), concepto: "RECUPERACION", monto: 77, via: "CH", cheque: "0099", socio: "70000000091", clienta: "SMOKE CHEQUE" },
   ], arqueo: { "100": 1, "50": 1 } };
   cap1.reg["C-SMK"][sK + "a|P"] = { pago: 111, forma: "E" };
   const sync = (snapObj) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: FECHA, snapshot: JSON.stringify(snapObj), ts: Date.now() }) });
@@ -81,6 +82,8 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   const a1 = await j(await fetch(U + "/api/arqueo?fecha=" + FECHA, { headers: H(cd) }));
   const pe = (a1.porEjec || {}).prueba || {};
   ok("el arqueo por ejecutiva CUADRA (contó $150 = 111 + 39, dif $0)", pe.contado === 150 && pe.aEntregar === 150 && pe.dif === 0, "contó " + pe.contado + " · debe " + pe.aEntregar + " · dif " + pe.dif);
+  const mch = (m1.lista || []).find((m) => m.folio.includes(fol("02"))) || {};
+  ok("el CHEQUE se guarda como cheque y NO se exige en billetes", mch.metodo === "cheque" && mch.cheque === "0099" && pe.aEntregar === 150, "metodo " + mch.metodo + " · #" + mch.cheque);
 
   console.log("\n— E. BLINDAJES DEL DÍA —");
   const rv = await j(await sync({ fecha: FECHA, reg: {}, regI: {}, movs: [] }));

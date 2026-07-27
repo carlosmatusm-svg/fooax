@@ -420,7 +420,7 @@
     <form class="movform" id="movForm" onsubmit="registrarMov(event)" style="display:none">
       <div class="mrow">
         <div class="mcampo"><label>Monto</label><input id="mMonto" type="number" inputmode="decimal" min="0" step="0.01" required></div>
-        <div class="mcampo"><label>Método</label><select id="mMetodo"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option></select></div>
+        <div class="mcampo"><label>Método</label><select id="mMetodo"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="cheque">Cheque</option></select></div>
       </div>
       <div class="mcampo"><label>Categoría</label><select id="mCategoria">
         <option>Retiro de dirección</option><option>Gasto operativo</option><option>Autorización / préstamo</option><option>Otro</option>
@@ -823,7 +823,7 @@ async function cargarMovs() {
   };
   cont.innerHTML = d.lista.map(m =>
     '<div class="movitem' + (m.anulado ? " anulado" : "") + '"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + (m.anulado ? ' <span class="mi-anulado">ANULADO por la ejecutiva</span>' : "") + "</div>"
-    + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo)
+    + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo) + (m.cheque ? " #" + hesc(m.cheque) : "")
     + (m.autorizadoA ? " · a " + hesc(m.autorizadoA) : "")
     + " · registró " + hesc(m.registradoPor)
     + " · " + new Date(m.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
@@ -836,7 +836,8 @@ async function cargarMovs() {
   ).join("")
   + '<div class="movtot">Entradas <b style="color:#0B7247">+' + dinero(d.entradas || 0)
   + '</b> · Salidas <b>−' + dinero(d.salidas || 0) + "</b> · efectivo <b>"
-  + dinero(d.totalEfectivo) + "</b> · transf. <b>" + dinero(d.totalTransf) + "</b></div>";
+  + dinero(d.totalEfectivo) + "</b> · transf. <b>" + dinero(d.totalTransf) + "</b>"
+  + (d.totalCheques > 0 ? ' · cheques <b style="color:#8A5A00">' + dinero(d.totalCheques) + "</b>" : "") + "</div>";
 }
 
 // ---------- arqueo del día ----------

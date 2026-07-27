@@ -1611,7 +1611,7 @@ function buildResumen(){
       const cc=(m.concepto||'').toUpperCase();
       const nom=etiqM[cc]||m.concepto;
       const esSalida=(cc==='GASTO'||cc==='DESEMBOLSO');
-      const via=(m.via==='E'?'efectivo':(m.via==='C'?'cheque':'transf'));
+      const via=(m.via==='E'?'efectivo':(m.via==='CH'?'cheque':'transf'));
       wa+='\n'+(esSalida?'− ':'+ ')+nom+': '+fmt(m.monto)+' ('+via+')';
       sumMov+=esSalida?-m.monto:m.monto;
     });
@@ -1763,7 +1763,7 @@ function resumenTextoCobranza(){
       const nom=etiqM[c]||m.concepto;
       const esSalida=(c==='GASTO'||c==='DESEMBOLSO');
       const signo=esSalida?'-':'+';
-      txt+='    '+signo+' '+nom+': '+fmt(m.monto)+' ('+(m.via==='E'?'efectivo':(m.via==='C'?'cheque':'transf'))+')\n';
+      txt+='    '+signo+' '+nom+': '+fmt(m.monto)+' ('+(m.via==='E'?'efectivo':(m.via==='CH'?'cheque':'transf'))+')\n';
       if(esSalida){sumMov-=m.monto;if(m.via==='E')sumMovEfe-=m.monto;}
       else {sumMov+=m.monto;if(m.via==='E')sumMovEfe+=m.monto;}
     });

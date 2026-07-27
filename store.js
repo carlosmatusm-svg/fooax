@@ -332,6 +332,20 @@ module.exports = {
     if (!usePg) escribirJSON("snapshots.json", mem.snapshots);
     return true;
   },
+  // Corrige la FORMA de un movimiento ya guardado (método y/o número de
+  // cheque) sin tocar monto, concepto ni anulado. Nació para los cheques que
+  // se guardaban como "efectivo" y descuadraban el arqueo (faltante 25-jul).
+  corregirMovimiento(folio, campos) {
+    const m = mem.movimientos.find((x) => x.folio === folio);
+    if (!m) return false;
+    if ("metodo" in campos && campos.metodo) m.metodo = campos.metodo;
+    if ("cheque" in campos) m.cheque = campos.cheque || null;
+    if (usePg) {
+      pool.query("UPDATE movimientos SET data=$2 WHERE folio=$1", [folio, m])
+        .catch((e) => console.error("[store] corregir:", e.message));
+    } else escribirJSON("movimientos.json", mem.movimientos);
+    return true;
+  },
   // Marca/desmarca un movimiento como ANULADO. Nunca se borra: si la ejecutiva
   // lo quitó en su app, aquí queda el rastro (y deja de contar en los totales).
   setMovimientoAnulado(folio, anulado) {
