@@ -152,11 +152,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     return d.toISOString().slice(0, 10); })();
   const syncF = (fecha, snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha, snapshot: snap, ts: Date.now() }) });
   const s0 = (await semana()).totalSemana;
+  // EN LUNES "ayer" es domingo (semana pasada) y la semana NO lo suma — la
+  // prueba se ajusta al calendario para no fallar en falso los lunes.
+  const lunesDe = (f) => { const [y, m, d] = f.split("-").map(Number); const dt = new Date(Date.UTC(y, m - 1, d));
+    const dow = dt.getUTCDay(); dt.setUTCDate(dt.getUTCDate() - (dow === 0 ? 6 : dow - 1)); return dt.toISOString().slice(0, 10); };
+  const ayerEnSemana = AYER >= lunesDe(HOY);
+  const esperaDup = s0 + (ayerEnSemana ? 5000 : 0);
   // el teléfono capturó $5,000 con la fecha de AYER (pegado en el día viejo)
   await syncF(AYER, { reg: { "C-99": { "sx|P": { pago: 5000, forma: "E" } } }, regI: {}, movs: [] });
   // corrige la fecha: lo mismo se re-sincroniza HOY (ya está en la captura de hoy previa)…
   let sm = (await semana()).totalSemana;
-  ok("mientras no se corrige, la semana trae el día duplicado (+5000)", Math.abs(sm - (s0 + 5000)) < 0.01, sm + " vs " + (s0 + 5000));
+  ok("mientras no se corrige, la semana trae el día duplicado" + (ayerEnSemana ? " (+5000)" : " (lunes: ayer es de la semana pasada, no suma)"),
+     Math.abs(sm - esperaDup) < 0.01, sm + " vs " + esperaDup);
   // …y la app avisa al servidor que AYER estaba mal etiquetado
   let rr = await j(await fetch(U + "/api/reetiquetado", { method: "POST", headers: H(ce), body: JSON.stringify({ de: AYER }) }));
   sm = (await semana()).totalSemana;
@@ -398,6 +405,25 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const rr4 = await j(await fetch(U + "/api/recuperar", { method: "POST", headers: H(cd), body: JSON.stringify({ fecha: D2, ejec: "prueba", archivado: ep2.versiones[0].archivado }) }));
   const rest2 = await cons2();
   ok("y 'Regresar esta' la restaura exacta ($2,100)", rr4.ok === true && Math.abs(rest2.efectivo - 2100) < 0.01, "efectivo " + rest2.efectivo);
+
+  console.log("\n— 18. SNAPSHOT COMO TEXTO (así lo manda la app real, no como objeto) —");
+  // La app envía snapshot = localStorage tal cual (STRING). La batería siempre
+  // mandaba objetos y por eso el bug del 27-jul (movimientos sin guardar en
+  // vivo) pasó todas las pruebas. Esta lo reproduce con el formato real.
+  const D3 = "2026-03-10";
+  const snapTxt = JSON.stringify({ fecha: D3, reg: { "C-5": { "t1|P": { pago: 700, forma: "E" } } }, regI: {},
+    movs: [{ folio: "TX1", concepto: "RECUPERACION", monto: 250, via: "E", socio: "70000000070", clienta: "TEXTO TEST" }],
+    arqueo: { "500": 1, "200": 2, "50": 1 } });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D3, snapshot: snapTxt, ts: Date.now() }) });
+  const c3 = await j(await fetch(U + "/api/consolidado?fecha=" + D3, { headers: H(cd) }));
+  const p3 = (c3.ejecutivos || {}).prueba || {};
+  ok("la cobranza del snapshot-texto se registra ($700)", Math.abs(p3.efectivo - 700) < 0.01, "efectivo " + p3.efectivo);
+  const m3 = await j(await fetch(U + "/api/movimientos?fecha=" + D3, { headers: H(cd) }));
+  ok("los OTROS MOVIMIENTOS del snapshot-texto se guardan EN VIVO (sin redespliegue)",
+     (m3.lista || []).some((m) => /Recuperaci/.test(m.concepto) && m.monto === 250), "movs " + (m3.lista || []).length);
+  const a3 = await j(await fetch(U + "/api/arqueo?fecha=" + D3, { headers: H(cd) }));
+  const pe3 = (a3.porEjec || {}).prueba || {};
+  ok("y el arqueo cuadra con ellos (contó 950 = 700 + 250, dif 0)", pe3.contado === 950 && pe3.dif === 0, "contó " + pe3.contado + " · dif " + pe3.dif);
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
