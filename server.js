@@ -154,18 +154,6 @@ app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
   res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado });
 });
 
-// ---------- diagnóstico TEMPORAL de cheques (solo LECTURA; quitar tras usar) ----------
-app.get("/api/_chqdiag", (req, res) => {
-  if (req.query.t !== "diag-chq-27jul") return res.status(404).end();
-  const fecha = req.query.fecha || hoyMX();
-  const todos = store.movimientosDeFecha(fecha);
-  res.json({
-    fecha,
-    porMetodo: todos.filter((m) => !m.anulado).reduce((acc, m) => { acc[m.metodo || "?"] = (acc[m.metodo || "?"] || 0) + m.monto; return acc; }, {}),
-    lista: todos.map((m) => ({ folio: m.folio, monto: m.monto, metodo: m.metodo, cheque: m.cheque || null, anulado: !!m.anulado, concepto: String(m.concepto || "").slice(0, 60) })),
-  });
-});
-
 // "Capturar TODO de nuevo" tras cerrar: la ejecutiva eligió empezar de cero en
 // la pregunta de la app. La versión que había queda archivada (recuperable en
 // el tablero) y la siguiente sincronización REEMPLAZA el día en vez de sumarse.
