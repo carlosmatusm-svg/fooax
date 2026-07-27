@@ -721,13 +721,14 @@ function claveCredito(socioOKey, producto) {
 //          distinto: los dos están bien, miden cosas distintas.
 //  - detalle: quién pagó cada clave, para poder señalar los pagos que no
 //          casan con ningún crédito del padrón en vez de perderlos en silencio.
-function pagosDeLaSemana(usuario, desde) {
+function pagosDeLaSemana(usuario, desde, hastaOpt) {
   // Sin `desde`: la ventana semanal de siempre (lunes → hoy). Con `desde`: el
   // acumulado desde esa fecha — lo usan los SALDOS, que deben descontar TODO lo
   // abonado desde el corte de plantillas, no solo esta semana (los lunes la
   // semana se reinicia y "lo que se le debe" regresaba al saldo viejo: el bug
-  // del viernes de Neri que se notó el lunes 27-jul).
-  const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
+  // del viernes de Neri que se notó el lunes 27-jul). `hastaOpt` cierra la
+  // ventana antes de hoy (para mirar un solo día).
+  const hoy = hastaOpt || hoyMX(), lunes = desde || lunesDeLaSemana(hoyMX());
   const pago = {}, gar = {}, detalle = {};
   const permitidas = new Set(idsEjecutivos(usuario));
   const snaps = store.respaldo().snapshots || {};
@@ -1313,6 +1314,41 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
     ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
+});
+
+// ---------- diagnóstico TEMPORAL del viernes (solo LECTURA; quitar tras usar) ----------
+app.get("/api/_vierdiag", (req, res) => {
+  if (req.query.t !== "diag-vier-27jul") return res.status(404).end();
+  const fecha = req.query.fecha || hoyMX();
+  const u = { id: "_diag", rol: "direccion" };
+  const corte = corteSaldos();
+  // pagos SOLO de ese día (ventana de un día): qué créditos cobraron el viernes
+  const delDia = pagosDeLaSemana(u, fecha, fecha);   // ventana de UN día
+  const hasta = {};
+  for (const k in delDia.pago) hasta[k] = true;
+  for (const k in delDia.gar) hasta[k] = true;
+  const cv = carteraViva(u);   // saldos vivos (acumulado desde el corte)
+  const activas = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
+  const porClave = new Map();
+  for (const c of activas) porClave.set(claveCredito(c.id, c.producto), c);
+  const filas = [], sinCredito = [];
+  for (const k of Object.keys(hasta)) {
+    const d = delDia.detalle[k] || {};
+    const c = porClave.get(k);
+    if (!c) { sinCredito.push({ clave: k, socio: d.socio, producto: d.producto, pago: d.pago || 0, gar: d.gar || 0, ejec: Object.keys(d.ejec || {}) }); continue; }
+    const i = infoCredito(cv, c);
+    filas.push({ socio: String(c.id), producto: c.producto, nombre: c.nombre, ejecutivo: c.ejecutivo,
+      pagoViernes: Math.round((delDia.pago[k] || 0) * 100) / 100,
+      saldoPlantilla: c.saldo || 0,
+      abonado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual,
+      descuenta: i.pagado >= (delDia.pago[k] || 0) - 0.01 });
+  }
+  res.json({ fecha, corte,
+    creditosQuePagaron: filas.length, sinCredito: sinCredito.length,
+    pagoDelDia: Math.round(Object.values(delDia.pago).reduce((a, b) => a + b, 0) * 100) / 100,
+    garDelDia: Math.round(Object.values(delDia.gar).reduce((a, b) => a + b, 0) * 100) / 100,
+    noDescuentan: filas.filter((f) => !f.descuenta).length,
+    listaSinCredito: sinCredito, filas });
 });
 
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
