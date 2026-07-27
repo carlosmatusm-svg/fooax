@@ -1315,27 +1315,6 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
 });
 
-// ---------- diagnóstico TEMPORAL de saldos (solo LECTURA; quitar tras usar) ----------
-app.get("/api/_salddiag", (req, res) => {
-  if (req.query.t !== "diag-sald-27jul") return res.status(404).end();
-  const u = { id: "_diag", rol: "direccion" };
-  const corte = corteSaldos();
-  const { pago, gar, detalle } = pagosDeLaSemana(u, corte);
-  const activas = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
-  const usadas = new Set(activas.map((c) => claveCredito(c.id, c.producto)));
-  const huerf = Object.keys(detalle).filter((k) => !usadas.has(k) && (detalle[k].pago > 0 || detalle[k].gar > 0))
-    .map((k) => ({ socio: detalle[k].socio, producto: detalle[k].producto, pago: detalle[k].pago, gar: detalle[k].gar, ejec: Object.keys(detalle[k].ejec), fechas: Object.keys(detalle[k].fechas) }));
-  res.json({
-    corte,
-    abonosDesdeCorte: Math.round(Object.values(pago).reduce((a, b) => a + b, 0) * 100) / 100,
-    garantiasDesdeCorte: Math.round(Object.values(gar).reduce((a, b) => a + b, 0) * 100) / 100,
-    creditosActivos: activas.length,
-    huerfanos: huerf.length,
-    montoHuerfano: Math.round(huerf.reduce((s, x) => s + x.pago, 0) * 100) / 100,
-    listaHuerfanos: huerf.slice(0, 40),
-  });
-});
-
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
 // cargar plantillas nuevas). Queda en la bitácora del padrón con quién y cuándo.
 app.get("/api/saldos/corte", requiere("direccion", "admin"), (req, res) => {
