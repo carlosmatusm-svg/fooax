@@ -154,6 +154,23 @@ app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
   res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado });
 });
 
+// ---------- diagnóstico TEMPORAL de movimientos (solo LECTURA; quitar tras usar) ----------
+// Para ver por qué los "otros movimientos" de hoy no aparecen en el tablero.
+app.get("/api/_movdiag", (req, res) => {
+  if (req.query.t !== "diag-movs-27jul") return res.status(404).end();
+  const fecha = req.query.fecha || hoyMX();
+  const todos = store.movimientosDeFecha(fecha);
+  res.json({
+    hoyServidor: hoyMX(), fecha,
+    total: todos.length,
+    vivos: todos.filter((m) => !m.anulado).length,
+    anulados: todos.filter((m) => m.anulado).length,
+    lista: todos.map((m) => ({ folio: m.folio, monto: m.monto, concepto: m.concepto, metodo: m.metodo,
+      entrada: m.entrada, anulado: !!m.anulado, anuladoTs: m.anuladoTs || null, usuario: m.usuario || null, ts: m.ts })),
+    fechasConMovs: [...new Set(store.todosMovimientos().map((m) => m.fecha))].sort().slice(-8),
+  });
+});
+
 // "Capturar TODO de nuevo" tras cerrar: la ejecutiva eligió empezar de cero en
 // la pregunta de la app. La versión que había queda archivada (recuperable en
 // el tablero) y la siguiente sincronización REEMPLAZA el día en vez de sumarse.
