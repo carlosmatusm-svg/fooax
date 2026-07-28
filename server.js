@@ -1279,6 +1279,103 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
+// ---------- RESEARCH DE USO · TEMPORAL, solo lectura y AGREGADO (quitar tras usar) ----------
+// Estudia CÓMO se usa el sistema para fundamentar el trabajo de UX: a qué hora
+// capturan, cuántas veces guardan, qué corrigen, qué campos nunca llenan.
+// Devuelve solo conteos y promedios — ningún nombre de clienta.
+app.get("/api/_uxdiag", async (req, res) => {
+  if (req.query.t !== "ux-2607") return res.status(404).end();
+  const hist = await store.historialTodo(20000).catch(() => []);
+  const snaps = store.respaldo().snapshots || {};
+  const HORA = (ms) => new Date(ms).toLocaleString("es-MX", { timeZone: "America/Mexico_City", hour: "2-digit", minute: "2-digit", hour12: false });
+  const HH = (ms) => Number(new Date(ms).toLocaleString("en-US", { timeZone: "America/Mexico_City", hour: "2-digit", hour12: false }));
+  const nodosDe = (data) => {
+    const out = [];
+    const rec = (st) => { if (!st || typeof st !== "object") return;
+      for (const k in st) { const nd = st[k];
+        if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) out.push([k, nd]);
+        else if (nd && typeof nd === "object") for (const kk in nd) if (nd[kk] && typeof nd[kk] === "object") out.push([kk, nd[kk]]); } };
+    let d = data; if (typeof d === "string") { try { d = JSON.parse(d); } catch { return out; } }
+    rec(d && d.reg); rec(d && d.regI); return out;
+  };
+  // 1) ritmo de captura: versiones archivadas por ejecutiva+día
+  const dias = {};   // "ej|fecha" -> {n, primera, ultima, horas:{}}
+  for (const h of hist) {
+    if (!h.ejecutivo || !h.fecha) continue;
+    const k = h.ejecutivo + "|" + h.fecha;
+    const t = Number(h.archivado || h.recibido || h.ts) || 0;
+    const d = dias[k] || (dias[k] = { ej: h.ejecutivo, fecha: h.fecha, n: 0, min: Infinity, max: 0, horas: {} });
+    d.n++; if (t) { d.min = Math.min(d.min, t); d.max = Math.max(d.max, t); d.horas[HH(t)] = (d.horas[HH(t)] || 0) + 1; }
+  }
+  const porEjec = {};
+  const horaGlobal = {};
+  for (const k in dias) {
+    const d = dias[k];
+    const e = porEjec[d.ej] || (porEjec[d.ej] = { ejecutivo: d.ej, dias: 0, sincronizaciones: 0, minutosJornada: [], ejemplos: [] });
+    e.dias++; e.sincronizaciones += d.n;
+    if (d.min < Infinity && d.max > d.min) e.minutosJornada.push(Math.round((d.max - d.min) / 60000));
+    for (const h in d.horas) horaGlobal[h] = (horaGlobal[h] || 0) + d.horas[h];
+    if (e.ejemplos.length < 3 && d.min < Infinity) e.ejemplos.push({ fecha: d.fecha, guardados: d.n, de: HORA(d.min), a: HORA(d.max) });
+  }
+  const prom = (a) => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0;
+  // 2) CORRECCIONES: un pago que CAMBIA entre versiones del mismo día = dedazo corregido
+  const versiones = {};
+  for (const h of hist) { if (!h.ejecutivo || !h.fecha) continue;
+    (versiones[h.ejecutivo + "|" + h.fecha] = versiones[h.ejecutivo + "|" + h.fecha] || []).push(h); }
+  let correcciones = 0, borrados = 0, revisados = 0, cambioForma = 0;
+  for (const k in versiones) {
+    const vs = versiones[k].sort((a, b) => (a.archivado || 0) - (b.archivado || 0));
+    const actual = (snaps[vs[0].ejecutivo] || {})[vs[0].fecha];
+    const todas = actual ? vs.concat([{ snapshot: actual.snapshot }]) : vs;
+    for (let i = 1; i < todas.length; i++) {
+      const antes = new Map(nodosDe(todas[i - 1].snapshot).map(([kk, nd]) => [kk, nd]));
+      const desp = new Map(nodosDe(todas[i].snapshot).map(([kk, nd]) => [kk, nd]));
+      for (const [kk, a] of antes) {
+        revisados++;
+        const b = desp.get(kk);
+        if (!b) { borrados++; continue; }
+        if ((a.pago || 0) !== (b.pago || 0) || (a.garantia || 0) !== (b.garantia || 0)) correcciones++;
+        else if ((a.forma || "E") !== (b.forma || "E")) cambioForma++;
+      }
+    }
+  }
+  // 3) formas de pago y campos usados (sobre el estado ACTUAL de cada día)
+  const formas = {}; let nodos = 0;
+  let conArqueo = 0, diasTot = 0, conCierre = 0;
+  for (const ej in snaps) for (const f in snaps[ej]) {
+    diasTot++;
+    const rec = snaps[ej][f];
+    let data = rec.snapshot; if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
+    if (data && data.arqueo && Object.keys(data.arqueo).length) conArqueo++;
+    if (rec.cierre) conCierre++;
+    for (const [, nd] of nodosDe(data)) { nodos++; formas[nd.forma || "E"] = (formas[nd.forma || "E"] || 0) + 1; }
+  }
+  // 4) movimientos: conceptos y campos vacíos
+  const movs = store.todosMovimientos();
+  const concepto = {}, metodo = {};
+  let sinSocio = 0, conNota = 0, anulados = 0;
+  for (const m of movs) {
+    const t = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || "?";
+    concepto[t] = (concepto[t] || 0) + 1;
+    metodo[m.metodo || "?"] = (metodo[m.metodo || "?"] || 0) + 1;
+    if (!m.socio) sinSocio++;
+    if (/ — /.test(String(m.concepto || ""))) conNota++;
+    if (m.anulado) anulados++;
+  }
+  res.json({
+    ventana: { versionesArchivadas: hist.length, diasCapturados: diasTot },
+    ritmo: Object.values(porEjec).map((e) => ({ ejecutivo: e.ejecutivo, dias: e.dias,
+      sincronizacionesPorDia: e.dias ? Math.round(e.sincronizaciones / e.dias) : 0,
+      jornadaPromedioMin: prom(e.minutosJornada), ejemplos: e.ejemplos })),
+    horaDelDia: horaGlobal,
+    correcciones: { pagosRevisados: revisados, montoCorregido: correcciones, formaCorregida: cambioForma, clientasQuitadas: borrados,
+      porcentajeCorregido: revisados ? Math.round((correcciones / revisados) * 1000) / 10 : 0 },
+    formasDePago: formas, nodosDePago: nodos,
+    arqueo: { diasConConteo: conArqueo, diasTotales: diasTot, diasConCierre: conCierre },
+    movimientos: { total: movs.length, porConcepto: concepto, porMetodo: metodo, sinSocio, conNota, anulados },
+  });
+});
+
 // ---------- FASE 2 · TENDENCIAS (evolución semana a semana) ----------
 // Recorre TODA la historia guardada una sola vez y la agrupa por semana.
 // La cartera de una semana pasada se reconstruye así: saldo de plantilla menos

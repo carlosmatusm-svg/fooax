@@ -248,6 +248,23 @@ module.exports = {
         .map((l) => JSON.parse(l)).filter((x) => x.fecha === fecha);
     } catch { return []; }
   },
+  // Historial COMPLETO de versiones archivadas. Cada fila es una sincronización
+  // que reemplazó a la anterior, así que sirve para estudiar cómo trabajan en
+  // campo (a qué hora capturan, cuántas veces guardan, qué corrigen).
+  async historialTodo(limite) {
+    const tope = limite || 20000;
+    if (usePg) {
+      const r = await pool.query(
+        "SELECT ejecutivo, fecha, data, ts, recibido, archivado FROM snapshots_hist ORDER BY archivado DESC LIMIT $1", [tope]
+      );
+      return r.rows.map((x) => ({ ejecutivo: x.ejecutivo, fecha: x.fecha, ...x.data, ts: Number(x.ts), archivado: Number(x.archivado) }));
+    }
+    try {
+      const p = path.join(DATA_DIR, "snapshots_hist.jsonl");
+      if (!fs.existsSync(p)) return [];
+      return fs.readFileSync(p, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)).slice(-tope);
+    } catch { return []; }
+  },
   respaldo() { return { snapshots: mem.snapshots, movimientos: mem.movimientos }; },
 
   // Append-only: nunca se borra ni se edita un movimiento (rastro auditable).
