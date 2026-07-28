@@ -79,6 +79,7 @@
 
   // ---- indicador visual (pastilla flotante) ----
   const pill = document.createElement("div");
+  pill.id = "fooax-pill";   // para que la barra de cierre pueda apartarla
   pill.style.cssText = "position:fixed;bottom:14px;right:14px;z-index:9999;" +
     "font:600 12px -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 14px;" +
     "border-radius:99px;box-shadow:0 3px 12px rgba(0,0,0,.25);transition:opacity .3s;" +

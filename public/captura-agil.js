@@ -168,7 +168,7 @@ window.__corregirFechaHoy = function (hoy) {
     { ic: "fecha", t: "1 · La fecha manda", b: "Arriba debe decir el día de <b>HOY</b>. Si sale un <b>aviso rojo</b> de fecha, tócalo: corrige todo sin perder nada." },
     { ic: "nube", t: "2 · El globito de la nube", b: "Abajo a la derecha:<br>🟢 <b>Sincronizado</b> = tu cobranza ya está segura en la nube.<br>🟠 <b>Guardado / Sin señal</b> = está en tu teléfono y se sube sola al tener señal.<br>🔴 = vuelve a iniciar sesión (no se pierde nada)." },
     { ic: "check", t: "3 · Captura como siempre", b: "La <b>palomita</b> = pagó su cuota completa. Elige cómo pagó: <b>Efe · Transf · Depósito · Mixto</b>. Todo se guarda solo en tu teléfono." },
-    { ic: "fin", t: "4 · Al terminar tu ruta", b: "Toca <b>«Cerrar captura de hoy»</b> (botón de abajo a la izquierda). Si sale <b>verde</b>, tu cobranza quedó segura y ya puedes guardar el teléfono." },
+    { ic: "fin", t: "4 · Al terminar tu ruta", b: "Toca <b>«Terminar día»</b> (la barra de abajo): cuentas tu efectivo y mandas el arqueo. Eso es lo que cierra tu día. El botón <b>«Guardar en la nube»</b> solo respalda lo capturado, por si quieres asegurarlo a media ruta." },
   ];
   let paso = 0;
   function verTour() {
@@ -207,12 +207,13 @@ window.__corregirFechaHoy = function (hoy) {
 
   // ---- botón fijo: ? (tour) + Cerrar captura de hoy ----
   const barra = document.createElement("div");
+  barra.id = "fooax-agil";   // la barra de cierre lo sube cuando aparece
   barra.style.cssText = "position:fixed;bottom:14px;left:14px;z-index:9999;display:flex;gap:8px;align-items:center";
   barra.innerHTML =
     '<button id="fooax-btn-tour" aria-label="Ver guía" style="width:38px;height:38px;border-radius:50%;border:none;' +
     'background:#fff;color:#324AB6;font:800 16px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 3px 12px rgba(0,0,0,.25);cursor:pointer">?</button>' +
     '<button id="fooax-btn-cerrar" style="font:700 13px -apple-system,Segoe UI,Roboto,sans-serif;background:#2A1F35;color:#fff;' +
-    'border:none;border-radius:99px;padding:11px 16px;box-shadow:0 3px 12px rgba(0,0,0,.3);cursor:pointer">Cerrar captura de hoy</button>';
+    'border:none;border-radius:99px;padding:11px 16px;box-shadow:0 3px 12px rgba(0,0,0,.3);cursor:pointer">Guardar en la nube</button>';
   document.body.appendChild(barra);
   document.getElementById("fooax-btn-tour").onclick = verTour;
 
@@ -248,8 +249,8 @@ window.__corregirFechaHoy = function (hoy) {
       card.innerHTML =
         '<div style="width:64px;height:64px;border-radius:50%;background:#E7F6EE;margin:0 auto 12px;display:flex;align-items:center;justify-content:center">' +
         '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0B7247" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
-        '<div style="font-size:18px;font-weight:800;color:#0B7247">Tu cobranza quedó segura</div>' +
-        '<div style="font-size:14px;color:#3a3142;margin-top:6px">' + n + " pago(s) · <b>$" + Math.round(t).toLocaleString("es-MX") + "</b> ya están en la nube.<br>Ya puedes guardar el teléfono. 👏</div>" +
+        '<div style="font-size:18px;font-weight:800;color:#0B7247">Tu cobranza está en la nube</div>' +
+        '<div style="font-size:14px;color:#3a3142;margin-top:6px">' + n + " pago(s) · <b>$" + Math.round(t).toLocaleString("es-MX") + "</b> ya están guardados.<br><b>Ojo:</b> esto NO cierra tu día. Al terminar tu ruta, usa el botón <b>«Terminar día»</b> de abajo para contar tu efectivo y mandar el arqueo.</div>" +
         '<button onclick="document.getElementById(\'fooax-cierre\').remove()" style="margin-top:16px;width:100%;font:700 15px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">Listo</button>';
     } else {
       const motivo = navigator.onLine

@@ -36,6 +36,21 @@
   .prodtag{font-size:10px;font-weight:800;color:var(--rio);background:#E5EAFB;padding:1px 7px;border-radius:10px;margin-left:4px;white-space:nowrap}
   .ci .mt{font-size:11px;color:var(--gris);margin-top:2px}
   .ci .rowtot{font-size:13px;font-weight:800;color:var(--rio)}
+  /* Barra de cierre: el botón de terminar el día vivía en la 6ª pestaña y solo
+     el 20% de los días se cerraba. Ahora la acompaña en toda la app. */
+  #barraCierre{position:fixed;left:0;right:0;bottom:0;z-index:9998;display:none;
+    align-items:center;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:#2A1F35;color:#fff;box-shadow:0 -3px 14px rgba(0,0,0,.22)}
+  #barraCierre.on{display:flex}
+  #barraCierre .bc-i{flex:1;min-width:0;line-height:1.25}
+  #barraCierre .bc-t{font-size:11px;opacity:.82;font-weight:600}
+  #barraCierre .bc-n{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+  #barraCierre .bc-b{flex:none;font:800 13px inherit;background:#0B7247;color:#fff;border:none;
+    border-radius:99px;padding:11px 16px;cursor:pointer}
+  #barraCierre.listo .bc-b{background:#F1228E}
+  body.con-barra{padding-bottom:74px}
+  body.con-barra #fooax-pill{bottom:78px !important}
+  body.con-barra #fooax-agil{bottom:78px !important}
   .forma{display:flex;gap:0;border:1.5px solid var(--linea);border-radius:9px;overflow:hidden;flex:none}
   .forma button{border:0;background:#fff;color:var(--gris);font-size:11px;font-weight:800;padding:7px 9px;font-family:inherit}
   .forma button.efe{background:var(--efe);color:#fff}
@@ -296,6 +311,10 @@
   <div id="liquidaBox"></div>
 </div>
 
+<div id="barraCierre">
+  <div class="bc-i"><div class="bc-t" id="bcTxt">Llevas capturado hoy</div><div class="bc-n" id="bcNum">$0</div></div>
+  <button class="bc-b" id="bcBtn" onclick="irACerrar()">Terminar día</button>
+</div>
 <div class="wrap hidden" id="tab-arqueo">
   <div class="card"><div class="sectitle">Arqueo de efectivo</div>
     <div class="meta">Cuenta billetes y monedas físicos. Abajo se compara contra lo cobrado.</div></div>
@@ -1146,8 +1165,33 @@ function semaforoGlobalDia(){
   const pctMonto=montoEsp?Math.round(montoCob/montoEsp*100):0;
   return {pctCli,pctMonto,pagadas,totalCli,centrosTocados,centrosCompletos};
 }
+// Barra de cierre: lleva a la ejecutiva al arqueo desde donde esté. Si el día
+// ya se envió, la barra desaparece sola (no molesta).
+function irACerrar(){
+  showTab('arqueo');
+  try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}
+  var b=document.getElementById('barraCierre');
+  if(b){b.classList.add('listo');}
+}
+function pintarBarraCierre(){
+  var b=document.getElementById('barraCierre'); if(!b)return;
+  var t=0,n=0; try{var x=totales();t=x.t;n=x.n;}catch(e){}
+  var yaEnvio=!!window._reporteEnviado;
+  var hay=(t>0||(window._arqueoTotal>0))&&!yaEnvio;
+  b.classList.toggle('on',hay);
+  document.body.classList.toggle('con-barra',hay);
+  if(!hay)return;
+  var enArqueo=false;
+  try{var ta=document.getElementById('tab-arqueo');enArqueo=ta&&!ta.classList.contains('hidden');}catch(e){}
+  document.getElementById('bcNum').textContent=fmt(t)+(n?(' \u00b7 '+n+(n===1?' pago':' pagos')):'');
+  document.getElementById('bcTxt').textContent=enArqueo?'Cuando termines de contar':'Llevas capturado hoy';
+  var btn=document.getElementById('bcBtn');
+  if(enArqueo){btn.textContent='Enviar arqueo';btn.onclick=function(){enviarArqueoYCerrar();};b.classList.add('listo');}
+  else{btn.textContent='Terminar día';btn.onclick=irACerrar;b.classList.remove('listo');}
+}
 function recalc(){
   const {t,efe,tr}=totales();
+  try{pintarBarraCierre();}catch(e){}
   document.getElementById('totHoy').textContent=fmt(t);
   document.getElementById('totMini').textContent='Efe '+fmt(efe)+' · Transf '+fmt(tr);
   const g=semaforoGlobalDia();
@@ -2046,6 +2090,7 @@ function agregarClienta(){
 
 
 function showTab(name){
+  setTimeout(function(){try{pintarBarraCierre();}catch(e){}},0);
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   ['cobranza','indiv','renov','gerente','movs','liquida','arqueo','resumen'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('hidden',t!==name);});
   if(name==='resumen')buildResumen();

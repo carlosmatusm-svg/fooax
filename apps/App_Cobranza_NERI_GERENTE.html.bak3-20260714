@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>FOOAX · Cobranza Karina</title>
+<title>FOOAX · Cobranza Neri</title>
 <style>
   :root{
     --aurora:#F1228E; --atardecer:#FD6E29; --rio:#324AB6; --cielo:#ADE6ED;
@@ -36,21 +36,6 @@
   .prodtag{font-size:10px;font-weight:800;color:var(--rio);background:#E5EAFB;padding:1px 7px;border-radius:10px;margin-left:4px;white-space:nowrap}
   .ci .mt{font-size:11px;color:var(--gris);margin-top:2px}
   .ci .rowtot{font-size:13px;font-weight:800;color:var(--rio)}
-  /* Barra de cierre: el botón de terminar el día vivía en la 6ª pestaña y solo
-     el 20% de los días se cerraba. Ahora la acompaña en toda la app. */
-  #barraCierre{position:fixed;left:0;right:0;bottom:0;z-index:9998;display:none;
-    align-items:center;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-    background:#2A1F35;color:#fff;box-shadow:0 -3px 14px rgba(0,0,0,.22)}
-  #barraCierre.on{display:flex}
-  #barraCierre .bc-i{flex:1;min-width:0;line-height:1.25}
-  #barraCierre .bc-t{font-size:11px;opacity:.82;font-weight:600}
-  #barraCierre .bc-n{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
-  #barraCierre .bc-b{flex:none;font:800 13px inherit;background:#0B7247;color:#fff;border:none;
-    border-radius:99px;padding:11px 16px;cursor:pointer}
-  #barraCierre.listo .bc-b{background:#F1228E}
-  body.con-barra{padding-bottom:74px}
-  body.con-barra #fooax-pill{bottom:78px !important}
-  body.con-barra #fooax-agil{bottom:78px !important}
   .forma{display:flex;gap:0;border:1.5px solid var(--linea);border-radius:9px;overflow:hidden;flex:none}
   .forma button{border:0;background:#fff;color:var(--gris);font-size:11px;font-weight:800;padding:7px 9px;font-family:inherit}
   .forma button.efe{background:var(--efe);color:#fff}
@@ -67,8 +52,6 @@
   .mixcampos .campo{flex:1}
   .mixok{margin-top:6px;font-size:12px;font-weight:800;color:var(--ok)}
   .mixerr{margin-top:6px;font-size:12px;font-weight:800;color:var(--mora)}
-  .caperr{margin-top:6px;font-size:12px;font-weight:800;color:#fff;background:var(--mora);border-radius:9px;padding:7px 10px;line-height:1.35}
-  .cli.conerr{border:2px solid var(--mora)}
   .campos{display:none;margin-top:9px;gap:7px;grid-template-columns:1fr 1fr 1fr;grid-auto-rows:auto}
   .cli.open .campos{display:grid}
   .campo label{font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
@@ -179,7 +162,7 @@
 <body>
 <header>
   <div class="brand">FOOAX · COBRANZA</div>
-  <h1>Karina</h1>
+  <h1>Neri</h1>
   <div class="sub" id="fechaHoy">—</div>
   <div class="sub" id="guardadoMsg" style="font-size:10px;opacity:.75">Guardado automático activo</div>
 </header>
@@ -188,9 +171,8 @@
   <button class="tab active" data-tab="cobranza" onclick="showTab('cobranza')">Cobranza</button>
   
   <button class="tab" data-tab="renov" onclick="showTab('renov')">Renovaciones</button>
-  
+  <button class="tab" data-tab="gerente" onclick="showTab('gerente')">Mis funciones</button>
   <button class="tab" data-tab="movs" onclick="showTab('movs')">Otros mov.</button>
-  <button class="tab" data-tab="liquida" onclick="showTab('liquida')">Liquidación</button>
   <button class="tab" data-tab="arqueo" onclick="showTab('arqueo')">Arqueo</button>
   <button class="tab" data-tab="resumen" onclick="showTab('resumen')">Resumen</button>
 </div>
@@ -225,7 +207,7 @@
       <div style="margin-top:8px"><label>Nombre completo</label><input type="text" id="altaNombre" placeholder="Nombre de la clienta"></div>
       <div class="row2" style="margin-top:8px">
         <div><label>No. Socio</label><input type="number" inputmode="numeric" id="altaSocio" placeholder="11113000000"></div>
-        <div><label>Saldo</label><input type="text" inputmode="decimal" id="altaSaldo" placeholder="0"></div>
+        <div><label>Saldo</label><input type="number" inputmode="decimal" id="altaSaldo" placeholder="0"></div>
       </div>
       <button class="btn btn-wa" style="width:100%;margin-top:10px" onclick="agregarClienta()">Guardar clienta</button>
     </div>
@@ -248,7 +230,13 @@
     </div>
   </div>
 </div>
-
+<div class="wrap hidden" id="tab-gerente">
+  <div class="card">
+    <div class="sectitle">Mis 3 funciones — tareas del día</div>
+    <div class="meta">Como Gerente de Sucursal, tu día no cierra hasta cumplir tus tres funciones. Marca cada tarea cuando la completes.</div>
+  </div>
+  <div id="listaGerente"></div>
+</div>
 
 <div class="wrap hidden" id="tab-movs">
   <div class="card">
@@ -275,7 +263,7 @@
       </div>
     </div>
     <div class="row2" style="margin-top:9px">
-      <div><label>Cantidad</label><input type="text" inputmode="decimal" id="movMonto" placeholder="0"></div>
+      <div><label>Cantidad</label><input type="number" inputmode="decimal" id="movMonto" placeholder="0"></div>
       <div><label>Vía</label>
         <select id="movVia" onchange="toggleCheque()"><option value="E">Efectivo</option><option value="T">Transferencia</option><option value="CH">Cheque</option></select>
       </div>
@@ -295,18 +283,6 @@
   <div id="listaMovs"></div>
 </div>
 
-<div class="wrap hidden" id="tab-liquida">
-  <div class="card">
-    <div class="sectitle">Liquidaciones</div>
-    <div class="meta">Clientas que abonaron a su crédito fuera de su cuota: <b>liquidaciones</b> y <b>recuperaciones</b>. Se registran en "Otros mov." eligiendo a la clienta; las dos le bajan su saldo.</div>
-  </div>
-  <div id="liquidaBox"></div>
-</div>
-
-<div id="barraCierre">
-  <div class="bc-i"><div class="bc-t" id="bcTxt">Llevas capturado hoy</div><div class="bc-n" id="bcNum">$0</div></div>
-  <button class="bc-b" id="bcBtn" onclick="irACerrar()">Terminar día</button>
-</div>
 <div class="wrap hidden" id="tab-arqueo">
   <div class="card"><div class="sectitle">Arqueo de efectivo</div>
     <div class="meta">Cuenta billetes y monedas físicos. Abajo se compara contra lo cobrado.</div></div>
@@ -321,16 +297,12 @@
     <div class="kv"><span>Total contado (físico)</span><b id="arqueoTotal" style="color:var(--rio)">$0</b></div>
     <div class="kv"><span>Diferencia (contado − esperado)</span><b id="arqueoDif">$0</b></div>
   </div>
-  <div class="card">
-    <button class="btn btn-wa" style="width:100%" onclick="enviarArqueoYCerrar()">Enviar arqueo y cerrar captura</button>
-    <div class="meta" style="margin-top:8px;text-align:center">Sube la cobranza a la nube, manda el arqueo del día y cierra la captura en este teléfono.</div>
-  </div>
 </div>
 
 <div class="wrap hidden" id="tab-resumen">
   <div class="card">
     <div class="sectitle">Resumen del día</div>
-    <div class="meta">Meta: 14 centros · 625 integrantes</div>
+    <div class="meta">Meta: 23 centros · 750 integrantes</div>
     <div id="resumenStats" style="margin-top:10px"></div>
   </div>
   <div class="card">
@@ -382,9 +354,9 @@
   </div>
   <div class="card">
     <div class="sectitle">Ajustes</div>
-    <div class="meta">Al terminar tu día, envía el arqueo: primero SUBE todo al sistema y, solo cuando el servidor confirma, se limpia este celular.</div>
+    <div class="meta">Lo capturado se guarda solo en este celular. Al terminar y enviar a Monse, cierra el día para empezar limpio.</div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-      <button class="btn btn-wa" style="flex:1" onclick="enviarArqueoYCerrar()">Enviar arqueo y cerrar captura</button>
+      <button class="btn btn-light" style="flex:1" onclick="cerrarDia()">Cerrar día</button>
     </div>
     <div class="meta" style="margin-top:14px">Cuando Monse mande un padrón nuevo (altas/bajas), impórtalo aquí sin cambiar de app:</div>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
@@ -404,22 +376,18 @@
 </div>
 
 <script>
-const EJECUTIVO="Karina";
-const EJECUTIVO_BASE="Karina".toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-const META={centros:14,integrantes:625};
+const EJECUTIVO="Neri";
+const EJECUTIVO_BASE="Neri".toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const META={centros:23,integrantes:750};
 const DIAS=["Lunes","Martes","Miercoles","Jueves","Viernes","Sabado"];
 const CONCEPTOS=["pago","garantia","solidario"]; // 3 conceptos confirmados
 
 // ===== PADRÓN: editable, parte del catálogo incrustado pero actualizable =====
 const STORE_KEY="fooax_cob_"+EJECUTIVO_BASE;
-// Conteo de billetes de la pestana Arqueo, {valor: cantidad}. Antes vivia solo
-// en window._arqueo (memoria): se perdia al recargar y el servidor NUNCA lo veia,
-// por eso el arqueo de Direccion salia en ceros aunque si se contara el efectivo.
-let arqueo={};
-const PADRON_VERSION=20260722;
+const PADRON_VERSION=20260715;
 const PADRON_KEY="fooax_padron_"+EJECUTIVO_BASE;
 // CENTROS e INDIVIDUALES vienen del archivo; si hay padrón importado guardado, se usa ese
-let CENTROS={"C-21 · YESERAYE":[{"n":"AMARANDY ZULEYKA SOSA GARCIA","f":"11112988424","sub":"Grupal-Basico 2","k":"11112988424|Grupal-Basico 2|AMARANDY ZULEYKA SOSA GARCIA|0","imp":6000,"saldo":2592,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-29","dia":"VIERNES"},{"n":"DULCE MARIA SOSA GARCIA","f":"11113018670","sub":"Grupal-Basico 2","k":"11113018670|Grupal-Basico 2|DULCE MARIA SOSA GARCIA|0","imp":6000,"saldo":4752,"esp":288,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-29","dia":"VIERNES"},{"n":"ELVIA GARCIA RUIZ","f":"11112873397","sub":"Grupal-Basico 2","k":"11112873397|Grupal-Basico 2|ELVIA GARCIA RUIZ|0","imp":9000,"saldo":7560,"esp":288,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-05-29","dia":"VIERNES"},{"n":"FATIMA IVONNE GARCIA  RUIZ","f":"11112886571","sub":"Grupal-Basico 2","k":"11112886571|Grupal-Basico 2|FATIMA IVONNE GARCIA  RUIZ|0","imp":8000,"saldo":5976,"esp":504,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-29","dia":"VIERNES"},{"n":"MIRIAM LOPEZ HERNANDEZ","f":"11113042585","sub":"Grupal-Basico 2","k":"11113042585|Grupal-Basico 2|MIRIAM LOPEZ HERNANDEZ|0","imp":9000,"saldo":2592,"esp":648,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-05-01","dia":"VIERNES"}],"C-77 · CAPELLANIA":[{"n":"MARIA MARLENE CORTES VALDIVIEZO","f":"11113091556","sub":"Grupal-Basico 2","k":"11113091556|Grupal-Basico 2|MARIA MARLENE CORTES VALDIVIEZO|0","imp":8000,"saldo":5184,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-16","dia":"JUEVES"},{"n":"MARTHA NIÑO AQUINO","f":"11112933315","sub":"Grupal-Basico 2","k":"11112933315|Grupal-Basico 2|MARTHA NIÑO AQUINO|0","imp":8000,"saldo":5184,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-16","dia":"JUEVES"}],"C-65 · CAPORALES":[{"n":"ARACELI SANTIAGO AVENDAÑO","f":"11112787203","sub":"Grupal-Basico","k":"11112787203|Grupal-Basico|ARACELI SANTIAGO AVENDAÑO|0","imp":6000,"saldo":5040,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-05","dia":"MARTES"},{"n":"IRMA NORA RODRIGUEZ BROUS","f":"11113008351","sub":"Grupal-Basico","k":"11113008351|Grupal-Basico|IRMA NORA RODRIGUEZ BROUS|0","imp":8000,"saldo":6720,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-05","dia":"MARTES"},{"n":"MARIA DE GUADALUPE LOPEZ PEREZ","f":"11113061406","sub":"Grupal-Basico","k":"11113061406|Grupal-Basico|MARIA DE GUADALUPE LOPEZ PEREZ|0","imp":9800,"saldo":8232,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-05-05","dia":"MARTES"},{"n":"MARIA DE GUADALUPE LOPEZ PEREZ","f":"11113061406","sub":"Grupal-Micro","k":"11113061406|Grupal-Micro|MARIA DE GUADALUPE LOPEZ PEREZ|0","imp":17000,"saldo":18496,"esp":544,"impOrig":17000,"mora":0,"sug":20500,"des":"2026-04-07","dia":"MARTES"},{"n":"NANCY ELIZABETH CRUZ SOSA","f":"11113134860","sub":"Grupal-Basico","k":"11113134860|Grupal-Basico|NANCY ELIZABETH CRUZ SOSA|0","imp":9800,"saldo":8232,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-05-05","dia":"MARTES"},{"n":"YANIN SALINA DIAZ","f":"11112813052","sub":"Grupal-Basico","k":"11112813052|Grupal-Basico|YANIN SALINA DIAZ|0","imp":3000,"saldo":2520,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-05-05","dia":"MARTES"}],"C-4 · COFRE DE DINERO":[{"n":"CELINA GARCIA ESCAMILLA","f":"11112728771","sub":"Grupal-Basico","k":"11112728771|Grupal-Basico|CELINA GARCIA ESCAMILLA|0","imp":9800,"saldo":9996,"esp":0,"impOrig":9800,"mora":63,"sug":12000,"des":"2025-10-30","dia":"JUEVES"},{"n":"CELINA GARCIA ESCAMILLA","f":"11112728771","sub":"Grupal-Micro","k":"11112728771|Grupal-Micro|CELINA GARCIA ESCAMILLA|0","imp":9800,"saldo":8160,"esp":0,"impOrig":9800,"mora":63,"sug":12000,"des":"2025-06-13","dia":"JUEVES"},{"n":"CINTHYA IVETTE DIAZ MUÑOZ","f":"11112854485","sub":"Grupal-Basico","k":"11112854485|Grupal-Basico|CINTHYA IVETTE DIAZ MUÑOZ|0","imp":9800,"saldo":1586,"esp":0,"impOrig":9800,"mora":21,"sug":12000,"des":"2025-07-11","dia":"JUEVES"},{"n":"DULCE MARIA GUTIERREZ GONZALES","f":"11112953105","sub":"Grupal-Basico","k":"11112953105|Grupal-Basico|DULCE MARIA GUTIERREZ GONZALES|0","imp":9800,"saldo":3028,"esp":0,"impOrig":9800,"mora":42,"sug":12000,"des":"2025-08-29","dia":"JUEVES"},{"n":"LAURA CARRASCO ESPINOZA","f":"11112771908","sub":"Grupal-Basico","k":"11112771908|Grupal-Basico|LAURA CARRASCO ESPINOZA|0","imp":6000,"saldo":10,"esp":0,"impOrig":6000,"mora":21,"sug":7000,"des":"2025-10-17","dia":"JUEVES"},{"n":"MARIA ANTONIA FLORES LOPEZ","f":"11112905722","sub":"Grupal-Basico","k":"11112905722|Grupal-Basico|MARIA ANTONIA FLORES LOPEZ|0","imp":6000,"saldo":640,"esp":0,"impOrig":6000,"mora":21,"sug":7000,"des":"2025-10-17","dia":"JUEVES"},{"n":"ROSA MARIA GALLEGAS OTERO","f":"11112971766","sub":"Grupal-Basico","k":"11112971766|Grupal-Basico|ROSA MARIA GALLEGAS OTERO|0","imp":9800,"saldo":8960,"esp":0,"impOrig":9800,"mora":0,"sug":11760,"des":"2025-07-19","dia":"JUEVES"},{"n":"ROSA MARIA GALLEGAS OTERO","f":"11112971766","sub":"Grupal-Micro","k":"11112971766|Grupal-Micro|ROSA MARIA GALLEGAS OTERO|0","imp":10000,"saldo":8960,"esp":320,"impOrig":10000,"mora":21,"sug":12000,"des":"2025-09-26","dia":"JUEVES"},{"n":"ROSALVA ESTEVA JACINTO","f":"11112942643","sub":"Grupal-Basico","k":"11112942643|Grupal-Basico|ROSALVA ESTEVA JACINTO|0","imp":9800,"saldo":4480,"esp":0,"impOrig":9800,"mora":21,"sug":12000,"des":"2025-12-04","dia":"JUEVES"}],"C-25 · ETHAN":[{"n":"BLANCA ESTELA GARCIA LOPEZ","f":"11112785207","sub":"Grupal-Basico 2","k":"11112785207|Grupal-Basico 2|BLANCA ESTELA GARCIA LOPEZ|0","imp":5000,"saldo":4680,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-06-03","dia":"MIERCOLES"},{"n":"BLANCA ESTELA GARCIA LOPEZ","f":"11112785207","sub":"Grupal-Adicional","k":"11112785207|Grupal-Adicional|BLANCA ESTELA GARCIA LOPEZ|0","imp":3000,"saldo":3600,"esp":300,"impOrig":3000,"mora":0,"sug":3600,"des":"2026-07-08","dia":"MIERCOLES"},{"n":"GREGORIA MARGARITA RAMIREZ HERNANDEZ","f":"11112905127","sub":"Grupal-Basico 2","k":"11112905127|Grupal-Basico 2|GREGORIA MARGARITA RAMIREZ HERNANDEZ|0","imp":5000,"saldo":3600,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-02-06","dia":"MIERCOLES"},{"n":"MARIA DE JESUS SANCHEZ RAMIREZ","f":"11113047273","sub":"Grupal-Basico 2","k":"11113047273|Grupal-Basico 2|MARIA DE JESUS SANCHEZ RAMIREZ|0","imp":5000,"saldo":3600,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-02-06","dia":"MIERCOLES"},{"n":"SARA ISELA SALINAS HERNADEZ","f":"11113033150","sub":"Grupal-Basico 2","k":"11113033150|Grupal-Basico 2|SARA ISELA SALINAS HERNADEZ|0","imp":5000,"saldo":4320,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-06-03","dia":"MIERCOLES"},{"n":"PATRICIA JUDITH SANCHEZ RAMIREZ","f":"11113109760","sub":"Grupal-Basico 2","k":"11113109760|Grupal-Basico 2|PATRICIA JUDITH SANCHEZ RAMIREZ|0","imp":8000,"saldo":5760,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-02-06","dia":"MIERCOLES"},{"n":"PATRICIA JUDITH SANCHEZ RAMIREZ","f":"11113109760","sub":"Grupal-Adicional","k":"11113109760|Grupal-Adicional|PATRICIA JUDITH SANCHEZ RAMIREZ|0","imp":3000,"saldo":2100,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-05-03","dia":"MIERCOLES"},{"n":"PATRICIA MARTINEZ MORALES","f":"11112998765","sub":"Grupal-Basico 2","k":"11112998765|Grupal-Basico 2|PATRICIA MARTINEZ MORALES|0","imp":7000,"saldo":5040,"esp":504,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-02-06","dia":"MIERCOLES"},{"n":"PATRICIA MARTINEZ MORALES","f":"11112998765","sub":"Grupal-Adicional","k":"11112998765|Grupal-Adicional|PATRICIA MARTINEZ MORALES|0","imp":3000,"saldo":3600,"esp":300,"impOrig":3000,"mora":0,"sug":3600,"des":"2026-07-08","dia":"MIERCOLES"},{"n":"NITZIA ARACELI MONTERROSA DIAZ","f":"11113023334","sub":"Grupal-Basico 2","k":"11113023334|Grupal-Basico 2|NITZIA ARACELI MONTERROSA DIAZ|0","imp":3000,"saldo":2376,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-05-27","dia":"MIERCOLES"}],"C-71 · FRUTOS DE DINERO":[{"n":"ADRIANA CERVANTES LOPEZ","f":"11112777895","sub":"Grupal-Basico","k":"11112777895|Grupal-Basico|ADRIANA CERVANTES LOPEZ|0","imp":9800,"saldo":12936,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-29","dia":"LUNES"},{"n":"ALEJANDRA MAYTE ESPINOZA DIEZO","f":"11112754934","sub":"Grupal-Basico","k":"11112754934|Grupal-Basico|ALEJANDRA MAYTE ESPINOZA DIEZO|0","imp":9800,"saldo":2940,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-05","dia":"LUNES"},{"n":"ALI OSMAR CHAVEZ ARANGO","f":"11112626649","sub":"Grupal-Basico","k":"11112626649|Grupal-Basico|ALI OSMAR CHAVEZ ARANGO|0","imp":4000,"saldo":1440,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-03-09","dia":"LUNES"},{"n":"ANDRES DANIEL CHAVEZ ARANGO","f":"11112622956","sub":"Grupal-Basico","k":"11112622956|Grupal-Basico|ANDRES DANIEL CHAVEZ ARANGO|0","imp":4000,"saldo":1440,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-03-09","dia":"LUNES"},{"n":"ANGELA ARANGO FLORES","f":"11112658700","sub":"Grupal-Basico","k":"11112658700|Grupal-Basico|ANGELA ARANGO FLORES|0","imp":9800,"saldo":2940,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-05","dia":"LUNES"},{"n":"ANGELA ARANGO FLORES","f":"11112658700","sub":"Grupal-Micro","k":"11112658700|Grupal-Micro|ANGELA ARANGO FLORES|0","imp":10000,"saldo":13120,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-05-18","dia":"LUNES"},{"n":"JUANA ARANGO FLORES","f":"11112748267","sub":"Grupal-Basico","k":"11112748267|Grupal-Basico|JUANA ARANGO FLORES|0","imp":9800,"saldo":2940,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-05","dia":"LUNES"},{"n":"MARIA TERESA DIEZO MORENO","f":"11113022524","sub":"Grupal-Basico","k":"11113022524|Grupal-Basico|MARIA TERESA DIEZO MORENO|0","imp":9800,"saldo":2940,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-05","dia":"LUNES"},{"n":"SOFIA LOPEZ HERNANDEZ","f":"11113101306","sub":"Grupal-Basico","k":"11113101306|Grupal-Basico|SOFIA LOPEZ HERNANDEZ|0","imp":9800,"saldo":2940,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-05","dia":"LUNES"},{"n":"NORMA LOPEZ LOPEZ","f":"11113092434","sub":"Grupal-Basico","k":"11113092434|Grupal-Basico|NORMA LOPEZ LOPEZ|0","imp":4000,"saldo":5760,"esp":240,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-13","dia":"LUNES"},{"n":"AZUCENA CHAVEZ ARANGO","f":"11112626052","sub":"Grupal-Basico","k":"11112626052|Grupal-Basico|AZUCENA CHAVEZ ARANGO|0","imp":4000,"saldo":5760,"esp":240,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-13","dia":"LUNES"},{"n":"MARIA LUISA CHAVEZ CHAVEZ","f":"11112755226","sub":"Grupal-Basico","k":"11112755226|Grupal-Basico|MARIA LUISA CHAVEZ CHAVEZ|0","imp":4000,"saldo":3600,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-11","dia":"LUNES"}],"C-88 · IJANANEL":[{"n":"ADRIANA GUADALUPE SANTIAGO REYES","f":"11112954311","sub":"Grupal-Basico 2","k":"11112954311|Grupal-Basico 2|ADRIANA GUADALUPE SANTIAGO REYES|0","imp":5000,"saldo":771,"esp":0,"impOrig":5000,"mora":89,"sug":6000,"des":"2025-12-05","dia":"JUEVES"},{"n":"FLORAYDA LUNA HERNANDEZ","f":"11113036043","sub":"Grupal-Basico 2","k":"11113036043|Grupal-Basico 2|FLORAYDA LUNA HERNANDEZ|0","imp":9800,"saldo":1412,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-19","dia":"JUEVES"},{"n":"GUADALUPE MARTINEZ REYES","f":"11112954461","sub":"Grupal-Micro","k":"11112954461|Grupal-Micro|GUADALUPE MARTINEZ REYES|0","imp":10000,"saldo":332,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-09-19","dia":"JUEVES"},{"n":"EMILY CASTELLANOS CRUZ","f":"11112682329","sub":"Grupal-Basico 2","k":"11112682329|Grupal-Basico 2|EMILY CASTELLANOS CRUZ|0","imp":13000,"saldo":5802,"esp":936,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-04-11","dia":"JUEVES"},{"n":"EMILY CASTELLANOS CRUZ","f":"11112682329","sub":"Grupal-Micro","k":"11112682329|Grupal-Micro|EMILY CASTELLANOS CRUZ|0","imp":18000,"saldo":12096,"esp":576,"impOrig":18000,"mora":0,"sug":21500,"des":"2025-12-26","dia":"JUEVES"},{"n":"CLAUDIA RUIZ MARTINEZ","f":"11113113098","sub":"Grupal-Basico 2","k":"11113113098|Grupal-Basico 2|CLAUDIA RUIZ MARTINEZ|0","imp":8000,"saldo":76,"esp":0,"impOrig":8000,"mora":75,"sug":9500,"des":"2025-12-19","dia":"JUEVES"},{"n":"ARACELI HERNANDEZ RUIZ","f":"11112887993","sub":"Grupal-Basico 2","k":"11112887993|Grupal-Basico 2|ARACELI HERNANDEZ RUIZ|0","imp":9000,"saldo":1812,"esp":0,"impOrig":9000,"mora":229,"sug":11000,"des":"2025-09-12","dia":"JUEVES"},{"n":"ARACELI HERNANDEZ RUIZ","f":"11112887993","sub":"Grupal-Micro","k":"11112887993|Grupal-Micro|ARACELI HERNANDEZ RUIZ|0","imp":10000,"saldo":6396,"esp":0,"impOrig":10000,"mora":159,"sug":12000,"des":"2025-07-04","dia":"JUEVES"},{"n":"LILIANA EDITH ROBLES CORTES","f":"11113043010","sub":"Grupal-Basico 2","k":"11113043010|Grupal-Basico 2|LILIANA EDITH ROBLES CORTES|0","imp":6000,"saldo":2932,"esp":0,"impOrig":6000,"mora":152,"sug":7000,"des":"2025-11-21","dia":"JUEVES"},{"n":"LILIANA EDITH ROBLES CORTES","f":"11113043010","sub":"Grupal-Adicional","k":"11113043010|Grupal-Adicional|LILIANA EDITH ROBLES CORTES|0","imp":3000,"saldo":699,"esp":0,"impOrig":3000,"mora":131,"sug":3500,"des":"2025-11-22","dia":"JUEVES"},{"n":"MARIA GUADALUPE ROSALES RUIZ","f":"11113146282","sub":"Grupal-Basico 2","k":"11113146282|Grupal-Basico 2|MARIA GUADALUPE ROSALES RUIZ|0","imp":7000,"saldo":1008,"esp":0,"impOrig":7000,"mora":131,"sug":8500,"des":"2025-10-10","dia":"JUEVES"},{"n":"GRISELDA CRUZ AVENDAÑO","f":"11112886913","sub":"Grupal-Basico 2","k":"11112886913|Grupal-Basico 2|GRISELDA CRUZ AVENDAÑO|0","imp":13000,"saldo":2064,"esp":0,"impOrig":13000,"mora":75,"sug":15500,"des":"2026-01-22","dia":"JUEVES"},{"n":"GRISELDA CRUZ AVENDAÑO","f":"11112886913","sub":"Grupal-Micro","k":"11112886913|Grupal-Micro|GRISELDA CRUZ AVENDAÑO|0","imp":10000,"saldo":2350,"esp":320,"impOrig":10000,"mora":75,"sug":12000,"des":"2025-09-06","dia":"JUEVES"}],"C-14 · LA JOYA":[{"n":"CITLALI LAZARO LAZARO","f":"11112846629","sub":"Grupal-Basico","k":"11112846629|Grupal-Basico|CITLALI LAZARO LAZARO|0","imp":9000,"saldo":2160,"esp":0,"impOrig":9000,"mora":15,"sug":11000,"des":"2025-12-12","dia":"MARTES"},{"n":"ERIKA JOVITA BLAS LOPEZ","f":"11112765503","sub":"Grupal-Basico","k":"11112765503|Grupal-Basico|ERIKA JOVITA BLAS LOPEZ|0","imp":9800,"saldo":2433,"esp":0,"impOrig":9800,"mora":15,"sug":12000,"des":"2025-12-12","dia":"MARTES"},{"n":"ERIKA JOVITA BLAS LOPEZ","f":"11112765503","sub":"Grupal-Micro","k":"11112765503|Grupal-Micro|ERIKA JOVITA BLAS LOPEZ|0","imp":15000,"saldo":17100,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-02-17","dia":"MARTES"},{"n":"HILARIA ARELIA REYES GUERRERO","f":"11112942147","sub":"Grupal-Basico","k":"11112942147|Grupal-Basico|HILARIA ARELIA REYES GUERRERO|0","imp":9000,"saldo":5400,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-03-31","dia":"MARTES"},{"n":"SANDRA NAYELI BLAS LOPEZ","f":"11112905319","sub":"Grupal-Basico","k":"11112905319|Grupal-Basico|SANDRA NAYELI BLAS LOPEZ|0","imp":12000,"saldo":3100,"esp":0,"impOrig":12000,"mora":15,"sug":14500,"des":"2025-12-12","dia":"MARTES"},{"n":"SANDRA NAYELI BLAS LOPEZ","f":"11112905319","sub":"Grupal-Micro","k":"11112905319|Grupal-Micro|SANDRA NAYELI BLAS LOPEZ|0","imp":18000,"saldo":19012,"esp":576,"impOrig":18000,"mora":0,"sug":21500,"des":"2026-02-06","dia":"MARTES"},{"n":"SALMA YURAI ALVAREZ TORRES","f":"11112976277","sub":"Grupal-Basico","k":"11112976277|Grupal-Basico|SALMA YURAI ALVAREZ TORRES|0","imp":5000,"saldo":3300,"esp":300,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-04-14","dia":"MARTES"},{"n":"ANDREA IRENE GARCIA HERRERA","f":"11112739578","sub":"Grupal-Basico","k":"11112739578|Grupal-Basico|ANDREA IRENE GARCIA HERRERA|0","imp":3000,"saldo":1440,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-03-27","dia":"MARTES"}],"C-38 · LAS PEÑITAS":[{"n":"ANAHI RAMIREZ CASTELLANOS","f":"11112792766","sub":"Grupal-Basico 2","k":"11112792766|Grupal-Basico 2|ANAHI RAMIREZ CASTELLANOS|0","imp":5000,"saldo":3960,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-05-28","dia":"JUEVES"},{"n":"ARIELA GARCIA ESCOBAR","f":"11112707655","sub":"Grupal-Basico 2","k":"11112707655|Grupal-Basico 2|ARIELA GARCIA ESCOBAR|0","imp":9800,"saldo":3530,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-09","dia":"JUEVES"},{"n":"ARIELA GARCIA ESCOBAR","f":"11112707655","sub":"Grupal-Micro","k":"11112707655|Grupal-Micro|ARIELA GARCIA ESCOBAR|0","imp":15000,"saldo":12480,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-02-06","dia":"JUEVES"},{"n":"CECILIA SANTOS MENDEZ","f":"11112928768","sub":"Grupal-Basico 2","k":"11112928768|Grupal-Basico 2|CECILIA SANTOS MENDEZ|0","imp":9800,"saldo":2824,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-09","dia":"JUEVES"},{"n":"FANNY LIZBETH REYES ARAGON","f":"11112866249","sub":"Grupal-Basico 2","k":"11112866249|Grupal-Basico 2|FANNY LIZBETH REYES ARAGON|0","imp":5000,"saldo":1800,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-04-16","dia":"JUEVES"},{"n":"LEONARDA RUIZ MARTINEZ","f":"11113205041","sub":"Grupal-Basico 2","k":"11113205041|Grupal-Basico 2|LEONARDA RUIZ MARTINEZ|0","imp":9800,"saldo":2824,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-09","dia":"JUEVES"},{"n":"LUCIA CASTRO RUIZ","f":"11112907887","sub":"Grupal-Basico 2","k":"11112907887|Grupal-Basico 2|LUCIA CASTRO RUIZ|0","imp":6000,"saldo":2592,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-04-09","dia":"JUEVES"},{"n":"MARIA GARCIA VASQUEZ","f":"11112982523","sub":"Grupal-Basico 2","k":"11112982523|Grupal-Basico 2|MARIA GARCIA VASQUEZ|0","imp":9800,"saldo":2824,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-09","dia":"JUEVES"}],"C-78 · NAZARENO":[{"n":"ELIDETH ABRIL LÓPEZ VELASQUEZ","f":"11113105160","sub":"Grupal-Basico","k":"11113105160|Grupal-Basico|ELIDETH ABRIL LÓPEZ VELASQUEZ|0","imp":13000,"saldo":6240,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-03-25","dia":"MIERCOLES"},{"n":"ELIDETH ABRIL LÓPEZ VELASQUEZ","f":"11113105160","sub":"Grupal-Micro","k":"11113105160|Grupal-Micro|ELIDETH ABRIL LÓPEZ VELASQUEZ|0","imp":15000,"saldo":18720,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-05-14","dia":"MIERCOLES"},{"n":"FLOR MARIA ROJAS MENDEZ","f":"11113085560","sub":"Grupal-Basico","k":"11113085560|Grupal-Basico|FLOR MARIA ROJAS MENDEZ|0","imp":13000,"saldo":6240,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-03-25","dia":"MIERCOLES"},{"n":"HERMINDA LIZBETH HERNANDEZ ROJAS","f":"11112958983","sub":"Grupal-Basico","k":"11112958983|Grupal-Basico|HERMINDA LIZBETH HERNANDEZ ROJAS|0","imp":13000,"saldo":6240,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-03-25","dia":"MIERCOLES"},{"n":"HERMINDA LIZBETH HERNANDEZ ROJAS","f":"11112958983","sub":"Grupal-Micro","k":"11112958983|Grupal-Micro|HERMINDA LIZBETH HERNANDEZ ROJAS|0","imp":19000,"saldo":11552,"esp":608,"impOrig":19000,"mora":0,"sug":23000,"des":"2025-12-24","dia":"MIERCOLES"},{"n":"HERMINDA MARINE ROJAS HERNÁNDEZ","f":"11113054433","sub":"Grupal-Basico","k":"11113054433|Grupal-Basico|HERMINDA MARINE ROJAS HERNÁNDEZ|0","imp":13000,"saldo":6240,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-03-25","dia":"MIERCOLES"},{"n":"HERMINDA MARINE ROJAS HERNÁNDEZ","f":"11113054433","sub":"Grupal-Micro","k":"11113054433|Grupal-Micro|HERMINDA MARINE ROJAS HERNÁNDEZ|0","imp":23000,"saldo":30176,"esp":736,"impOrig":23000,"mora":0,"sug":27500,"des":"2026-05-27","dia":"MIERCOLES"},{"n":"LEONOR CRISTINA LAZARO HERNANDEZ","f":"11112893338","sub":"Grupal-Basico","k":"11112893338|Grupal-Basico|LEONOR CRISTINA LAZARO HERNANDEZ|0","imp":9800,"saldo":4704,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-25","dia":"MIERCOLES"},{"n":"BRISA CORAL LOPEZ VELASQUEZ","f":"11113073181","sub":"Grupal-Basico","k":"11113073181|Grupal-Basico|BRISA CORAL LOPEZ VELASQUEZ|0","imp":9800,"saldo":4704,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-25","dia":"MIERCOLES"}],"C-3 · SAN MIGUEL":[{"n":"BEATRIZ JOSE VERA","f":"11113057488","sub":"Grupal-Basico 2","k":"11113057488|Grupal-Basico 2|BEATRIZ JOSE VERA|0","imp":7000,"saldo":2132,"esp":504,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-03-19","dia":"MIERCOLES"},{"n":"BEATRIZ JOSE VERA","f":"11113057488","sub":"Grupal-Adicional","k":"11113057488|Grupal-Adicional|BEATRIZ JOSE VERA|0","imp":2000,"saldo":1000,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-04-29","dia":"MIERCOLES"},{"n":"GUADALUPE SOLEDAD HERNANDEZ GARCIA","f":"11112835706","sub":"Grupal-Basico 2","k":"11112835706|Grupal-Basico 2|GUADALUPE SOLEDAD HERNANDEZ GARCIA|0","imp":9800,"saldo":6354,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-05-13","dia":"MIERCOLES"},{"n":"IRMA GUZMAN PEREZ","f":"11113098291","sub":"Grupal-Basico","k":"11113098291|Grupal-Basico|IRMA GUZMAN PEREZ|0","imp":9800,"saldo":4236,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-22","dia":"MIERCOLES"},{"n":"IRMA GUZMAN PEREZ","f":"11113098291","sub":"Grupal-Adicional","k":"11113098291|Grupal-Adicional|IRMA GUZMAN PEREZ|0","imp":3000,"saldo":600,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-04-29","dia":"MIERCOLES"},{"n":"LAURA VERA HERNANDEZ","f":"11113033055","sub":"Grupal-Basico 2","k":"11113033055|Grupal-Basico 2|LAURA VERA HERNANDEZ|0","imp":6000,"saldo":4320,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-13","dia":"MIERCOLES"},{"n":"MARIA ISABEL CONTRERAS LOPEZ","f":"11112954434","sub":"Grupal-Basico 2","k":"11112954434|Grupal-Basico 2|MARIA ISABEL CONTRERAS LOPEZ|0","imp":13000,"saldo":13104,"esp":936,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-06-17","dia":"MIERCOLES"},{"n":"MARIAM MEDINA JOSE","f":"11112979148","sub":"Grupal-Basico 2","k":"11112979148|Grupal-Basico 2|MARIAM MEDINA JOSE|0","imp":9800,"saldo":12002,"esp":706,"impOrig":9800,"mora":0,"sug":11760,"des":"2026-07-08","dia":"MIERCOLES"},{"n":"LAURA BERENICE CANCINO VERA","f":"11112947297","sub":"Grupal-Basico 2","k":"11112947297|Grupal-Basico 2|LAURA BERENICE CANCINO VERA|0","imp":4000,"saldo":5184,"esp":288,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-15","dia":"MIERCOLES"},{"n":"CECILIA JANETT MENDEZ CRUZ","f":"11112805333","sub":"Grupal-Basico 2","k":"11112805333|Grupal-Basico 2|CECILIA JANETT MENDEZ CRUZ|0","imp":9800,"saldo":4236,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-22","dia":"MIERCOLES"}],"C-58 · SAN PABLO":[{"n":"ABRIL MAGALI LOPEZ HERNANDEZ","f":"11112924092","sub":"Grupal-Basico","k":"11112924092|Grupal-Basico|ABRIL MAGALI LOPEZ HERNANDEZ|0","imp":9800,"saldo":8820,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-05-15","dia":"VIERNES"},{"n":"BERENICE JIMENEZ DURAN","f":"11112813759","sub":"Grupal-Basico","k":"11112813759|Grupal-Basico|BERENICE JIMENEZ DURAN|0","imp":7000,"saldo":1680,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-02-27","dia":"VIERNES"},{"n":"CONCEPCION ALVAREZ SORIANO","f":"11112808669","sub":"Grupal-Basico","k":"11112808669|Grupal-Basico|CONCEPCION ALVAREZ SORIANO|0","imp":8000,"saldo":10560,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-07-03","dia":"VIERNES"},{"n":"FERNANDA MIROSLAVA GARCIA DEL VILLAR","f":"11112925822","sub":"Grupal-Basico","k":"11112925822|Grupal-Basico|FERNANDA MIROSLAVA GARCIA DEL VILLAR|0","imp":9800,"saldo":5880,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2025-10-25","dia":"VIERNES"},{"n":"FERNANDA MIROSLAVA GARCIA DEL VILLAR","f":"11112925822","sub":"Grupal-Micro","k":"11112925822|Grupal-Micro|FERNANDA MIROSLAVA GARCIA DEL VILLAR|0","imp":15000,"saldo":20640,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-06-12","dia":"VIERNES"},{"n":"GABRIELA DURAN AUDELO","f":"11112895952","sub":"Grupal-Basico","k":"11112895952|Grupal-Basico|GABRIELA DURAN AUDELO|0","imp":9800,"saldo":11172,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-12","dia":"VIERNES"},{"n":"ITZEL ZUZUNAGA SOSA","f":"11113315176","sub":"Grupal-Basico","k":"11113315176|Grupal-Basico|ITZEL ZUZUNAGA SOSA|0","imp":9000,"saldo":2160,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-02-27","dia":"VIERNES"},{"n":"ITZEL ZUZUNAGA SOSA","f":"11113315176","sub":"Grupal-Micro 2","k":"11113315176|Grupal-Micro 2|ITZEL ZUZUNAGA SOSA|0","imp":10000,"saldo":12502.5,"esp":446.5,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-06-18","dia":"VIERNES"},{"n":"LETICIA DEL PILAR RAMIREZ MARTINEZ","f":"11113007902","sub":"Grupal-Basico","k":"11113007902|Grupal-Basico|LETICIA DEL PILAR RAMIREZ MARTINEZ|0","imp":5000,"saldo":3600,"esp":300,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-04-25","dia":"VIERNES"},{"n":"LETICIA DEL PILAR RAMIREZ MARTINEZ","f":"11113007902","sub":"Grupal-Micro 2","k":"11113007902|Grupal-Micro 2|LETICIA DEL PILAR RAMIREZ MARTINEZ|0","imp":8000,"saldo":9816,"esp":357,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-06-18","dia":"VIERNES"},{"n":"LIUVA JENNIFER AVENDAÑO CASTELLANOS","f":"11112777460","sub":"Grupal-Basico","k":"11112777460|Grupal-Basico|LIUVA JENNIFER AVENDAÑO CASTELLANOS|0","imp":9800,"saldo":11172,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-12","dia":"VIERNES"},{"n":"LIUVA JENNIFER AVENDAÑO CASTELLANOS","f":"11112777460","sub":"Grupal-Micro","k":"11112777460|Grupal-Micro|LIUVA JENNIFER AVENDAÑO CASTELLANOS|0","imp":15000,"saldo":13920,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-03-06","dia":"VIERNES"},{"n":"LORENA DEL CARMEN SORIANO ALMEIDA","f":"11113037690","sub":"Grupal-Basico","k":"11113037690|Grupal-Basico|LORENA DEL CARMEN SORIANO ALMEIDA|0","imp":7000,"saldo":8820,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-06-26","dia":"VIERNES"},{"n":"CARDINA JUANA CLEMENTE MARTINEZ","f":"11112806809","sub":"Grupal-Basico","k":"11112806809|Grupal-Basico|CARDINA JUANA CLEMENTE MARTINEZ|0","imp":3000,"saldo":3780,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-26","dia":"VIERNES"},{"n":"MARIA DEL ROSARIO  SORIANO ALMEIDA","f":"11113098282","sub":"Grupal-Basico","k":"11113098282|Grupal-Basico|MARIA DEL ROSARIO  SORIANO ALMEIDA|0","imp":11000,"saldo":12540,"esp":660,"impOrig":11000,"mora":0,"sug":13000,"des":"2026-06-12","dia":"VIERNES"},{"n":"MAYRA VIVIANA CLEMENTE PEREZ","f":"11112939687","sub":"Grupal-Basico","k":"11112939687|Grupal-Basico|MAYRA VIVIANA CLEMENTE PEREZ|0","imp":13000,"saldo":8580,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-04-17","dia":"VIERNES"},{"n":"MAYRA VIVIANA CLEMENTE PEREZ","f":"11112939687","sub":"Grupal-Micro","k":"11112939687|Grupal-Micro|MAYRA VIVIANA CLEMENTE PEREZ|0","imp":15000,"saldo":20160,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-06-05","dia":"VIERNES"},{"n":"MINERVA CASTELLANOS LOPEZ","f":"11112859703","sub":"Grupal-Basico","k":"11112859703|Grupal-Basico|MINERVA CASTELLANOS LOPEZ|0","imp":13000,"saldo":3900,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-03-06","dia":"VIERNES"},{"n":"PAULA GRISELDA LOPEZ HERNANDEZ","f":"11113072620","sub":"Grupal-Basico","k":"11113072620|Grupal-Basico|PAULA GRISELDA LOPEZ HERNANDEZ|0","imp":14000,"saldo":16800,"esp":840,"impOrig":14000,"mora":0,"sug":17000,"des":"2026-06-19","dia":"VIERNES"},{"n":"PAULA GRISELDA LOPEZ HERNANDEZ","f":"11113072620","sub":"Grupal-Micro","k":"11113072620|Grupal-Micro|PAULA GRISELDA LOPEZ HERNANDEZ|0","imp":15000,"saldo":10560,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-01-17","dia":"VIERNES"},{"n":"PILAR GARCIA LOPEZ","f":"11112922583","sub":"Grupal-Basico","k":"11112922583|Grupal-Basico|PILAR GARCIA LOPEZ|0","imp":9800,"saldo":6468,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-17","dia":"VIERNES"},{"n":"PILAR GARCIA LOPEZ","f":"11112922583","sub":"Grupal-Micro","k":"11112922583|Grupal-Micro|PILAR GARCIA LOPEZ|0","imp":18000,"saldo":13248,"esp":576,"impOrig":18000,"mora":0,"sug":21500,"des":"2026-01-23","dia":"VIERNES"},{"n":"SOFIA GARCIA LOPEZ","f":"11112958035","sub":"Grupal-Microcredito","k":"11112958035|Grupal-Microcredito|SOFIA GARCIA LOPEZ|0","imp":30000,"saldo":44857,"esp":1447,"impOrig":30000,"mora":0,"sug":36000,"des":"2026-07-10","dia":"VIERNES"},{"n":"TERESA NAIDA FLORES PAZ","f":"11113139475","sub":"Grupal-Basico","k":"11113139475|Grupal-Basico|TERESA NAIDA FLORES PAZ|0","imp":9800,"saldo":13524,"esp":588,"impOrig":9800,"mora":0,"sug":15500,"des":"2026-07-10","dia":"VIERNES"},{"n":"TERESA NAIDA FLORES PAZ","f":"11113139475","sub":"Grupal-Micro","k":"11113139475|Grupal-Micro|TERESA NAIDA FLORES PAZ|0","imp":15000,"saldo":16320,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-04-10","dia":"VIERNES"},{"n":"VERONICA ANGELA SOSA LOPEZ","f":"11113242625","sub":"Grupal-Basico","k":"11113242625|Grupal-Basico|VERONICA ANGELA SOSA LOPEZ|0","imp":13000,"saldo":14820,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-06-12","dia":"VIERNES"},{"n":"VERONICA ANGELA SOSA LOPEZ","f":"11113242625","sub":"Grupal-Micro","k":"11113242625|Grupal-Micro|VERONICA ANGELA SOSA LOPEZ|0","imp":15000,"saldo":4800,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2025-10-25","dia":"VIERNES"},{"n":"WENDI EDITH AVENDAÑO ZEPEDA","f":"11113116034","sub":"Grupal-Basico","k":"11113116034|Grupal-Basico|WENDI EDITH AVENDAÑO ZEPEDA|0","imp":6000,"saldo":1440,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-02-27","dia":"VIERNES"},{"n":"WENDI EDITH AVENDAÑO ZEPEDA","f":"11113116034","sub":"Grupal-Adicional","k":"11113116034|Grupal-Adicional|WENDI EDITH AVENDAÑO ZEPEDA|0","imp":2000,"saldo":600,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-08","dia":"VIERNES"},{"n":"MICHELLE MONTSERRAT HERNANDEZ GARCIA","f":"11112893766","sub":"Grupal-Basico","k":"11112893766|Grupal-Basico|MICHELLE MONTSERRAT HERNANDEZ GARCIA|0","imp":13000,"saldo":16380,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-06-26","dia":"VIERNES"},{"n":"MICHELLE MONTSERRAT HERNANDEZ GARCIA","f":"11112893766","sub":"Grupal-Micro","k":"11112893766|Grupal-Micro|MICHELLE MONTSERRAT HERNANDEZ GARCIA|0","imp":10000,"saldo":2240,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-10-04","dia":"VIERNES"},{"n":"ANGELES KARINA CASTRO ABRAJAN","f":"11112625987","sub":"Grupal-Basico","k":"11112625987|Grupal-Basico|ANGELES KARINA CASTRO ABRAJAN|0","imp":6000,"saldo":5760,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-22","dia":"VIERNES"},{"n":"SONNY ELVIA CRUZ AGUILAR","f":"11113005693","sub":"Grupal-Basico","k":"11113005693|Grupal-Basico|SONNY ELVIA CRUZ AGUILAR|0","imp":8000,"saldo":4800,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-04-11","dia":"VIERNES"},{"n":"KIARA  CASTELL BALDOVINOS","f":"11112735798","sub":"Grupal-Basico","k":"11112735798|Grupal-Basico|KIARA  CASTELL BALDOVINOS|0","imp":4000,"saldo":3360,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-08","dia":"VIERNES"},{"n":"MARTIN FLORES ARAGON","f":"11112911821","sub":"Grupal-Basico","k":"11112911821|Grupal-Basico|MARTIN FLORES ARAGON|0","imp":3000,"saldo":3600,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-19","dia":"VIERNES"},{"n":"VERONICA GALLARDO MARTINEZ","f":"11112994198","sub":"Grupal-Basico","k":"11112994198|Grupal-Basico|VERONICA GALLARDO MARTINEZ|0","imp":3000,"saldo":3600,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-19","dia":"VIERNES"},{"n":"LIZBETH YAKELIN MIGUEL LOPEZ","f":"11113023526","sub":"Grupal-Basico","k":"11113023526|Grupal-Basico|LIZBETH YAKELIN MIGUEL LOPEZ|0","imp":3000,"saldo":3600,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-19","dia":"VIERNES"},{"n":"OMAR CAIN PAZ CRUZ","f":"11112914791","sub":"Grupal-Basico","k":"11112914791|Grupal-Basico|OMAR CAIN PAZ CRUZ|0","imp":3000,"saldo":3600,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-19","dia":"VIERNES"}],"C-13 · YA MUGHNI":[{"n":"FLOR LETICIA JUAREZ GONZALEZ","f":"11113005775","sub":"Grupal-Basico 2","k":"11113005775|Grupal-Basico 2|FLOR LETICIA JUAREZ GONZALEZ|0","imp":9000,"saldo":3888,"esp":648,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-04-21","dia":"MARTES"},{"n":"FLOR LETICIA JUAREZ GONZALEZ","f":"11113005775","sub":"Grupal-Adicional","k":"11113005775|Grupal-Adicional|FLOR LETICIA JUAREZ GONZALEZ|0","imp":3000,"saldo":3000,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-03-17","dia":"MARTES"},{"n":"LIDIA ROSA CASTELLANOS PEREZ","f":"11112884857","sub":"Grupal-Basico 2","k":"11112884857|Grupal-Basico 2|LIDIA ROSA CASTELLANOS PEREZ|0","imp":5000,"saldo":2520,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-04-30","dia":"MARTES"},{"n":"MONSERRAT CASTELLANOS CASTELLANOS","f":"11112763649","sub":"Grupal-Basico 2","k":"11112763649|Grupal-Basico 2|MONSERRAT CASTELLANOS CASTELLANOS|0","imp":6000,"saldo":2592,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-04-21","dia":"MARTES"},{"n":"RUBI ESMERALDA CASTRO GODINEZ","f":"11112859540","sub":"Grupal-Basico 2","k":"11112859540|Grupal-Basico 2|RUBI ESMERALDA CASTRO GODINEZ|0","imp":6000,"saldo":6912,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-30","dia":"MARTES"},{"n":"SAMAI AMAIRANI CASTELLANOS JUAREZ","f":"11112892924","sub":"Grupal-Basico 2","k":"11112892924|Grupal-Basico 2|SAMAI AMAIRANI CASTELLANOS JUAREZ|0","imp":8000,"saldo":4608,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-05","dia":"MARTES"},{"n":"SAMAI AMAIRANI CASTELLANOS JUAREZ","f":"11112892924","sub":"Grupal-Micro","k":"11112892924|Grupal-Micro|SAMAI AMAIRANI CASTELLANOS JUAREZ|0","imp":10000,"saldo":7040,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-01-16","dia":"MARTES"}],"C-6 · NUEVA ESPERANZA":[{"n":"CLAUDIA JANET PEREZ CABANZ0","f":"11112838338","sub":"Grupal-Basico 2","k":"11112838338|Grupal-Basico 2|CLAUDIA JANET PEREZ CABANZ0|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-19","dia":"VIERNES"},{"n":"MANUEL ALFREDO MARTINEZ CABALLERO","f":"11112866965","sub":"Grupal-Basico 2","k":"11112866965|Grupal-Basico 2|MANUEL ALFREDO MARTINEZ CABALLERO|0","imp":4000,"saldo":3168,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-19","dia":"VIERNES"},{"n":"MARIA BOLAÑOS LOPEZ","f":"11112987168","sub":"Grupal-Basico 2","k":"11112987168|Grupal-Basico 2|MARIA BOLAÑOS LOPEZ|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-19","dia":"VIERNES"},{"n":"EZEQUIEL GILBARDO BOLAÑOS LOPEZ","f":"11112903021","sub":"Grupal-Basico 2","k":"11112903021|Grupal-Basico 2|EZEQUIEL GILBARDO BOLAÑOS LOPEZ|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-19","dia":"VIERNES"},{"n":"TAVITA DORCAS JIMENEZ HERNANDEZ","f":"11113031567","sub":"Grupal-Basico 2","k":"11113031567|Grupal-Basico 2|TAVITA DORCAS JIMENEZ HERNANDEZ|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-19","dia":"VIERNES"}],"C-12 · LA FORTALEZA":[{"n":"CELIA FEBE MONTES MORALES","f":"11113004656","sub":"Grupal-Basico","k":"11113004656|Grupal-Basico|CELIA FEBE MONTES MORALES|0","imp":4000,"saldo":5184,"esp":288,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-15","dia":"MIERCOLES"},{"n":"MARIA DE CARMEN CANSECO MENDEZ","f":"11112767272","sub":"Grupal-Basico 2","k":"11112767272|Grupal-Basico 2|MARIA DE CARMEN CANSECO MENDEZ|0","imp":4000,"saldo":5184,"esp":288,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-15","dia":"MIERCOLES"},{"n":"MARIA AUXILIO SILVA HURTADO","f":"11112933326","sub":"Grupal-Basico 2","k":"11112933326|Grupal-Basico 2|MARIA AUXILIO SILVA HURTADO|0","imp":4000,"saldo":5184,"esp":288,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-15","dia":"MIERCOLES"},{"n":"CONCEPCION BERENICE PIMENTEL ACOSTA","f":"11112857174","sub":"Grupal-Basico 2","k":"11112857174|Grupal-Basico 2|CONCEPCION BERENICE PIMENTEL ACOSTA|0","imp":4000,"saldo":5184,"esp":288,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-15","dia":"MIERCOLES"},{"n":"DOROTEA AGUILAR CRUZ","f":"11112951374","sub":"Grupal-Basico 2","k":"11112951374|Grupal-Basico 2|DOROTEA AGUILAR CRUZ|0","imp":4000,"saldo":5184,"esp":288,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-15","dia":"MIERCOLES"}]};
+let CENTROS={"C-59 · 24 DE FEBRERO":[{"n":"ANA PAULA LOPEZ RUIZ","f":"11113028250","sub":"Grupal-Microcredito","k":"11113028250|Grupal-Microcredito|ANA PAULA LOPEZ RUIZ|0","imp":30000,"saldo":10129,"esp":1447,"impOrig":30000,"mora":0,"sug":36000,"des":"2026-03-13","dia":"VIERNES"},{"n":"ANEL CRUZ CUEVAS","f":"11112849049","sub":"Grupal-Basico","k":"11112849049|Grupal-Basico|ANEL CRUZ CUEVAS|0","imp":9500,"saldo":10830,"esp":570,"impOrig":9500,"mora":0,"sug":11500,"des":"2026-06-05","dia":"VIERNES"},{"n":"ARIADNA HERNANDEZ LOPEZ","f":"11112821422","sub":"Grupal-Microcredito","k":"11112821422|Grupal-Microcredito|ARIADNA HERNANDEZ LOPEZ|0","imp":25000,"saldo":9648,"esp":1206,"impOrig":25000,"mora":0,"sug":30000,"des":"2026-01-23","dia":"VIERNES"},{"n":"CONSUELO BEATRIZ NOLASCO CRUZ","f":"11112915373","sub":"Grupal-Basico","k":"11112915373|Grupal-Basico|CONSUELO BEATRIZ NOLASCO CRUZ|0","imp":9800,"saldo":11172,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-05","dia":"VIERNES"},{"n":"CONSUELO BEATRIZ NOLASCO CRUZ","f":"11112915373","sub":"Grupal-Micro","k":"11112915373|Grupal-Micro|CONSUELO BEATRIZ NOLASCO CRUZ|0","imp":12000,"saldo":14592,"esp":384,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-05-01","dia":"VIERNES"},{"n":"DENISSE RAMON VARGAS","f":"11113016352","sub":"Grupal-Basico","k":"11113016352|Grupal-Basico|DENISSE RAMON VARGAS|0","imp":9000,"saldo":2700,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-02-27","dia":"VIERNES"},{"n":"DIGNA ELENA REYES SANTIAGO","f":"11113028141","sub":"Grupal-Basico","k":"11113028141|Grupal-Basico|DIGNA ELENA REYES SANTIAGO|0","imp":9800,"saldo":12936,"esp":588,"impOrig":9800,"mora":0,"sug":14500,"des":"2026-07-03","dia":"VIERNES"},{"n":"ELVIRA FLORENCIA GONZALEZ CRUZ","f":"11112864704","sub":"Grupal-Basico","k":"11112864704|Grupal-Basico|ELVIRA FLORENCIA GONZALEZ CRUZ|0","imp":12000,"saldo":13680,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-06-05","dia":"VIERNES"},{"n":"EPIFANIA GARCIA PEREZ","f":"11112855051","sub":"Grupal-Basico","k":"11112855051|Grupal-Basico|EPIFANIA GARCIA PEREZ|0","imp":13000,"saldo":10920,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-05-01","dia":"VIERNES"},{"n":"EPIFANIA GARCIA PEREZ","f":"11112855051","sub":"Grupal-Micro","k":"11112855051|Grupal-Micro|EPIFANIA GARCIA PEREZ|0","imp":16000,"saldo":14336,"esp":512,"impOrig":16000,"mora":0,"sug":19000,"des":"2026-02-20","dia":"VIERNES"},{"n":"FATIMA DEL ROSARIO MELKEN GONZALES","f":"11112874869","sub":"Grupal-Basico","k":"11112874869|Grupal-Basico|FATIMA DEL ROSARIO MELKEN GONZALES|0","imp":13000,"saldo":15600,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-06-05","dia":"VIERNES"},{"n":"FATIMA DEL ROSARIO MELKEN GONZALES","f":"11112874869","sub":"Grupal-Micro","k":"11112874869|Grupal-Micro|FATIMA DEL ROSARIO MELKEN GONZALES|0","imp":18000,"saldo":27072,"esp":576,"impOrig":18000,"mora":0,"sug":21500,"des":"2025-09-05","dia":"VIERNES"},{"n":"FELICITA NINFA CRUZ CRUZ","f":"11112897851","sub":"Grupal-Basico","k":"11112897851|Grupal-Basico|FELICITA NINFA CRUZ CRUZ|0","imp":8000,"saldo":11520,"esp":480,"impOrig":8000,"mora":0,"sug":8500,"des":"2026-07-10","dia":"VIERNES"},{"n":"JUANA LEONOR SANTIAGO CRUZ","f":"11112896125","sub":"Grupal-Basico","k":"11112896125|Grupal-Basico|JUANA LEONOR SANTIAGO CRUZ|0","imp":12000,"saldo":14400,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-06-12","dia":"VIERNES"},{"n":"JUANA LEONOR SANTIAGO CRUZ","f":"11112896125","sub":"Grupal-Micro","k":"11112896125|Grupal-Micro|JUANA LEONOR SANTIAGO CRUZ|0","imp":18000,"saldo":13824,"esp":576,"impOrig":18000,"mora":0,"sug":21500,"des":"2026-01-23","dia":"VIERNES"},{"n":"LIZ ANTONIA TOLEDO CUEVAS","f":"11113068907","sub":"Grupal-Basico","k":"11113068907|Grupal-Basico|LIZ ANTONIA TOLEDO CUEVAS|0","imp":8000,"saldo":9600,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-06-12","dia":"VIERNES"},{"n":"LIZ ANTONIA TOLEDO CUEVAS","f":"11113068907","sub":"Grupal-Micro","k":"11113068907|Grupal-Micro|LIZ ANTONIA TOLEDO CUEVAS|0","imp":15000,"saldo":13440,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-02-21","dia":"VIERNES"},{"n":"MARIA DEL CARMEN TAPIA GONZALEZ","f":"11112879732","sub":"Grupal-Microcredito","k":"11112879732|Grupal-Microcredito|MARIA DEL CARMEN TAPIA GONZALEZ|0","imp":25000,"saldo":7236,"esp":1206,"impOrig":25000,"mora":0,"sug":30000,"des":"2026-01-10","dia":"VIERNES"},{"n":"MARIBEL HERNANDEZ SANTIAGO","f":"11113018033","sub":"Grupal-Micro","k":"11113018033|Grupal-Micro|MARIBEL HERNANDEZ SANTIAGO|0","imp":10000,"saldo":2240,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-09-27","dia":"VIERNES"},{"n":"REYNA SOCORRO CRUZ VASQUEZ","f":"11113203334","sub":"Grupal-Microcredito","k":"11113203334|Grupal-Microcredito|REYNA SOCORRO CRUZ VASQUEZ|0","imp":35000,"saldo":21950.5,"esp":1688.5,"impOrig":35000,"mora":0,"sug":42000,"des":"2026-02-27","dia":"VIERNES"},{"n":"REYNA SOCORRO CRUZ VASQUEZ","f":"11113203334","sub":"Grupal-Adicional","k":"11113203334|Grupal-Adicional|REYNA SOCORRO CRUZ VASQUEZ|0","imp":4000,"saldo":4400,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-26","dia":"VIERNES"},{"n":"ROSA ALICIA SANTIAGO FLORES","f":"11113004040","sub":"Grupal-Basico","k":"11113004040|Grupal-Basico|ROSA ALICIA SANTIAGO FLORES|0","imp":12000,"saldo":2880,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-02-21","dia":"VIERNES"},{"n":"ROSA ALICIA SANTIAGO FLORES","f":"11113004040","sub":"Grupal-Micro","k":"11113004040|Grupal-Micro|ROSA ALICIA SANTIAGO FLORES|0","imp":10000,"saldo":6720,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-01-02","dia":"VIERNES"},{"n":"SHEILA HORTENCIA VASQUEZ TOLEDO","f":"11113188998","sub":"Grupal-Basico","k":"11113188998|Grupal-Basico|SHEILA HORTENCIA VASQUEZ TOLEDO|0","imp":9800,"saldo":1176,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-02-06","dia":"VIERNES"},{"n":"SHEILA HORTENCIA VASQUEZ TOLEDO","f":"11113188998","sub":"Grupal-Micro","k":"11113188998|Grupal-Micro|SHEILA HORTENCIA VASQUEZ TOLEDO|0","imp":10000,"saldo":4480,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-11-15","dia":"VIERNES"},{"n":"SILVIA IMELDA VENTURA IGNACIO","f":"11113119485","sub":"Grupal-Basico","k":"11113119485|Grupal-Basico|SILVIA IMELDA VENTURA IGNACIO|0","imp":6000,"saldo":6840,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-05","dia":"VIERNES"},{"n":"SILVIA IMELDA VENTURA IGNACIO","f":"11113119485","sub":"Grupal-Adicional","k":"11113119485|Grupal-Adicional|SILVIA IMELDA VENTURA IGNACIO|0","imp":3000,"saldo":1200,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-05-08","dia":"VIERNES"},{"n":"JENNIE DENISSE MELKEN GONZALEZ","f":"11112911592","sub":"Grupal-Microcredito","k":"11112911592|Grupal-Microcredito|JENNIE DENISSE MELKEN GONZALEZ|0","imp":25000,"saldo":7236,"esp":1206,"impOrig":25000,"mora":0,"sug":30000,"des":"2026-01-16","dia":"VIERNES"},{"n":"JENNIE DENISSE MELKEN GONZALEZ","f":"11112911592","sub":"Grupal-Adicional","k":"11112911592|Grupal-Adicional|JENNIE DENISSE MELKEN GONZALEZ|0","imp":4000,"saldo":1200,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-01","dia":"VIERNES"},{"n":"YOLANDA VARGAS MARTINES","f":"11113172495","sub":"Grupal-Microcredito","k":"11113172495|Grupal-Microcredito|YOLANDA VARGAS MARTINES|0","imp":35000,"saldo":13508.5,"esp":1688.5,"impOrig":35000,"mora":0,"sug":42000,"des":"2026-03-20","dia":"VIERNES"},{"n":"SANDRA CRUZ SANTIAGO","f":"11113181739","sub":"Grupal-Basico","k":"11113181739|Grupal-Basico|SANDRA CRUZ SANTIAGO|0","imp":4000,"saldo":4560,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-05","dia":"VIERNES"},{"n":"ANA ELY SANTIAGO CRUZ","f":"11112809015","sub":"Grupal-Basico","k":"11112809015|Grupal-Basico|ANA ELY SANTIAGO CRUZ|0","imp":4000,"saldo":2400,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-03","dia":"VIERNES"},{"n":"ROXANA GUADALUPE PEREZ CRUZ","f":"11112985466","sub":"Grupal-Basico","k":"11112985466|Grupal-Basico|ROXANA GUADALUPE PEREZ CRUZ|0","imp":9000,"saldo":5400,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-04-03","dia":"VIERNES"},{"n":"ANAHI SANTIAGO LOPEZ","f":"11112893523","sub":"Grupal-Basico","k":"11112893523|Grupal-Basico|ANAHI SANTIAGO LOPEZ|0","imp":4000,"saldo":3840,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-15","dia":"VIERNES"}],"C-11 · ADNACHIEL":[{"n":"APOLONIA LORENZA MARTINEZ JIMENEZ","f":"11112819235","sub":"Grupal-Basico","k":"11112819235|Grupal-Basico|APOLONIA LORENZA MARTINEZ JIMENEZ|0","imp":9800,"saldo":12936,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-07-30","dia":"MARTES"},{"n":"CECILIA SENAIDA LUCAS DE LA LUZ","f":"11113046199","sub":"Grupal-Basico","k":"11113046199|Grupal-Basico|CECILIA SENAIDA LUCAS DE LA LUZ|0","imp":7000,"saldo":8400,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-06-09","dia":"MARTES"},{"n":"CONCEPCION  GOMEZ MARTINEZ","f":"11112948100","sub":"Grupal-Basico","k":"11112948100|Grupal-Basico|CONCEPCION  GOMEZ MARTINEZ|0","imp":4000,"saldo":5280,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-23","dia":"MARTES"},{"n":"CONCEPCION  GOMEZ MARTINEZ","f":"11112948100","sub":"Grupal-Adicional","k":"11112948100|Grupal-Adicional|CONCEPCION  GOMEZ MARTINEZ|0","imp":2000,"saldo":800,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-05","dia":"MARTES"},{"n":"GLORIA ANGELICA RAMOZ HERNANDEZ","f":"11112908291","sub":"Grupal-Basico","k":"11112908291|Grupal-Basico|GLORIA ANGELICA RAMOZ HERNANDEZ|0","imp":7500,"saldo":900,"esp":450,"impOrig":7500,"mora":0,"sug":9000,"des":"2026-02-06","dia":"MARTES"},{"n":"FLORENCIA SILVIA FIGUEROA GARCIA","f":"11112846982","sub":"Grupal-Basico","k":"11112846982|Grupal-Basico|FLORENCIA SILVIA FIGUEROA GARCIA|0","imp":8000,"saldo":6240,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-04-21","dia":"MARTES"},{"n":"MARIA ELENA OLIVA CANSECO SANTIAGO","f":"11112842761","sub":"Grupal-Basico","k":"11112842761|Grupal-Basico|MARIA ELENA OLIVA CANSECO SANTIAGO|0","imp":9000,"saldo":11880,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-06-23","dia":"MARTES"},{"n":"CAITLIN YARETZI GOMEZ MARTINEZ","f":"11112949472","sub":"Grupal-Basico","k":"11112949472|Grupal-Basico|CAITLIN YARETZI GOMEZ MARTINEZ|0","imp":4000,"saldo":1920,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-03-10","dia":"MARTES"}],"C-40 · ATAYUCO":[{"n":"ALMA ROSA MALDONADO PINELO","f":"11112874979","sub":"Grupal-Basico","k":"11112874979|Grupal-Basico|ALMA ROSA MALDONADO PINELO|0","imp":6000,"saldo":7920,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-23","dia":"MARTES"},{"n":"ALMA ROSA MALDONADO PINELO","f":"11112874979","sub":"Grupal-Adicional","k":"11112874979|Grupal-Adicional|ALMA ROSA MALDONADO PINELO|0","imp":2000,"saldo":200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-04-14","dia":"MARTES"},{"n":"CARMEN ESPINOZA MENDOZA","f":"11112861770","sub":"Grupal-Basico","k":"11112861770|Grupal-Basico|CARMEN ESPINOZA MENDOZA|0","imp":9800,"saldo":3528,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-05","dia":"MARTES"},{"n":"DINAZAR ENMA GONZALEZ HERNANDEZ","f":"11112903380","sub":"Grupal-Basico","k":"11112903380|Grupal-Basico|DINAZAR ENMA GONZALEZ HERNANDEZ|0","imp":12000,"saldo":5760,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-03-17","dia":"MARTES"},{"n":"FLOR ELENA GAYTAN PINELO","f":"11112863299","sub":"Grupal-Basico","k":"11112863299|Grupal-Basico|FLOR ELENA GAYTAN PINELO|0","imp":9000,"saldo":8640,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-05-12","dia":"MARTES"},{"n":"MARIA DE LOS ANGELES CHAVES TRUJILLO","f":"11112887138","sub":"Grupal-Basico","k":"11112887138|Grupal-Basico|MARIA DE LOS ANGELES CHAVES TRUJILLO|0","imp":9800,"saldo":7056,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-14","dia":"MARTES"},{"n":"MARIA ESTHER PINELO ESPINOZA","f":"11112917095","sub":"Grupal-Basico","k":"11112917095|Grupal-Basico|MARIA ESTHER PINELO ESPINOZA|0","imp":12000,"saldo":7920,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-04-07","dia":"MARTES"},{"n":"MARIA TERESA MALDONADO CHAVEZ","f":"11112935138","sub":"Grupal-Basico","k":"11112935138|Grupal-Basico|MARIA TERESA MALDONADO CHAVEZ|0","imp":6000,"saldo":8280,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-30","dia":"MARTES"},{"n":"MINGA MARIA PINELO ESPINOZA","f":"11112998182","sub":"Grupal-Basico","k":"11112998182|Grupal-Basico|MINGA MARIA PINELO ESPINOZA|0","imp":9800,"saldo":11172,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-02","dia":"MARTES"},{"n":"MINGA MARIA PINELO ESPINOZA","f":"11112998182","sub":"Grupal-Adicional","k":"11112998182|Grupal-Adicional|MINGA MARIA PINELO ESPINOZA|0","imp":4000,"saldo":5200,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-07-07","dia":"MARTES"},{"n":"TATIANA LEITZA LOPEZ MALDONADO","f":"11113168985","sub":"Grupal-Basico","k":"11113168985|Grupal-Basico|TATIANA LEITZA LOPEZ MALDONADO|0","imp":4000,"saldo":1920,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-03-18","dia":"MARTES"},{"n":"TATIANA LEITZA LOPEZ MALDONADO","f":"11113168985","sub":"Grupal-Adicional","k":"11113168985|Grupal-Adicional|TATIANA LEITZA LOPEZ MALDONADO|0","imp":2000,"saldo":1000,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-12","dia":"MARTES"},{"n":"KARLA YOSELIN ESCAMILLA REYES","f":"11112914985","sub":"Grupal-Basico","k":"11112914985|Grupal-Basico|KARLA YOSELIN ESCAMILLA REYES|0","imp":4000,"saldo":4800,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-09","dia":"MARTES"}],"C-9 · BARCHIEL":[{"n":"ADRIANA LOPEZ MENDEZ","f":"11112971322","sub":"Grupal-Basico 2","k":"11112971322|Grupal-Basico 2|ADRIANA LOPEZ MENDEZ|0","imp":9800,"saldo":4236,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-01-02","dia":"JUEVES"},{"n":"ADRIANA LOPEZ MENDEZ","f":"11112971322","sub":"Grupal-Micro","k":"11112971322|Grupal-Micro|ADRIANA LOPEZ MENDEZ|0","imp":10000,"saldo":9920,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-03-12","dia":"JUEVES"},{"n":"ITZI BELEM TORRES","f":"11113121988","sub":"Grupal-Basico 2","k":"11113121988|Grupal-Basico 2|ITZI BELEM TORRES|0","imp":8000,"saldo":10368,"esp":576,"impOrig":8000,"mora":0,"sug":7000,"des":"2026-07-09","dia":"JUEVES"},{"n":"DULCE BELEM JIMENEZ RUIZ","f":"11112977454","sub":"Grupal-Basico 2","k":"11112977454|Grupal-Basico 2|DULCE BELEM JIMENEZ RUIZ|0","imp":6000,"saldo":7776,"esp":432,"impOrig":6000,"mora":0,"sug":5000,"des":"2026-07-09","dia":"JUEVES"},{"n":"JESSICA LOPEZ MENDEZ","f":"11113066526","sub":"Grupal-Basico 2","k":"11113066526|Grupal-Basico 2|JESSICA LOPEZ MENDEZ|0","imp":7000,"saldo":3528,"esp":504,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-04-23","dia":"JUEVES"},{"n":"JESSICA LOPEZ MENDEZ","f":"11113066526","sub":"Grupal-Micro 2","k":"11113066526|Grupal-Micro 2|JESSICA LOPEZ MENDEZ|0","imp":10000,"saldo":8483.5,"esp":446.5,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-04-10","dia":"JUEVES"},{"n":"LAURA FABIOLA TRUJILLO RAMIREZ","f":"11113271100","sub":"Grupal-Basico 2","k":"11113271100|Grupal-Basico 2|LAURA FABIOLA TRUJILLO RAMIREZ|0","imp":6000,"saldo":7344,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-07-02","dia":"JUEVES"},{"n":"OLGA LIDIA LOPEZ ARANGO","f":"11112994997","sub":"Grupal-Micro 2","k":"11112994997|Grupal-Micro 2|OLGA LIDIA LOPEZ ARANGO|0","imp":8000,"saldo":7497,"esp":357,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-04-23","dia":"JUEVES"},{"n":"PAOLA CANSECO SANTA ANA","f":"11112955447","sub":"Grupal-Basico 2","k":"11112955447|Grupal-Basico 2|PAOLA CANSECO SANTA ANA|0","imp":6000,"saldo":3456,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-04-30","dia":"JUEVES"},{"n":"LESLIE NAYELI DE JESUS RODRIGUEZ","f":"11113019509","sub":"Grupal-Basico 2","k":"11113019509|Grupal-Basico 2|LESLIE NAYELI DE JESUS RODRIGUEZ|0","imp":4000,"saldo":288,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-03-06","dia":"JUEVES"},{"n":"SARA MENDOZA SANTIAGO","f":"11113125574","sub":"Grupal-Basico 2","k":"11113125574|Grupal-Basico 2|SARA MENDOZA SANTIAGO|0","imp":4000,"saldo":1440,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-09","dia":"JUEVES"},{"n":"DIANA LUCIA LOPEZ MIGUEL","f":"11113005621","sub":"Grupal-Basico 2","k":"11113005621|Grupal-Basico 2|DIANA LUCIA LOPEZ MIGUEL|0","imp":4000,"saldo":1440,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-09","dia":"JUEVES"}],"C-27 · BASTON DE DULCE":[{"n":"ALEJANDRA GARCIA ROMERO","f":"11112833535","sub":"Grupal-Basico","k":"11112833535|Grupal-Basico|ALEJANDRA GARCIA ROMERO|0","imp":4000,"saldo":1920,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2025-03-11","dia":"MARTES"},{"n":"ALMA ROSARIO CAMACHO GONZALEZ","f":"11112919388","sub":"Grupal-Basico","k":"11112919388|Grupal-Basico|ALMA ROSARIO CAMACHO GONZALEZ|0","imp":12000,"saldo":5040,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2025-03-11","dia":"MARTES"},{"n":"ALMA ROSARIO CAMACHO GONZALEZ","f":"11112919388","sub":"Grupal-Micro","k":"11112919388|Grupal-Micro|ALMA ROSARIO CAMACHO GONZALEZ|0","imp":17000,"saldo":8160,"esp":544,"impOrig":17000,"mora":0,"sug":20500,"des":"2025-11-21","dia":"MARTES"},{"n":"GILBERTA GARCIA ROMERO","f":"11112897750","sub":"Grupal-Basico","k":"11112897750|Grupal-Basico|GILBERTA GARCIA ROMERO|0","imp":4000,"saldo":1680,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2025-03-11","dia":"MARTES"},{"n":"GILBERTA GARCIA ROMERO","f":"11112897750","sub":"Grupal-Adicional","k":"11112897750|Grupal-Adicional|GILBERTA GARCIA ROMERO|0","imp":3000,"saldo":600,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-04-21","dia":"MARTES"},{"n":"MIREYA PATRICIA CRUZ LOPEZ","f":"11113053988","sub":"Grupal-Basico","k":"11113053988|Grupal-Basico|MIREYA PATRICIA CRUZ LOPEZ|0","imp":4000,"saldo":1680,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2025-03-11","dia":"MARTES"},{"n":"MIREYA PATRICIA CRUZ LOPEZ","f":"11113053988","sub":"Grupal-Adicional","k":"11113053988|Grupal-Adicional|MIREYA PATRICIA CRUZ LOPEZ|0","imp":2000,"saldo":1200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-19","dia":"MARTES"},{"n":"VICTORIA MARIA LUZ GONZALEZ SANCHEZ","f":"11113194053","sub":"Grupal-Basico","k":"11113194053|Grupal-Basico|VICTORIA MARIA LUZ GONZALEZ SANCHEZ|0","imp":4000,"saldo":1680,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2025-03-11","dia":"MARTES"},{"n":"VICTORIA MARIA LUZ GONZALEZ SANCHEZ","f":"11113194053","sub":"Grupal-Adicional","k":"11113194053|Grupal-Adicional|VICTORIA MARIA LUZ GONZALEZ SANCHEZ|0","imp":4000,"saldo":1600,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-05","dia":"MARTES"},{"n":"ANA LUZ MORALES MARTINEZ","f":"11112982881","sub":"Grupal-Basico","k":"11112982881|Grupal-Basico|ANA LUZ MORALES MARTINEZ|0","imp":4000,"saldo":5760,"esp":240,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-07","dia":"MARTES"},{"n":"CINTHIA MARIANA GONZALES GARCIA","f":"11112888361","sub":"Grupal-Basico","k":"11112888361|Grupal-Basico|CINTHIA MARIANA GONZALES GARCIA|0","imp":4000,"saldo":2880,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-14","dia":"MARTES"},{"n":"MARGARITA DIANA CRUZ","f":"11113179172","sub":"Grupal-Basico","k":"11113179172|Grupal-Basico|MARGARITA DIANA CRUZ|0","imp":3000,"saldo":2340,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-04-21","dia":"MARTES"},{"n":"ESPERANZA MENDEZ CRUZ","f":"11112823652","sub":"Grupal-Basico","k":"11112823652|Grupal-Basico|ESPERANZA MENDEZ CRUZ|0","imp":3000,"saldo":2340,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-04-21","dia":"MARTES"},{"n":"ESPERANZA MENDEZ CRUZ","f":"11112823652","sub":"Grupal-Adicional","k":"11112823652|Grupal-Adicional|ESPERANZA MENDEZ CRUZ|0","imp":3000,"saldo":3900,"esp":180,"impOrig":3000,"mora":0,"sug":3600,"des":"2026-07-07","dia":"MARTES"},{"n":"LORENA VIRGINIA TOYVE MARTINEZ","f":"11113166323","sub":"Grupal-Basico","k":"11113166323|Grupal-Basico|LORENA VIRGINIA TOYVE MARTINEZ|0","imp":4000,"saldo":3360,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-14","dia":"MARTES"},{"n":"DANIEL JIMENEZ GARCIA","f":"11112867599","sub":"Grupal-Basico","k":"11112867599|Grupal-Basico|DANIEL JIMENEZ GARCIA|0","imp":3000,"saldo":3060,"esp":180,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-05-19","dia":"MARTES"}],"C-26 · CRECER Y MULTIPLICAR":[{"n":"DULCE MARIA LOPEZ HERNANDEZ","f":"11112952632","sub":"Grupal-Basico 2","k":"11112952632|Grupal-Basico 2|DULCE MARIA LOPEZ HERNANDEZ|0","imp":5000,"saldo":5400,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-06-16","dia":"MARTES"},{"n":"ELENA FRANCISCA HERNANDEZ NOLASCO","f":"11112881133","sub":"Grupal-Basico 2","k":"11112881133|Grupal-Basico 2|ELENA FRANCISCA HERNANDEZ NOLASCO|0","imp":5000,"saldo":5400,"esp":360,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-06-16","dia":"MARTES"},{"n":"RUBI ESMERALDA LOPEZ HERNANDEZ","f":"11113095404","sub":"Grupal-Basico 2","k":"11113095404|Grupal-Basico 2|RUBI ESMERALDA LOPEZ HERNANDEZ|0","imp":3000,"saldo":3240,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-16","dia":"MARTES"},{"n":"NANCY ROCIO LOPEZ CRUZ","f":"11113003747","sub":"Grupal-Basico 2","k":"11113003747|Grupal-Basico 2|NANCY ROCIO LOPEZ CRUZ|0","imp":3000,"saldo":3240,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-16","dia":"MARTES"}],"C-35 · ENEIJ":[{"n":"ABRIL SANCHEZ IGNACIO","f":"11112708888","sub":"Grupal-Micro","k":"11112708888|Grupal-Micro|ABRIL SANCHEZ IGNACIO|0","imp":10000,"saldo":1600,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-09-12","dia":"JUEVES"},{"n":"ESPERANZA VICTORIA FLORES RODRIGUEZ","f":"11113007557","sub":"Grupal-Basico 2","k":"11113007557|Grupal-Basico 2|ESPERANZA VICTORIA FLORES RODRIGUEZ|0","imp":6000,"saldo":1296,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-03-26","dia":"JUEVES"},{"n":"GABRIELA MARIBEL LOPEZ TORRES","f":"11113104303","sub":"Grupal-Basico 2","k":"11113104303|Grupal-Basico 2|GABRIELA MARIBEL LOPEZ TORRES|0","imp":12000,"saldo":2320,"esp":864,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-03-17","dia":"JUEVES"},{"n":"GABRIELA MARIBEL LOPEZ TORRES","f":"11113104303","sub":"Grupal-Micro","k":"11113104303|Grupal-Micro|GABRIELA MARIBEL LOPEZ TORRES|0","imp":15000,"saldo":12000,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-01-09","dia":"JUEVES"},{"n":"MARGARITA LOURDES IGNACIO SANTIAGO","f":"11112984205","sub":"Grupal-Microcredito","k":"11112984205|Grupal-Microcredito|MARGARITA LOURDES IGNACIO SANTIAGO|0","imp":30000,"saldo":17364,"esp":1447,"impOrig":30000,"mora":0,"sug":36000,"des":"2026-02-20","dia":"JUEVES"},{"n":"ODEETTE ARELI SANCHEZ IGNACIO","f":"11113001966","sub":"REESTRUCTURA","k":"11113001966|REESTRUCTURA|ODEETTE ARELI SANCHEZ IGNACIO|0","imp":57917,"saldo":52200,"esp":1000,"impOrig":57917,"mora":0,"sug":69500,"des":"2026-05-21","dia":"JUEVES"},{"n":"ROSALBA IBETH LOPEZ LOPEZ","f":"11113136238","sub":"Grupal-Micro","k":"11113136238|Grupal-Micro|ROSALBA IBETH LOPEZ LOPEZ|0","imp":10000,"saldo":7360,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-01-16","dia":"JUEVES"},{"n":"SARA PORFIRIA REYES LOPEZ","f":"11113102542","sub":"Grupal-Basico 2","k":"11113102542|Grupal-Basico 2|SARA PORFIRIA REYES LOPEZ|0","imp":6000,"saldo":432,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-03-05","dia":"JUEVES"},{"n":"MONSERRAT LUESTRE VELASCO","f":"11113148873","sub":"Grupal-Basico","k":"11113148873|Grupal-Basico|MONSERRAT LUESTRE VELASCO|0","imp":6000,"saldo":1728,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-04-02","dia":"JUEVES"}],"C-57 · ESMERALDA":[{"n":"ALEJANDRA CRUZ PLUMAS","f":"11112972833","sub":"Grupal-Basico","k":"11112972833|Grupal-Basico|ALEJANDRA CRUZ PLUMAS|0","imp":5000,"saldo":6300,"esp":300,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-06-19","dia":"VIERNES"},{"n":"ARGELIA ESMERALDA LOPEZ GARCIA","f":"11112918295","sub":"Grupal-Basico","k":"11112918295|Grupal-Basico|ARGELIA ESMERALDA LOPEZ GARCIA|0","imp":9000,"saldo":8100,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-05-08","dia":"VIERNES"},{"n":"ARGELIA ESMERALDA LOPEZ GARCIA","f":"11112918295","sub":"Grupal-Adicional","k":"11112918295|Grupal-Adicional|ARGELIA ESMERALDA LOPEZ GARCIA|0","imp":3000,"saldo":3600,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-07-03","dia":"VIERNES"},{"n":"ARGELIA JULIETA GARCIA RAMOS","f":"11112837856","sub":"Grupal-Basico","k":"11112837856|Grupal-Basico|ARGELIA JULIETA GARCIA RAMOS|0","imp":9000,"saldo":8100,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-05-08","dia":"VIERNES"},{"n":"ARGELIA JULIETA GARCIA RAMOS","f":"11112837856","sub":"Grupal-Micro 2","k":"11112837856|Grupal-Micro 2|ARGELIA JULIETA GARCIA RAMOS|0","imp":8000,"saldo":10531.5,"esp":446.5,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-06-26","dia":"VIERNES"},{"n":"BELINDA MICHELLE SORIANO LOPEZ","f":"11113042756","sub":"Grupal-Basico","k":"11113042756|Grupal-Basico|BELINDA MICHELLE SORIANO LOPEZ|0","imp":12000,"saldo":10800,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-05-08","dia":"VIERNES"},{"n":"BELINDA MICHELLE SORIANO LOPEZ","f":"11113042756","sub":"Grupal-Micro","k":"11113042756|Grupal-Micro|BELINDA MICHELLE SORIANO LOPEZ|0","imp":15000,"saldo":23040,"esp":480,"impOrig":15000,"mora":0,"sug":12000,"des":"2026-07-10","dia":"VIERNES"},{"n":"FILADELFA MARTINEZ LOPEZ","f":"11112888569","sub":"Grupal-Microcredito","k":"11112888569|Grupal-Microcredito|FILADELFA MARTINEZ LOPEZ|0","imp":25000,"saldo":2412,"esp":1206,"impOrig":25000,"mora":0,"sug":30000,"des":"2025-12-12","dia":"VIERNES"},{"n":"JUANA LOPEZ LOPEZ","f":"11113058061","sub":"Grupal-Basico","k":"11113058061|Grupal-Basico|JUANA LOPEZ LOPEZ|0","imp":13000,"saldo":8580,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-04-10","dia":"VIERNES"},{"n":"JUANA LOPEZ LOPEZ","f":"11113058061","sub":"Grupal-Micro","k":"11113058061|Grupal-Micro|JUANA LOPEZ LOPEZ|0","imp":15000,"saldo":10560,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-01-10","dia":"VIERNES"},{"n":"LETICIA MORALES LOPEZ","f":"11113082146","sub":"Grupal-Basico","k":"11113082146|Grupal-Basico|LETICIA MORALES LOPEZ|0","imp":6000,"saldo":2160,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-02-28","dia":"VIERNES"},{"n":"LETICIA MORALES LOPEZ","f":"11113082146","sub":"Grupal-Adicional","k":"11113082146|Grupal-Adicional|LETICIA MORALES LOPEZ|0","imp":3000,"saldo":3900,"esp":300,"impOrig":3000,"mora":0,"sug":3600,"des":"2026-07-10","dia":"VIERNES"},{"n":"LIZBETH MORALES MARTINEZ","f":"11113097725","sub":"Grupal-Basico","k":"11113097725|Grupal-Basico|LIZBETH MORALES MARTINEZ|0","imp":9000,"saldo":10800,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-01-23","dia":"VIERNES"},{"n":"LIZBETH MORALES MARTINEZ","f":"11113097725","sub":"Grupal-Adicional","k":"11113097725|Grupal-Adicional|LIZBETH MORALES MARTINEZ|0","imp":4000,"saldo":400,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-17","dia":"VIERNES"},{"n":"LUCIA RAMIREZ MARTINEZ","f":"11113009751","sub":"Grupal-Microcredito","k":"11113009751|Grupal-Microcredito|LUCIA RAMIREZ MARTINEZ|0","imp":40000,"saldo":25090,"esp":1930,"impOrig":40000,"mora":0,"sug":48000,"des":"2026-02-27","dia":"VIERNES"},{"n":"LUIZA GARCIA","f":"11113005465","sub":"Grupal-Basico","k":"11113005465|Grupal-Basico|LUIZA GARCIA|0","imp":6000,"saldo":5760,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-15","dia":"VIERNES"},{"n":"LUZ ARELI PALAFOX LOPEZ","f":"11112974293","sub":"Grupal-Basico","k":"11112974293|Grupal-Basico|LUZ ARELI PALAFOX LOPEZ|0","imp":9500,"saldo":10830,"esp":570,"impOrig":9500,"mora":0,"sug":11500,"des":"2026-06-05","dia":"VIERNES"},{"n":"LUZ ARELI PALAFOX LOPEZ","f":"11112974293","sub":"Grupal-Micro","k":"11112974293|Grupal-Micro|LUZ ARELI PALAFOX LOPEZ|0","imp":10000,"saldo":6320,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-02-06","dia":"VIERNES"},{"n":"MANUELA PLUMAS LOPEZ","f":"11113188904","sub":"Grupal-Basico","k":"11113188904|Grupal-Basico|MANUELA PLUMAS LOPEZ|0","imp":7000,"saldo":2940,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-03-13","dia":"VIERNES"},{"n":"MINERVA ROSARIO IGNACIO GARCIA","f":"11112862917","sub":"Grupal-Basico","k":"11112862917|Grupal-Basico|MINERVA ROSARIO IGNACIO GARCIA|0","imp":6000,"saldo":6840,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-05","dia":"VIERNES"},{"n":"SABINA SEVERA SARABIA GARCIA","f":"11113023238","sub":"Grupal-Basico","k":"11113023238|Grupal-Basico|SABINA SEVERA SARABIA GARCIA|0","imp":12000,"saldo":15120,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-06-19","dia":"VIERNES"},{"n":"SABINA SEVERA SARABIA GARCIA","f":"11113023238","sub":"Grupal-Adicional","k":"11113023238|Grupal-Adicional|SABINA SEVERA SARABIA GARCIA|0","imp":3000,"saldo":1200,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-05-08","dia":"VIERNES"},{"n":"TANIA ESMERALDA SANCHEZ MARTINEZ","f":"11113094138","sub":"Grupal-Basico","k":"11113094138|Grupal-Basico|TANIA ESMERALDA SANCHEZ MARTINEZ|0","imp":7000,"saldo":2100,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-02-28","dia":"VIERNES"},{"n":"IRAIS ROBERTA LOPEZ CRUZ","f":"11112952328","sub":"Grupal-Basico","k":"11112952328|Grupal-Basico|IRAIS ROBERTA LOPEZ CRUZ|0","imp":6000,"saldo":8280,"esp":360,"impOrig":6000,"mora":0,"sug":7200,"des":"2026-07-03","dia":"VIERNES"},{"n":"YAZMIN GICELA SORIANO LOPEZ","f":"11113279742","sub":"Grupal-Microcredito","k":"11113279742|Grupal-Microcredito|YAZMIN GICELA SORIANO LOPEZ|0","imp":25000,"saldo":18090,"esp":1206,"impOrig":25000,"mora":0,"sug":30000,"des":"2026-03-12","dia":"VIERNES"}],"C-32 · ESTRELLAS DEL FORTIN":[{"n":"BIBIANA REYNA JIMENEZ","f":"11112917978","sub":"Grupal-Basico","k":"11112917978|Grupal-Basico|BIBIANA REYNA JIMENEZ|0","imp":7000,"saldo":3360,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-03-18","dia":"MIERCOLES"},{"n":"CIRILA JIMENEZ  RUIZ","f":"11112967766","sub":"Grupal-Basico","k":"11112967766|Grupal-Basico|CIRILA JIMENEZ  RUIZ|0","imp":8000,"saldo":8640,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-27","dia":"MIERCOLES"},{"n":"CIRILA JIMENEZ  RUIZ","f":"11112967766","sub":"Grupal-Micro","k":"11112967766|Grupal-Micro|CIRILA JIMENEZ  RUIZ|0","imp":16000,"saldo":20480,"esp":512,"impOrig":16000,"mora":0,"sug":19000,"des":"2026-05-13","dia":"MIERCOLES"},{"n":"CLAUDIA ANDREA FRANCO SIBAJA","f":"11112859053","sub":"Grupal-Basico","k":"11112859053|Grupal-Basico|CLAUDIA ANDREA FRANCO SIBAJA|0","imp":8000,"saldo":8640,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2025-12-10","dia":"MIERCOLES"},{"n":"CLAUDIA ANDREA FRANCO SIBAJA","f":"11112859053","sub":"Grupal-Micro","k":"11112859053|Grupal-Micro|CLAUDIA ANDREA FRANCO SIBAJA|0","imp":16000,"saldo":20480,"esp":512,"impOrig":16000,"mora":0,"sug":19000,"des":"2026-05-13","dia":"MIERCOLES"},{"n":"ELIZABETH VERONICA MARTINEZ RUEDA","f":"11112933824","sub":"Grupal-Basico","k":"11112933824|Grupal-Basico|ELIZABETH VERONICA MARTINEZ RUEDA|0","imp":5000,"saldo":4500,"esp":300,"impOrig":5000,"mora":0,"sug":6000,"des":"2025-12-10","dia":"MIERCOLES"},{"n":"GEORGINA ROSALIA MENDEZ GONZALEZ","f":"11112732871","sub":"Grupal-Basico","k":"11112732871|Grupal-Basico|GEORGINA ROSALIA MENDEZ GONZALEZ|0","imp":5000,"saldo":6000,"esp":300,"impOrig":5000,"mora":0,"sug":6000,"des":"2025-06-10","dia":"MIERCOLES"},{"n":"LINDA JEANETT PAZ LOPEZ","f":"11112973790","sub":"Grupal-Basico","k":"11112973790|Grupal-Basico|LINDA JEANETT PAZ LOPEZ|0","imp":12000,"saldo":10800,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2025-12-10","dia":"MIERCOLES"},{"n":"MARIA DE LOS ANGELES CRUZ PACHECO","f":"11112979691","sub":"Grupal-Basico","k":"11112979691|Grupal-Basico|MARIA DE LOS ANGELES CRUZ PACHECO|0","imp":5000,"saldo":6000,"esp":300,"impOrig":5000,"mora":0,"sug":6000,"des":"2025-06-10","dia":"MIERCOLES"},{"n":"PETRA FUENTES MONDRAGON","f":"11113121732","sub":"Grupal-Basico","k":"11113121732|Grupal-Basico|PETRA FUENTES MONDRAGON|0","imp":9800,"saldo":1176,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-02-05","dia":"MIERCOLES"},{"n":"REYNA LOPEZ CRUZ","f":"11113048867","sub":"Grupal-Basico","k":"11113048867|Grupal-Basico|REYNA LOPEZ CRUZ|0","imp":8000,"saldo":7200,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2025-12-10","dia":"MIERCOLES"},{"n":"NIEVES MIRIAM ARANGO REYES","f":"11112901756","sub":"Grupal-Basico","k":"11112901756|Grupal-Basico|NIEVES MIRIAM ARANGO REYES|0","imp":7000,"saldo":6300,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2025-12-10","dia":"MIERCOLES"}],"C-64 · FERRERIA":[{"n":"ALICIA VERONICA GARCIA PEDRO","f":"11112816934","sub":"Grupal-Basico","k":"11112816934|Grupal-Basico|ALICIA VERONICA GARCIA PEDRO|0","imp":9800,"saldo":5880,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-02","dia":"MIERCOLES"},{"n":"ALICIA VERONICA GARCIA PEDRO","f":"11112816934","sub":"Grupal-Adicional","k":"11112816934|Grupal-Adicional|ALICIA VERONICA GARCIA PEDRO|0","imp":3000,"saldo":2100,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-05-27","dia":"MIERCOLES"},{"n":"ANA MARIA ANAYA GAYTAN","f":"11112669629","sub":"Grupal-Basico","k":"11112669629|Grupal-Basico|ANA MARIA ANAYA GAYTAN|0","imp":9000,"saldo":8640,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-05-13","dia":"MIERCOLES"},{"n":"CITLALY GARCIA DIAZ","f":"11112714868","sub":"Grupal-Basico","k":"11112714868|Grupal-Basico|CITLALY GARCIA DIAZ|0","imp":9800,"saldo":5880,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-02","dia":"MIERCOLES"},{"n":"CITLALY GARCIA DIAZ","f":"11112714868","sub":"Grupal-Micro","k":"11112714868|Grupal-Micro|CITLALY GARCIA DIAZ|0","imp":10000,"saldo":8640,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-02-07","dia":"MIERCOLES"},{"n":"ELIAZIM YURIRIA LOPEZ JIMENEZ","f":"11112987118","sub":"Grupal-Basico","k":"11112987118|Grupal-Basico|ELIAZIM YURIRIA LOPEZ JIMENEZ|0","imp":4000,"saldo":480,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-02-07","dia":"MIERCOLES"},{"n":"GABRIELA MEZETA LOPEZ","f":"11112937194","sub":"Grupal-Basico","k":"11112937194|Grupal-Basico|GABRIELA MEZETA LOPEZ|0","imp":9800,"saldo":5880,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-02","dia":"MIERCOLES"},{"n":"GABRIELA MEZETA LOPEZ","f":"11112937194","sub":"Grupal-Adicional","k":"11112937194|Grupal-Adicional|GABRIELA MEZETA LOPEZ|0","imp":4000,"saldo":3200,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-03","dia":"MIERCOLES"},{"n":"GABRIELA MEZETA LOPEZ","f":"11112937194","sub":"Grupal-Micro","k":"11112937194|Grupal-Micro|GABRIELA MEZETA LOPEZ|0","imp":16000,"saldo":19456,"esp":512,"impOrig":16000,"mora":0,"sug":19000,"des":"2026-04-22","dia":"MIERCOLES"},{"n":"LILIANA CARRION ALLENDE","f":"11112739079","sub":"Grupal-Basico","k":"11112739079|Grupal-Basico|LILIANA CARRION ALLENDE|0","imp":7000,"saldo":5040,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-04-16","dia":"MIERCOLES"},{"n":"LILIANA CARRION ALLENDE","f":"11112739079","sub":"Grupal-Adicional","k":"11112739079|Grupal-Adicional|LILIANA CARRION ALLENDE|0","imp":3000,"saldo":3900,"esp":300,"impOrig":3000,"mora":0,"sug":3600,"des":"2026-07-08","dia":"MIERCOLES"},{"n":"MARIA VICTORIA LÓPEZ MIGUEL","f":"11113182605","sub":"Grupal-Basico","k":"11113182605|Grupal-Basico|MARIA VICTORIA LÓPEZ MIGUEL|0","imp":9800,"saldo":5880,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-02","dia":"MIERCOLES"},{"n":"MARIA VICTORIA LÓPEZ MIGUEL","f":"11113182605","sub":"Grupal-Adicional","k":"11113182605|Grupal-Adicional|MARIA VICTORIA LÓPEZ MIGUEL|0","imp":4000,"saldo":800,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-22","dia":"MIERCOLES"},{"n":"MARIA VICTORIA LÓPEZ MIGUEL","f":"11113182605","sub":"Grupal-Micro","k":"11113182605|Grupal-Micro|MARIA VICTORIA LÓPEZ MIGUEL|0","imp":17000,"saldo":11424,"esp":544,"impOrig":17000,"mora":0,"sug":20500,"des":"2025-12-23","dia":"MIERCOLES"},{"n":"OLIVIA MARIBEL LOPEZ MIGUEL","f":"11113112747","sub":"Grupal-Basico","k":"11113112747|Grupal-Basico|OLIVIA MARIBEL LOPEZ MIGUEL|0","imp":9800,"saldo":5880,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-02","dia":"MIERCOLES"},{"n":"OLIVIA MARIBEL LOPEZ MIGUEL","f":"11113112747","sub":"Grupal-Micro","k":"11113112747|Grupal-Micro|OLIVIA MARIBEL LOPEZ MIGUEL|0","imp":15000,"saldo":21120,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-06-10","dia":"MIERCOLES"},{"n":"URIEL ROCIO VELASCO CARRION","f":"11113074398","sub":"Grupal-Basico","k":"11113074398|Grupal-Basico|URIEL ROCIO VELASCO CARRION|0","imp":4000,"saldo":5760,"esp":240,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-09","dia":"MIERCOLES"},{"n":"AISHLIN SAMANTHA CRUZ VELAZCO","f":"11113035478","sub":"Grupal-Basico","k":"11113035478|Grupal-Basico|AISHLIN SAMANTHA CRUZ VELAZCO|0","imp":4000,"saldo":480,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-02-07","dia":"MIERCOLES"},{"n":"MARGARITA MARISCAL HERNANDEZ","f":"11112914012","sub":"Grupal-Basico","k":"11112914012|Grupal-Basico|MARGARITA MARISCAL HERNANDEZ|0","imp":4000,"saldo":4320,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-27","dia":"MIERCOLES"}],"C-18 · GHANIMA":[{"n":"CONCEPCION MARIBEL OSORIO SANTOS","f":"11113085031","sub":"Grupal-Basico 2","k":"11113085031|Grupal-Basico 2|CONCEPCION MARIBEL OSORIO SANTOS|0","imp":6000,"saldo":3888,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-04","dia":"LUNES"},{"n":"DANIELA ORTIZ GASGA","f":"11112916570","sub":"Grupal-Basico 2","k":"11112916570|Grupal-Basico 2|DANIELA ORTIZ GASGA|0","imp":4000,"saldo":2016,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-22","dia":"LUNES"},{"n":"FATIMA ANDREA  HERNANDEZ HERNANDEZ","f":"11112839763","sub":"Grupal-Basico 2","k":"11112839763|Grupal-Basico 2|FATIMA ANDREA  HERNANDEZ HERNANDEZ|0","imp":8000,"saldo":6336,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-02-10","dia":"LUNES"},{"n":"FATIMA ANDREA  HERNANDEZ HERNANDEZ","f":"11112839763","sub":"Grupal-Micro 2","k":"11112839763|Grupal-Micro 2|FATIMA ANDREA  HERNANDEZ HERNANDEZ|0","imp":10000,"saldo":12502.5,"esp":446.5,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-06-08","dia":"LUNES"},{"n":"MARIA DEL ROSARIO GUADALUPE CASTELLANOS","f":"11113058523","sub":"Grupal-Basico 2","k":"11113058523|Grupal-Basico 2|MARIA DEL ROSARIO GUADALUPE CASTELLANOS|0","imp":8000,"saldo":6336,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-02-10","dia":"LUNES"},{"n":"MARIA DEL ROSARIO GUADALUPE CASTELLANOS","f":"11113058523","sub":"Grupal-Adicional","k":"11113058523|Grupal-Adicional|MARIA DEL ROSARIO GUADALUPE CASTELLANOS|0","imp":2000,"saldo":600,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-04-27","dia":"LUNES"},{"n":"VIOLETA  YADIRA  HERNANDEZ CASTELLANOS","f":"11112946258","sub":"Grupal-Basico 2","k":"11112946258|Grupal-Basico 2|VIOLETA  YADIRA  HERNANDEZ CASTELLANOS|0","imp":9000,"saldo":7128,"esp":648,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-02-10","dia":"LUNES"},{"n":"VIOLETA  YADIRA  HERNANDEZ CASTELLANOS","f":"11112946258","sub":"Grupal-Micro 2","k":"11112946258|Grupal-Micro 2|VIOLETA  YADIRA  HERNANDEZ CASTELLANOS|0","imp":10000,"saldo":8483.5,"esp":446.5,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-04-10","dia":"LUNES"},{"n":"BEATRIZ JULIETA CRESPO PINELO","f":"11112826720","sub":"Grupal-Basico 2","k":"11112826720|Grupal-Basico 2|BEATRIZ JULIETA CRESPO PINELO|0","imp":4000,"saldo":1440,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-06","dia":"LUNES"},{"n":"BLANCA VERONICA MARTINEZ FIGUEROA","f":"11112786052","sub":"Grupal-Basico 2","k":"11112786052|Grupal-Basico 2|BLANCA VERONICA MARTINEZ FIGUEROA|0","imp":4000,"saldo":1440,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-06","dia":"LUNES"},{"n":"ERICEL RAUL HERNANDEZ HERNANDEZ","f":"11112823381","sub":"Grupal-Basico 2","k":"11112823381|Grupal-Basico 2|ERICEL RAUL HERNANDEZ HERNANDEZ|0","imp":8000,"saldo":10368,"esp":576,"impOrig":8000,"mora":0,"sug":5000,"des":"2026-07-06","dia":"LUNES"},{"n":"HILDA ARACELY RODRIGUEZ LOPEZ","f":"11113095058","sub":"Grupal-Basico 2","k":"11113095058|Grupal-Basico 2|HILDA ARACELY RODRIGUEZ LOPEZ|0","imp":3000,"saldo":1728,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-04-29","dia":"LUNES"},{"n":"MARIA DEL CARMEN SORIA GONZALES","f":"11113006480","sub":"Grupal-Basico 2","k":"11113006480|Grupal-Basico 2|MARIA DEL CARMEN SORIA GONZALES|0","imp":4000,"saldo":2592,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-04","dia":"LUNES"},{"n":"MARIA DEL CARMEN SORIA GONZALES","f":"11113006480","sub":"Grupal-Adicional","k":"11113006480|Grupal-Adicional|MARIA DEL CARMEN SORIA GONZALES|0","imp":2000,"saldo":2200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-06-22","dia":"LUNES"},{"n":"VICTOR ARTURO ORTIZ OJEDA","f":"11113174457","sub":"Grupal-Basico 2","k":"11113174457|Grupal-Basico 2|VICTOR ARTURO ORTIZ OJEDA|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-08","dia":"LUNES"},{"n":"JUANA GONZALES LUENGAS","f":"11113004468","sub":"Grupal-Basico 2","k":"11113004468|Grupal-Basico 2|JUANA GONZALES LUENGAS|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":12000,"des":"2026-06-08","dia":"LUNES"},{"n":"ROSARIO CHAVEZ PABLO","f":"11112945246","sub":"Grupal-Basico 2","k":"11112945246|Grupal-Basico 2|ROSARIO CHAVEZ PABLO|0","imp":4000,"saldo":2592,"esp":288,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-05-04","dia":"LUNES"}],"C-44 · IJAHE":[{"n":"ESPERANZA GODINEZ AGUILAR","f":"11112842211","sub":"Grupal-Basico 2","k":"11112842211|Grupal-Basico 2|ESPERANZA GODINEZ AGUILAR|0","imp":8600,"saldo":2478,"esp":619.5,"impOrig":8600,"mora":0,"sug":10500,"des":"2026-04-01","dia":"MIERCOLES"},{"n":"MARIA LUISA  MENDEZ GOPAR","f":"11112936286","sub":"Grupal-Basico 2","k":"11112936286|Grupal-Basico 2|MARIA LUISA  MENDEZ GOPAR|0","imp":9600,"saldo":2766.5,"esp":691.5,"impOrig":9600,"mora":0,"sug":11500,"des":"2026-04-01","dia":"MIERCOLES"},{"n":"MARIA LUISA  MENDEZ GOPAR","f":"11112936286","sub":"Grupal-Adicional","k":"11112936286|Grupal-Adicional|MARIA LUISA  MENDEZ GOPAR|0","imp":2000,"saldo":3200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-06","dia":"MIERCOLES"},{"n":"PATRICIA GARCIA LUIS","f":"11112924808","sub":"Grupal-Basico 2","k":"11112924808|Grupal-Basico 2|PATRICIA GARCIA LUIS|0","imp":7000,"saldo":2016,"esp":504,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-04-01","dia":"MIERCOLES"},{"n":"JAZMITH HERNANDEZ SANCHEZ","f":"11112981187","sub":"Grupal-Basico 2","k":"11112981187|Grupal-Basico 2|JAZMITH HERNANDEZ SANCHEZ|0","imp":7000,"saldo":2016,"esp":504,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-04-01","dia":"MIERCOLES"},{"n":"JAZMITH HERNANDEZ SANCHEZ","f":"11112981187","sub":"Grupal-Adicional","k":"11112981187|Grupal-Adicional|JAZMITH HERNANDEZ SANCHEZ|0","imp":2000,"saldo":3200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-06","dia":"MIERCOLES"},{"n":"ANA MARIA ANTONIO ROSAS","f":"11112919969","sub":"Grupal-Basico 2","k":"11112919969|Grupal-Basico 2|ANA MARIA ANTONIO ROSAS|0","imp":4000,"saldo":1152,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-01","dia":"MIERCOLES"}],"C-22 · JESSE":[{"n":"GABRIELA GONZALES LOPEZ","f":"11112972707","sub":"Grupal-Basico 2","k":"11112972707|Grupal-Basico 2|GABRIELA GONZALES LOPEZ|0","imp":8000,"saldo":2304,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-04-03","dia":"VIERNES"},{"n":"ITZEL GUADALUPE LOPEZ JIMENEZ","f":"11113023290","sub":"Grupal-Basico 2","k":"11113023290|Grupal-Basico 2|ITZEL GUADALUPE LOPEZ JIMENEZ|0","imp":8000,"saldo":676,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-03-06","dia":"VIERNES"},{"n":"MAYRA VALERIA RUIZ LOPEZ","f":"11113203887","sub":"Grupal-Basico 2","k":"11113203887|Grupal-Basico 2|MAYRA VALERIA RUIZ LOPEZ|0","imp":8000,"saldo":2304,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-04-03","dia":"VIERNES"},{"n":"CAROLINA YOLANDA ALEJANDRINA HERNANDEZ HERNANDEZ","f":"11112802275","sub":"Grupal-Basico 2","k":"11112802275|Grupal-Basico 2|CAROLINA YOLANDA ALEJANDRINA HERNANDEZ HERNANDEZ|0","imp":8000,"saldo":9792,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-07-03","dia":"VIERNES"},{"n":"SILVIA ANEL MORALES","f":"11113042732","sub":"Grupal-Basico 2","k":"11113042732|Grupal-Basico 2|SILVIA ANEL MORALES|0","imp":11000,"saldo":11088,"esp":792,"impOrig":11000,"mora":0,"sug":13000,"des":"2026-06-12","dia":"VIERNES"},{"n":"SILVIA ANEL MORALES","f":"11113042732","sub":"Grupal-Adicional","k":"11113042732|Grupal-Adicional|SILVIA ANEL MORALES|0","imp":4000,"saldo":1600,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-08","dia":"VIERNES"},{"n":"GUADALUPE RUIZ GARCIA","f":"11113004468","sub":"Grupal-Basico 2","k":"11113004468|Grupal-Basico 2|GUADALUPE RUIZ GARCIA|0","imp":9800,"saldo":4236,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-17","dia":"VIERNES"}],"C-80 · LA CONSENTIDA":[{"n":"ALBA CANDELARIA VELASQUEZ CRUZ","f":"11112872212","sub":"Grupal-Basico","k":"11112872212|Grupal-Basico|ALBA CANDELARIA VELASQUEZ CRUZ|0","imp":4000,"saldo":480,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-02-06","dia":"JUEVES"},{"n":"ALMA DELIA GINEZ SANCHEZ","f":"11112924530","sub":"Grupal-Basico","k":"11112924530|Grupal-Basico|ALMA DELIA GINEZ SANCHEZ|0","imp":9800,"saldo":12936,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-25","dia":"JUEVES"},{"n":"ALMA DELIA GINEZ SANCHEZ","f":"11112924530","sub":"Grupal-Micro","k":"11112924530|Grupal-Micro|ALMA DELIA GINEZ SANCHEZ|0","imp":17000,"saldo":9248,"esp":544,"impOrig":17000,"mora":0,"sug":20500,"des":"2025-12-06","dia":"JUEVES"},{"n":"ALMA YAZMIN CRUZ LEON","f":"11112939631","sub":"Grupal-Basico","k":"11112939631|Grupal-Basico|ALMA YAZMIN CRUZ LEON|0","imp":5000,"saldo":7200,"esp":300,"impOrig":5000,"mora":0,"sug":5000,"des":"2026-07-09","dia":"JUEVES"},{"n":"ANA MARIA DE LEÓN CRISOSTEMO","f":"11112773739","sub":"Grupal-Basico","k":"11112773739|Grupal-Basico|ANA MARIA DE LEÓN CRISOSTEMO|0","imp":12000,"saldo":1440,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-02-06","dia":"JUEVES"},{"n":"ANA MARIA DE LEÓN CRISOSTEMO","f":"11112773739","sub":"Grupal-Micro","k":"11112773739|Grupal-Micro|ANA MARIA DE LEÓN CRISOSTEMO|0","imp":10000,"saldo":4480,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-11-14","dia":"JUEVES"},{"n":"ANA VICTORIA SANTIAGO DE LA ROSA","f":"11112956989","sub":"Grupal-Basico","k":"11112956989|Grupal-Basico|ANA VICTORIA SANTIAGO DE LA ROSA|0","imp":12000,"saldo":4320,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-03-12","dia":"JUEVES"},{"n":"ANA VICTORIA SANTIAGO DE LA ROSA","f":"11112956989","sub":"Grupal-Micro","k":"11112956989|Grupal-Micro|ANA VICTORIA SANTIAGO DE LA ROSA|0","imp":15000,"saldo":21600,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-06-18","dia":"JUEVES"},{"n":"ANA VICTORIA SANTIAGO DE LA ROSA","f":"11112956989","sub":"Grupal-Adicional","k":"11112956989|Grupal-Adicional|ANA VICTORIA SANTIAGO DE LA ROSA|0","imp":3000,"saldo":1600,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-11","dia":"JUEVES"},{"n":"AUREA JIMENEZ JIJON","f":"11112863857","sub":"Grupal-Basico","k":"11112863857|Grupal-Basico|AUREA JIMENEZ JIJON|0","imp":8000,"saldo":17760,"esp":480,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-04-23","dia":"JUEVES"},{"n":"ESTHER BAUTISTA RIVERA","f":"11112828133","sub":"Grupal-Basico","k":"11112828133|Grupal-Basico|ESTHER BAUTISTA RIVERA|0","imp":12000,"saldo":7200,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-04-02","dia":"JUEVES"},{"n":"ESTHER BAUTISTA RIVERA","f":"11112828133","sub":"Grupal-Micro","k":"11112828133|Grupal-Micro|ESTHER BAUTISTA RIVERA|0","imp":13000,"saldo":17472,"esp":416,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-05-28","dia":"JUEVES"},{"n":"FRANCISCA ALBA MÉNDEZ VICTORIA","f":"11113021078","sub":"Grupal-Basico","k":"11113021078|Grupal-Basico|FRANCISCA ALBA MÉNDEZ VICTORIA|0","imp":12000,"saldo":5760,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-03-12","dia":"JUEVES"},{"n":"GRISELDA PILAR HERNANDEZ GALVAN","f":"11112833441","sub":"Grupal-Basico","k":"11112833441|Grupal-Basico|GRISELDA PILAR HERNANDEZ GALVAN|0","imp":12000,"saldo":7200,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-04-02","dia":"JUEVES"},{"n":"GRISELDA PILAR HERNANDEZ GALVAN","f":"11112833441","sub":"Grupal-Adicional","k":"11112833441|Grupal-Adicional|GRISELDA PILAR HERNANDEZ GALVAN|0","imp":4000,"saldo":1600,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-07","dia":"JUEVES"},{"n":"GRISELDA PILAR HERNANDEZ GALVAN","f":"11112833441","sub":"Grupal-Micro","k":"11112833441|Grupal-Micro|GRISELDA PILAR HERNANDEZ GALVAN|0","imp":13000,"saldo":17472,"esp":416,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-05-28","dia":"JUEVES"},{"n":"INOCENTE EUFROSINA GARCIA DIAZ","f":"11112761450","sub":"Grupal-Basico","k":"11112761450|Grupal-Basico|INOCENTE EUFROSINA GARCIA DIAZ|0","imp":7000,"saldo":7560,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-05-28","dia":"JUEVES"},{"n":"JOHANA BAUTISTA GARCIA","f":"11112763680","sub":"Grupal-Basico","k":"11112763680|Grupal-Basico|JOHANA BAUTISTA GARCIA|0","imp":12000,"saldo":12240,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-05-21","dia":"JUEVES"},{"n":"JOHANA BAUTISTA GARCIA","f":"11112763680","sub":"Grupal-Micro","k":"11112763680|Grupal-Micro|JOHANA BAUTISTA GARCIA|0","imp":8000,"saldo":4096,"esp":256,"impOrig":8000,"mora":0,"sug":9500,"des":"2025-11-28","dia":"JUEVES"},{"n":"JULIANA AMANDA LAZARO ARCHILA","f":"11112801054","sub":"Grupal-Basico","k":"11112801054|Grupal-Basico|JULIANA AMANDA LAZARO ARCHILA|0","imp":7000,"saldo":8820,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-06-18","dia":"JUEVES"},{"n":"JUSTINA LORENZA CUEVAS SANTIAGO","f":"11113096161","sub":"Grupal-Basico","k":"11113096161|Grupal-Basico|JUSTINA LORENZA CUEVAS SANTIAGO|0","imp":9500,"saldo":10260,"esp":570,"impOrig":9500,"mora":0,"sug":11500,"des":"2026-05-28","dia":"JUEVES"},{"n":"JUSTINA LORENZA CUEVAS SANTIAGO","f":"11113096161","sub":"Grupal-Micro","k":"11113096161|Grupal-Micro|JUSTINA LORENZA CUEVAS SANTIAGO|0","imp":15000,"saldo":23040,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2025-07-18","dia":"JUEVES"},{"n":"KARLA YESENIA JINEZ BAUTISTA","f":"11112882874","sub":"Grupal-Basico","k":"11112882874|Grupal-Basico|KARLA YESENIA JINEZ BAUTISTA|0","imp":9800,"saldo":4704,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2025-03-19","dia":"JUEVES"},{"n":"KARLA YESENIA JINEZ BAUTISTA","f":"11112882874","sub":"Grupal-Micro","k":"11112882874|Grupal-Micro|KARLA YESENIA JINEZ BAUTISTA|0","imp":13000,"saldo":18720,"esp":416,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-06-18","dia":"JUEVES"},{"n":"LUISA GALVAN LAZARO","f":"11112881178","sub":"Grupal-Microcredito","k":"11112881178|Grupal-Microcredito|LUISA GALVAN LAZARO|0","imp":30000,"saldo":10129,"esp":1447,"impOrig":30000,"mora":0,"sug":36000,"des":"2026-01-16","dia":"JUEVES"},{"n":"MA SOLEDAD CRUZ LEON","f":"11113113052","sub":"Grupal-Basico","k":"11113113052|Grupal-Basico|MA SOLEDAD CRUZ LEON|0","imp":7000,"saldo":2100,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-02-26","dia":"JUEVES"},{"n":"MA SOLEDAD CRUZ LEON","f":"11113113052","sub":"Grupal-Adicional","k":"11113113052|Grupal-Adicional|MA SOLEDAD CRUZ LEON|0","imp":3000,"saldo":1600,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-11","dia":"JUEVES"},{"n":"MARGARITA LORENZA BAUTISTA CRUZ","f":"11112751250","sub":"Grupal-Basico","k":"11112751250|Grupal-Basico|MARGARITA LORENZA BAUTISTA CRUZ|0","imp":9800,"saldo":6468,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-09","dia":"JUEVES"},{"n":"MARIA ASUNCION MORALES PEREZ","f":"11113012821","sub":"Grupal-Basico","k":"11113012821|Grupal-Basico|MARIA ASUNCION MORALES PEREZ|0","imp":9800,"saldo":7644,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-23","dia":"JUEVES"},{"n":"MARIA ASUNCION MORALES PEREZ","f":"11113012821","sub":"Grupal-Micro","k":"11113012821|Grupal-Micro|MARIA ASUNCION MORALES PEREZ|0","imp":10000,"saldo":8640,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-02-13","dia":"JUEVES"},{"n":"MARICELA IRENE DIAZ JIMENEZ","f":"11112927981","sub":"Grupal-Basico","k":"11112927981|Grupal-Basico|MARICELA IRENE DIAZ JIMENEZ|0","imp":12000,"saldo":3600,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-02-19","dia":"JUEVES"},{"n":"MARICELA IRENE DIAZ JIMENEZ","f":"11112927981","sub":"Grupal-Micro","k":"11112927981|Grupal-Micro|MARICELA IRENE DIAZ JIMENEZ|0","imp":16000,"saldo":13312,"esp":512,"impOrig":16000,"mora":0,"sug":19000,"des":"2026-02-06","dia":"JUEVES"},{"n":"MAYRA ELIZABETH CRUZ LEON","f":"11113051816","sub":"Grupal-Basico","k":"11113051816|Grupal-Basico|MAYRA ELIZABETH CRUZ LEON|0","imp":5000,"saldo":3600,"esp":300,"impOrig":5000,"mora":0,"sug":6000,"des":"2026-04-16","dia":"JUEVES"},{"n":"MICHEL ROMINA ARCHILA TOLEDO","f":"11112996430","sub":"Grupal-Basico","k":"11112996430|Grupal-Basico|MICHEL ROMINA ARCHILA TOLEDO|0","imp":9800,"saldo":7056,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-16","dia":"JUEVES"},{"n":"MICHEL ROMINA ARCHILA TOLEDO","f":"11112996430","sub":"Grupal-Micro","k":"11112996430|Grupal-Micro|MICHEL ROMINA ARCHILA TOLEDO|0","imp":10000,"saldo":10880,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-04-02","dia":"JUEVES"},{"n":"ROCIO LETICIA DIAZ JIMENEZ","f":"11112971667","sub":"Grupal-Basico","k":"11112971667|Grupal-Basico|ROCIO LETICIA DIAZ JIMENEZ|0","imp":7000,"saldo":840,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-02-06","dia":"JUEVES"},{"n":"ROCIO LETICIA DIAZ JIMENEZ","f":"11112971667","sub":"Grupal-Micro","k":"11112971667|Grupal-Micro|ROCIO LETICIA DIAZ JIMENEZ|0","imp":18000,"saldo":7488,"esp":576,"impOrig":18000,"mora":0,"sug":21500,"des":"2025-11-08","dia":"JUEVES"},{"n":"ROSARIO MENDEZ GARCIA","f":"11112998003","sub":"Grupal-Basico","k":"11112998003|Grupal-Basico|ROSARIO MENDEZ GARCIA|0","imp":7000,"saldo":1680,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-02-20","dia":"JUEVES"},{"n":"ROSIBEL ARCHILA TOLEDO","f":"11113046154","sub":"Grupal-Basico","k":"11113046154|Grupal-Basico|ROSIBEL ARCHILA TOLEDO|0","imp":9800,"saldo":9408,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-05-14","dia":"JUEVES"},{"n":"ROSIBEL ARCHILA TOLEDO","f":"11113046154","sub":"Grupal-Micro","k":"11113046154|Grupal-Micro|ROSIBEL ARCHILA TOLEDO|0","imp":10000,"saldo":4480,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-11-14","dia":"JUEVES"},{"n":"ROSIBEL ARCHILA TOLEDO","f":"11113046154","sub":"Grupal-Adicional","k":"11113046154|Grupal-Adicional|ROSIBEL ARCHILA TOLEDO|0","imp":3000,"saldo":2400,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-05","dia":"JUEVES"},{"n":"SANDRA SANTOS MARQUEZ","f":"11113081447","sub":"Grupal-Basico","k":"11113081447|Grupal-Basico|SANDRA SANTOS MARQUEZ|0","imp":4000,"saldo":2880,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-04-16","dia":"JUEVES"},{"n":"SANDRA SANTOS MARQUEZ","f":"11113081447","sub":"Grupal-Adicional","k":"11113081447|Grupal-Adicional|SANDRA SANTOS MARQUEZ|0","imp":2000,"saldo":2200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-06-25","dia":"JUEVES"},{"n":"SHEILA SUGEIDI CUEVAS SANTIAGO","f":"11113184661","sub":"Grupal-Basico","k":"11113184661|Grupal-Basico|SHEILA SUGEIDI CUEVAS SANTIAGO|0","imp":9800,"saldo":12936,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-25","dia":"JUEVES"},{"n":"SHEILA SUGEIDI CUEVAS SANTIAGO","f":"11113184661","sub":"Grupal-Micro","k":"11113184661|Grupal-Micro|SHEILA SUGEIDI CUEVAS SANTIAGO|0","imp":8000,"saldo":4096,"esp":256,"impOrig":8000,"mora":0,"sug":9500,"des":"2025-11-28","dia":"JUEVES"},{"n":"CARMEN MELISSA MORALES RUIZ","f":"11113053191","sub":"Grupal-Basico","k":"11113053191|Grupal-Basico|CARMEN MELISSA MORALES RUIZ|0","imp":6000,"saldo":5760,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-05-14","dia":"JUEVES"},{"n":"ERIKA GINES SANCHEZ","f":"11112963613","sub":"Grupal-Basico","k":"11112963613|Grupal-Basico|ERIKA GINES SANCHEZ|0","imp":12000,"saldo":15120,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-06-18","dia":"JUEVES"},{"n":"ERIKA GINES SANCHEZ","f":"11112963613","sub":"Grupal-Micro","k":"11112963613|Grupal-Micro|ERIKA GINES SANCHEZ|0","imp":13000,"saldo":19968,"esp":416,"impOrig":13000,"mora":0,"sug":15600,"des":"2025-07-18","dia":"JUEVES"},{"n":"JESSICA YASMIN VASQUEZ ARELLANES","f":"11112902202","sub":"Grupal-Basico","k":"11112902202|Grupal-Basico|JESSICA YASMIN VASQUEZ ARELLANES|0","imp":6000,"saldo":360,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-01-31","dia":"JUEVES"}],"C-28 · LUMARI":[{"n":"GUILLERMINA MARTINEZ LOPEZ","f":"11112897765","sub":"Grupal-Basico 2","k":"11112897765|Grupal-Basico 2|GUILLERMINA MARTINEZ LOPEZ|0","imp":4000,"saldo":4320,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-16","dia":"LUNES"},{"n":"MARTINA VIRGINIA MARTINEZ LOPEZ","f":"11112958365","sub":"Grupal-Basico 2","k":"11112958365|Grupal-Basico 2|MARTINA VIRGINIA MARTINEZ LOPEZ|0","imp":6000,"saldo":6480,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-16","dia":"LUNES"},{"n":"MARTINA VIRGINIA MARTINEZ LOPEZ","f":"11112958365","sub":"Grupal-Adicional","k":"11112958365|Grupal-Adicional|MARTINA VIRGINIA MARTINEZ LOPEZ|0","imp":2000,"saldo":1200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-22","dia":"LUNES"},{"n":"RAQUEL LOPEZ VASQUEZ","f":"11113229030","sub":"Grupal-Basico 2","k":"11113229030|Grupal-Basico 2|RAQUEL LOPEZ VASQUEZ|0","imp":6000,"saldo":6480,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-16","dia":"LUNES"},{"n":"RAQUEL LOPEZ VASQUEZ","f":"11113229030","sub":"Grupal-Adicional","k":"11113229030|Grupal-Adicional|RAQUEL LOPEZ VASQUEZ|0","imp":2000,"saldo":1200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-22","dia":"LUNES"},{"n":"RICARDA MARTINEZ LOPEZ","f":"11113004915","sub":"Grupal-Basico 2","k":"11113004915|Grupal-Basico 2|RICARDA MARTINEZ LOPEZ|0","imp":6000,"saldo":6480,"esp":432,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-06-16","dia":"LUNES"},{"n":"RICARDA MARTINEZ LOPEZ","f":"11113004915","sub":"Grupal-Adicional","k":"11113004915|Grupal-Adicional|RICARDA MARTINEZ LOPEZ|0","imp":2000,"saldo":1200,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-22","dia":"LUNES"},{"n":"NINFA ROCIO SANTIAGO GARCIA","f":"11112973732","sub":"Grupal-Basico 2","k":"11112973732|Grupal-Basico 2|NINFA ROCIO SANTIAGO GARCIA|0","imp":3000,"saldo":3672,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-29","dia":"LUNES"},{"n":"ANA MARIA LOPEZ VASQUEZ","f":"11113062348","sub":"Grupal-Basico 2","k":"11113062348|Grupal-Basico 2|ANA MARIA LOPEZ VASQUEZ|0","imp":3000,"saldo":3240,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-16","dia":"LUNES"},{"n":"YULEISY JOANA ORTIZ LOPEZ","f":"11113177745","sub":"Grupal-Basico 2","k":"11113177745|Grupal-Basico 2|YULEISY JOANA ORTIZ LOPEZ|0","imp":3000,"saldo":3240,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-16","dia":"LUNES"}],"C-2 · MALAHIDAEL":[{"n":"ANDREA JAQUELINE CRUZ LOPEZ","f":"11112938595","sub":"Grupal-Basico","k":"11112938595|Grupal-Basico|ANDREA JAQUELINE CRUZ LOPEZ|0","imp":7000,"saldo":5460,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-04-21","dia":"MARTES"},{"n":"ANDREA JAQUELINE CRUZ LOPEZ","f":"11112938595","sub":"Grupal-Adicional","k":"11112938595|Grupal-Adicional|ANDREA JAQUELINE CRUZ LOPEZ|0","imp":3000,"saldo":3300,"esp":300,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-06-23","dia":"MARTES"},{"n":"BALENTINA JINEZ DE LA LUZ","f":"11112899272","sub":"Grupal-Basico","k":"11112899272|Grupal-Basico|BALENTINA JINEZ DE LA LUZ|0","imp":13000,"saldo":11700,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-05-05","dia":"MARTES"},{"n":"BALENTINA JINEZ DE LA LUZ","f":"11112899272","sub":"Grupal-Micro","k":"11112899272|Grupal-Micro|BALENTINA JINEZ DE LA LUZ|0","imp":20000,"saldo":21760,"esp":640,"impOrig":20000,"mora":0,"sug":24000,"des":"2026-03-31","dia":"MARTES"},{"n":"CIRILA LIMETA RAMIREZ","f":"11112985973","sub":"Grupal-Basico","k":"11112985973|Grupal-Basico|CIRILA LIMETA RAMIREZ|0","imp":9800,"saldo":5880,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-31","dia":"MARTES"},{"n":"CRUZ DELIA ORTEGA GOMEZ","f":"11112861463","sub":"Grupal-Basico","k":"11112861463|Grupal-Basico|CRUZ DELIA ORTEGA GOMEZ|0","imp":7000,"saldo":3360,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-03-19","dia":"MARTES"},{"n":"CRUZ DELIA ORTEGA GOMEZ","f":"11112861463","sub":"Grupal-Micro","k":"11112861463|Grupal-Micro|CRUZ DELIA ORTEGA GOMEZ|0","imp":10000,"saldo":7360,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-01-16","dia":"MARTES"},{"n":"DAMARIS GETSAMANI JINEZ DE LA LUZ","f":"11112919810","sub":"Grupal-Basico","k":"11112919810|Grupal-Basico|DAMARIS GETSAMANI JINEZ DE LA LUZ|0","imp":13000,"saldo":9360,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-04-14","dia":"MARTES"},{"n":"DAMARIS GETSAMANI JINEZ DE LA LUZ","f":"11112919810","sub":"Grupal-Micro","k":"11112919810|Grupal-Micro|DAMARIS GETSAMANI JINEZ DE LA LUZ|0","imp":16000,"saldo":11264,"esp":512,"impOrig":16000,"mora":0,"sug":19000,"des":"2026-01-10","dia":"MARTES"},{"n":"DIANA MONSERRAT TREJO GONZALEZ","f":"11112922068","sub":"Grupal-Micro","k":"11112922068|Grupal-Micro|DIANA MONSERRAT TREJO GONZALEZ|0","imp":13000,"saldo":10400,"esp":416,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-01-31","dia":"MARTES"},{"n":"FRANCISCA TIMOTEA CRUZ LUCAS","f":"11112988227","sub":"Grupal-Basico","k":"11112988227|Grupal-Basico|FRANCISCA TIMOTEA CRUZ LUCAS|0","imp":4000,"saldo":720,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-02-10","dia":"MARTES"},{"n":"IDALIA SANTIAGO LOPEZ","f":"11112973194","sub":"Grupal-Basico","k":"11112973194|Grupal-Basico|IDALIA SANTIAGO LOPEZ|0","imp":14000,"saldo":18480,"esp":840,"impOrig":14000,"mora":0,"sug":17000,"des":"2026-06-23","dia":"MARTES"},{"n":"IZBETH RUBICELI CRUZ LOPEZ","f":"11113013620","sub":"Grupal-Basico","k":"11113013620|Grupal-Basico|IZBETH RUBICELI CRUZ LOPEZ|0","imp":9800,"saldo":3528,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-03","dia":"MARTES"},{"n":"IZBETH RUBICELI CRUZ LOPEZ","f":"11113013620","sub":"Grupal-Micro","k":"11113013620|Grupal-Micro|IZBETH RUBICELI CRUZ LOPEZ|0","imp":10000,"saldo":6720,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-12-31","dia":"MARTES"},{"n":"JUANA CARITINA GONZALES CHAVEZ","f":"11112918184","sub":"Grupal-Basico","k":"11112918184|Grupal-Basico|JUANA CARITINA GONZALES CHAVEZ|0","imp":12000,"saldo":10080,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-04-28","dia":"MARTES"},{"n":"ROSARIO MAITE OSORIO CRUZ","f":"11113112491","sub":"Grupal-Basico","k":"11113112491|Grupal-Basico|ROSARIO MAITE OSORIO CRUZ|0","imp":4000,"saldo":960,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-02-18","dia":"MARTES"},{"n":"SILVIA LILIA GONZALEZ CHAVEZ","f":"11113006375","sub":"Grupal-Basico","k":"11113006375|Grupal-Basico|SILVIA LILIA GONZALEZ CHAVEZ|0","imp":12000,"saldo":6480,"esp":720,"impOrig":12000,"mora":0,"sug":14500,"des":"2026-03-17","dia":"MARTES"},{"n":"SILVIA LILIA GONZALEZ CHAVEZ","f":"11113006375","sub":"Grupal-Micro","k":"11113006375|Grupal-Micro|SILVIA LILIA GONZALEZ CHAVEZ|0","imp":15000,"saldo":9760,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2025-12-18","dia":"MARTES"},{"n":"SOFIA CRUZ LUCAS","f":"11113113239","sub":"Grupal-Basico","k":"11113113239|Grupal-Basico|SOFIA CRUZ LUCAS|0","imp":7000,"saldo":6720,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-05-12","dia":"MARTES"},{"n":"TERESA REMIGIA LOPEZ PINELO","f":"11113192667","sub":"Grupal-Basico","k":"11113192667|Grupal-Basico|TERESA REMIGIA LOPEZ PINELO|0","imp":7000,"saldo":7560,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-05-26","dia":"MARTES"},{"n":"MARIA AGUSTINA GINES  DE LA LUZ","f":"11112858472","sub":"Grupal-Basico","k":"11112858472|Grupal-Basico|MARIA AGUSTINA GINES  DE LA LUZ|0","imp":9800,"saldo":4704,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-19","dia":"MARTES"},{"n":"MARIA AGUSTINA GINES  DE LA LUZ","f":"11112858472","sub":"Grupal-Micro","k":"11112858472|Grupal-Micro|MARIA AGUSTINA GINES  DE LA LUZ|0","imp":10000,"saldo":8960,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2026-02-19","dia":"MARTES"},{"n":"GABRIELA CELIA OSORIO DE LA LUZ","f":"11113056638","sub":"Grupal-Basico","k":"11113056638|Grupal-Basico|GABRIELA CELIA OSORIO DE LA LUZ|0","imp":4000,"saldo":4080,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-19","dia":"MARTES"},{"n":"LEILANY CELIA HERNANDEZ GINES","f":"11112887079","sub":"Grupal-Basico","k":"11112887079|Grupal-Basico|LEILANY CELIA HERNANDEZ GINES|0","imp":4000,"saldo":4320,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-05-26","dia":"MARTES"}],"C-84 · VERINIEL":[{"n":"CATALINA HIPOLITA HERNANDEZ JERONIMO","f":"11112828093","sub":"Grupal-Basico 2","k":"11112828093|Grupal-Basico 2|CATALINA HIPOLITA HERNANDEZ JERONIMO|0","imp":7000,"saldo":8568,"esp":504,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-07-02","dia":"JUEVES"},{"n":"MIRIAM ARACELI LOPEZ HERNANDEZ","f":"11113046773","sub":"Grupal-Basico 2","k":"11113046773|Grupal-Basico 2|MIRIAM ARACELI LOPEZ HERNANDEZ|0","imp":4000,"saldo":4896,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-07-02","dia":"JUEVES"},{"n":"ABRIL YAZMIN REYES MONTERREY","f":"11112938387","sub":"Grupal-Basico 2","k":"11112938387|Grupal-Basico 2|ABRIL YAZMIN REYES MONTERREY|0","imp":9000,"saldo":5184,"esp":648,"impOrig":9000,"mora":0,"sug":11000,"des":"2025-12-19","dia":"JUEVES"},{"n":"ABRIL YAZMIN REYES MONTERREY","f":"11112938387","sub":"Grupal-Micro","k":"11112938387|Grupal-Micro|ABRIL YAZMIN REYES MONTERREY|0","imp":15000,"saldo":22080,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2025-10-10","dia":"JUEVES"},{"n":"JUDITH ESTHER MATADAMAS HERNANDEZ","f":"11112889189","sub":"Grupal-Basico 2","k":"11112889189|Grupal-Basico 2|JUDITH ESTHER MATADAMAS HERNANDEZ|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-11","dia":"JUEVES"},{"n":"LILIANA CRUZ LOPEZ","f":"11113045113","sub":"Grupal-Basico 2","k":"11113045113|Grupal-Basico 2|LILIANA CRUZ LOPEZ|0","imp":9800,"saldo":11296,"esp":706,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-06-25","dia":"JUEVES"},{"n":"MARIA RUIZ MENDEZ","f":"11113218407","sub":"Grupal-Basico 2","k":"11113218407|Grupal-Basico 2|MARIA RUIZ MENDEZ|0","imp":8000,"saldo":6336,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-21","dia":"JUEVES"},{"n":"NOEMI MONTERREY RAMOS","f":"11113163277","sub":"Grupal-Basico 2","k":"11113163277|Grupal-Basico 2|NOEMI MONTERREY RAMOS|0","imp":14000,"saldo":11088,"esp":1008,"impOrig":14000,"mora":0,"sug":17000,"des":"2026-05-21","dia":"JUEVES"},{"n":"NOEMI MONTERREY RAMOS","f":"11113163277","sub":"Grupal-Micro","k":"11113163277|Grupal-Micro|NOEMI MONTERREY RAMOS|0","imp":16000,"saldo":16896,"esp":512,"impOrig":16000,"mora":0,"sug":19000,"des":"2026-03-19","dia":"JUEVES"},{"n":"IRMA PATRICIA GARCIA TORRES","f":"11112936233","sub":"Grupal-Basico 2","k":"11112936233|Grupal-Basico 2|IRMA PATRICIA GARCIA TORRES|0","imp":4000,"saldo":4320,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-18","dia":"JUEVES"}],"C-82 · ORO MIEL":[{"n":"MARCELINA MITRA CRUZ","f":"11112946318","sub":"Grupal-Basico","k":"11112946318|Grupal-Basico|MARCELINA MITRA CRUZ|0","imp":7000,"saldo":6300,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-05-07","dia":"JUEVES"},{"n":"MARCELINA MITRA CRUZ","f":"11112946318","sub":"Grupal-Adicional","k":"11112946318|Grupal-Adicional|MARCELINA MITRA CRUZ|0","imp":4000,"saldo":3200,"esp":400,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-04","dia":"JUEVES"},{"n":"JULISA CONCEPCION MARTINEZ","f":"11112833520","sub":"Grupal-Basico","k":"11112833520|Grupal-Basico|JULISA CONCEPCION MARTINEZ|0","imp":4000,"saldo":5760,"esp":240,"impOrig":4000,"mora":0,"sug":4800,"des":"2026-07-09","dia":"JUEVES"},{"n":"DANIELA ESTEFANI0 REYES SALVADOR","f":"11113026469","sub":"Grupal-Basico","k":"11113026469|Grupal-Basico|DANIELA ESTEFANI0 REYES SALVADOR|0","imp":4000,"saldo":2160,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-03-28","dia":"JUEVES"}],"C-24 · OSHER":[{"n":"MARISELA LETICIA PINELO HERNANDEZ","f":"11113022051","sub":"Grupal-Basico 2","k":"11113022051|Grupal-Basico 2|MARISELA LETICIA PINELO HERNANDEZ|0","imp":8000,"saldo":5760,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-11","dia":"LUNES"},{"n":"MARISELA LETICIA PINELO HERNANDEZ","f":"11113022051","sub":"Grupal-Adicional","k":"11113022051|Grupal-Adicional|MARISELA LETICIA PINELO HERNANDEZ|0","imp":2000,"saldo":1800,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-06-08","dia":"LUNES"},{"n":"YOALI KAREN ALEJANDREZ PINELO","f":"11113031819","sub":"Grupal-Basico 2","k":"11113031819|Grupal-Basico 2|YOALI KAREN ALEJANDREZ PINELO|0","imp":8000,"saldo":5760,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-05-11","dia":"LUNES"},{"n":"SELENE GARCIA DE LA LUZ","f":"11112869659","sub":"Grupal-Basico 2","k":"11112869659|Grupal-Basico 2|SELENE GARCIA DE LA LUZ|0","imp":8000,"saldo":9216,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-01-31","dia":"LUNES"},{"n":"VIRIDIANA GONZALES RAMIREZ","f":"11113186271","sub":"Grupal-Basico 2","k":"11113186271|Grupal-Basico 2|VIRIDIANA GONZALES RAMIREZ|0","imp":4000,"saldo":4032,"esp":288,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-06-08","dia":"LUNES"}],"C-31 · PHENETON":[{"n":"DIANA LAURA PACHECO MORALES","f":"11112907237","sub":"Grupal-Basico","k":"11112907237|Grupal-Basico|DIANA LAURA PACHECO MORALES|0","imp":13000,"saldo":11700,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-03-13","dia":"VIERNES"},{"n":"GABRIELA GODINEZ PEREZ","f":"11113013674","sub":"Grupal-Basico","k":"11113013674|Grupal-Basico|GABRIELA GODINEZ PEREZ|0","imp":9800,"saldo":5760,"esp":360,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-24","dia":"VIERNES"},{"n":"GABRIELA GODINEZ PEREZ","f":"11113013674","sub":"Grupal-Adicional","k":"11113013674|Grupal-Adicional|GABRIELA GODINEZ PEREZ|0","imp":2000,"saldo":1180,"esp":200,"impOrig":2000,"mora":0,"sug":2500,"des":"2026-05-01","dia":"VIERNES"},{"n":"GLORIA HERNANDEZ MEJIA","f":"11112895240","sub":"Grupal-Basico","k":"11112895240|Grupal-Basico|GLORIA HERNANDEZ MEJIA|0","imp":9800,"saldo":3528,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-06","dia":"VIERNES"},{"n":"KARLA DANIELA PACHECO MORALES","f":"11112974492","sub":"Grupal-Basico","k":"11112974492|Grupal-Basico|KARLA DANIELA PACHECO MORALES|0","imp":6000,"saldo":4680,"esp":360,"impOrig":6000,"mora":0,"sug":7000,"des":"2026-04-24","dia":"VIERNES"},{"n":"MODESTA GARCIA RUIZ","f":"11112957025","sub":"Grupal-Basico","k":"11112957025|Grupal-Basico|MODESTA GARCIA RUIZ|0","imp":13000,"saldo":10276,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-03-13","dia":"VIERNES"},{"n":"MODESTA GARCIA RUIZ","f":"11112957025","sub":"Grupal-Micro","k":"11112957025|Grupal-Micro|MODESTA GARCIA RUIZ|0","imp":10000,"saldo":980,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-08-16","dia":"VIERNES"},{"n":"OLGA GARCIA RUIZ","f":"11112974117","sub":"Grupal-Basico","k":"11112974117|Grupal-Basico|OLGA GARCIA RUIZ|0","imp":4000,"saldo":240,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-01-30","dia":"VIERNES"},{"n":"ZOILA ALICIA GARCIA RUIZ","f":"11113086011","sub":"Grupal-Basico","k":"11113086011|Grupal-Basico|ZOILA ALICIA GARCIA RUIZ|0","imp":4000,"saldo":1440,"esp":240,"impOrig":4000,"mora":0,"sug":5000,"des":"2026-03-06","dia":"VIERNES"}],"C-69 · SUCHIL":[{"n":"ARIADNA CECILIA MARTINEZ QUIROZ","f":"11112889700","sub":"Grupal-Basico","k":"11112889700|Grupal-Basico|ARIADNA CECILIA MARTINEZ QUIROZ|0","imp":9800,"saldo":9696,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-28","dia":"MARTES"},{"n":"ARIADNA CECILIA MARTINEZ QUIROZ","f":"11112889700","sub":"Grupal-Micro","k":"11112889700|Grupal-Micro|ARIADNA CECILIA MARTINEZ QUIROZ|0","imp":15000,"saldo":10740,"esp":480,"impOrig":15000,"mora":0,"sug":18000,"des":"2026-01-03","dia":"MARTES"},{"n":"DAFNE SINAI PINELO SORIANO","f":"11113042991","sub":"Grupal-Basico","k":"11113042991|Grupal-Basico|DAFNE SINAI PINELO SORIANO|0","imp":9000,"saldo":2160,"esp":540,"impOrig":9000,"mora":0,"sug":11000,"des":"2026-01-31","dia":"MARTES"},{"n":"GUADALUPE HORTENCIA GASPAR HERNANDEZ","f":"11112795043","sub":"Grupal-Basico","k":"11112795043|Grupal-Basico|GUADALUPE HORTENCIA GASPAR HERNANDEZ|0","imp":13000,"saldo":3880,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-01-31","dia":"MARTES"},{"n":"GUADALUPE HORTENCIA GASPAR HERNANDEZ","f":"11112795043","sub":"Grupal-Micro","k":"11112795043|Grupal-Micro|GUADALUPE HORTENCIA GASPAR HERNANDEZ|0","imp":19000,"saldo":19844,"esp":608,"impOrig":19000,"mora":0,"sug":23000,"des":"2026-02-25","dia":"MARTES"},{"n":"KATHERYN STHEFANNY GONZALES GASPAR","f":"11112962910","sub":"Grupal-Basico","k":"11112962910|Grupal-Basico|KATHERYN STHEFANNY GONZALES GASPAR|0","imp":13000,"saldo":5764,"esp":780,"impOrig":13000,"mora":0,"sug":15500,"des":"2026-02-12","dia":"MARTES"},{"n":"KATHERYN STHEFANNY GONZALES GASPAR","f":"11112962910","sub":"Grupal-Micro","k":"11112962910|Grupal-Micro|KATHERYN STHEFANNY GONZALES GASPAR|0","imp":17000,"saldo":6480,"esp":544,"impOrig":17000,"mora":0,"sug":20500,"des":"2025-10-04","dia":"MARTES"},{"n":"MARIA DEL CARMEN QUIROZ SAUCEDO","f":"11113161382","sub":"Grupal-Basico","k":"11113161382|Grupal-Basico|MARIA DEL CARMEN QUIROZ SAUCEDO|0","imp":9800,"saldo":9408,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-13","dia":"MARTES"},{"n":"MARIA DEL CARMEN QUIROZ SAUCEDO","f":"11113161382","sub":"Grupal-Micro","k":"11113161382|Grupal-Micro|MARIA DEL CARMEN QUIROZ SAUCEDO|0","imp":10000,"saldo":2560,"esp":320,"impOrig":10000,"mora":0,"sug":12000,"des":"2025-09-12","dia":"MARTES"},{"n":"MIGDALIA GARCIA GARCIA","f":"11112846773","sub":"Grupal-Basico","k":"11112846773|Grupal-Basico|MIGDALIA GARCIA GARCIA|0","imp":9800,"saldo":7056,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-03-27","dia":"MARTES"},{"n":"NATALIA OSORIO CRUZ","f":"11113036082","sub":"Grupal-Basico","k":"11113036082|Grupal-Basico|NATALIA OSORIO CRUZ|0","imp":9800,"saldo":9408,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-04-28","dia":"MARTES"},{"n":"RAQUEL SORIANO LOPEZ","f":"11113205769","sub":"Grupal-Basico","k":"11113205769|Grupal-Basico|RAQUEL SORIANO LOPEZ|0","imp":9800,"saldo":0,"esp":588,"impOrig":9800,"mora":0,"sug":12000,"des":"2026-01-12","dia":"MARTES"},{"n":"GRACIELA MARTINEZ HERNANDEZ","f":"11112854078","sub":"Grupal-Basico","k":"11112854078|Grupal-Basico|GRACIELA MARTINEZ HERNANDEZ|0","imp":7000,"saldo":5880,"esp":420,"impOrig":7000,"mora":0,"sug":8500,"des":"2026-05-02","dia":"MARTES"}],"C-73 · TARA":[{"n":"PILAR PEREZ PEREZ","f":"11113091669","sub":"Grupal-Basico 2","k":"11113091669|Grupal-Basico 2|PILAR PEREZ PEREZ|0","imp":8000,"saldo":2880,"esp":576,"impOrig":8000,"mora":0,"sug":9500,"des":"2026-04-07","dia":"MARTES"}],"C-7 · CAMINO REAL":[{"n":"YABELI ARELI AQUINO SILVA","f":"11113222743","sub":"Grupal-Basico 2","k":"11113222743|Grupal-Basico 2|YABELI ARELI AQUINO SILVA|0","imp":3000,"saldo":3672,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-07-02","dia":"MIERCOLES"},{"n":"LIDIA ANDREA RAMIREZ ISIDRO","f":"11112964591","sub":"Grupal-Basico 2","k":"11112964591|Grupal-Basico 2|LIDIA ANDREA RAMIREZ ISIDRO|0","imp":3000,"saldo":3672,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-07-02","dia":"MIERCOLES"},{"n":"MARGARITA SALVADOR SANCHEZ","f":"11113087803","sub":"Grupal-Basico 2","k":"11113087803|Grupal-Basico 2|MARGARITA SALVADOR SANCHEZ|0","imp":3000,"saldo":3672,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-07-02","dia":"MIERCOLES"},{"n":"JUANA VELASQUEZ","f":"11113179982","sub":"Grupal-Basico 2","k":"11113179982|Grupal-Basico 2|JUANA VELASQUEZ|0","imp":3000,"saldo":3672,"esp":216,"impOrig":3000,"mora":0,"sug":3500,"des":"2026-07-02","dia":"MIERCOLES"}]};
 let INDIVIDUALES=[];
 (function cargarPadron(){
   try{const p=localStorage.getItem(PADRON_KEY);if(p){const d=JSON.parse(p);if((d.v||0)>=PADRON_VERSION){if(d.CENTROS)CENTROS=d.CENTROS;if(d.INDIVIDUALES)INDIVIDUALES=d.INDIVIDUALES;}else{localStorage.removeItem(PADRON_KEY);}}}catch(e){}
@@ -429,11 +397,6 @@ let INDIVIDUALES=[];
 let reg={};
 let regI={};
 let movs=[]; // otros movimientos: {concepto,centro,clienta,socio,monto,via,nota}
-// Consecutivo de folio que NUNCA se reutiliza. Antes el folio salía del LARGO
-// de la lista: si se borraba un movimiento, el siguiente repetía un folio ya
-// enviado y el servidor lo ignoraba (los movimientos son append-only), así que
-// ese movimiento nunca llegaba al arqueo. Se persiste con el día.
-let folioSeq=0;
 let gestRenov={}; // gestión de renovaciones por llave: {estado, ts}
 let tareasGerente={}; // solo Nery: {tareaId: true}
 let datosCli={}; // datos permanentes por clienta (llave): {plazo, semana, tsSemana} — NO se borra al cerrar día
@@ -467,12 +430,12 @@ function guardarDiaEnSemana(){
   }catch(e){}
 }
 function limpiarSemana(){try{localStorage.removeItem(SEMANA_KEY);}catch(e){}}
-const ES_GERENTE=false;
+const ES_GERENTE=true;
 // ===== Guardado automático en el celular (sobrevive cierres/recargas) =====
 function guardar(){
   try{
     const fecha=document.getElementById('inpFecha').value||hoyISO();
-    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,arqueo,folioSeq,ts:Date.now()}));
+    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,ts:Date.now()}));
     const ind=document.getElementById('guardadoMsg');
     if(ind){ind.textContent='Guardado '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
   }catch(e){}
@@ -487,229 +450,87 @@ function restaurar(){
     if(d.fecha && d.fecha!==hoy){
       const tieneAlgo=(d.reg&&Object.keys(d.reg).length)||(d.regI&&Object.keys(d.regI).length)||(d.movs&&d.movs.length);
       if(tieneAlgo){
-        // BLOQUEO TOTAL (regla Karina 23-jul): un día anterior sin enviar su
-        // arqueo detiene la app. Se carga tal cual (con SU fecha) y lo único
-        // que se puede hacer es tocar "Enviar arqueo". Al enviarlo, la app
-        // queda lista para hoy; sin señal, la captura sigue guardada.
-        if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs;
-        if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
-        folioSeq=Math.max(d.folioSeq||0,(movs||[]).length);
-        if(d.arqueo){arqueo=d.arqueo;setTimeout(()=>{let usados={};DENOM.forEach((dd,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');if(!inp)return;const tot=arqueo[dd.v]||0;const ya=usados[dd.v]||0;const q=Math.max(0,tot-ya);if(q>0){inp.value=q;usados[dd.v]=ya+q;}});if(document.querySelector('[data-den]'))calcArqueo();},0);}
-        document.getElementById('inpFecha').value=d.fecha; // conserva SU fecha real
-        try{sessionStorage.setItem('fooax_fecha_ok',d.fecha);}catch(e){}
-        if(typeof updFecha==='function')try{updFecha();}catch(e){}
-        setTimeout(function(){mostrarBloqueoArqueo(d.fecha);},60);
-        return;
+        const seguir=confirm('⚠ Hay captura guardada del '+d.fecha+' (un día anterior).\n\nSi ya cerraste ese día, toca ACEPTAR para empezar limpio hoy ('+hoy+').\n\nSi NO habías terminado ese día, toca CANCELAR para recuperarlo.');
+        if(seguir){
+          localStorage.removeItem(STORE_KEY);
+          document.getElementById('inpFecha').value=hoy;
+          return; // empieza limpio con fecha de hoy
+        }
       }
     }
     if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs; if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
-    folioSeq=Math.max(d.folioSeq||0, (movs||[]).length);
-    // El conteo de billetes tambien se recupera: si cierra y abre la app a media
-    // jornada, no tiene que volver a contar la caja.
-    if(d.arqueo&&d.fecha===hoy){arqueo=d.arqueo;setTimeout(()=>{let usados={};DENOM.forEach((dd,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');if(!inp)return;const tot=arqueo[dd.v]||0;const ya=usados[dd.v]||0;const q=Math.max(0,tot-ya);if(q>0){inp.value=q;usados[dd.v]=ya+q;}});if(document.querySelector('[data-den]'))calcArqueo();},0);}
     // la fecha SIEMPRE es la de hoy al abrir, no la guardada
     document.getElementById('inpFecha').value=hoy;
   }catch(e){}
 }
-function textoArqueoApp(){
-  if(typeof calcArqueo==='function')calcArqueo();
-  const {efe,tr,acc}=totales();
-  const movEfe=(typeof movsEfectivoNeto==='function')?movsEfectivoNeto():0;
-  const fecha=document.getElementById('inpFecha').value||hoyISO();
-  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
-  // archiva en el día equivocado (pasó con los reportes del martes).
-  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
-  const L=[];
-  L.push('🧾 *FOOAX · ARQUEO DEL DÍA*');
-  L.push('👤 '+EJECUTIVO);
-  L.push('📅 '+fechaLinda);
-  L.push('━━━━━━━━━━');
-  L.push('Cobranza en efectivo: '+fmt(efe));
-  if(movEfe!==0)L.push('Otros movimientos: '+(movEfe<0?'−'+fmt(Math.abs(movEfe)):'+'+fmt(movEfe)));
-  L.push('💵 Efectivo a entregar: '+fmt(efe+movEfe));
-  if(tr>0)L.push('Transferencias: '+fmt(tr));
-  if(acc.garantia>0)L.push('Garantías: '+fmt(acc.garantia));
-  if(window._arqueo && window._arqueoTotal>0){
-    L.push('');L.push('Conteo físico:');
-    window._arqueo.forEach(a=>{if(a.q>0)L.push('  '+a.l+': '+a.q+' = '+fmt(a.sub));});
-    L.push('Total contado: '+fmt(window._arqueoTotal));
-    const dif=window._arqueoTotal-(window._arqueoEsperado||0);
-    L.push('Diferencia: '+(Math.abs(dif)<0.01?'$0 ✓':(dif<0?'−'+fmt(Math.abs(dif)):fmt(dif))));
-  }
-  return L.join('\n');
-}
-// —— "Vas a mandar esto": confirmación con palomita (regla Karina 23-jul).
-// Sin la palomita de "es verdad", el botón de enviar no se activa.
-// Palomita verde de éxito: el arqueo es INTERNO (regla Karina 23-jul), ya no
-// se abre WhatsApp — se sube al sistema y se confirma aquí mismo.
-function __palomitaExito(titulo,sub){
-  var o=document.createElement('div');
-  o.style.cssText='position:fixed;inset:0;z-index:100003;background:rgba(42,31,53,.94);display:flex;align-items:center;justify-content:center;padding:20px';
-  o.innerHTML='<div style="background:#fff;border-radius:20px;max-width:340px;width:100%;padding:26px 22px;text-align:center">'
-    +'<div style="width:74px;height:74px;border-radius:50%;background:#E7F6EE;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">'
-    +'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0B7247" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'
-    +'<div style="font:800 17px/1.3 inherit;color:#0B7247">'+titulo+'</div>'
-    +'<div style="font:600 13px/1.5 inherit;color:#3a3142;margin-top:6px">'+sub+'</div>'
-    +'<button style="margin-top:16px;width:100%;font:800 14px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">Listo</button></div>';
-  o.querySelector('button').onclick=function(){o.remove();};
-  document.body.appendChild(o);
-}
-function confirmarArqueo(texto,nota){
-  return new Promise(function(res){
-    var o=document.createElement('div');o.id='fooax-conf-arqueo';
-    o.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(42,31,53,.96);display:flex;align-items:center;justify-content:center;padding:16px';
-    o.innerHTML='<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;max-height:86vh;display:flex;flex-direction:column;overflow:hidden">'
-      +'<div style="padding:14px 16px 10px;font:800 16px/1.3 inherit;color:#2A1F35">Vas a mandar esto</div>'
-      +(nota?'<div style="margin:0 16px 8px;padding:8px 11px;background:#FBF0DD;border-radius:10px;font:600 12px/1.4 inherit;color:#8A5A00">'+nota+'</div>':'')
-      +'<pre style="margin:0 16px;padding:10px 12px;background:#F6F3F9;border-radius:12px;white-space:pre-wrap;font:12.5px/1.5 inherit;color:#2A1F35;overflow:auto;flex:1">'+String(texto).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</pre>'
-      +'<label style="display:flex;gap:9px;align-items:flex-start;padding:12px 16px 4px;font:600 13px/1.4 inherit;color:#2A1F35;cursor:pointer">'
-      +'<input id="fooaxChkVerdad" type="checkbox" style="width:20px;height:20px;flex:none;accent-color:#0B7247">'
-      +'<span>Confirmo que lo que capturé es <b>verdadero</b> y está completo.</span></label>'
-      +'<div style="display:flex;gap:8px;padding:12px 16px 16px">'
-      +'<button id="fooaxConfNo" style="flex:1;font:700 14px inherit;background:#EEF0F8;color:#324AB6;border:none;border-radius:12px;padding:12px">Volver</button>'
-      +'<button id="fooaxConfSi" disabled style="flex:2;font:800 14px inherit;background:#B9C2D2;color:#fff;border:none;border-radius:12px;padding:12px">Enviar arqueo</button>'
-      +'</div></div>';
-    document.body.appendChild(o);
-    var chk=o.querySelector('#fooaxChkVerdad'),si=o.querySelector('#fooaxConfSi');
-    chk.onchange=function(){si.disabled=!chk.checked;si.style.background=chk.checked?'#0B7247':'#B9C2D2';};
-    o.querySelector('#fooaxConfNo').onclick=function(){o.remove();res(false);};
-    si.onclick=function(){if(!chk.checked)return;o.remove();res(true);};
-  });
-}
-// Limpieza común después de enviar el arqueo (día cerrado, app lista para HOY).
-function __despuesDeEnviar(){
-  // recuerda que HOY ya se envio el arqueo: si vuelve a entrar, la app pregunta
-  // si va a AGREGAR algo o a CAPTURAR TODO de nuevo (evita el dia doblado 24-jul)
-  try{localStorage.setItem('fooax_cerrado_'+STORE_KEY,(document.getElementById('inpFecha')||{}).value||hoyISO());}catch(e){}
-  try{localStorage.removeItem(STORE_KEY);}catch(e){}
-  reg={};regI={};movs=[];folioSeq=0;
-  arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
-  if(typeof gestRenov!=='undefined')gestRenov={};
-  if(typeof tareasGerente!=='undefined')tareasGerente={};
-  window._reporteEnviado=false;
-  try{document.getElementById('inpFecha').value=(window.__hoyServidor||hoyISO());}catch(e){}
-  if(typeof updFecha==='function')try{updFecha();}catch(e){}
-  if(typeof render==='function')render();
-  if(typeof renderIndiv==='function')renderIndiv();
-  if(typeof renderRenov==='function')renderRenov();
-  if(typeof recalc==='function')recalc();
-  if(typeof ES_GERENTE!=='undefined'&&ES_GERENTE&&typeof renderGerente==='function')renderGerente();
-  if(typeof calcArqueo==='function')try{calcArqueo();}catch(e){}
-  // calcArqueo/guardar re-crean un registro VACÍO del día: se quita para que
-  // el teléfono quede realmente limpio (el blindaje del servidor igual
-  // rechazaría un vacío, pero mejor no mandarlo siquiera).
-  try{localStorage.removeItem(STORE_KEY);}catch(e){}
-}
-// —— BLOQUEO TOTAL: día anterior sin enviar = la app no se puede usar hasta
-// mandar ese arqueo (regla Karina 23-jul). Un solo botón: Enviar arqueo.
-function mostrarBloqueoArqueo(fechaVieja){
-  if(document.getElementById('fooax-bloqueo'))return;
-  var tt=0,nn=0;try{var x=totales();tt=x.t;nn=x.n;}catch(e){}
-  var o=document.createElement('div');o.id='fooax-bloqueo';
-  o.style.cssText='position:fixed;inset:0;z-index:100001;background:rgba(42,31,53,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;font-family:inherit';
-  o.innerHTML='<div style="font-size:44px">🔒</div>'
-    +'<div style="font:800 19px/1.3 inherit;margin-top:8px">Por favor envía el arqueo</div>'
-    +'<div style="font:600 13.5px/1.5 inherit;opacity:.92;margin-top:8px;max-width:320px">Tienes la captura del <u>'+fechaVieja+'</u> sin enviar ('+fmt(tt)+' · '+nn+' pagos).<br>Para seguir usando la app, primero mándala.</div>'
-    +'<button onclick="__enviarArqueoBloqueado()" style="margin-top:18px;font:800 15px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:14px 28px;cursor:pointer">Enviar arqueo</button>'
-    +'<div id="fooaxBloqueoMsg" style="font:600 12px/1.45 inherit;color:#FFD9A8;margin-top:12px;max-width:300px"></div>';
-  document.body.appendChild(o);
-}
-async function __enviarArqueoBloqueado(){
-  if(bloqueoPorErrores('ENVIAR EL ARQUEO'))return;
-  var texto=textoArqueoApp();
-  var okc=await confirmarArqueo(texto);
-  if(!okc)return;
-  var subio=false;try{if(window.__forzarSync)subio=await window.__forzarSync();}catch(e){}
-  if(!subio){
-    var m=document.getElementById('fooaxBloqueoMsg');
-    if(m)m.innerHTML='Sin señal ahora mismo. Tu captura está guardada: en cuanto el teléfono tenga internet, vuelve a tocar <b>Enviar arqueo</b>.';
+function cerrarDia(){
+  // EXIGIR envío del reporte del día si hubo cobranza
+  const {t}=totales();
+  if(t>0 && !window._reporteEnviado){
+    alert('🔒 NO PUEDES CERRAR EL DÍA.\n\nPrimero debes SUBIR TU REPORTE del día al grupo de WhatsApp.\n\nVe a la pestaña Resumen y toca "Enviar por WhatsApp". Es obligatorio: así Dirección y Monse ven tu avance.');
+    showTab('resumen');
     return;
   }
-  if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
-  avisarCierre();
-  __despuesDeEnviar();
-  try{sessionStorage.removeItem('fooax_fecha_ok');}catch(e){}
-  var b=document.getElementById('fooax-bloqueo');if(b)b.remove();
-  __palomitaExito('Arqueo del día anterior enviado ✓','Quedó guardado en el sistema. La app está lista para HOY.');
-}
-async function enviarArqueoYCerrar(){
-  if(typeof ES_GERENTE!=='undefined' && ES_GERENTE && typeof tareasGerentePendientes==='function'){
-    const faltan=tareasGerentePendientes();
-    if(faltan.length>0){alert('🔒 Antes de cerrar, cumple tus funciones de gerente:\n\n'+faltan.map(t=>'• '+t).join('\n'));showTab('gerente');return;}
+  const rp=renovPendientes();
+  if(rp.pendientes>0){
+    if(!confirm('⚠ ATENCIÓN: tienes '+rp.pendientes+' renovación(es) SIN gestionar.\n\nLas renovaciones son parte de tus tareas del día. Lo recomendable es contactarlas y marcar su estado antes de cerrar.\n\n¿Cerrar de todos modos?'))return;
   }
-  if(bloqueoPorErrores('ENVIAR EL ARQUEO Y CERRAR'))return;
-  const {t}=totales();
-  if(t<=0 && !(window._arqueoTotal>0)){alert('Aún no hay cobranza ni conteo para el arqueo de hoy.');return;}
-  const texto=textoArqueoApp();
-  const rp=(typeof renovPendientes==='function')?renovPendientes():{pendientes:0};
-  const nota=(rp.pendientes>0)?('Tienes '+rp.pendientes+' renovación(es) sin gestionar.'):'';
-  const okc=await confirmarArqueo(texto,nota);
-  if(!okc)return;
-  // La captura SOLO se borra del telefono cuando el servidor CONFIRMA que la
-  // recibio. Antes esta linea ignoraba el resultado: sin senal, igual borraba
-  // y la captura se perdia (la trampa que cerramos el 24-jul).
-  var subio=false;try{if(window.__forzarSync)subio=await window.__forzarSync();}catch(e){}
-  if(!subio){alert('Sin senal ahora mismo. Tu captura NO se borro: sigue guardada en este telefono.\n\nEn cuanto tengas internet, vuelve a tocar "Enviar arqueo y cerrar captura".');return;}
-  if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
-  avisarCierre();
-  window._reporteEnviado=true;
-  __despuesDeEnviar();
-  __palomitaExito('Arqueo enviado ✓','La captura quedó cerrada y guardada en el sistema.');
-}
-// Avisa al servidor que la ejecutiva CERRÓ su día (para que el tablero
-// muestre quién usó el botón y quién se lo saltó).
-function avisarCierre(){
-  try{
-    var f=document.getElementById('inpFecha').value||hoyISO();
-    fetch('/api/cierre',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:f,confirmado:true})}).catch(function(){});
-  }catch(e){}
-}
-function cerrarDia(){
-  // El boton viejo borraba el telefono SIN subir primero: sin senal se
-  // perdia la captura. Ahora es la MISMA ruta segura del arqueo (sube,
-  // el servidor confirma y solo entonces se limpia el celular).
-  enviarArqueoYCerrar();
-}
-
-
-// Números como los teclea la gente: "$1,500", "432,50", "1 000". La coma
-// mexicana de miles y la coma decimal se interpretan bien — antes "1,500" se
-// convertía en $1 y en el conteo de billetes en CERO, sin avisar.
-function numMX(v){
-  v=String(v==null?'':v).trim().replace(/\$/g,'').replace(/\s+/g,'');
-  if(v.indexOf(',')>=0){
-    if(v.indexOf('.')>=0)v=v.replace(/,/g,'');
-    else{
-      const partes=v.split(',');
-      if(partes.length===2&&partes[1].length<=2)v=partes[0]+'.'+partes[1];
-      else v=v.replace(/,/g,'');
+  // BLOQUEO TOTAL para gerente: las 3 funciones deben estar cumplidas
+  if(ES_GERENTE){
+    const faltan=tareasGerentePendientes();
+    if(faltan.length>0){
+      alert('🔒 NO PUEDES CERRAR EL DÍA.\n\nComo Gerente, debes cumplir tus 3 funciones antes de cerrar. Te falta:\n\n'+faltan.map(t=>'• '+t).join('\n')+'\n\nVe a la pestaña "Mis funciones" y márcalas como cumplidas.');
+      return;
     }
   }
-  const n=parseFloat(v);return isNaN(n)?0:n;
-}
-function fmt(n){const v=Math.round((+n||0)*100)/100;return '$'+v.toLocaleString('es-MX',{minimumFractionDigits:(v%1)?2:0,maximumFractionDigits:2});}
-function hoyISO(){
-  // La fecha OFICIAL es la del servidor (hora de México). Antes esto usaba
-  // toISOString(), que es UTC: después de las 6pm en México ya daba el día
-  // SIGUIENTE, y la captura y el reporte se etiquetaban con la fecha mal.
-  if(window.__hoyServidor)return window.__hoyServidor;
-  try{return new Date().toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'});}
-  catch(e){return new Date().toISOString().slice(0,10);}
+  if(!confirm('¿Cerrar el día? Esto borra lo capturado de este celular. Asegúrate de haber exportado o enviado el detalle a Monse primero.'))return;
+  guardarDiaEnSemana(); // guarda snapshot del día para el cierre semanal
+  localStorage.removeItem(STORE_KEY);
+  reg={};regI={};movs=[];gestRenov={};tareasGerente={};window._reporteEnviado=false;
+  render();renderIndiv();renderRenov();recalc();
+  if(ES_GERENTE)renderGerente();
+  alert('Día cerrado. La app quedó lista para la próxima captura.');
 }
 
-// new Date("2026-07-23") se interpreta como UTC: en México (-6) getDate()
-// devuelve 22, o sea UN DÍA ANTES. Eso hacía que la app mostrara el día
-// equivocado en el encabezado, eligiera mal el día de la semana, pusiera folios
-// con la fecha de ayer, y que el reporte de la ejecutiva saliera fechado un día
-// antes (Monse comparaba contra el arqueo del día que no era).
-function fechaLocal(s){
-  s=String(s||'');
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s+'T12:00') : new Date(s);
+const TAREAS_GERENTE=[
+  {id:'ej_cobranza', fn:'1 · Ejecutivo', t:'Capturé mi cobranza del día y la envié a Monse'},
+  {id:'ej_renov', fn:'1 · Ejecutivo', t:'Gestioné mis renovaciones próximas (sin pendientes)'},
+  {id:'ger_karina', fn:'2 · Gerente', t:'Revisé el avance de Karina (cobranza y crecimiento)'},
+  {id:'ger_chris', fn:'2 · Gerente', t:'Revisé el avance de Christopher (cobranza y crecimiento)'},
+  {id:'ger_apoyo', fn:'2 · Gerente', t:'Apoyé o destrabé a quien lo necesitó hoy'},
+  {id:'coord_reporte', fn:'3 · Coordinador', t:'Reporté a Dirección el avance del equipo'}
+];
+function tareasGerentePendientes(){
+  return TAREAS_GERENTE.filter(t=>!tareasGerente[t.id]).map(t=>t.t);
 }
+function setTareaGerente(id){
+  tareasGerente[id]=!tareasGerente[id];
+  renderGerente();guardar();
+}
+function renderGerente(){
+  const cont=document.getElementById('listaGerente');if(!cont)return;
+  const hechas=TAREAS_GERENTE.filter(t=>tareasGerente[t.id]).length;
+  const tot=TAREAS_GERENTE.length;
+  const pct=Math.round(hechas/tot*100);
+  let h='<div class="card"><div class="gerprog"><div class="gerbar"><div class="gerfill" style="width:'+pct+'%"></div></div>'
+    +'<div class="gerinfo">'+hechas+' de '+tot+' tareas · '+(hechas===tot?'<b style="color:var(--ok)">✓ Día completo</b>':'<b style="color:var(--mora)">🔒 No puedes cerrar aún</b>')+'</div></div></div>';
+  let funcActual='';
+  TAREAS_GERENTE.forEach(t=>{
+    if(t.fn!==funcActual){funcActual=t.fn;h+='<div class="gerfn">'+funcActual+'</div>';}
+    const on=tareasGerente[t.id];
+    h+='<div class="gertask '+(on?'on':'')+'" onclick="setTareaGerente(\''+t.id+'\')">'
+      +'<div class="gerchk">'+(on?'✓':'')+'</div><div class="gertxt">'+t.t+'</div></div>';
+  });
+  cont.innerHTML=h;
+}
+
+
+function fmt(n){return '$'+(Math.round(n)).toLocaleString('es-MX');}
+function hoyISO(){return new Date().toISOString().slice(0,10);}
+
 function initFecha(){document.getElementById('inpFecha').value=hoyISO();updFecha();}
 function updFecha(){
-  const d=fechaLocal(document.getElementById('inpFecha').value||hoyISO());
+  const d=new Date(document.getElementById('inpFecha').value||hoyISO());
   document.getElementById('fechaHoy').textContent=d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const ds=DIAS[(d.getDay()+6)%7];
   const sel=document.getElementById('selDia');
@@ -773,8 +594,6 @@ function render(){
   let h='<div class="card"><div class="sectitle">'+centro+' <span class="pill">'+clientas.length+' integrantes</span></div>';
   h+=semBadges(s);
   h+=subtotalCentro(s);
-  h+='<button class="btn btn-wa" style="width:100%;margin:6px 0" onclick="todasPagaron(\''+centro.replace(/'/g,"\\'")+'\')">✓ Todas pagaron su cuota</button>';
-  h+='<div class="meta" style="margin:-2px 0 8px;text-align:center">Marca a todas con su cuota en efectivo. Luego quítale la palomita a las que NO pagaron.</div>';
   h+='<button class="btn btn-light" style="width:100%;margin:6px 0" onclick="toggleFicha(\''+centro.replace(/'/g,"\\'")+'\')">📋 Ver ficha del centro (cuotas)</button>';
   h+=fichaCentro(centro);
   clientas.forEach(cl=>{h+=cliRow(centro,cl);});
@@ -860,9 +679,6 @@ function cliRow(centro,cl){
   const key=cl.k||cl.f;
   const r=getReg(centro?reg:regI,centro,key);
   const tot=rTot(r);
-  const axCli=(typeof abonosExtra==='function')?abonosExtra(cl.f):{liq:0,rec:0,total:0};
-  const liqCli=axCli.total;
-  const saldoNeto=Math.max(0,(cl.saldo||0)-tot-liqCli);
   const open=tot>0||r.forma?'open':'';
   const chk=tot>0?'on':'';const chkc=tot>0?'✓':'';
   const efeOn=r.forma==='E'?'efe':'';const trOn=r.forma==='T'?'transf':'';const mixOn=r.forma==='M'?'mix':'';const depOn=r.forma==='D'?'dep':'';
@@ -870,11 +686,10 @@ function cliRow(centro,cl){
   const dcli=datosCli[key]||{};
   const cuota=(dcli.cuota&&dcli.cuota>0)?dcli.cuota:(cl.esp||0);
   const cuotaEditada=(dcli.cuota&&dcli.cuota>0);
-  const _err=(typeof problemaDe==='function')?problemaDe(r,tot):'';
-  return '<div class="cli '+open+(_err?' conerr':'')+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
+  return '<div class="cli '+open+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
     +'<div class="cli-head">'
       +'<div class="chk '+chk+'" onclick="palomear(\''+(centro||'')+'\',\''+key+'\','+cuota+')">'+chkc+'</div>'
-      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
+      +'<div class="ci"><div class="nm">'+cl.n+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(cl.saldo)+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
         +(((cl.sub||'').toLowerCase().includes('micro')&&(cl.mora||0)>0)?'<div class="micromora">⚠ Micro con mora ('+fmt(cl.mora)+'). Producto de alto monto: prioriza recuperar.</div>':'')
         +fichaClienteDato(key)
         +'<div class="rowtot">'+(tot>0?('Total: '+fmt(tot)):'')+'</div></div>'
@@ -891,12 +706,11 @@ function cliRow(centro,cl){
       +campo(centro,key,'solidario','Solidario',r.solidario)
     +'</div>'
     +cuotaAviso(r,cuota)
-    +avisoError(r,tot)
     +(r.forma==='M'?('<div class="mixbox">'
-      +'<div class="mixnota">Pago mixto: anota UNO de los dos (el otro se calcula solo). Deben sumar el total ('+fmt(tot)+').</div>'
+      +'<div class="mixnota">Pago mixto: anota cuánto entró en efectivo y cuánto por transferencia. Deben sumar el total ('+fmt(tot)+').</div>'
       +'<div class="mixcampos">'
-        +'<div class="campo"><label>En efectivo</label><input type="text" inputmode="decimal" placeholder="0" value="'+((r.mixEfe&&r.mixEfe>0)?r.mixEfe:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixEfe\',this.value)"></div>'
-        +'<div class="campo"><label>Transferencia</label><input type="text" inputmode="decimal" placeholder="0" value="'+((r.mixTr&&r.mixTr>0)?r.mixTr:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixTr\',this.value)"></div>'
+        +'<div class="campo"><label>En efectivo</label><input type="number" inputmode="decimal" placeholder="0" value="'+((r.mixEfe&&r.mixEfe>0)?r.mixEfe:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixEfe\',this.value)"></div>'
+        +'<div class="campo"><label>Transferencia</label><input type="number" inputmode="decimal" placeholder="0" value="'+((r.mixTr&&r.mixTr>0)?r.mixTr:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixTr\',this.value)"></div>'
       +'</div>'
       +mixAviso(r,tot)
       +'</div>'):'')
@@ -932,94 +746,6 @@ function editarDato(key){
     alert('Pon números válidos (plazo y semana).');
   }
 }
-function todasPagaron(centro){
-  const clientas=CENTROS[centro]||[];
-  if(!clientas.length)return;
-  let porMarcar=0, sinCuota=0;
-  clientas.forEach(cl=>{
-    const key=cl.k||cl.f;
-    const r=getReg(reg,centro,key);
-    const dc=datosCli[key]||{};
-    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:(cl.esp||0);
-    if(r.pago>0)return;
-    if(cuota>0)porMarcar++; else sinCuota++;
-  });
-  if(porMarcar===0){alert(sinCuota>0?('Ninguna clienta tiene cuota registrada. Ponles su cuota (✎) y palom\u00e9alas.'):('Todas las clientas de este centro ya est\u00e1n marcadas.'));return;}
-  let msg='\u00bfMarcar a las '+porMarcar+' clientas que faltan con su cuota en EFECTIVO?\n\nDespu\u00e9s qu\u00edtale la palomita a las que NO pagaron.';
-  if(sinCuota>0)msg+='\n\n('+sinCuota+' no tienen cuota: ponles su cuota y palom\u00e9alas aparte.)';
-  if(!confirm(msg))return;
-  clientas.forEach(cl=>{
-    const key=cl.k||cl.f;
-    const r=getReg(reg,centro,key);
-    if(r.pago>0)return;
-    const dc=datosCli[key]||{};
-    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:(cl.esp||0);
-    if(cuota>0){r.pago=cuota;if(!r.forma)r.forma='E';}
-  });
-  render();recalc();guardar();
-}
-// ===== REVISIÓN ANTES DE ENVIAR =====
-// Nada se manda ni se cierra si la captura tiene huecos: forma de pago sin
-// marcar o un mixto que no cuadra. Antes esto pasaba callado y descuadraba el
-// arqueo de Monse (el efectivo del mixto se perdía).
-function problemaDe(r,tot){
-  if(!(tot>0))return '';
-  if(!r.forma)return 'falta marcar cómo pagó (Efe / Transf / Depósito / Mixto)';
-  if(r.forma==='M'){
-    const suma=(r.mixEfe||0)+(r.mixTr||0);
-    if(Math.abs(suma-tot)>0.01)
-      return 'el pago MIXTO no cuadra: efectivo + transferencia deben sumar '+fmt(tot)+' (hoy suman '+fmt(suma)+')';
-  }
-  return '';
-}
-function avisoError(r,tot){
-  const p=problemaDe(r,tot);
-  return p?('<div class="caperr">⚠ FALTA: '+p+'</div>'):'';
-}
-function nombreDeKey(centro,key){
-  const lista=centro?(CENTROS[centro]||[]):(typeof INDIVIDUALES!=='undefined'?INDIVIDUALES:[]);
-  const cl=lista.find(c=>(c.k||c.f)===key);
-  return cl?cl.n:key;
-}
-function problemasCaptura(){
-  const P=[];
-  for(const c in reg)for(const k in reg[c]){
-    const r=reg[c][k]; if(!r||typeof r!=='object')continue;
-    const p=problemaDe(r,rTot(r));
-    if(p)P.push({nombre:nombreDeKey(c,k),centro:c,txt:p});
-  }
-  for(const k in regI){
-    const r=regI[k]; if(!r||typeof r!=='object')continue;
-    const p=problemaDe(r,rTot(r));
-    if(p)P.push({nombre:nombreDeKey(null,k),centro:'Individuales',txt:p});
-  }
-  // Conteo de billetes: una cantidad absurda casi seguro es el IMPORTE
-  // tecleado donde va la CANTIDAD (ej. "4500" pesos en la casilla de billetes
-  // de $500 en vez de "9"). Se marca en rojo y no deja enviar.
-  document.querySelectorAll('[data-den]').forEach(function(inp){
-    const q=Math.round(numMX(inp.value));
-    if(q>400){const dv=+inp.dataset.val;P.push({nombre:'Billetes/monedas de $'+dv,centro:'ARQUEO',txt:'pusiste '+q+' — ¿es la CANTIDAD o el importe? Escribe cuántos billetes son'});}
-  });
-  // Fecha: la app no puede estar en un día distinto al del servidor
-  const inp=document.getElementById('inpFecha');
-  const fa=inp&&inp.value, fs=window.__hoyServidor;
-  let fechaOk=true;
-  try{fechaOk=(sessionStorage.getItem('fooax_fecha_ok')===fa);}catch(e){}
-  if(fa&&fs&&fa!==fs&&!fechaOk)
-    P.unshift({nombre:'',centro:'FECHA',txt:'la app está en '+fa+' y hoy es '+fs+'. Corrige la fecha antes de enviar.'});
-  return P;
-}
-function bloqueoPorErrores(accion){
-  const P=problemasCaptura();
-  if(!P.length)return false;
-  let msg='⛔ NO SE PUEDE '+accion+'\n\nTe falta corregir '+P.length+' cosa(s):\n\n';
-  P.slice(0,10).forEach(p=>{msg+='• '+(p.nombre?(p.nombre+' — '):'')+p.txt+'\n\n';});
-  if(P.length>10)msg+='…y '+(P.length-10)+' más.\n\n';
-  msg+='Están marcadas en ROJO en tu lista. Corrígelas y vuelve a intentar.';
-  alert(msg);
-  try{render();renderIndiv();}catch(e){}
-  return true;
-}
 function palomear(centro,key,cuota){
   const r=getReg(centro?reg:regI,centro||null,key);
   // usar la cuota corregida por el ejecutivo si existe
@@ -1046,7 +772,7 @@ function editarCuota(centro,key,cuotaActual){
   const actual=(dc.cuota&&dc.cuota>0)?dc.cuota:cuotaActual;
   const nueva=prompt('Cuota semanal correcta de esta clienta (la de su ficha):', actual||'');
   if(nueva===null)return;
-  const c=numMX(nueva);
+  const c=parseFloat(nueva)||0;
   if(c>0){
     datosCli[key]=Object.assign(datosCli[key]||{},{cuota:c});
     guardarDatosCli();
@@ -1069,26 +795,12 @@ function mixAviso(r,tot){
 }
 function campo(centro,socio,key,lbl,val){
   return '<div class="campo '+key+'"><label>'+lbl+'</label>'
-    +'<input type="text" inputmode="decimal" placeholder="0" value="'+((val&&val>0)?val:'')
+    +'<input type="number" inputmode="decimal" placeholder="0" value="'+((val&&val>0)?val:'')
     +'" onchange="setCampo(\''+(centro||'')+'\',\''+socio+'\',\''+key+'\',this.value)"></div>';
 }
 function setCampo(centro,socio,key,v){
   const r=getReg(centro?reg:regI,centro||null,socio);
-  const prev=r[key]||0;
-  const val=numMX(v);
-  // Guardia anti-dedazo: un cero de más en el pago destroza el arqueo. Si el
-  // pago es 4 veces su cuota (o $20,000+), se confirma antes de aceptarlo.
-  if(key==='pago'&&val>0){
-    const lista=centro?(CENTROS[centro]||[]):(typeof INDIVIDUALES!=='undefined'?INDIVIDUALES:[]);
-    const cl=lista.find(function(c){return (c.k||c.f)===socio;});
-    const dc=datosCli[socio]||{};
-    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:((cl&&cl.esp)||0);
-    const raro=(cuota>0&&val>=cuota*4&&val-cuota>=500)||val>=20000;
-    if(raro&&!confirm('¿SEGURO? '+(cl?cl.n:'Esta clienta')+(cuota>0?(' tiene cuota de '+fmt(cuota)):'')+' y pusiste '+fmt(val)+'.\n\nACEPTAR: sí es correcto.\nCANCELAR: corregirlo.')){
-      r[key]=prev;reflow(centro,socio);recalc();guardar();return;
-    }
-  }
-  r[key]=val;
+  r[key]=parseFloat(v)||0;
   reflow(centro,socio);recalc();guardar();
 }
 function setForma(centro,socio,f){
@@ -1106,12 +818,7 @@ function setANombre(centro,socio,v){
 }
 function setMix(centro,socio,key,v){
   const r=getReg(centro?reg:regI,centro||null,socio);
-  r[key]=numMX(v);
-  // El OTRO campo se calcula solo: siempre suman el total del pago. Si teclea
-  // de más, el otro queda en 0 y el error rojo avisa (pago mayor al total).
-  const tot=rTot(r);
-  const otro=(key==='mixTr')?'mixEfe':'mixTr';
-  r[otro]=Math.max(0,Math.round((tot-(r[key]||0))*100)/100);
+  r[key]=parseFloat(v)||0;
   if(centro)render(); else renderIndiv();
   recalc();guardar();
 }
@@ -1157,33 +864,8 @@ function semaforoGlobalDia(){
   const pctMonto=montoEsp?Math.round(montoCob/montoEsp*100):0;
   return {pctCli,pctMonto,pagadas,totalCli,centrosTocados,centrosCompletos};
 }
-// Barra de cierre: lleva a la ejecutiva al arqueo desde donde esté. Si el día
-// ya se envió, la barra desaparece sola (no molesta).
-function irACerrar(){
-  showTab('arqueo');
-  try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}
-  var b=document.getElementById('barraCierre');
-  if(b){b.classList.add('listo');}
-}
-function pintarBarraCierre(){
-  var b=document.getElementById('barraCierre'); if(!b)return;
-  var t=0,n=0; try{var x=totales();t=x.t;n=x.n;}catch(e){}
-  var yaEnvio=!!window._reporteEnviado;
-  var hay=(t>0||(window._arqueoTotal>0))&&!yaEnvio;
-  b.classList.toggle('on',hay);
-  document.body.classList.toggle('con-barra',hay);
-  if(!hay)return;
-  var enArqueo=false;
-  try{var ta=document.getElementById('tab-arqueo');enArqueo=ta&&!ta.classList.contains('hidden');}catch(e){}
-  document.getElementById('bcNum').textContent=fmt(t)+(n?(' \u00b7 '+n+(n===1?' pago':' pagos')):'');
-  document.getElementById('bcTxt').textContent=enArqueo?'Cuando termines de contar':'Llevas capturado hoy';
-  var btn=document.getElementById('bcBtn');
-  if(enArqueo){btn.textContent='Enviar arqueo';btn.onclick=function(){enviarArqueoYCerrar();};b.classList.add('listo');}
-  else{btn.textContent='Terminar día';btn.onclick=irACerrar;b.classList.remove('listo');}
-}
 function recalc(){
   const {t,efe,tr}=totales();
-  try{pintarBarraCierre();}catch(e){}
   document.getElementById('totHoy').textContent=fmt(t);
   document.getElementById('totMini').textContent='Efe '+fmt(efe)+' · Transf '+fmt(tr);
   const g=semaforoGlobalDia();
@@ -1218,7 +900,7 @@ function initArqueo(){const box=document.getElementById('arqueoBox');let h='';
   DENOM.forEach((d,i)=>{
     if(i===0)h+='<div class="meta" style="font-weight:800;color:var(--rio);margin:2px 0 6px">BILLETES</div>';
     if(i===6)h+='<div class="meta" style="font-weight:800;color:var(--rio);margin:10px 0 6px">MONEDAS</div>';
-    h+='<div class="arqueo-row"><div class="den">'+d.l.replace("Billete ","").replace("Moneda ","")+'</div><span>×</span><input type="text" inputmode="numeric" placeholder="0" data-den="'+i+'" data-val="'+d.v+'" oninput="calcArqueo()"><div class="sub" id="sub'+i+'">$0</div></div>';
+    h+='<div class="arqueo-row"><div class="den">'+d.l.replace("Billete ","").replace("Moneda ","")+'</div><span>×</span><input type="number" inputmode="numeric" min="0" placeholder="0" data-den="'+i+'" data-val="'+d.v+'" oninput="calcArqueo()"><div class="sub" id="sub'+i+'">$0</div></div>';
   });
   box.innerHTML=h;}
 function movsEfectivoNeto(){
@@ -1233,7 +915,7 @@ function movsEfectivoNeto(){
   return neto;
 }
 function calcArqueo(){let t=0;
-  document.querySelectorAll('[data-den]').forEach(inp=>{const val=+inp.dataset.val;const q=Math.round(numMX(inp.value));const s=val*q;t+=s;const raro=q>400;inp.style.background=raro?'#FDECEC':'';inp.style.borderColor=raro?'#B4232F':'';document.getElementById('sub'+inp.dataset.den).textContent=fmt(s);});
+  document.querySelectorAll('[data-den]').forEach(inp=>{const val=+inp.dataset.val;const q=+inp.value||0;const s=val*q;t+=s;document.getElementById('sub'+inp.dataset.den).textContent=fmt(s);});
   document.getElementById('arqueoTotal').textContent=fmt(t);
   const {efe}=totales();
   const movsEfe=movsEfectivoNeto();
@@ -1244,11 +926,7 @@ function calcArqueo(){let t=0;
   const dif=t-esperado;const de=document.getElementById('arqueoDif');
   de.textContent=(Math.abs(dif)<0.01?'$0 ✓':fmt(dif));de.style.color=Math.abs(dif)<0.01?'var(--ok)':'var(--mora)';
   window._arqueo=DENOM.map((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');return {l:d.l,q:+(inp.value||0),sub:d.v*(+(inp.value||0))};});
-  window._arqueoTotal=t; window._arqueoEsperado=esperado; window._arqueoMovsEfe=movsEfe;
-  // Se suman por VALOR (el billete de $20 y la moneda de $20 caen en "20"):
-  // el importe queda exacto, que es lo que cuadra la caja.
-  arqueo={};DENOM.forEach((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');const q=Math.round(numMX(inp&&inp.value));if(q>0)arqueo[d.v]=(arqueo[d.v]||0)+q;});
-  guardar();}
+  window._arqueoTotal=t; window._arqueoEsperado=esperado; window._arqueoMovsEfe=movsEfe;}
 
 /* ===== OTROS MOVIMIENTOS ===== */
 function fillMovSelects(){
@@ -1268,74 +946,15 @@ function fillMovClientas(){
   else if(cen&&CENTROS[cen])lista=CENTROS[cen];
   lista.forEach(cl=>{const o=document.createElement('option');o.value=(cl.k||cl.f);o.textContent=cl.n+' ('+cl.sub+')';scl.appendChild(o);});
 }
-/* LIQUIDACIONES — una liquidación BAJA el saldo de la clienta por el monto
-   registrado. Si con eso su saldo llega a cero, queda marcada como LIQUIDADO y
-   aparece en la pestaña Liquidación. */
-function abonosExtra(socio){
-  const out={liq:0,rec:0,total:0};
-  if(!socio)return out;
-  (movs||[]).forEach(m=>{
-    if(String(m.socio||'')!==String(socio))return;
-    const c=String(m.concepto||'').toUpperCase();
-    if(c==='LIQUIDACION')out.liq+=(m.monto||0);
-    else if(c==='RECUPERACION')out.rec+=(m.monto||0);
-  });
-  out.total=out.liq+out.rec;
-  return out;
-}
-function liquidadoDe(socio){return abonosExtra(socio).total;}
-function etiquetaAbono(ax){return (ax.liq>0&&ax.rec>0)?'abonó':(ax.rec>0?'recuperó':'liquidó');}
-function renderLiquida(){
-  const cont=document.getElementById('liquidaBox');if(!cont)return;
-  const filas=[];
-  const meter=(cl,centro)=>{
-    const ax=abonosExtra(cl.f);
-    const liq=ax.total;
-    if(liq<=0)return;
-    const r=getReg(centro?reg:regI,centro||null,cl.k||cl.f);
-    const pagado=rTot(r);
-    const antes=cl.saldo||0;
-    const despues=Math.max(0,antes-pagado-liq);
-    filas.push({n:cl.n,socio:cl.f,sub:cl.sub||'',centro:centro||'Individual',antes,liq,pagado,despues,ax});
-  };
-  for(const c in CENTROS)(CENTROS[c]||[]).forEach(cl=>meter(cl,c));
-  (INDIVIDUALES||[]).forEach(cl=>meter(cl,null));
-  if(!filas.length){
-    cont.innerHTML='<div class="card muted">Todavía no hay liquidaciones ni recuperaciones hoy.<div class="meta" style="margin-top:6px">Ve a <b>Otros mov.</b>, elige <b>Liquidación</b> o <b>Recuperación</b>, escoge a la clienta y pon el monto. Aquí aparecerá y se le bajará su saldo.</div></div>';
-    return;
-  }
-  let cerradas=0;filas.forEach(f=>{if(f.despues<=0.01)cerradas++;});
-  let h='<div class="card"><div class="kv"><span>Clientas con abono extra hoy</span><b>'+filas.length+'</b></div>'
-    +'<div class="kv"><span>Créditos que quedaron en cero</span><b style="color:var(--ok)">'+cerradas+'</b></div></div>';
-  filas.forEach(f=>{
-    const cerrado=f.despues<=0.01;
-    h+='<div class="card">'
-      +'<div class="sectitle" style="font-size:14px">'+f.n+(cerrado?' <span class="pill" style="background:#0B7247;color:#fff">LIQUIDADO</span>':'')+'</div>'
-      +'<div class="meta">Socio '+f.socio+' · '+f.sub+' · '+f.centro+'</div>'
-      +'<div class="kv" style="margin-top:6px"><span>Saldo antes</span><b>'+fmt(f.antes)+'</b></div>'
-      +(f.pagado>0?'<div class="kv"><span>Pago de hoy</span><b>−'+fmt(f.pagado)+'</b></div>':'')
-      +(f.ax.liq>0?'<div class="kv"><span>Liquidación</span><b style="color:#0B7247">−'+fmt(f.ax.liq)+'</b></div>':'')
-      +(f.ax.rec>0?'<div class="kv"><span>Recuperación / adelanto</span><b style="color:#0B7247">−'+fmt(f.ax.rec)+'</b></div>':'')
-      +'<div class="kv" style="border-top:2px solid var(--linea);padding-top:6px;margin-top:4px"><span><b>Saldo después</b></span><b style="color:'+(cerrado?'var(--ok)':'var(--rio)')+'">'+fmt(f.despues)+'</b></div>'
-      +'</div>';
-  });
-  cont.innerHTML=h;
-}
 function agregarMov(){
   const concepto=document.getElementById('movConcepto').value;
   const cen=document.getElementById('movCentro').value;
   const clk=document.getElementById('movClienta').value;
-  const monto=numMX(document.getElementById('movMonto').value);
+  const monto=parseFloat(document.getElementById('movMonto').value)||0;
   const via=document.getElementById('movVia').value;
   const nota=document.getElementById('movNota').value||'';
   const cheque=(via==='CH')?(document.getElementById('movCheque').value||''):'';
   if(monto<=0){alert('Escribe la cantidad del movimiento.');return;}
-  if(monto>=20000&&!confirm('¿Seguro que el movimiento es de '+fmt(monto)+'?\n\nRevisa que no le sobre un cero.'))return;
-  // Una liquidación TIENE que ir ligada a una clienta: es lo que le baja su saldo.
-  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !document.getElementById('movClienta').value){
-    alert('Elige a la CLIENTA de este movimiento.\n\nLa liquidación y la recuperación le bajan el saldo a esa clienta, así que sin clienta no se pueden registrar.');
-    return;
-  }
   if(via==='CH' && !cheque){alert('Escribe el número de cheque.');return;}
   // Fechas de desembolso (solo si el concepto es DESEMBOLSO)
   let fechaDesem='', fechaPrimerPago='';
@@ -1374,10 +993,10 @@ function viaCorto(v){return v==='E'?'Efvo':(v==='T'?'Transf':(v==='CH'?'Cheque':
 function nuevoFolio(){
   // folio único corto: iniciales ejecutivo + fecha (ddmm) + consecutivo del día
   const ini=EJECUTIVO.substring(0,3).toUpperCase();
-  const f=fechaLocal(document.getElementById('inpFecha').value||hoyISO());
+  const f=new Date(document.getElementById('inpFecha').value||hoyISO());
   const dm=('0'+f.getDate()).slice(-2)+('0'+(f.getMonth()+1)).slice(-2);
-  folioSeq=Math.max(folioSeq+1, movs.length+1);
-  return ini+'-'+dm+'-'+('0'+folioSeq).slice(-2);
+  const consec=(movs.length+1);
+  return ini+'-'+dm+'-'+('0'+consec).slice(-2);
 }
 function eliminarMov(i){movs.splice(i,1);renderMovs();guardar();recalc();if(typeof calcArqueo==='function')calcArqueo();}
 function renderMovs(){
@@ -1602,7 +1221,7 @@ function renderDiagnostico(){
 
 function buildResumen(){
   const {t,efe,tr,dep,n,acc}=totales();
-  const fecha=fechaLocal(document.getElementById('inpFecha').value||hoyISO()).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  const fecha=new Date(document.getElementById('inpFecha').value||hoyISO()).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
   let lineas=[],centrosCob=0;
   for(const c in reg){let sc=0,nc=0;for(const s in reg[c]){const tt=rTot(reg[c][s]);if(tt>0){sc+=tt;nc++;}}if(sc>0){centrosCob++;lineas.push('• '+c+': '+fmt(sc)+' ('+nc+')');}}
   let iSum=0,iN=0;for(const s in regI){const tt=rTot(regI[s]);if(tt>0){iSum+=tt;iN++;}}
@@ -1647,7 +1266,7 @@ function buildResumen(){
       const cc=(m.concepto||'').toUpperCase();
       const nom=etiqM[cc]||m.concepto;
       const esSalida=(cc==='GASTO'||cc==='DESEMBOLSO');
-      const via=(m.via==='E'?'efectivo':(m.via==='CH'?'cheque':'transf'));
+      const via=(m.via==='E'?'efectivo':(m.via==='C'?'cheque':'transf'));
       wa+='\n'+(esSalida?'− ':'+ ')+nom+': '+fmt(m.monto)+' ('+via+')';
       sumMov+=esSalida?-m.monto:m.monto;
     });
@@ -1752,10 +1371,7 @@ function copiarWA(){const txt=window._wa||'';
    No descarga archivo; manda texto legible (lo pidió el Lic.). */
 function resumenTextoCobranza(){
   const fecha=document.getElementById('inpFecha').value||hoyISO();
-  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
-  // archiva en el día equivocado (pasó con los reportes del martes).
-  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
+  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   let txt='🌸 *FOOAX · COBRANZA DEL DÍA*\n';
   txt+='👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n';
   txt+='━━━━━━━━━━━━━━━\n';
@@ -1799,7 +1415,7 @@ function resumenTextoCobranza(){
       const nom=etiqM[c]||m.concepto;
       const esSalida=(c==='GASTO'||c==='DESEMBOLSO');
       const signo=esSalida?'-':'+';
-      txt+='    '+signo+' '+nom+': '+fmt(m.monto)+' ('+(m.via==='E'?'efectivo':(m.via==='CH'?'cheque':'transf'))+')\n';
+      txt+='    '+signo+' '+nom+': '+fmt(m.monto)+' ('+(m.via==='E'?'efectivo':(m.via==='C'?'cheque':'transf'))+')\n';
       if(esSalida){sumMov-=m.monto;if(m.via==='E')sumMovEfe-=m.monto;}
       else {sumMov+=m.monto;if(m.via==='E')sumMovEfe+=m.monto;}
     });
@@ -1824,10 +1440,7 @@ function resumenTextoCobranza(){
 }
 function resumenTextoGarantias(){
   const fecha=document.getElementById('inpFecha').value||hoyISO();
-  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
-  // archiva en el día equivocado (pasó con los reportes del martes).
-  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
+  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   let txt='🔐 *FOOAX · GARANTÍAS DEL DÍA*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
   let gran=0, granN=0;
   for(const centroKey in reg){
@@ -1850,10 +1463,7 @@ function resumenTextoGarantias(){
 }
 function resumenTextoMovs(){
   const fecha=document.getElementById('inpFecha').value||hoyISO();
-  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
-  // archiva en el día equivocado (pasó con los reportes del martes).
-  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
+  const fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
   if(movs.length===0)return '';
   let txt='📋 *FOOAX · OTROS MOVIMIENTOS*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
   const porConcepto={}; let gran=0;
@@ -1981,7 +1591,6 @@ function fallbackCopy(data){const t=document.createElement('textarea');t.value=d
 /* ENVIAR POR WHATSAPP — manda el RESUMEN EN TEXTO (con sumas por centro y total).
    No descarga archivo, como lo pidió el Lic. para no llenar el teléfono. */
 function enviarWhatsApp(tipo){
-  if(tipo==='cobranza' && bloqueoPorErrores('ENVIAR TU REPORTE'))return;
   let texto='';
   if(tipo==='cobranza')texto=resumenTextoCobranza();
   else if(tipo==='garantias')texto=resumenTextoGarantias();
@@ -2055,7 +1664,7 @@ function agregarClienta(){
   const prod=document.getElementById('altaProd').value;
   const nombre=(document.getElementById('altaNombre').value||'').trim();
   const socio=(document.getElementById('altaSocio').value||'').trim();
-  const saldo=numMX(document.getElementById('altaSaldo').value);
+  const saldo=parseFloat(document.getElementById('altaSaldo').value)||0;
   if(!centro){alert('Elige el centro.');return;}
   if(!nombre){alert('Escribe el nombre de la clienta.');return;}
   if(!socio){alert('Escribe el No. de socio.');return;}
@@ -2082,13 +1691,11 @@ function agregarClienta(){
 
 
 function showTab(name){
-  setTimeout(function(){try{pintarBarraCierre();}catch(e){}},0);
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
-  ['cobranza','indiv','renov','gerente','movs','liquida','arqueo','resumen'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('hidden',t!==name);});
+  ['cobranza','indiv','renov','gerente','movs','arqueo','resumen'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('hidden',t!==name);});
   if(name==='resumen')buildResumen();
   if(name==='arqueo')calcArqueo();
   if(name==='movs')renderMovs();
-  if(name==='liquida')renderLiquida();
   if(name==='renov')renderRenov();
   if(name==='gerente'&&ES_GERENTE)renderGerente();
 }
@@ -2118,44 +1725,7 @@ function avisarWebView(){
   }
 }
 
-// —— PREGUNTA AL VOLVER DESPUES DE CERRAR (regla Karina 24-jul): si hoy ya
-// envio su arqueo y vuelve a entrar, la app pregunta QUE va a hacer.
-// AGREGAR = lo nuevo se SUMA a lo ya enviado. CAPTURAR TODO de nuevo = el dia
-// cuenta desde cero con lo que capture ahora (lo anterior queda de respaldo en
-// el servidor, recuperable por Direccion). Sin esto, recapturar DOBLABA el dia.
-function preguntarPostCierre(){
-  var KEYC='fooax_cerrado_'+STORE_KEY, f=null;
-  try{f=localStorage.getItem(KEYC);}catch(e){}
-  if(!f)return;
-  if(f!==hoyISO()){try{localStorage.removeItem(KEYC);}catch(e){}return;}
-  if(localStorage.getItem(STORE_KEY))return; // ya hay captura nueva en curso
-  var o=document.createElement('div');o.id='fooax-postcierre';
-  o.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(42,31,53,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px;font-family:inherit;overflow:auto';
-  o.innerHTML='<div style="font:800 20px/1.3 inherit">Ya enviaste tu arqueo de hoy</div>'
-    +'<div style="font:600 13.5px/1.5 inherit;opacity:.92;margin-top:8px;max-width:330px">Antes de seguir, dinos que vas a hacer:</div>'
-    +'<button id="fooaxPcAdd" style="margin-top:20px;width:100%;max-width:330px;font:800 15px/1.35 inherit;background:#0B7247;color:#fff;border:none;border-radius:14px;padding:14px 18px;cursor:pointer">Voy a AGREGAR algo que falto<br><span style="font:600 11.5px/1.4 inherit;opacity:.85">Un pago o movimiento nuevo. Lo que ya mandaste se queda igual y esto se le suma.</span></button>'
-    +'<button id="fooaxPcCero" style="margin-top:12px;width:100%;max-width:330px;font:800 15px/1.35 inherit;background:transparent;color:#FFD9A8;border:2px solid #FFD9A8;border-radius:14px;padding:14px 18px;cursor:pointer">Voy a CAPTURAR TODO de nuevo<br><span style="font:600 11.5px/1.4 inherit;opacity:.85">Empezar de cero: tu dia contara SOLO con lo que captures ahora. Lo anterior queda guardado de respaldo.</span></button>'
-    +'<div id="fooaxPcMsg" style="font:600 12px/1.45 inherit;color:#FFD9A8;margin-top:12px;max-width:320px"></div>';
-  document.body.appendChild(o);
-  document.getElementById('fooaxPcAdd').onclick=function(){
-    try{localStorage.removeItem(KEYC);}catch(e){}
-    o.remove();
-  };
-  document.getElementById('fooaxPcCero').onclick=function(){
-    if(!confirm('SEGURA que vas a capturar TODO el dia otra vez?\n\nTu dia contara SOLO con lo que captures desde ahora. La version que ya habias enviado queda guardada de respaldo para Direccion.'))return;
-    var b=this;b.disabled=true;
-    fetch('/api/dia/reinicio',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({fecha:hoyISO()})})
-      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
-      .then(function(x){
-        if(!x.ok){document.getElementById('fooaxPcMsg').textContent=(x.d&&x.d.error)||'No se pudo. Intenta otra vez.';b.disabled=false;return;}
-        try{localStorage.removeItem(KEYC);}catch(e){}
-        o.remove();
-        alert('Listo. Captura tu dia completo: contara desde cero.');
-      })
-      .catch(function(){document.getElementById('fooaxPcMsg').textContent='Para empezar de cero necesitas internet. Conectate y vuelve a intentarlo.';b.disabled=false;});
-  };
-}
-initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();preguntarPostCierre();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
+initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
 avisarWebView();reforzarToque();
 // reforzar toque cada vez que se redibuja contenido
 const _obs=new MutationObserver(()=>reforzarToque());
