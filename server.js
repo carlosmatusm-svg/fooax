@@ -430,8 +430,11 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   // post-cierre conserva la cobranza y los movimientos de la foto congelada —
   // el conteo es lo único que se reemplaza. Sin esto, un conteo mal tecleado
   // dejaba el día en rojo para siempre (caso Karina 28-jul: $140 de dedazo).
+  // Es corrección de conteo SOLO si: el día ya cerró, la captura trae conteo Y
+  // NO trae ningún pago. Si trae pagos es una captura tardía normal y tiene que
+  // pasar por la fusión (si no, se perderían esos pagos nuevos).
   const traeConteo = !!(snapshot.arqueo && Object.keys(snapshot.arqueo).length);
-  const esCorreccionDeConteo = !!(previo && previo.cierre && traeConteo);
+  const esCorreccionDeConteo = !!(previo && previo.cierre && traeConteo && !(ahora > 0));
   if (antes != null && antes > 0 && (ahora === 0 || ahora == null) && !esCorreccionDeConteo) {
     console.warn(`[sync] RECHAZADO vacío de ${req.usuario.id} para ${fecha}: el servidor tiene ${antes} pagos, la app mandó 0. No se sobrescribe.`);
     syncRechazos[req.usuario.id] = { fecha, pagosEnServidor: antes, ts: Date.now() };
@@ -440,6 +443,21 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
     guardarMovimientosDeEjecutiva(req.usuario, fecha, snapshot, false);
     return res.json({ ok: false, rechazado: "vacio_sobre_lleno", pagosEnServidor: antes, hoy });
   }
+  // CORRECCIÓN DE CONTEO: se reemplaza SOLO el conteo de billetes y NADA más.
+  // No pasa por la fusión a propósito: la fusión reconstruye desde la foto
+  // CONGELADA del cierre, así que habría borrado los pagos capturados DESPUÉS
+  // de cerrar. Aquí se parte del estado ACTUAL y solo se cambia el arqueo.
+  if (esCorreccionDeConteo) {
+    let base = previo.snapshot;
+    if (typeof base === "string") { try { base = JSON.parse(base); } catch { base = null; } }
+    if (base && typeof base === "object") {
+      const corregido = Object.assign({}, base, { arqueo: snapshot.arqueo });
+      store.guardarSnapshot(req.usuario.id, fecha, { snapshot: corregido, ts: ts || Date.now() });
+      console.log(`[conteo] ${req.usuario.id} corrigió su conteo de billetes del ${fecha}`);
+      return res.json({ ok: true, correccionConteo: true, hoy });
+    }
+  }
+
   // FUSIÓN POST-CIERRE: si el día ya se cerró (enviaron el arqueo) y llega más
   // captura, se SUMA a lo que había en vez de reemplazarlo. Sin esto, capturar
   // después de cerrar (candado al volver / pago tardío) borraba del día todo lo

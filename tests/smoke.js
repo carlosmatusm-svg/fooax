@@ -101,6 +101,20 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   await sync(cap2);
   ok("un pago NUEVO tras cerrar SÍ se suma (111 + 40)", Math.abs((await cons()).efectivo - 151) < 0.01, "efectivo " + (await cons()).efectivo);
 
+  // CORREGIR EL CONTEO tras cerrar (dedazo del 28-jul: Karina cerró con $140 de
+  // más en el conteo y NO podía corregirlo — el blindaje se lo rechazaba).
+  const contadoMal = { "100": 1, "50": 1 };            // $150
+  const contadoBien = { "100": 1 };                     // $100
+  await sync(Object.assign({}, cap2, { arqueo: contadoMal }));
+  const antesFix = await j(await fetch(U + "/api/arqueo?fecha=" + FECHA, { headers: H(cd) }));
+  const peMal = (antesFix.porEjec || {}).prueba || {};
+  const rFix = await j(await sync({ fecha: FECHA, reg: {}, regI: {}, movs: [], arqueo: contadoBien }));
+  ok("se puede CORREGIR el conteo de billetes tras cerrar", rFix.ok === true, JSON.stringify(rFix).slice(0, 60));
+  const despFix = await j(await fetch(U + "/api/arqueo?fecha=" + FECHA, { headers: H(cd) }));
+  const peBien = (despFix.porEjec || {}).prueba || {};
+  ok("el conteo corregido reemplaza al anterior", peBien.contado === 100 && peMal.contado === 150, peMal.contado + " → " + peBien.contado);
+  ok("y la cobranza NO se pierde al corregir", Math.abs((await cons()).efectivo - 151) < 0.01, "efectivo " + (await cons()).efectivo);
+
   console.log("\n— F. EMPEZAR DE CERO Y RESCATE —");
   const ri = await j(await fetch(U + "/api/dia/reinicio", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: FECHA }) }));
   ok("'capturar todo de nuevo' responde", ri.ok === true && ri.habia === true, JSON.stringify(ri).slice(0, 50));
