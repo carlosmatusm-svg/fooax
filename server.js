@@ -1336,6 +1336,36 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
+// ---------- diagnóstico TEMPORAL del conteo (solo lectura; quitar tras usar) ----------
+app.get("/api/_conteo", async (req, res) => {
+  if (req.query.t !== "cnt-28jul") return res.status(404).end();
+  const fecha = req.query.fecha || hoyMX();
+  const ej = req.query.ej || "karina";
+  const rec = store.snapshotsDeFecha(fecha)[ej];
+  let data = rec && rec.snapshot;
+  if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
+  const suma = (o) => Object.entries(o || {}).reduce((s, [d, q]) => s + Number(d) * (Number(q) || 0), 0);
+  let hist = [];
+  try {
+    hist = (await store.historialDeFecha(fecha)).filter((h) => h.ejecutivo === ej).map((h) => {
+      let d = h.snapshot; if (typeof d === "string") { try { d = JSON.parse(d); } catch { d = {}; } }
+      return { archivado: h.archivado ? new Date(h.archivado).toISOString().slice(11, 19) : null,
+        conteo: suma(d && d.arqueo), denom: (d && d.arqueo) || {}, pagos: contarPagos(d) };
+    });
+  } catch (e) { hist = []; }
+  res.json({
+    fecha, ejecutivo: ej,
+    actual: rec ? {
+      conteoGuardado: suma(data && data.arqueo),
+      denominaciones: (data && data.arqueo) || {},
+      pagos: contarPagos(data),
+      recibido: rec.recibido ? new Date(rec.recibido).toISOString().slice(11, 19) : null,
+      cerrado: !!rec.cierre,
+    } : "sin captura",
+    versionesDeHoy: hist,
+  });
+});
+
 // ---------- FASE 2 · TENDENCIAS (evolución semana a semana) ----------
 // Recorre TODA la historia guardada una sola vez y la agrupa por semana.
 // La cartera de una semana pasada se reconstruye así: saldo de plantilla menos
