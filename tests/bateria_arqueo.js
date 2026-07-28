@@ -521,6 +521,35 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("su caja cuadra (contó 800 = debe 800, dif 0)", pEje.contado === 800 && pEje.dif === 0, "contó " + pEje.contado + " · dif " + pEje.dif);
   ok("la ejecutiva NO ve movimientos de otras ejecutivas", Object.keys(aEje.porEjec || {}).every((k) => k === "prueba"), Object.keys(aEje.porEjec || {}).join(","));
 
+  console.log("\n— 23. FASE 2 · TENDENCIAS semana a semana —");
+  // 4 semanas sintéticas: paga, paga, NO paga, paga. La cartera debe bajar
+  // exactamente lo abonado y la semana sin cobro debe mostrar su mora.
+  const lunesDe2 = (f) => { const [y, m, d] = f.split("-").map(Number); const dt = new Date(Date.UTC(y, m - 1, d));
+    const dw = dt.getUTCDay(); dt.setUTCDate(dt.getUTCDate() - (dw === 0 ? 6 : dw - 1)); return dt.toISOString().slice(0, 10); };
+  const menosSem = (f, n) => { const d = new Date(f + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 7 * n); return d.toISOString().slice(0, 10); };
+  const L0 = lunesDe2(HOY);
+  const W = [menosSem(L0, 4), menosSem(L0, 3), menosSem(L0, 2), menosSem(L0, 1)];
+  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: W[0] }) }));
+  await fetch(U + "/api/centros", { method: "POST", headers: H(ca), body: JSON.stringify({ numero: "77", nombre: "CENTRO TENDENCIA", ejecutivo: "Neri", dia: "Lunes" }) });
+  const SOC = "70000000123", PRD = "Credito Tendencia";
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: SOC, nombre: "TENDENCIA TEST", producto: PRD, centro: "CENTRO TENDENCIA", ejecutivo: "Neri", saldo: 4000, cuota: 1000, plazo: 4 }) }));
+  const pagarW = (fecha, monto) => fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha,
+    snapshot: JSON.stringify({ fecha, reg: { "C-77": { [SOC + "|" + PRD]: { pago: monto, forma: "E" } } }, regI: {}, movs: [], arqueo: {} }), ts: Date.now() }) });
+  await pagarW(W[0], 1000); await pagarW(W[1], 1000); await pagarW(W[3], 1000);   // W[2] sin pago
+  const tend = await j(await fetch(U + "/api/tendencias", { headers: H(ca) }));
+  const SS = {}; (tend.serie || []).forEach((x) => { SS[x.semana] = x; });
+  ok("la serie es CONTINUA (rellena las semanas sin captura)", (tend.serie || []).length >= 5 && !!SS[W[2]], "filas " + (tend.serie || []).length);
+  ok("la cartera baja EXACTAMENTE lo abonado (−1,000 de una semana a otra)",
+     SS[W[1]] && SS[W[0]] && Math.abs((SS[W[1]].cartera - SS[W[0]].cartera) + 1000) < 0.01,
+     (SS[W[0]] || {}).cartera + " → " + (SS[W[1]] || {}).cartera);
+  ok("la semana SIN captura sale en 0 y no mueve la cartera",
+     SS[W[2]] && SS[W[2]].cobrado === 0 && Math.abs(SS[W[2]].cartera - SS[W[1]].cartera) < 0.01, JSON.stringify(SS[W[2]] || {}).slice(0, 80));
+  ok("esa semana muestra su MORA (nadie pagó → mora = esperado, 0%)",
+     SS[W[2]] && SS[W[2]].mora === SS[W[2]].esperado && SS[W[2]].cumplimiento === 0, "mora " + (SS[W[2]] || {}).mora);
+  ok("la cartera NUNCA sube en la serie (solo baja o se mantiene)",
+     (tend.serie || []).filter((x) => x.cartera != null).every((x, i, arr) => i === 0 || x.cartera <= arr[i - 1].cartera + 0.01), "ok");
+  ok("las tendencias son solo para dirección/admin (ejecutiva 403)", (await fetch(U + "/api/tendencias", { headers: H(ce) })).status === 403);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

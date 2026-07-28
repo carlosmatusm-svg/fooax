@@ -238,6 +238,12 @@
   .ct-tab th:first-child{text-align:left}
   .ct-tab td{text-align:right;padding:7px 0;border-top:1px solid var(--lav);font-variant-numeric:tabular-nums}
   .ct-tab td:first-child{text-align:left;font-weight:700;color:var(--tinta)}
+  .tn-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;margin:12px 16px 0}
+  .tn-h{font-size:11.5px;font-weight:800;color:var(--gris);letter-spacing:.03em;text-transform:uppercase;margin-bottom:4px}
+  .tn-sub{font-size:11.5px;color:var(--gris);margin-bottom:10px}
+  .tn-svg{width:100%;height:auto;display:block;overflow:visible}
+  .tn-leg{display:flex;flex-wrap:wrap;gap:12px;margin-top:9px;font-size:11.5px;color:var(--gris)}
+  .tn-leg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
   .arq-ejecblk{border-top:1px solid var(--lav)}
   .arq-ejec{font-size:12px;color:var(--gris);display:flex;justify-content:space-between;gap:8px;padding:4px 0}
   .arq-ejecblk .arq-ejec{border-top:none}
@@ -354,6 +360,7 @@
 
   <div class="tbtab" id="tb-cartera" style="display:none">
     <div id="carteraBox"><div class="arq-vacio">Cargando cartera…</div></div>
+    <div id="tendBox"></div>
   </div>
 
   <div class="tbtab" id="tb-clientas" style="display:none">
@@ -963,6 +970,72 @@ async function cargarCartera() {
   box.innerHTML = h;
 }
 
+// ---------- FASE 2 · tendencias semana a semana ----------
+// Gráfica hecha a mano en SVG: el navegador del panel corre sin internet
+// garantizado, así que no se usa ninguna librería ni CDN.
+async function cargarTendencias() {
+  const box = $("tendBox"); if (!box) return;
+  let d;
+  try { d = await (await fetch("/api/tendencias", { credentials: "include" })).json(); }
+  catch { box.innerHTML = ""; return; }
+  const S = (d && d.serie) || [];
+  if (S.length < 2) {
+    box.innerHTML = '<div class="tn-card"><div class="tn-h">Tendencias</div><div class="tn-sub">Aún no hay suficientes semanas para dibujar la evolución. En cuanto haya dos semanas capturadas, aquí aparece la gráfica.</div></div>';
+    return;
+  }
+  const dd = (f) => f.slice(8, 10) + "/" + f.slice(5, 7);
+  const W = 700, H = 200, ML = 8, MR = 8, MB = 26, MT = 12;
+  const n = S.length, ancho = (W - ML - MR) / n;
+  const maxCob = Math.max(1, ...S.map((x) => Math.max(x.cobrado || 0, x.esperado || 0)));
+  const y = (v) => MT + (H - MT - MB) * (1 - v / maxCob);
+  // barras: esperado (fondo claro) y cobrado (verde) — se ve el hueco = mora
+  let barras = "", puntos = [], etiquetas = "";
+  S.forEach((x, i) => {
+    const cx = ML + ancho * i, w = Math.max(4, ancho * 0.54), bx = cx + (ancho - w) / 2;
+    if (x.esperado != null && x.esperado > 0) {
+      const yy = y(x.esperado);
+      barras += '<rect x="' + bx.toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + (H - MB - yy).toFixed(1) + '" rx="3" fill="#E9C3C8"/>';
+    }
+    const yc = y(x.cobrado || 0);
+    barras += '<rect x="' + bx.toFixed(1) + '" y="' + yc.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(0, H - MB - yc).toFixed(1) + '" rx="3" fill="#0B7247"/>';
+    etiquetas += '<text x="' + (cx + ancho / 2).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="#6B7280">' + dd(x.semana) + "</text>";
+    if (x.cartera != null) puntos.push([cx + ancho / 2, x.cartera]);
+  });
+  // línea de cartera, en su propia escala
+  let linea = "";
+  if (puntos.length > 1) {
+    const vals = puntos.map((p) => p[1]);
+    const lo = Math.min(...vals), hi = Math.max(...vals), rango = (hi - lo) || 1;
+    const yl = (v) => MT + (H - MT - MB) * (1 - (v - lo) / rango) * 0.55 + 6;
+    linea = '<polyline fill="none" stroke="#7A3EA8" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="'
+      + puntos.map((p) => p[0].toFixed(1) + "," + yl(p[1]).toFixed(1)).join(" ") + '"/>'
+      + puntos.map((p) => '<circle cx="' + p[0].toFixed(1) + '" cy="' + yl(p[1]).toFixed(1) + '" r="3" fill="#7A3EA8"/>').join("");
+  }
+  const ult = S[S.length - 1], prev = S[S.length - 2];
+  let resumen = "";
+  if (ult && prev && ult.cartera != null && prev.cartera != null) {
+    const dif = ult.cartera - prev.cartera;
+    resumen = "La cartera " + (dif < 0 ? "bajó " : dif > 0 ? "subió " : "no se movió ") + (dif ? dinero(Math.abs(dif)) : "")
+      + " respecto a la semana pasada.";
+  }
+  box.innerHTML = '<div class="tn-card"><div class="tn-h">Tendencia · cobranza y cartera por semana</div>'
+    + '<div class="tn-sub">' + hesc(resumen) + "</div>"
+    + '<svg class="tn-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Evolución semanal de cobranza y cartera">'
+    + '<line x1="' + ML + '" y1="' + (H - MB) + '" x2="' + (W - MR) + '" y2="' + (H - MB) + '" stroke="#E7E1EE" stroke-width="1"/>'
+    + barras + linea + etiquetas + "</svg>"
+    + '<div class="tn-leg"><span><i style="background:#0B7247"></i>Cobrado</span>'
+    + '<span><i style="background:#E9C3C8"></i>Esperado (el hueco es la mora)</span>'
+    + '<span><i style="background:#7A3EA8"></i>Cartera</span></div>'
+    + '<table class="ct-tab"><thead><tr><th>Semana</th><th>Cobrado</th><th>Mora</th><th>Recuper.</th><th>Cartera</th><th>Cumpl.</th></tr></thead><tbody>'
+    + S.slice().reverse().map((x) =>
+        "<tr><td>" + dd(x.semana) + "</td><td>" + dinero(x.cobrado) + "</td><td>"
+        + (x.mora == null ? "—" : dinero(x.mora)) + "</td><td>" + dinero(x.recuperacion) + "</td><td>"
+        + (x.cartera == null ? "—" : dinero(x.cartera)) + '</td><td style="font-weight:800;color:'
+        + (x.cumplimiento == null ? "var(--gris)" : x.cumplimiento >= 90 ? "#0B7247" : x.cumplimiento >= 50 ? "#8A5A00" : "#B00020") + '">'
+        + (x.cumplimiento == null ? "—" : x.cumplimiento + "%") + "</td></tr>").join("")
+    + "</tbody></table></div>";
+}
+
 // ---------- arqueo del día ----------
 async function cargarArqueo() {
   let d;
@@ -1310,8 +1383,9 @@ cargarCentros();
 cargarYo();
 cargarCorte();
 cargarCartera();
+cargarTendencias();
 // 30s: se siente en vivo sin comerse los datos del celular (antes era cada 5s)
-setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); cargarCartera(); }, 30000);
+setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); cargarCartera(); cargarTendencias(); }, 30000);
 </script>
 </body>
 </html>

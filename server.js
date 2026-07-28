@@ -1279,6 +1279,126 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
+// ---------- FASE 2 · TENDENCIAS (evolución semana a semana) ----------
+// Recorre TODA la historia guardada una sola vez y la agrupa por semana.
+// La cartera de una semana pasada se reconstruye así: saldo de plantilla menos
+// lo abonado ACUMULADO hasta el cierre de esa semana. Solo tiene sentido desde
+// el corte de saldos (antes de esa fecha no sabemos el saldo de referencia).
+function seriesSemanales(usuario) {
+  const permitidas = new Set(idsEjecutivos(usuario));
+  const snaps = store.respaldo().snapshots || {};
+  const semanas = {};   // lunes -> { pago, gar, clientas:Set, porClave:{}, recuperacion, porSocio:{} }
+  const w = (f) => lunesDeLaSemana(f);
+  const bucket = (f) => (semanas[w(f)] = semanas[w(f)] || { pago: 0, gar: 0, clientas: new Set(), porClave: {}, recuperacion: 0, porSocio: {} });
+  for (const ej in snaps) {
+    if (!permitidas.has(ej)) continue;
+    for (const fecha in snaps[ej]) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) continue;
+      let data = snaps[ej][fecha].snapshot;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
+      const b = bucket(fecha);
+      const sumar = (nodo, key) => {
+        if (!nodo || typeof nodo !== "object") return;
+        const p = nodo.pago || 0, g = nodo.garantia || 0;
+        if (p <= 0 && g <= 0) return;
+        const partes = String(key).split("|");
+        const clave = claveCredito(partes[0], partes[1]);
+        b.pago += p; b.gar += g;
+        if (p > 0) { b.porClave[clave] = (b.porClave[clave] || 0) + p; b.clientas.add(partes[0]); }
+      };
+      const rec = (st) => {
+        if (!st || typeof st !== "object") return;
+        for (const k in st) {
+          const nd = st[k];
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) sumar(nd, k);
+          else if (nd && typeof nd === "object") for (const kk in nd) sumar(nd[kk], kk);
+        }
+      };
+      rec(data.reg); rec(data.regI);
+    }
+  }
+  // Liquidaciones y recuperaciones (bajan saldo) por semana y por socio
+  for (const m of store.todosMovimientos()) {
+    if (m.anulado || !/^\d{4}-\d{2}-\d{2}$/.test(m.fecha || "")) continue;
+    const id = usuarioDeMov(m);
+    const u = id && USUARIOS[id];
+    if (!!(u && u.test) !== !!(usuario && usuario.test)) continue;   // misma burbuja
+    const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+    if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+    const b = bucket(m.fecha);
+    b.recuperacion += m.monto;
+    const soc = socioDeMov(m);
+    if (soc) b.porSocio[soc] = (b.porSocio[soc] || 0) + m.monto;
+  }
+  return semanas;
+}
+app.get("/api/tendencias", requiere("direccion", "admin"), (req, res) => {
+  const corte = corteSaldos();
+  const semanas = seriesSemanales(req.usuario);
+  // Serie CONTINUA: de la primera semana con captura hasta la actual, sin
+  // huecos. Una semana sin cobranza es información (se ve el bache en la
+  // gráfica); si se omitiera, la línea mentiría uniendo dos semanas lejanas.
+  const conDatos = Object.keys(semanas).sort();
+  const lunes = [];
+  if (conDatos.length) {
+    const fin = lunesDeLaSemana(hoyMX());
+    let cur = conDatos[0];
+    while (cur <= fin) {
+      lunes.push(cur);
+      if (!semanas[cur]) semanas[cur] = { pago: 0, gar: 0, clientas: new Set(), porClave: {}, recuperacion: 0, porSocio: {} };
+      const d = new Date(cur + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 7);
+      cur = d.toISOString().slice(0, 10);
+    }
+  }
+  const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
+    .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) ||
+      String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
+  const acumClave = {}, acumSocio = {};
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const serie = [];
+  for (const L of lunes) {
+    const s = semanas[L];
+    for (const k in s.porClave) acumClave[k] = (acumClave[k] || 0) + s.porClave[k];
+    for (const k in s.porSocio) acumSocio[k] = (acumSocio[k] || 0) + s.porSocio[k];
+    // Cartera al cierre de ESTA semana, con lo acumulado hasta aquí.
+    let cartera = 0, esperado = 0, conSaldo = 0;
+    if (L >= corte) {
+      const liqRestante = Object.assign({}, acumSocio);
+      for (const c of activos) {
+        const clave = claveCredito(c.id, c.producto);
+        const pagado = acumClave[clave] || 0;
+        const ini = c.saldo || 0;
+        const disp = liqRestante[String(c.id)] || 0;
+        const liq = Math.min(disp, Math.max(0, ini - pagado));
+        if (liq > 0) liqRestante[String(c.id)] = disp - liq;
+        const saldo = Math.max(0, ini - pagado - liq);
+        cartera += saldo;
+        if (saldo > 0) { conSaldo++; esperado += Math.min(Number(c.cuota) || 0, saldo); }
+      }
+    }
+    serie.push({
+      semana: L,
+      cobrado: r2(s.pago), garantias: r2(s.gar), recuperacion: r2(s.recuperacion),
+      clientas: s.clientas.size,
+      cartera: L >= corte ? r2(cartera) : null,
+      creditosConSaldo: L >= corte ? conSaldo : null,
+      // esperado/mora de la semana SIGUIENTE: la cartera al cierre es la que
+      // debe cobrarse la semana que entra.
+      esperadoProxima: L >= corte ? r2(esperado) : null,
+    });
+  }
+  // mora de cada semana = lo que se esperaba (según el cierre anterior) − lo cobrado
+  for (let i = 1; i < serie.length; i++) {
+    const esp = serie[i - 1].esperadoProxima;
+    if (esp == null) { serie[i].esperado = null; serie[i].mora = null; serie[i].cumplimiento = null; continue; }
+    serie[i].esperado = esp;
+    serie[i].mora = r2(Math.max(0, esp - serie[i].cobrado));
+    serie[i].cumplimiento = esp > 0 ? r2((serie[i].cobrado / esp) * 100) : null;
+  }
+  if (serie.length) { serie[0].esperado = null; serie[0].mora = null; serie[0].cumplimiento = null; }
+  res.json({ corte, hoy: hoyMX(), semanaActual: lunesDeLaSemana(hoyMX()), serie });
+});
+
 app.get("/api/creditos", soloAnelMonse, (req, res) => {
   const estado = String(req.query.estado || "").toLowerCase();
   const q = norm(req.query.q).trim();
