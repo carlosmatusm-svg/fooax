@@ -1309,41 +1309,6 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
-// ---------- diagnóstico TEMPORAL del cuadre (solo lectura; quitar tras usar) ----------
-app.get("/api/_cuadre", (req, res) => {
-  if (req.query.t !== "cuadre-28jul") return res.status(404).end();
-  const fecha = req.query.fecha || hoyMX();
-  const ids = Object.keys(USUARIOS).filter((id) => USUARIOS[id].rol === "ejecutivo" && !USUARIOS[id].test);
-  const a = calcularArqueo(fecha, ids);
-  const movs = store.movimientosDeFecha(fecha).filter((m) => {
-    const u = m.usuario && USUARIOS[m.usuario];
-    return !(u && u.test);
-  });
-  repartirMovsPorEjecutivo(a.porEjec, movs.filter((m) => !m.anulado));
-  const out = {};
-  for (const id of ids) {
-    const e = a.porEjec[id] || {};
-    const contado = Object.entries(e.denom || {}).reduce((s, [d, q]) => s + Number(d) * (Number(q) || 0), 0);
-    const aEntregar = Math.round(((e.efectivo || 0) - (e.egresoEfectivo || 0)) * 100) / 100;
-    const snap = store.snapshotsDeFecha(fecha)[id];
-    out[id] = {
-      cobranzaEfectivo: Math.round((e.efectivo || 0) * 100) / 100,
-      transferencia: Math.round((e.transferencia || 0) * 100) / 100,
-      entradasEfectivo: Math.round((e.movEntradas || 0) * 100) / 100,
-      salidasEfectivo: Math.round((e.movSalidas || 0) * 100) / 100,
-      debeEntregar: aEntregar,
-      contadoEnBilletes: Math.round(contado * 100) / 100,
-      diferencia: Math.round((contado - aEntregar) * 100) / 100,
-      clientasQuePagaron: e.clientas || 0,
-      denominaciones: Object.fromEntries(Object.entries(e.denom || {}).filter(([, q]) => q > 0)),
-      cerro: !!(snap && snap.cierre),
-      sincronizado: snap && snap.recibido ? new Date(snap.recibido).toISOString().slice(11, 19) : null,
-    };
-  }
-  res.json({ fecha, porEjecutiva: out,
-    movimientosDelDia: movs.map((m) => ({ folio: m.folio, monto: m.monto, metodo: m.metodo, entrada: !!m.entrada, anulado: !!m.anulado, concepto: String(m.concepto || "").slice(0, 40) })) });
-});
-
 // ---------- FASE 2 · TENDENCIAS (evolución semana a semana) ----------
 // Recorre TODA la historia guardada una sola vez y la agrupa por semana.
 // La cartera de una semana pasada se reconstruye así: saldo de plantilla menos
