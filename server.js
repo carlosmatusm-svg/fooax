@@ -1309,44 +1309,6 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
-// ---------- diagnóstico TEMPORAL movimientos (solo lectura; quitar tras usar) ----------
-app.get("/api/_movhoy", (req, res) => {
-  if (req.query.t !== "mov-28jul") return res.status(404).end();
-  const fecha = req.query.fecha || hoyMX();
-  const snaps = store.snapshotsDeFecha(fecha);
-  const porEjec = {};
-  for (const id in snaps) {
-    const rec = snaps[id];
-    let data = rec.snapshot;
-    const tipoCrudo = typeof data;
-    if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
-    const movs = Array.isArray(data && data.movs) ? data.movs : null;
-    porEjec[id] = {
-      tipoSnapshot: tipoCrudo,
-      movsEnLaCaptura: movs ? movs.length : "NO TRAE movs",
-      detalle: (movs || []).map((m) => ({ folio: m && m.folio, concepto: m && m.concepto, monto: m && m.monto, via: m && m.via, socio: m && m.socio || null })),
-      recibido: rec.recibido ? new Date(rec.recibido).toISOString() : null,
-      cierre: !!rec.cierre,
-    };
-  }
-  const guardados = store.movimientosDeFecha(fecha).map((m) => ({
-    folio: m.folio, monto: m.monto, concepto: String(m.concepto || "").slice(0, 45),
-    metodo: m.metodo, anulado: !!m.anulado, usuario: m.usuario || null,
-  }));
-  // ¿alguna versión archivada de hoy SÍ traía movimientos? (distingue "nunca
-  // los tuvo" de "los tuvo y se perdieron")
-  store.historialDeFecha(fecha).then((hist) => {
-    const historia = hist.map((h) => {
-      let d = h.snapshot; if (typeof d === "string") { try { d = JSON.parse(d); } catch { d = {}; } }
-      const ms = Array.isArray(d && d.movs) ? d.movs : [];
-      return { ejecutivo: h.ejecutivo, archivado: h.archivado ? new Date(h.archivado).toISOString().slice(11, 19) : null,
-        movs: ms.length, folios: ms.map((m) => m && m.folio).filter(Boolean) };
-    }).filter((x) => x.movs > 0);
-    res.json({ fecha, hoyServidor: hoyMX(), enLasCapturas: porEjec, guardadosEnElServidor: guardados,
-      versionesDeHoyConMovimientos: historia });
-  }).catch(() => res.json({ fecha, hoyServidor: hoyMX(), enLasCapturas: porEjec, guardadosEnElServidor: guardados, historial: "no disponible" }));
-});
-
 // ---------- FASE 2 · TENDENCIAS (evolución semana a semana) ----------
 // Recorre TODA la historia guardada una sola vez y la agrupa por semana.
 // La cartera de una semana pasada se reconstruye así: saldo de plantilla menos
