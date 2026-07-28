@@ -131,9 +131,11 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   ok("la cartera (Fase 2) responde con cifras coherentes",
      car.creditosActivos > 0 && car.cartera >= 0 && Math.abs(car.moraSemana - Math.max(0, car.esperadoSemana - car.cobradoSemana)) < 0.02,
      "créditos " + car.creditosActivos + " · cartera " + car.cartera);
+  // la suma incluye TODAS las casillas, también "cuotaVariable" (Magnus) — se
+  // suman las que existan, para que agregar una casilla nueva no rompa la prueba.
+  const sumaSem = car.semaforo ? Object.values(car.semaforo).reduce((x, y) => x + y, 0) : -1;
   ok("y su semáforo suma exactamente los créditos activos",
-     car.semaforo && (car.semaforo.alCorriente + car.semaforo.parcial + car.semaforo.pendiente + car.semaforo.vencida + car.semaforo.liquidada) === car.creditosActivos,
-     JSON.stringify(car.semaforo));
+     sumaSem === car.creditosActivos, sumaSem + " vs " + car.creditosActivos + " · " + JSON.stringify(car.semaforo));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL_N === 0 ? "✅✅ SMOKE OK: " + PASS_N + " verificaciones (" + U + ")" : "❌ FALLARON " + FAIL_N + " de " + (PASS_N + FAIL_N) + " (" + U + ")");

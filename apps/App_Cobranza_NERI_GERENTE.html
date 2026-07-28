@@ -796,7 +796,7 @@ function semaforoCentro(centro){
     montoCobrado+=(r.pago||0);
     garCobrada+=(r.garantia||0);
     solCobrado+=(r.solidario||0);
-    montoEsp+=(cl.esp||0);
+    if(!esCuotaVar(cl.sub))montoEsp+=(cl.esp||0);
     if((cl.mora||0)>0){moraCentro+=cl.mora;clientasMora++;}
   });
   const pctCli= total? Math.round(pagadas/total*100):0;
@@ -1197,6 +1197,11 @@ function totales(){
   for(const s in regI)add(regI[s]);
   return {t,efe,tr,dep,n,acc};
 }
+// MAGNUS es de cuota DECRECIENTE y MENSUAL: su cuota del padrón no es lo que
+// toca cobrar esta semana. Si contara en el semáforo, a un ejecutivo con
+// Magnus le saldría rojo permanente (a Julio: 18% cada semana). Se aparta del
+// avance semanal; su cobranza, su arqueo y sus totales SÍ cuentan normal.
+function esCuotaVar(sub){return /magnus|ccf0?3/i.test(String(sub||''));}
 function semaforoGlobalDia(){
   // suma todos los centros que tienen al menos una captura ese día + individuales
   let totalCli=0,pagadas=0,montoCob=0,montoEsp=0,centrosTocados=0,centrosCompletos=0;
@@ -1208,8 +1213,8 @@ function semaforoGlobalDia(){
     totalCli+=s.total;pagadas+=s.pagadas;montoCob+=s.montoCobrado;montoEsp+=s.montoEsp;
   }
   // individuales
-  let iPag=0,iTot=INDIVIDUALES.length,iCob=0,iEsp=0;
-  for(const cl of INDIVIDUALES){const r=regI[cl.k||cl.f]||{};if(rTot(r)>0)iPag++;iCob+=(r.pago||0);iEsp+=(cl.esp||0);}
+  let iPag=0,iTot=INDIVIDUALES.filter(function(c){return !esCuotaVar(c.sub);}).length,iCob=0,iEsp=0;
+  for(const cl of INDIVIDUALES){if(esCuotaVar(cl.sub))continue;const r=regI[cl.k||cl.f]||{};if(rTot(r)>0)iPag++;iCob+=(r.pago||0);iEsp+=(cl.esp||0);}
   if(iPag>0){totalCli+=iTot;pagadas+=iPag;montoCob+=iCob;montoEsp+=iEsp;}
   const pctCli=totalCli?Math.round(pagadas/totalCli*100):0;
   const pctMonto=montoEsp?Math.round(montoCob/montoEsp*100):0;
