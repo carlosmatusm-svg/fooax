@@ -624,6 +624,29 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const r0 = await j(await syncK({ fecha: DK, reg: {}, regI: {}, movs: [], arqueo: {} }));
   ok("una captura vacía SIN conteo se sigue rechazando (blindaje intacto)", r0.rechazado === "vacio_sobre_lleno", JSON.stringify(r0).slice(0, 60));
 
+  console.log("\n— 27. El DESGLOSE de una clienta NO se cuenta dos veces (bug real del 28-jul) —");
+  // Karina cerró con un conteo PERFECTO de $5,640, pero el tablero le marcaba
+  // $5,780 y "sobran $140": la clienta del mixto traía desglose {100:1, 20:2} y
+  // el sistema lo SUMABA encima del conteo físico. Los mismos billetes, dos veces.
+  const DD = "2026-01-21";
+  const syncDsg = (snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: DD, snapshot: JSON.stringify(snap), ts: Date.now() }) });
+  const arqDsg = async () => { const a = await j(await fetch(U + "/api/arqueo?fecha=" + DD, { headers: H(cd) })); return (a.porEjec || {}).prueba || {}; };
+  await syncDsg({ fecha: DD, regI: {}, movs: [], reg: { "C-2": {
+    "d1|P": { pago: 5500, forma: "E" },
+    // la del mixto: pagó $140 en efectivo y trae el desglose de esos billetes
+    "d2|P": { pago: 480, garantia: 20, forma: "M", mixEfe: 140, mixTr: 360, desglose: { "100": 1, "20": 2 } },
+  } }, arqueo: { "500": 4, "200": 5, "100": 14, "50": 19, "20": 5, "10": 5, "5": 12, "2": 22, "1": 36 } });
+  const ed = await arqDsg();
+  ok("el conteo es el que ella tecleó, sin sumarle el desglose", ed.contado === 5640, "contó " + ed.contado + " (el desglose habría dado 5,780)");
+  ok("y el día CUADRA en $0 (antes marcaba sobra $140)", ed.dif === 0, "debe " + ed.aEntregar + " · dif " + ed.dif);
+  // día VIEJO sin conteo de arqueo: ahí el desglose SÍ es la única fuente
+  const DV = "2026-01-22";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: DV, snapshot: JSON.stringify({ fecha: DV,
+    reg: { "C-2": { "v1|P": { pago: 300, forma: "E", desglose: { "100": 3 } } } }, regI: {}, movs: [], arqueo: {} }), ts: Date.now() }) });
+  const av = await j(await fetch(U + "/api/arqueo?fecha=" + DV, { headers: H(cd) }));
+  const ev = (av.porEjec || {}).prueba || {};
+  ok("en días viejos SIN arqueo, el desglose sigue siendo la fuente del conteo", ev.contado === 300, "contó " + ev.contado);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

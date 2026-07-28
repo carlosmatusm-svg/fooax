@@ -1336,50 +1336,6 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
-// ---------- diagnóstico TEMPORAL del conteo (solo lectura; quitar tras usar) ----------
-app.get("/api/_conteo", async (req, res) => {
-  if (req.query.t !== "cnt-28jul") return res.status(404).end();
-  const fecha = req.query.fecha || hoyMX();
-  const ej = req.query.ej || "karina";
-  const rec = store.snapshotsDeFecha(fecha)[ej];
-  let data = rec && rec.snapshot;
-  if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
-  const suma = (o) => Object.entries(o || {}).reduce((s, [d, q]) => s + Number(d) * (Number(q) || 0), 0);
-  let hist = [];
-  try {
-    hist = (await store.historialDeFecha(fecha)).filter((h) => h.ejecutivo === ej).map((h) => {
-      let d = h.snapshot; if (typeof d === "string") { try { d = JSON.parse(d); } catch { d = {}; } }
-      return { archivado: h.archivado ? new Date(h.archivado).toISOString().slice(11, 19) : null,
-        conteo: suma(d && d.arqueo), denom: (d && d.arqueo) || {}, pagos: contarPagos(d) };
-    });
-  } catch (e) { hist = []; }
-  // ¿alguna clienta trae "desglose"? calcularArqueo SUMA el desglose por clienta
-  // ADEMÁS del conteo del arqueo — si hay desglose, infla el contado.
-  const desgloses = [];
-  const buscar = (st) => { if (!st || typeof st !== "object") return;
-    for (const k in st) { const nd = st[k];
-      if (nd && typeof nd === "object" && nd.desglose) desgloses.push({ clave: k, desglose: nd.desglose });
-      else if (nd && typeof nd === "object" && !("pago" in nd)) for (const kk in nd) {
-        const x = nd[kk]; if (x && typeof x === "object" && x.desglose) desgloses.push({ clave: kk, desglose: x.desglose }); } } };
-  buscar(data && data.reg); buscar(data && data.regI);
-  const aq = calcularArqueo(fecha, [ej]);
-  const eq = aq.porEjec[ej] || {};
-  const contadoQueVeElTablero = Object.entries(eq.denom || {}).reduce((s2, [d, q]) => s2 + Number(d) * (Number(q) || 0), 0);
-  res.json({
-    fecha, ejecutivo: ej,
-    contadoQueVeElTablero, denomDelTablero: Object.fromEntries(Object.entries(eq.denom || {}).filter(([, q]) => q > 0)),
-    clientasConDesglose: desgloses,
-    actual: rec ? {
-      conteoGuardado: suma(data && data.arqueo),
-      denominaciones: (data && data.arqueo) || {},
-      pagos: contarPagos(data),
-      recibido: rec.recibido ? new Date(rec.recibido).toISOString().slice(11, 19) : null,
-      cerrado: !!rec.cierre,
-    } : "sin captura",
-    versionesDeHoy: hist,
-  });
-});
-
 // ---------- FASE 2 · TENDENCIAS (evolución semana a semana) ----------
 // Recorre TODA la historia guardada una sola vez y la agrupa por semana.
 // La cartera de una semana pasada se reconstruye así: saldo de plantilla menos
@@ -1742,6 +1698,12 @@ function calcularArqueo(fecha, ids) {
   const porEjec = {};
   for (const id of ids) {
     const denom = {}; DENOMS_ARQUEO.forEach((d) => { denom[d] = 0; });
+    // El desglose por clienta (cómo pagó UNA clienta) se junta aparte: NO se
+    // suma al conteo, porque los billetes de ese pago YA están dentro del
+    // conteo físico del día. Sumar los dos contaba el mismo dinero dos veces
+    // (bug del 28-jul: IRMA NORA traía desglose de $140 y a Karina le
+    // "sobraban" $140 que nunca le sobraron).
+    const desglosePorClienta = {};
     const acc = { denom, efectivo: 0, transferencia: 0, garantias: 0, faltantes: 0, clientas: 0 };
     const s = snaps[id];
     if (s) {
@@ -1764,7 +1726,7 @@ function calcularArqueo(fecha, ids) {
           acc.efectivo += me; acc.transferencia += mt;
         }
         else acc.efectivo += total;
-        if (n.desglose) for (const d in n.desglose) denom[d] = (denom[d] || 0) + (n.desglose[d] || 0);
+        if (n.desglose) for (const d in n.desglose) desglosePorClienta[d] = (desglosePorClienta[d] || 0) + (n.desglose[d] || 0);
         if (pago > 0) acc.clientas += 1;
         const cuota = cuotaDe(key);
         if (cuota && pago > 0 && pago < cuota) acc.faltantes += cuota - pago;
@@ -1783,9 +1745,17 @@ function calcularArqueo(fecha, ids) {
       // Es el conteo físico de la caja que hace la ejecutiva una vez al día.
       // Antes solo se leía el desglose por clienta (n.desglose), que nadie
       // llena, y por eso el arqueo de Dirección salía en ceros.
-      if (data.arqueo && typeof data.arqueo === "object") {
+      const tieneArqueo = data.arqueo && typeof data.arqueo === "object" && Object.keys(data.arqueo).length > 0;
+      if (tieneArqueo) {
         for (const v in data.arqueo) {
           const val = Number(v), q = Number(data.arqueo[v]) || 0;
+          if (!isNaN(val) && q > 0) denom[val] = (denom[val] || 0) + q;
+        }
+      } else {
+        // Días viejos que solo traían el desglose por clienta (antes de que
+        // existiera la pestaña Arqueo): ahí sí es la única fuente del conteo.
+        for (const v in desglosePorClienta) {
+          const val = Number(v), q = Number(desglosePorClienta[v]) || 0;
           if (!isNaN(val) && q > 0) denom[val] = (denom[val] || 0) + q;
         }
       }
