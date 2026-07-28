@@ -150,8 +150,21 @@ app.post("/api/logout", (req, res) => {
 app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
   const b = req.body || {};
   const fecha = String(b.fecha || hoyMX()).trim();
+  // GARANTÍA (regla Karina 27-jul): si el sistema dice que CERRÓ, es porque
+  // MANDÓ SU ARQUEO. Se valida aquí y no solo en la app, porque el teléfono
+  // puede traer una versión vieja o alguien puede llamar la API directo.
+  // Si el día no tuvo efectivo (todo transferencia), no hay nada que contar.
+  const a = calcularArqueo(fecha, [req.usuario.id]);
+  const e = a.porEjec[req.usuario.id] || { denom: {}, efectivo: 0 };
+  const contado = Object.entries(e.denom || {}).reduce((s, [d, q]) => s + Number(d) * (Number(q) || 0), 0);
+  if ((e.efectivo || 0) > 0 && contado <= 0) {
+    return res.status(400).json({
+      error: "Para cerrar el día primero tienes que contar tu efectivo en la pestaña Arqueo. Sin el conteo, el día no se puede dar por cerrado.",
+      falta: "arqueo",
+    });
+  }
   const marcado = store.marcarCierre(req.usuario.id, fecha, !!b.confirmado);
-  res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado });
+  res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado, contado });
 });
 
 // "Capturar TODO de nuevo" tras cerrar: la ejecutiva eligió empezar de cero en

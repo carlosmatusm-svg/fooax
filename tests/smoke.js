@@ -89,7 +89,11 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   console.log("\n— E. BLINDAJES DEL DÍA —");
   const rv = await j(await sync({ fecha: FECHA, reg: {}, regI: {}, movs: [] }));
   ok("una captura VACÍA no pisa la cobranza (rechazada)", rv.rechazado === "vacio_sobre_lleno", JSON.stringify(rv).slice(0, 60));
-  await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: FECHA, confirmado: true }) });
+  // REGLA: cerrar = mandó su arqueo. cap1 SÍ trae conteo de billetes, así que
+  // este cierre debe pasar; un día con efectivo y sin conteo se rechaza (se
+  // verifica en la batería, aquí basta con que la regla no bloquee lo válido).
+  const rCierre = await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: FECHA, confirmado: true }) });
+  ok("el cierre pasa cuando el arqueo ya fue contado", rCierre.ok, "status " + rCierre.status);
   ok("el cierre queda marcado", !!(await cons()).cierre);
   await sync(cap1);   // volvió a entrar y su app re-mandó LO MISMO
   ok("re-mandar la MISMA captura tras cerrar NO duplica", Math.abs((await cons()).efectivo - 111) < 0.01, "efectivo " + (await cons()).efectivo);

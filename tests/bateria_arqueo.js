@@ -550,6 +550,31 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      (tend.serie || []).filter((x) => x.cartera != null).every((x, i, arr) => i === 0 || x.cartera <= arr[i - 1].cartera + 0.01), "ok");
   ok("las tendencias son solo para dirección/admin (ejecutiva 403)", (await fetch(U + "/api/tendencias", { headers: H(ce) })).status === 403);
 
+  console.log("\n— 24. CERRAR = MANDÓ SU ARQUEO (regla Karina 27-jul) —");
+  const D7 = "2026-02-18";
+  const cerrarEn = async (f) => { const r = await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: f, confirmado: true }) });
+    const d = await r.json().catch(() => ({})); return { status: r.status, ...d }; };
+  const cerrarD7 = () => cerrarEn(D7);
+  const consD7 = async () => { const c = await j(await fetch(U + "/api/consolidado?fecha=" + D7, { headers: H(cd) })); return (c.ejecutivos || {}).prueba || {}; };
+  // cobranza en EFECTIVO pero SIN contar un solo billete
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D7,
+    snapshot: JSON.stringify({ fecha: D7, reg: { "C-4": { "q1|P": { pago: 900, forma: "E" } } }, regI: {}, movs: [], arqueo: {} }), ts: Date.now() }) });
+  let cz = await cerrarD7();
+  ok("con efectivo y SIN conteo, el servidor RECHAZA el cierre", cz.status === 400 && cz.falta === "arqueo", JSON.stringify(cz).slice(0, 90));
+  ok("y el día NO queda marcado como cerrado", !(await consD7()).cierre, "cierre " + (await consD7()).cierre);
+  // ahora sí cuenta sus billetes
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D7,
+    snapshot: JSON.stringify({ fecha: D7, reg: { "C-4": { "q1|P": { pago: 900, forma: "E" } } }, regI: {}, movs: [], arqueo: { "500": 1, "200": 2 } }), ts: Date.now() }) });
+  cz = await cerrarD7();
+  ok("con el conteo hecho, el cierre SÍ pasa", cz.status === 200 && cz.marcado === true && cz.contado === 900, JSON.stringify(cz).slice(0, 80));
+  ok("y ahora el día sí aparece cerrado para Monse", !!(await consD7()).cierre);
+  // un día 100% transferencia no tiene efectivo que contar: debe poder cerrar
+  const D8 = "2026-02-25";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D8,
+    snapshot: JSON.stringify({ fecha: D8, reg: { "C-4": { "q2|P": { pago: 700, forma: "T" } } }, regI: {}, movs: [], arqueo: {} }), ts: Date.now() }) });
+  const cz8 = await cerrarEn(D8);
+  ok("un día TODO por transferencia sí puede cerrar (no hay efectivo que contar)", cz8.status === 200 && cz8.marcado === true, JSON.stringify(cz8).slice(0, 70));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

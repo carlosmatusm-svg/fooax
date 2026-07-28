@@ -641,6 +641,17 @@ async function enviarArqueoYCerrar(){
   if(bloqueoPorErrores('ENVIAR EL ARQUEO Y CERRAR'))return;
   const {t}=totales();
   if(t<=0 && !(window._arqueoTotal>0)){alert('Aún no hay cobranza ni conteo para el arqueo de hoy.');return;}
+  // CERRAR = MANDÓ SU ARQUEO (regla Karina 27-jul). Si hay efectivo que
+  // entregar y no ha contado un solo billete, no se cierra: se le manda a
+  // contar. El efectivo se calcula aquí y no se lee de _arqueoEsperado, que
+  // solo se actualiza si abrió la pestaña Arqueo.
+  var _efe=0;
+  try{_efe=(totales().efe||0)+((typeof movsEfectivoNeto==='function')?movsEfectivoNeto():0);}catch(e){}
+  if(_efe>0 && !(window._arqueoTotal>0)){
+    alert('Falta contar tu efectivo.\n\nDebes entregar '+fmt(_efe)+' y todavía no anotas ningún billete.\n\nVe a la pestaña ARQUEO, anota cuántos billetes y monedas traes, y vuelve a darle a Enviar arqueo.');
+    showTab('arqueo');
+    return;
+  }
   const texto=textoArqueoApp();
   const rp=(typeof renovPendientes==='function')?renovPendientes():{pendientes:0};
   const nota=(rp.pendientes>0)?('Tienes '+rp.pendientes+' renovación(es) sin gestionar.'):'';
@@ -652,18 +663,27 @@ async function enviarArqueoYCerrar(){
   var subio=false;try{if(window.__forzarSync)subio=await window.__forzarSync();}catch(e){}
   if(!subio){alert('Sin senal ahora mismo. Tu captura NO se borro: sigue guardada en este telefono.\n\nEn cuanto tengas internet, vuelve a tocar "Enviar arqueo y cerrar captura".');return;}
   if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
-  avisarCierre();
+  // El servidor CONFIRMA el cierre solo si recibió el arqueo. Si lo rechaza, la
+  // captura ya está a salvo (la subida se confirmó arriba) pero el día NO queda
+  // cerrado, y hay que decirlo — antes esto fallaba en silencio.
+  var cierre={ok:true};
+  try{cierre=await avisarCierre()||{ok:true};}catch(e){}
   window._reporteEnviado=true;
   __despuesDeEnviar();
-  __palomitaExito('Arqueo enviado ✓','La captura quedó cerrada y guardada en el sistema.');
+  if(cierre.ok)__palomitaExito('Arqueo enviado ✓','La captura quedó cerrada y guardada en el sistema.');
+  else alert('Tu cobranza SÍ se guardó en el sistema, pero el día NO quedó cerrado.\n\n'+(cierre.error||'Intenta de nuevo con señal.'));
 }
 // Avisa al servidor que la ejecutiva CERRÓ su día (para que el tablero
 // muestre quién usó el botón y quién se lo saltó).
 function avisarCierre(){
+  // Devuelve una promesa: el servidor RECHAZA el cierre si no llegó el arqueo,
+  // y la ejecutiva tiene que enterarse (antes se ignoraba en silencio).
   try{
     var f=document.getElementById('inpFecha').value||hoyISO();
-    fetch('/api/cierre',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:f,confirmado:true})}).catch(function(){});
-  }catch(e){}
+    return fetch('/api/cierre',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:f,confirmado:true})})
+      .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,error:d&&d.error};});})
+      .catch(function(){return {ok:false};});
+  }catch(e){return Promise.resolve({ok:false});}
 }
 function cerrarDia(){
   // El boton viejo borraba el telefono SIN subir primero: sin senal se
