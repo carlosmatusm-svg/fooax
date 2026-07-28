@@ -675,12 +675,20 @@ let PADRON = [];
 const CUOTA = {};        // cuota por socio|producto (para faltantes/mora del día)
 const CREDS_SOCIO = {};  // socio -> [cuotas] (fallback cuando el producto no coincide)
 // Re-lee el padrón efectivo (base + altas/bajas) y reconstruye el mapa de cuotas.
+// PRODUCTOS DE CUOTA VARIABLE (saldos insolutos): la cuota BAJA cada periodo,
+// así que la del padrón deja de ser válida al primer pago. Si se comparara el
+// pago contra ella saldría MORA FALSA todas las semanas. Mejor no inventar
+// mora: se excluyen del mapa de cuotas y el sistema los trata como "sin cuota
+// de referencia" (cuotaDe → null), que ya es un caso soportado.
+// Hoy solo MAGNUS (CCF03). El cálculo correcto llega con el módulo de intereses.
+const CUOTA_VARIABLE = /magnus|ccf0?3/i;
+function esCuotaVariable(producto) { return CUOTA_VARIABLE.test(String(producto || "")); }
 function refrescarPadron() {
   PADRON = store.padron();
   for (const k in CUOTA) delete CUOTA[k];
   for (const k in CREDS_SOCIO) delete CREDS_SOCIO[k];
   PADRON.forEach((c) => {
-    if (!(c.cuota > 0)) return;
+    if (!(c.cuota > 0) || esCuotaVariable(c.producto)) return;
     CUOTA[c.id + "|" + nprod(c.producto)] = c.cuota;
     (CREDS_SOCIO[c.id] = CREDS_SOCIO[c.id] || []).push(c.cuota);
   });
@@ -1211,6 +1219,7 @@ function creditoActivo(id, producto) {
 // casos): no se inventa un número, se marca para que Monse lo corrija.
 function numeroDePago(c, saldoActual) {
   const cuota = Number(c.cuota) || 0, plazo = Number(c.plazo) || 0;
+  if (esCuotaVariable(c.producto)) return null;   // cuota decreciente: no se puede derivar
   if (!(cuota > 0) || !(plazo > 0)) return null;
   const restantes = Math.round((saldoActual || 0) / cuota);
   if (restantes > plazo) return { pago: null, plazo, restantes, inconsistente: true };
@@ -1223,6 +1232,10 @@ function numeroDePago(c, saldoActual) {
 function semaforoDe(c, info, pagoSemana) {
   if (c.estatus === "VENCIDA" || Number(c.mora) > 0) return "vencida";
   if (info.saldoActual <= 0) return "liquidada";
+  // Cuota VARIABLE (Magnus): su cuota baja cada periodo, así que compararla
+  // contra la del padrón daría un semáforo falso. Se aparta hasta que exista
+  // el módulo de intereses.
+  if (esCuotaVariable(c.producto)) return "cuotaVariable";
   const cuota = Number(c.cuota) || 0;
   // "pendiente" NO es mora: cada centro cobra en su día, y el lunes casi nadie
   // ha pagado todavía. Se cuenta aparte para no leer 590 morosas cada lunes.
@@ -1235,7 +1248,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   const sem = pagosDeLaSemana(req.usuario);          // ventana semanal (lunes → hoy)
   const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
   const acc = { cartera: 0, moraMonto: 0, moraCreditos: 0, saldoPromedio: 0, liquidadas: 0 };
-  const semaforo = { alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0 };
+  const semaforo = { alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 };
   const porEjec = {}, inconsistentes = [], vencidas = [];
   let conSaldo = 0, esperado = 0;
   for (const c of activos) {
@@ -1248,17 +1261,18 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     if (info.saldoActual > 0) {
       conSaldo++;
       // Lo que DEBÍA entrar esta semana por ese crédito: su cuota, o el saldo
-      // si ya le falta menos de una cuota para liquidar.
-      esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+      // si ya le falta menos de una cuota para liquidar. Los de cuota VARIABLE
+      // no suman: su cuota del padrón ya no es la vigente.
+      if (!esCuotaVariable(c.producto)) esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
     }
     if (info.saldoActual <= 0) acc.liquidadas++;
     const mora = Number(c.mora) > 0 ? Number(c.mora) : 0;
     if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, mora, saldoActual: info.saldoActual }); }
     const np = numeroDePago(c, info.saldoActual);
     if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
-    const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0 });
+    const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
     e.creditos++; e.cartera += info.saldoActual; e.mora += mora; e[s]++;
-    if (info.saldoActual > 0) e.esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+    if (info.saldoActual > 0 && !esCuotaVariable(c.producto)) e.esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
     e.cobrado += pagoSemana;
   }
   const r2 = (n) => Math.round(n * 100) / 100;

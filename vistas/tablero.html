@@ -934,6 +934,7 @@ async function cargarCartera() {
     + chip("Aún sin cobrar", S.pendiente || 0, "#324AB6", "#E5EAFB")
     + chip("Vencidas", S.vencida || 0, "#B00020", "#FDECEC")
     + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7")
+    + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F3ECF8") : "")
     + "</div></div>";
   // Cartera
   h += '<div class="sub" style="margin-top:12px">'
@@ -965,6 +966,9 @@ async function cargarCartera() {
     h += '<div class="ct-nota"><b>⚠ ' + d.inconsistentes.length + " créditos con el plazo mal capturado.</b> Al dividir su saldo entre la cuota salen más pagos de los que dice el plazo, así que el “pago 13 de 18” no se puede calcular para ellos. Para que Monse los corrija:<br>"
       + d.inconsistentes.slice(0, 10).map((x) => "• " + hesc(x.nombre) + " (" + hesc(x.producto) + "): plazo dice <b>" + x.plazoPadron + "</b>, real <b>" + x.plazoReal + "</b>").join("<br>")
       + "</div>";
+  }
+  if (S.cuotaVariable) {
+    h += '<div class="ct-nota"><b>' + S.cuotaVariable + ' créditos de CUOTA VARIABLE (Magnus).</b> Su cuota baja cada periodo, así que la del padrón deja de servir al primer pago. Para no marcarles mora falsa, quedan fuera del esperado, del semáforo y del “pago 13 de 18” hasta que exista el módulo de intereses. Su cobranza y su arqueo sí cuentan normal.</div>';
   }
   h += '<div class="ct-nota">La <b>mora de la semana</b> se calcula por ahora como <i>suma de cuotas de los créditos con saldo − lo cobrado</i>, y “aún sin cobrar” <b>no</b> es morosidad (cada centro cobra en su día). Falta el dictado de Monse (ficha de mora, mora-semana vs recuperación, cartera activa vs total) para fijar la definición oficial.</div>';
   box.innerHTML = h;

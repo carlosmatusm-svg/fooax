@@ -575,6 +575,28 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const cz8 = await cerrarEn(D8);
   ok("un día TODO por transferencia sí puede cerrar (no hay efectivo que contar)", cz8.status === 200 && cz8.marcado === true, JSON.stringify(cz8).slice(0, 70));
 
+  console.log("\n— 25. MAGNUS (cuota VARIABLE): no inventa mora · COMADRE sí es cuota fija —");
+  // Julio trae solo Comadre y Magnus. Comadre es cuota PAREJA (método A) → cabe
+  // igual que los grupales. Magnus es saldos insolutos (cuota DECRECIENTE) → su
+  // cuota del padrón deja de valer al primer pago y NO debe generar mora.
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000200", nombre: "JULIO MAGNUS", producto: "Magnus", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 20000, cuota: 1800, plazo: 12 }) }));
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000201", nombre: "JULIO COMADRE", producto: "Comadre", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 12000, cuota: 1000, plazo: 12 }) }));
+  const D9 = "2026-03-04";
+  // los dos pagan MENOS que su cuota del padrón
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: D9, snapshot: JSON.stringify({ fecha: D9,
+    reg: { "C-88": { "70000000200|Magnus": { pago: 900, forma: "E" }, "70000000201|Comadre": { pago: 400, forma: "E" } } },
+    regI: {}, movs: [], arqueo: { "1000": 1, "200": 1, "100": 1 } }), ts: Date.now() }) });
+  const a9 = await j(await fetch(U + "/api/arqueo?fecha=" + D9, { headers: H(ca) }));   // Anel: ve a las ejecutivas reales
+  const e9 = (a9.porEjec || {}).neri || {};
+  ok("MAGNUS no genera mora falsa (solo cuenta la de Comadre: 1000 − 400 = 600)",
+     Math.abs((e9.faltantes || 0) - 600) < 0.01, "faltantes " + e9.faltantes);
+  const car9 = await j(await fetch(U + "/api/cartera", { headers: H(ca) }));
+  ok("el semáforo aparta los créditos de cuota variable", (car9.semaforo.cuotaVariable || 0) >= 1, JSON.stringify(car9.semaforo));
+  ok("y el esperado de la semana NO incluye la cuota de Magnus",
+     car9.esperadoSemana > 0 && !JSON.stringify(car9.semaforo).includes("undefined"), "esperado " + car9.esperadoSemana);
+  const sinMagnus = (car9.inconsistentes || []).every((x) => !/magnus/i.test(x.producto || ""));
+  ok("Magnus tampoco sale como 'plazo mal capturado' (no se le deriva el nº de pago)", sinMagnus, "inconsistentes " + (car9.inconsistentes || []).length);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
