@@ -1591,7 +1591,14 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     ? [req.usuario.id].filter((x) => USUARIOS[x] && USUARIOS[x].rol === "ejecutivo")
     : idsEjecutivos(req.usuario);
   const a = calcularArqueo(fecha, ids);
-  const movs = (req.usuario.rol === "ejecutivo") ? [] : movsDeFecha(fecha, req.usuario);
+  // La ejecutiva ve SUS PROPIOS movimientos (no los de las demás). Antes se le
+  // mandaba una lista VACÍA: su "efectivo a entregar" no le restaba sus gastos
+  // ni le sumaba sus liquidaciones, así que a Monse le salía un número y a ella
+  // otro del MISMO día. Dirección/admin siguen viendo todos.
+  const todos = movsDeFecha(fecha, req.usuario);
+  const movs = (req.usuario.rol === "ejecutivo")
+    ? todos.filter((m) => usuarioDeMov(m) === req.usuario.id)
+    : todos;
   const egresosEfectivo = egresosEnEfectivo(movs);
   repartirMovsPorEjecutivo(a.porEjec, movs);
   // Cuadre POR EJECUTIVA: lo que contó de billetes vs lo que debe entregar
@@ -2076,7 +2083,10 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   res.type("html").send(out);
 });
 app.get("/tablero", paginaRequiere("direccion", "admin"), (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "tablero.html"));
+  // El tablero vive FUERA de public/: express.static servía /tablero.html a
+  // cualquiera sin sesión (fuga del código y la estructura del panel de
+  // Dirección). Ahora solo se entrega por esta ruta, ya con sesión validada.
+  res.sendFile(path.join(__dirname, "vistas", "tablero.html"));
 });
 app.use(express.static(path.join(__dirname, "public")));
 

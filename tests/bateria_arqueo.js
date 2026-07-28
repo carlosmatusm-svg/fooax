@@ -503,6 +503,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y su pago sube el cobrado de la semana", Math.abs(ca2.cobradoSemana - (antesCob + cli.cuota)) < 0.02, antesCob + " → " + ca2.cobradoSemana);
   ok("la ejecutiva de prueba NO ve la cartera real (403)", (await fetch(U + "/api/cartera", { headers: H(ce) })).status === 403);
 
+  console.log("\n— 22. LA EJECUTIVA VE EL MISMO 'A ENTREGAR' QUE MONSE —");
+  // Bug del 25-jul: a la ejecutiva se le mandaba una lista de movimientos VACÍA,
+  // así que su "a entregar" no le restaba sus gastos. Dos números del mismo día.
+  const D6 = "2026-01-14";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D6, snapshot: JSON.stringify({ fecha: D6,
+    reg: { "C-6": { "e1|P": { pago: 900, forma: "E" } } }, regI: {},
+    movs: [{ folio: "EE1", concepto: "GASTO", monto: 150, via: "E", nota: "pasaje" },
+           { folio: "EE2", concepto: "RECUPERACION", monto: 50, via: "E" }],
+    arqueo: { "500": 1, "200": 1, "100": 1 } }), ts: Date.now() }) });
+  const aEje = await j(await fetch(U + "/api/arqueo?fecha=" + D6, { headers: H(ce) }));   // la ejecutiva
+  const aDir = await j(await fetch(U + "/api/arqueo?fecha=" + D6, { headers: H(cd) }));   // dirección
+  const pEje = (aEje.porEjec || {}).prueba || {}, pDir = (aDir.porEjec || {}).prueba || {};
+  ok("a la ejecutiva SÍ se le restan sus gastos (900 − 150 + 50 = 800)", pEje.aEntregar === 800, "aEntregar " + pEje.aEntregar);
+  ok("y ve EXACTAMENTE lo mismo que Monse para ese día", pEje.aEntregar === pDir.aEntregar && pEje.contado === pDir.contado,
+     "ejecutiva " + pEje.aEntregar + " vs dirección " + pDir.aEntregar);
+  ok("su caja cuadra (contó 800 = debe 800, dif 0)", pEje.contado === 800 && pEje.dif === 0, "contó " + pEje.contado + " · dif " + pEje.dif);
+  ok("la ejecutiva NO ve movimientos de otras ejecutivas", Object.keys(aEje.porEjec || {}).every((k) => k === "prueba"), Object.keys(aEje.porEjec || {}).join(","));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

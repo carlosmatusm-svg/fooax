@@ -60,6 +60,7 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
 
   console.log("\n— C. CANDADOS DE ACCESO —");
   ok("sin sesión NO hay datos (401)", (await fetch(U + "/api/consolidado")).status === 401);
+  ok("el HTML del tablero NO se sirve suelto (vive fuera de public/)", (await fetch(U + "/tablero.html")).status === 404);
   const rc = await fetch(U + "/api/creditos?estado=vencidas", { headers: H(cd) });
   ok("créditos y saldos SOLO Anel y Monse (dirección de prueba: 403)", rc.status === 403, "status " + rc.status);
 
