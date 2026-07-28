@@ -1189,6 +1189,96 @@ function creditoActivo(id, producto) {
     String(c.id) === sid && (producto == null || nprod(c.producto) === nprod(String(producto || ""))));
 }
 // Lista de créditos para el panel: liquidadas (saldo 0), vencidas, o por texto.
+// ---------- FASE 2 · CARTERA, MORA Y SEMÁFORO ----------
+// Nº DE PAGO ("13 de 18"): el padrón NO trae el número de semana (viene en 0 en
+// los 638 créditos) ni la fecha de otorgamiento, así que se DERIVA:
+//   pagos restantes = saldo actual ÷ cuota   →   pago actual = plazo − restantes
+// Verificado contra el padrón real: 559 de 588 créditos dan entero exacto. Si
+// los restantes exceden el plazo, el PLAZO del padrón está mal capturado (8
+// casos): no se inventa un número, se marca para que Monse lo corrija.
+function numeroDePago(c, saldoActual) {
+  const cuota = Number(c.cuota) || 0, plazo = Number(c.plazo) || 0;
+  if (!(cuota > 0) || !(plazo > 0)) return null;
+  const restantes = Math.round((saldoActual || 0) / cuota);
+  if (restantes > plazo) return { pago: null, plazo, restantes, inconsistente: true };
+  return { pago: plazo - restantes, plazo, restantes, inconsistente: false };
+}
+// SEMÁFORO provisional — se calcula con lo que HAY hoy (abono de la semana
+// contra su cuota). ⚠️ La definición oficial de mora la dicta Monse (ficha de
+// mora, mora-semana vs recuperación, cartera activa vs total); cuando llegue,
+// aquí se cambia la regla, no la estructura.
+function semaforoDe(c, info, pagoSemana) {
+  if (c.estatus === "VENCIDA" || Number(c.mora) > 0) return "vencida";
+  if (info.saldoActual <= 0) return "liquidada";
+  const cuota = Number(c.cuota) || 0;
+  // "pendiente" NO es mora: cada centro cobra en su día, y el lunes casi nadie
+  // ha pagado todavía. Se cuenta aparte para no leer 590 morosas cada lunes.
+  if (pagoSemana <= 0) return "pendiente";
+  if (cuota > 0 && pagoSemana + 0.01 < cuota) return "parcial";
+  return "alCorriente";
+}
+app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
+  const cv = carteraViva(req.usuario);
+  const sem = pagosDeLaSemana(req.usuario);          // ventana semanal (lunes → hoy)
+  const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
+  const acc = { cartera: 0, moraMonto: 0, moraCreditos: 0, saldoPromedio: 0, liquidadas: 0 };
+  const semaforo = { alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0 };
+  const porEjec = {}, inconsistentes = [], vencidas = [];
+  let conSaldo = 0, esperado = 0;
+  for (const c of activos) {
+    const info = infoCredito(cv, c);
+    const clave = claveCredito(c.id, c.producto);
+    const pagoSemana = sem.pago[clave] || 0;
+    const s = semaforoDe(c, info, pagoSemana);
+    semaforo[s]++;
+    acc.cartera += info.saldoActual;
+    if (info.saldoActual > 0) {
+      conSaldo++;
+      // Lo que DEBÍA entrar esta semana por ese crédito: su cuota, o el saldo
+      // si ya le falta menos de una cuota para liquidar.
+      esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+    }
+    if (info.saldoActual <= 0) acc.liquidadas++;
+    const mora = Number(c.mora) > 0 ? Number(c.mora) : 0;
+    if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, mora, saldoActual: info.saldoActual }); }
+    const np = numeroDePago(c, info.saldoActual);
+    if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
+    const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0 });
+    e.creditos++; e.cartera += info.saldoActual; e.mora += mora; e[s]++;
+    if (info.saldoActual > 0) e.esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+    e.cobrado += pagoSemana;
+  }
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const cobrado = Object.values(sem.pago).reduce((a, b) => a + b, 0);
+  // RECUPERACIÓN de la semana: liquidaciones y recuperaciones registradas como
+  // "otros movimientos" — dinero del crédito que entra FUERA de la cuota.
+  const recuperacion = Object.values(liquidacionesDeLaSemana(req.usuario)).reduce((a, b) => a + b, 0);
+  res.json({
+    corte: corteSaldos(), hoy: hoyMX(), lunes: lunesDeLaSemana(hoyMX()),
+    creditosActivos: activos.length, conSaldo,
+    cartera: r2(acc.cartera),
+    saldoPromedio: conSaldo ? r2(acc.cartera / conSaldo) : 0,
+    moraMonto: r2(acc.moraMonto), moraCreditos: acc.moraCreditos,
+    moraPorcentaje: acc.cartera > 0 ? r2((acc.moraMonto / acc.cartera) * 100) : 0,
+    liquidadas: acc.liquidadas,
+    // MORA DE LA SEMANA vs RECUPERACIÓN (corazón de la Fase 2, versión
+    // provisional hasta el dictado de Monse): esperado = suma de cuotas de los
+    // créditos con saldo; mora = lo que faltó de ese esperado.
+    esperadoSemana: r2(esperado),
+    cobradoSemana: r2(cobrado),
+    moraSemana: r2(Math.max(0, esperado - cobrado)),
+    recuperacionSemana: r2(recuperacion),
+    cumplimiento: esperado > 0 ? r2((cobrado / esperado) * 100) : 0,
+    semaforo,
+    porEjec: Object.values(porEjec).map((e) => ({ ...e, cartera: r2(e.cartera), mora: r2(e.mora),
+      esperado: r2(e.esperado), cobrado: r2(e.cobrado), moraSemana: r2(Math.max(0, e.esperado - e.cobrado)),
+      cumplimiento: e.esperado > 0 ? r2((e.cobrado / e.esperado) * 100) : 0 })),
+    inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
+    // el dictado de Monse sigue pendiente: se declara para que el tablero lo diga
+    definicionMoraPendiente: true,
+  });
+});
+
 app.get("/api/creditos", soloAnelMonse, (req, res) => {
   const estado = String(req.query.estado || "").toLowerCase();
   const q = norm(req.query.q).trim();

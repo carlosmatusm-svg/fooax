@@ -216,6 +216,28 @@
     background:#EAF7EF;border:1px solid #C6EAD6;border-radius:12px;font-weight:700;color:#0B7247}
   .arq-entregar b{font-size:19px;font-variant-numeric:tabular-nums}
   .arq-vacio{color:var(--gris);font-size:13px;padding:4px 0}
+  /* Fase 2 · cartera, mora y semáforo */
+  .ct-hero{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;margin:12px 16px 0}
+  .ct-hero .eti{font-size:11.5px;font-weight:800;color:var(--gris);letter-spacing:.03em;text-transform:uppercase}
+  .ct-vs{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .ct-vs>div{flex:1;min-width:120px}
+  .ct-n{font:800 21px/1.15 var(--fuente);font-variant-numeric:tabular-nums;color:var(--tinta)}
+  .ct-n.mora{color:#B00020}.ct-n.ok{color:#0B7247}.ct-n.rec{color:#8A5A00}
+  .ct-l{font-size:11.5px;color:var(--gris);margin-top:2px}
+  .ct-barra{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:11px;background:var(--lav)}
+  .ct-barra i{display:block}
+  .ct-cumpl{font-size:12px;color:var(--gris);margin-top:7px}
+  .ct-cumpl b{color:var(--tinta);font-variant-numeric:tabular-nums}
+  .ct-sem{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .ct-chip{font-size:11.5px;font-weight:700;border-radius:99px;padding:5px 11px;border:1.5px solid}
+  .ct-chip .q{font-variant-numeric:tabular-nums}
+  .ct-nota{font-size:11.5px;line-height:1.45;color:var(--gris);background:#FFF6E9;border:1px solid #F0DCC0;
+    border-radius:12px;padding:9px 11px;margin:10px 16px 0}
+  .ct-tab{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  .ct-tab th{text-align:right;font-size:10.5px;color:var(--gris);text-transform:uppercase;letter-spacing:.02em;padding:0 0 6px}
+  .ct-tab th:first-child{text-align:left}
+  .ct-tab td{text-align:right;padding:7px 0;border-top:1px solid var(--lav);font-variant-numeric:tabular-nums}
+  .ct-tab td:first-child{text-align:left;font-weight:700;color:var(--tinta)}
   .arq-ejecblk{border-top:1px solid var(--lav)}
   .arq-ejec{font-size:12px;color:var(--gris);display:flex;justify-content:space-between;gap:8px;padding:4px 0}
   .arq-ejecblk .arq-ejec{border-top:none}
@@ -325,8 +347,13 @@
   <div class="tbnav">
     <button class="tbt active" data-tb="hoy" onclick="tbShow('hoy')">Hoy</button>
     <button class="tbt" data-tb="caja" onclick="tbShow('caja')">Caja</button>
+    <button class="tbt" data-tb="cartera" onclick="tbShow('cartera')">Cartera</button>
     <button class="tbt" data-tb="clientas" onclick="tbShow('clientas')">Clientas</button>
     <button class="tbt" data-tb="mas" onclick="tbShow('mas')">Más</button>
+  </div>
+
+  <div class="tbtab" id="tb-cartera" style="display:none">
+    <div id="carteraBox"><div class="arq-vacio">Cargando cartera…</div></div>
   </div>
 
   <div class="tbtab" id="tb-clientas" style="display:none">
@@ -873,6 +900,69 @@ async function cargarMovs() {
   + (d.totalCheques > 0 ? ' · cheques <b style="color:#8A5A00">' + dinero(d.totalCheques) + "</b>" : "") + "</div>";
 }
 
+// ---------- FASE 2 · cartera, mora y semáforo ----------
+async function cargarCartera() {
+  const box = $("carteraBox"); if (!box) return;
+  let d;
+  try { d = await (await fetch("/api/cartera", { credentials: "include" })).json(); }
+  catch { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; return; }
+  if (!d || d.creditosActivos == null) { box.innerHTML = '<div class="arq-vacio">No se pudo cargar la cartera.</div>'; return; }
+  const pct = Math.max(0, Math.min(100, d.cumplimiento || 0));
+  const S = d.semaforo || {};
+  const chip = (txt, n, color, fondo) =>
+    '<span class="ct-chip" style="color:' + color + ';border-color:' + color + ';background:' + fondo + '">' + txt + ' <span class="q">' + n + "</span></span>";
+  // Mora de la semana vs recuperación — la cifra que pide la Fase 2
+  let h = '<div class="ct-hero"><div class="eti">Mora de la semana vs recuperación</div>'
+    + '<div class="ct-vs">'
+    + '<div><div class="ct-n">' + dinero(d.esperadoSemana) + '</div><div class="ct-l">esperado</div></div>'
+    + '<div><div class="ct-n ok">' + dinero(d.cobradoSemana) + '</div><div class="ct-l">cobrado</div></div>'
+    + '<div><div class="ct-n mora">' + dinero(d.moraSemana) + '</div><div class="ct-l">mora de la semana</div></div>'
+    + '<div><div class="ct-n rec">' + dinero(d.recuperacionSemana) + '</div><div class="ct-l">recuperación</div></div>'
+    + "</div>"
+    + '<div class="ct-barra"><i style="width:' + pct + '%;background:#0B7247"></i><i style="width:' + (100 - pct) + '%;background:#E9C3C8"></i></div>'
+    + '<div class="ct-cumpl">Cumplimiento de la semana: <b>' + (d.cumplimiento || 0) + "%</b> · semana del " + hesc(d.lunes) + " al " + hesc(d.hoy) + "</div>"
+    + '<div class="ct-sem">'
+    + chip("Al corriente", S.alCorriente || 0, "#0B7247", "#EAF7EF")
+    + chip("Pago parcial", S.parcial || 0, "#8A5A00", "#FFF6E9")
+    + chip("Aún sin cobrar", S.pendiente || 0, "#324AB6", "#E5EAFB")
+    + chip("Vencidas", S.vencida || 0, "#B00020", "#FDECEC")
+    + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7")
+    + "</div></div>";
+  // Cartera
+  h += '<div class="sub" style="margin-top:12px">'
+    + '<div class="mini"><div class="eti">Cartera total</div><div class="v">' + dinero(d.cartera) + "</div></div>"
+    + '<div class="mini"><div class="eti">Saldo promedio</div><div class="v">' + dinero(d.saldoPromedio) + "</div></div>"
+    + "</div>"
+    + '<div class="sub">'
+    + '<div class="mini"><div class="eti">Mora sobre cartera</div><div class="v">' + (d.moraPorcentaje || 0) + "%</div></div>"
+    + '<div class="mini"><div class="eti">Créditos con saldo</div><div class="v">' + d.conSaldo + "</div></div>"
+    + "</div>";
+  // Por ejecutiva
+  h += '<div class="arq-card" style="margin-top:12px"><div class="arq-h">Por ejecutiva · esperado vs cobrado</div>'
+    + '<table class="ct-tab"><thead><tr><th>Ejecutiva</th><th>Créditos</th><th>Cartera</th><th>Esperado</th><th>Cobrado</th><th>Cumpl.</th></tr></thead><tbody>'
+    + (d.porEjec || []).map((e) =>
+        "<tr><td>" + hesc(e.nombre) + "</td><td>" + e.creditos + "</td><td>" + dinero(e.cartera) + "</td><td>"
+        + dinero(e.esperado) + "</td><td>" + dinero(e.cobrado) + '</td><td style="color:'
+        + (e.cumplimiento >= 90 ? "#0B7247" : e.cumplimiento >= 50 ? "#8A5A00" : "#B00020") + ';font-weight:800">' + e.cumplimiento + "%</td></tr>").join("")
+    + "</tbody></table></div>";
+  // Vencidas
+  if ((d.vencidas || []).length) {
+    h += '<div class="arq-card"><div class="arq-h">Vencidas · ' + d.moraCreditos + " créditos · " + dinero(d.moraMonto) + " de mora</div>"
+      + (d.vencidas.slice(0, 15).map((v) =>
+          '<div class="arq-ejec"><span>' + hesc(v.nombre) + '<br><span style="font-size:11px">' + hesc(v.centro || "") + " · " + hesc(v.ejecutivo || "") + "</span></span>"
+          + '<b style="color:#B00020">mora ' + dinero(v.mora) + '<br><span style="font-weight:600;color:var(--gris)">saldo ' + dinero(v.saldoActual) + "</span></b></div>").join(""))
+      + "</div>";
+  }
+  // Plazos mal capturados (dato para Monse)
+  if ((d.inconsistentes || []).length) {
+    h += '<div class="ct-nota"><b>⚠ ' + d.inconsistentes.length + " créditos con el plazo mal capturado.</b> Al dividir su saldo entre la cuota salen más pagos de los que dice el plazo, así que el “pago 13 de 18” no se puede calcular para ellos. Para que Monse los corrija:<br>"
+      + d.inconsistentes.slice(0, 10).map((x) => "• " + hesc(x.nombre) + " (" + hesc(x.producto) + "): plazo dice <b>" + x.plazoPadron + "</b>, real <b>" + x.plazoReal + "</b>").join("<br>")
+      + "</div>";
+  }
+  h += '<div class="ct-nota">La <b>mora de la semana</b> se calcula por ahora como <i>suma de cuotas de los créditos con saldo − lo cobrado</i>, y “aún sin cobrar” <b>no</b> es morosidad (cada centro cobra en su día). Falta el dictado de Monse (ficha de mora, mora-semana vs recuperación, cartera activa vs total) para fijar la definición oficial.</div>';
+  box.innerHTML = h;
+}
+
 // ---------- arqueo del día ----------
 async function cargarArqueo() {
   let d;
@@ -1195,7 +1285,7 @@ async function registrarCentro() {
 // ---------- pestañas del tablero ----------
 function tbShow(name) {
   document.querySelectorAll(".tbt").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
-  ["hoy", "caja", "clientas", "mas"].forEach((t) => {
+  ["hoy", "caja", "cartera", "clientas", "mas"].forEach((t) => {
     const el = document.getElementById("tb-" + t);
     if (el) el.style.display = (t === name) ? "" : "none";
   });
@@ -1219,8 +1309,9 @@ cargarSemana();
 cargarCentros();
 cargarYo();
 cargarCorte();
+cargarCartera();
 // 30s: se siente en vivo sin comerse los datos del celular (antes era cada 5s)
-setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); }, 30000);
+setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); cargarCartera(); }, 30000);
 </script>
 </body>
 </html>

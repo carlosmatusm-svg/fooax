@@ -482,6 +482,27 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2099-01-01" }) }));
   ok("un corte en el futuro se rechaza", !!ct.error, (ct.error || "").slice(0, 50));
 
+  console.log("\n— 21. FASE 2 · cartera, mora de la semana y semáforo —");
+  let ca2 = await j(await fetch(U + "/api/cartera", { headers: H(ca) }));
+  ok("la cartera carga con sus cifras", ca2.creditosActivos > 0 && ca2.cartera > 0, "créditos " + ca2.creditosActivos + " · cartera " + ca2.cartera);
+  ok("saldo promedio = cartera ÷ créditos con saldo", Math.abs(ca2.saldoPromedio - (ca2.cartera / ca2.conSaldo)) < 0.02, "prom " + ca2.saldoPromedio);
+  ok("mora de la semana = esperado − cobrado", Math.abs(ca2.moraSemana - Math.max(0, ca2.esperadoSemana - ca2.cobradoSemana)) < 0.02, "mora " + ca2.moraSemana);
+  ok("el semáforo cuadra con los créditos activos",
+     (ca2.semaforo.alCorriente + ca2.semaforo.parcial + ca2.semaforo.pendiente + ca2.semaforo.vencida + ca2.semaforo.liquidada) === ca2.creditosActivos,
+     JSON.stringify(ca2.semaforo));
+  ok("suma de carteras por ejecutiva = cartera total",
+     Math.abs(ca2.porEjec.reduce((s, e) => s + e.cartera, 0) - ca2.cartera) < 1, "suma " + ca2.porEjec.reduce((s, e) => s + e.cartera, 0));
+  ok("detecta los plazos mal capturados (para que Monse los corrija)", Array.isArray(ca2.inconsistentes), "inconsistentes " + (ca2.inconsistentes || []).length);
+  // una clienta que paga su cuota completa pasa a "al corriente" y sube el cobrado
+  const antesCorr = ca2.semaforo.alCorriente, antesCob = ca2.cobradoSemana;
+  const cli = { id: "70000000097", producto: "Credito Semaforo", cuota: 250, saldo: 1000 };
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: cli.id, nombre: "SEMAFORO TEST", producto: cli.producto, centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: cli.saldo, cuota: cli.cuota }) }));
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: HOY, snapshot: JSON.stringify({ fecha: HOY, reg: { "C-88": { [cli.id + "|" + cli.producto]: { pago: cli.cuota, forma: "E" } } }, regI: {}, movs: [] }), ts: Date.now() }) });
+  ca2 = await j(await fetch(U + "/api/cartera", { headers: H(ca) }));
+  ok("quien paga su cuota completa cuenta como AL CORRIENTE", ca2.semaforo.alCorriente === antesCorr + 1, antesCorr + " → " + ca2.semaforo.alCorriente);
+  ok("y su pago sube el cobrado de la semana", Math.abs(ca2.cobradoSemana - (antesCob + cli.cuota)) < 0.02, antesCob + " → " + ca2.cobradoSemana);
+  ok("la ejecutiva de prueba NO ve la cartera real (403)", (await fetch(U + "/api/cartera", { headers: H(ce) })).status === 403);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
