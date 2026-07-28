@@ -597,6 +597,33 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const sinMagnus = (car9.inconsistentes || []).every((x) => !/magnus/i.test(x.producto || ""));
   ok("Magnus tampoco sale como 'plazo mal capturado' (no se le deriva el nº de pago)", sinMagnus, "inconsistentes " + (car9.inconsistentes || []).length);
 
+  console.log("\n— 26. CORREGIR EL CONTEO DE BILLETES tras cerrar (dedazo del 28-jul) —");
+  // Caso real: Karina cerró con 1 billete de $100 y 2 de $20 de más ($140). El
+  // conteo mal tecleado dejaba el día en rojo PARA SIEMPRE, porque al reabrir
+  // la app queda limpia y el blindaje de captura vacía rechazaba la corrección.
+  const DK = "2026-05-06";
+  const syncK = (snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: DK, snapshot: JSON.stringify(snap), ts: Date.now() }) });
+  const arqK = async () => { const a = await j(await fetch(U + "/api/arqueo?fecha=" + DK, { headers: H(cd) })); return (a.porEjec || {}).prueba || {}; };
+  const consK = async () => { const c = await j(await fetch(U + "/api/consolidado?fecha=" + DK, { headers: H(cd) })); return (c.ejecutivos || {}).prueba || {}; };
+  const MAL = { "500": 4, "200": 5, "100": 15, "50": 19, "20": 7, "10": 5, "5": 12, "2": 22, "1": 36 };   // $5,780
+  const BIEN = { "500": 4, "200": 5, "100": 14, "50": 19, "20": 5, "10": 5, "5": 12, "2": 22, "1": 36 };  // $5,640
+  await syncK({ fecha: DK, reg: { "C-1": { "k1|P": { pago: 5640, forma: "E" } } }, regI: {},
+    movs: [{ folio: "MK1", concepto: "RECUPERACION", monto: 0, via: "E" }], arqueo: MAL });
+  await fetch(U + "/api/cierre", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: DK, confirmado: true }) });
+  let ek = await arqK();
+  ok("cerró con el conteo MAL y sobran $140", ek.contado === 5780 && ek.dif === 140, "contó " + ek.contado + " · dif " + ek.dif);
+  const cobAntesK = (await consK()).efectivo;
+  // su app quedó limpia tras enviar: la corrección llega SIN pagos, solo conteo
+  const rk = await j(await syncK({ fecha: DK, reg: {}, regI: {}, movs: [], arqueo: BIEN }));
+  ok("la corrección del conteo SÍ se acepta (antes la rechazaba el blindaje)", rk.ok === true, JSON.stringify(rk).slice(0, 70));
+  ek = await arqK();
+  ok("el conteo corregido queda y el día CUADRA en $0", ek.contado === 5640 && ek.dif === 0, "contó " + ek.contado + " · dif " + ek.dif);
+  const cobDespK = (await consK()).efectivo;
+  ok("la cobranza NO se perdió al corregir", Math.abs(cobDespK - cobAntesK) < 0.01, cobAntesK + " → " + cobDespK);
+  ok("y el día sigue marcado como cerrado", !!(await consK()).cierre);
+  const r0 = await j(await syncK({ fecha: DK, reg: {}, regI: {}, movs: [], arqueo: {} }));
+  ok("una captura vacía SIN conteo se sigue rechazando (blindaje intacto)", r0.rechazado === "vacio_sobre_lleno", JSON.stringify(r0).slice(0, 60));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

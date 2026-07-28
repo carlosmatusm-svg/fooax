@@ -423,7 +423,16 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   // Es lo que borró el día hoy — la app abrió con localStorage limpiado y
   // sincronizó ceros encima de lo real. Se archiva el intento y se rechaza,
   // devolviendo el conteo real para que la app lo pueda recuperar.
-  if (antes != null && antes > 0 && (ahora === 0 || ahora == null)) {
+  // EXCEPCIÓN: CORRECCIÓN DEL CONTEO DE BILLETES. Si el día YA está cerrado y
+  // la captura trae un conteo nuevo, es una corrección del arqueo (un dedazo al
+  // contar), no una captura vacía: tras cerrar, la app queda limpia, así que
+  // corregir el conteo SIEMPRE llega sin pagos. Es seguro porque la fusión
+  // post-cierre conserva la cobranza y los movimientos de la foto congelada —
+  // el conteo es lo único que se reemplaza. Sin esto, un conteo mal tecleado
+  // dejaba el día en rojo para siempre (caso Karina 28-jul: $140 de dedazo).
+  const traeConteo = !!(snapshot.arqueo && Object.keys(snapshot.arqueo).length);
+  const esCorreccionDeConteo = !!(previo && previo.cierre && traeConteo);
+  if (antes != null && antes > 0 && (ahora === 0 || ahora == null) && !esCorreccionDeConteo) {
     console.warn(`[sync] RECHAZADO vacío de ${req.usuario.id} para ${fecha}: el servidor tiene ${antes} pagos, la app mandó 0. No se sobrescribe.`);
     syncRechazos[req.usuario.id] = { fecha, pagosEnServidor: antes, ts: Date.now() };
     // Los "otros movimientos" SÍ se guardan (append-only por folio) — pero NO se
