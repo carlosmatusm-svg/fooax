@@ -1309,6 +1309,33 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
+// ---------- diagnóstico TEMPORAL movimientos (solo lectura; quitar tras usar) ----------
+app.get("/api/_movhoy", (req, res) => {
+  if (req.query.t !== "mov-28jul") return res.status(404).end();
+  const fecha = req.query.fecha || hoyMX();
+  const snaps = store.snapshotsDeFecha(fecha);
+  const porEjec = {};
+  for (const id in snaps) {
+    const rec = snaps[id];
+    let data = rec.snapshot;
+    const tipoCrudo = typeof data;
+    if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
+    const movs = Array.isArray(data && data.movs) ? data.movs : null;
+    porEjec[id] = {
+      tipoSnapshot: tipoCrudo,
+      movsEnLaCaptura: movs ? movs.length : "NO TRAE movs",
+      detalle: (movs || []).map((m) => ({ folio: m && m.folio, concepto: m && m.concepto, monto: m && m.monto, via: m && m.via, socio: m && m.socio || null })),
+      recibido: rec.recibido ? new Date(rec.recibido).toISOString() : null,
+      cierre: !!rec.cierre,
+    };
+  }
+  const guardados = store.movimientosDeFecha(fecha).map((m) => ({
+    folio: m.folio, monto: m.monto, concepto: String(m.concepto || "").slice(0, 45),
+    metodo: m.metodo, anulado: !!m.anulado, usuario: m.usuario || null,
+  }));
+  res.json({ fecha, hoyServidor: hoyMX(), enLasCapturas: porEjec, guardadosEnElServidor: guardados });
+});
+
 // ---------- FASE 2 · TENDENCIAS (evolución semana a semana) ----------
 // Recorre TODA la historia guardada una sola vez y la agrupa por semana.
 // La cartera de una semana pasada se reconstruye así: saldo de plantilla menos
