@@ -57,6 +57,12 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   ok("el tablero de dirección carga", tab.ok && tabHtml.includes("Recuperar cobranza"), "status " + tab.status);
   for (const a of ["/sync.js", "/captura-agil.js", "/sw.js", "/manifest.json"])
     ok("pieza " + a + " servida", (await fetch(U + a)).ok);
+  // UN SOLO ARQUEO en toda la app (regla Karina 28-jul): la pantalla de
+  // denominaciones POR CLIENTA se retiró — guardaba un desglose que se contaba
+  // dos veces. Si alguien la reintroduce, esta prueba lo caza.
+  const agil = await (await fetch(U + "/captura-agil.js")).text();
+  ok("la app NO vuelve a pedir denominaciones por clienta (un solo arqueo)",
+     !/desgloses\s*\[|\.desglose\s*=/.test(agil), "captura-agil.js escribe desglose otra vez");
 
   console.log("\n— C. CANDADOS DE ACCESO —");
   ok("sin sesión NO hay datos (401)", (await fetch(U + "/api/consolidado")).status === 401);

@@ -8,7 +8,7 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v13"; // v13: barra de cierre + pastilla de sync identificada
+const CACHE = "fooax-v14"; // v14: fuera el desglose por clienta — UN SOLO arqueo
 
 // La página pide activar la versión nueva de inmediato (auto-actualización).
 self.addEventListener("message", (e) => { if (e.data === "skip") self.skipWaiting(); });
