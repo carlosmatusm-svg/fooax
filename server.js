@@ -1353,8 +1353,22 @@ app.get("/api/_conteo", async (req, res) => {
         conteo: suma(d && d.arqueo), denom: (d && d.arqueo) || {}, pagos: contarPagos(d) };
     });
   } catch (e) { hist = []; }
+  // ¿alguna clienta trae "desglose"? calcularArqueo SUMA el desglose por clienta
+  // ADEMÁS del conteo del arqueo — si hay desglose, infla el contado.
+  const desgloses = [];
+  const buscar = (st) => { if (!st || typeof st !== "object") return;
+    for (const k in st) { const nd = st[k];
+      if (nd && typeof nd === "object" && nd.desglose) desgloses.push({ clave: k, desglose: nd.desglose });
+      else if (nd && typeof nd === "object" && !("pago" in nd)) for (const kk in nd) {
+        const x = nd[kk]; if (x && typeof x === "object" && x.desglose) desgloses.push({ clave: kk, desglose: x.desglose }); } } };
+  buscar(data && data.reg); buscar(data && data.regI);
+  const aq = calcularArqueo(fecha, [ej]);
+  const eq = aq.porEjec[ej] || {};
+  const contadoQueVeElTablero = Object.entries(eq.denom || {}).reduce((s2, [d, q]) => s2 + Number(d) * (Number(q) || 0), 0);
   res.json({
     fecha, ejecutivo: ej,
+    contadoQueVeElTablero, denomDelTablero: Object.fromEntries(Object.entries(eq.denom || {}).filter(([, q]) => q > 0)),
+    clientasConDesglose: desgloses,
     actual: rec ? {
       conteoGuardado: suma(data && data.arqueo),
       denominaciones: (data && data.arqueo) || {},
