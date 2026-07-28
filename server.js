@@ -18,6 +18,9 @@ const USUARIOS = {
   neri:        { nombre: "Neri",        rol: "ejecutivo", app: "App_Cobranza_NERI_GERENTE.html", pass: process.env.PASS_NERI        || "neri2026" },
   karina:      { nombre: "Karina",      rol: "ejecutivo", app: "App_Cobranza_KARINA.html",       pass: process.env.PASS_KARINA      || "karina2026" },
   christopher: { nombre: "Christopher", rol: "ejecutivo", app: "App_Cobranza_CHRISTOPHER.html",  pass: process.env.PASS_CHRISTOPHER || "chris2026" },
+  // Alta 28-jul: cartera de Comadre (semanal) y Magnus (mensual, cuota
+  // decreciente — apartada de la mora hasta el módulo de intereses).
+  julio:       { nombre: "Julio",       rol: "ejecutivo", app: "App_Cobranza_JULIO.html",        pass: process.env.PASS_JULIO       || "julio2026" },
   monse:       { nombre: "Monserrat",   rol: "admin",     pass: process.env.PASS_MONSE      || "monse2026" },
   anel:        { nombre: "Anel",        rol: "direccion", pass: process.env.PASS_ANEL       || "anel2026" },
   alejandra:   { nombre: "Alejandra",   rol: "admin",     pass: process.env.PASS_ALEJANDRA  || "alejandra2026" },

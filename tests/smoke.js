@@ -121,6 +121,10 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   ok("el Excel del arqueo del día se genera", x2.ok && (x2.headers.get("content-type") || "").includes("spreadsheet"), "status " + x2.status);
   const cl = await j(await fetch(U + "/api/clientes?q=ma", { headers: H(cd) }));
   ok("el buscador de clientas responde", Array.isArray(cl.resultados), "total " + cl.total);
+  // Julio: 4º ejecutivo (alta 28-jul). Su app debe existir y servirse.
+  const rJ = await fetch(U + "/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usuario: "julio", password: "no-es-la-clave" }) });
+  ok("el usuario de Julio existe (rechaza clave mala, no 'usuario inválido')", rJ.status === 401 || rJ.status === 400, "status " + rJ.status);
+
   const cen = await j(await fetch(U + "/api/centros", { headers: H(cd) }));
   ok("la lista de centros responde", Array.isArray(cen.centros) && cen.centros.length > 0, "centros " + (cen.centros || []).length);
   const car = await j(await fetch(U + "/api/cartera", { headers: H(cd) }));

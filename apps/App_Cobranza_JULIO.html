@@ -1,0 +1,2185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FOOAX · Cobranza JULIO</title>
+<style>
+  :root{
+    --aurora:#F1228E; --atardecer:#FD6E29; --rio:#324AB6; --cielo:#ADE6ED;
+    --riqueza:#F2BB06; --llama:#F44C5D; --tinta:#1A1730; --gris:#6B6880;
+    --bg:#F7F8FC; --card:#FFFFFF; --linea:#E7E8F0; --ok:#13A463; --mora:#F44C5D;
+    --efe:#13A463; --transf:#324AB6; --morado:#6B5BD2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:'Century Gothic','Poppins',system-ui,sans-serif;background:var(--bg);color:var(--tinta);padding-bottom:92px}
+  header{background:linear-gradient(120deg,var(--rio),var(--aurora));color:#fff;padding:16px 18px 14px;position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(50,74,182,.22)}
+  header .brand{font-size:13px;letter-spacing:3px;opacity:.85;font-weight:700}
+  header h1{margin:2px 0 0;font-size:21px;font-weight:800}
+  header .sub{font-size:12px;opacity:.9;margin-top:3px}
+  .tabs{display:flex;gap:6px;background:var(--card);padding:8px;position:sticky;top:78px;z-index:19;border-bottom:1px solid var(--linea);overflow-x:auto}
+  .tab{flex:1;min-width:92px;border:0;background:#EEF0F8;color:var(--gris);font-weight:700;font-size:13px;padding:10px 6px;border-radius:10px;font-family:inherit;white-space:nowrap}
+  .tab.active{background:var(--aurora);color:#fff}
+  .wrap{padding:14px}
+  .card{background:var(--card);border:1px solid var(--linea);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(26,23,48,.04)}
+  label{font-size:12px;font-weight:700;color:var(--gris);display:block;margin-bottom:5px}
+  select,input{width:100%;padding:11px;border:1.5px solid var(--linea);border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:var(--tinta)}
+  select:focus,input:focus{outline:none;border-color:var(--rio)}
+  .row2{display:flex;gap:10px}.row2>div{flex:1}
+  .cli{border-bottom:1px solid var(--linea);padding:11px 2px}
+  .cli:last-child{border-bottom:0}
+  .cli-head{display:flex;align-items:center;gap:10px}
+  .chk{width:26px;height:26px;flex:none;border:2px solid var(--linea);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;background:#fff}
+  .chk.on{background:var(--ok);border-color:var(--ok)}
+  .ci{flex:1;min-width:0}
+  .ci .nm{font-size:14px;font-weight:700;line-height:1.2}
+  .prodtag{font-size:10px;font-weight:800;color:var(--rio);background:#E5EAFB;padding:1px 7px;border-radius:10px;margin-left:4px;white-space:nowrap}
+  .ci .mt{font-size:11px;color:var(--gris);margin-top:2px}
+  .ci .rowtot{font-size:13px;font-weight:800;color:var(--rio)}
+  /* Barra de cierre: el botón de terminar el día vivía en la 6ª pestaña y solo
+     el 20% de los días se cerraba. Ahora la acompaña en toda la app. */
+  #barraCierre{position:fixed;left:0;right:0;bottom:0;z-index:9998;display:none;
+    align-items:center;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:#2A1F35;color:#fff;box-shadow:0 -3px 14px rgba(0,0,0,.22)}
+  #barraCierre.on{display:flex}
+  #barraCierre .bc-i{flex:1;min-width:0;line-height:1.25}
+  #barraCierre .bc-t{font-size:11px;opacity:.82;font-weight:600}
+  #barraCierre .bc-n{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+  #barraCierre .bc-b{flex:none;font:800 13px inherit;background:#0B7247;color:#fff;border:none;
+    border-radius:99px;padding:11px 16px;cursor:pointer}
+  #barraCierre.listo .bc-b{background:#F1228E}
+  body.con-barra{padding-bottom:74px}
+  body.con-barra #fooax-pill{bottom:78px !important}
+  body.con-barra #fooax-agil{bottom:78px !important}
+  .forma{display:flex;gap:0;border:1.5px solid var(--linea);border-radius:9px;overflow:hidden;flex:none}
+  .forma button{border:0;background:#fff;color:var(--gris);font-size:11px;font-weight:800;padding:7px 9px;font-family:inherit}
+  .forma button.efe{background:var(--efe);color:#fff}
+  .forma button.transf{background:var(--transf);color:#fff}
+  .forma button.mix{background:var(--morado);color:#fff}
+  .forma button.dep{background:#0E9C8A;color:#fff}
+  .mixbox{margin-top:8px;padding:9px;background:#f4f2fd;border-radius:10px;border:1px solid #ded8f7}
+  .anombrebox{margin-top:8px;padding:9px;background:#E9F7F5;border-radius:10px;border:1px solid #B9E6DF}
+  .anombrelbl{font-size:11px;font-weight:700;color:#0E7C6E;display:block;margin-bottom:5px}
+  .anombrelbl span{font-weight:400;color:var(--gris);font-size:10px}
+  .anombrebox input{width:100%;padding:8px;border:1px solid var(--linea);border-radius:8px;font-family:inherit;font-size:13px}
+  .mixnota{font-size:11px;color:var(--morado);font-weight:700;margin-bottom:7px}
+  .mixcampos{display:flex;gap:8px}
+  .mixcampos .campo{flex:1}
+  .mixok{margin-top:6px;font-size:12px;font-weight:800;color:var(--ok)}
+  .mixerr{margin-top:6px;font-size:12px;font-weight:800;color:var(--mora)}
+  .caperr{margin-top:6px;font-size:12px;font-weight:800;color:#fff;background:var(--mora);border-radius:9px;padding:7px 10px;line-height:1.35}
+  .cli.conerr{border:2px solid var(--mora)}
+  .campos{display:none;margin-top:9px;gap:7px;grid-template-columns:1fr 1fr 1fr;grid-auto-rows:auto}
+  .cli.open .campos{display:grid}
+  .campo label{font-size:10px;margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+  .campo input{padding:8px;text-align:right;font-weight:700;font-size:14px}
+  .campo.pago input{border-color:var(--aurora)}
+  .totbar{position:fixed;left:0;right:0;bottom:0;background:var(--tinta);color:#fff;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;z-index:30;box-shadow:0 -2px 14px rgba(0,0,0,.18)}
+  .totbar .lbl{font-size:10px;opacity:.7;letter-spacing:1px}
+  .totbar .val{font-size:21px;font-weight:800}
+  .totbar .mini{font-size:10px;opacity:.85;margin-top:1px}
+  .btn{border:0;border-radius:11px;font-weight:800;font-size:14px;padding:11px 16px;font-family:inherit}
+  .btn-wa{background:var(--ok);color:#fff}.btn-light{background:#EEF0F8;color:var(--rio)}
+  .btn-wamsg{background:#25D366;color:#fff}
+  .muted{color:var(--gris);font-size:12px;text-align:center;padding:18px}
+  .pill{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;background:var(--cielo);color:var(--rio);margin-left:6px}
+  .sectitle{font-size:15px;font-weight:800;margin:2px 0 10px;display:flex;align-items:center;gap:8px}
+  .meta{font-size:12px;color:var(--gris)}
+  .arqueo-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .arqueo-row .den{width:60px;font-weight:700;font-size:13px}
+  .arqueo-row input{width:66px;text-align:center}
+  .arqueo-row .sub{flex:1;text-align:right;font-weight:700;font-size:13px;color:var(--rio)}
+  .hidden{display:none}
+  .summary-box{background:#0F1226;color:#dfe3ff;font-size:12px;white-space:pre-wrap;padding:12px;border-radius:10px;font-family:ui-monospace,monospace;line-height:1.45;max-height:300px;overflow:auto}
+  .kv{display:flex;justify-content:space-between;font-size:14px;padding:4px 0;border-bottom:1px dashed var(--linea)}
+  .kv:last-child{border-bottom:0}.kv b{font-weight:800}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .chip{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px}
+  .chip.efe{background:#E3F5EC;color:var(--efe)}.chip.transf{background:#E5EAFB;color:var(--transf)}
+  .sembadges{display:flex;gap:7px;flex-wrap:wrap;margin:2px 0 10px}
+  .sembadge{font-size:11px;font-weight:800;color:#fff;padding:5px 10px;border-radius:20px}
+  .subcentro{background:#F4F6FC;border-radius:12px;padding:10px 12px;margin:2px 0 12px}
+  .fichabox{background:#fff;border:2px solid var(--rio);border-radius:12px;padding:10px;margin:2px 0 12px}
+  .fichatit{font-weight:800;color:var(--rio);font-size:13px;margin-bottom:8px}
+  .fichatab{width:100%;border-collapse:collapse;font-size:12px}
+  .fichatab th{background:var(--rio);color:#fff;padding:6px 5px;font-size:11px;text-align:left}
+  .fichatab td{padding:5px;border-bottom:1px solid var(--linea)}
+  .fichatab .fichatot td{background:#EAF7EF;font-weight:800;color:var(--rio);font-size:13px;border-top:2px solid var(--rio)}
+  .fichatab .fichaprod td{background:#F4F6FC;font-weight:700;color:var(--gris);font-size:12px}
+  .fichanota{font-size:10px;color:var(--gris);font-style:italic;margin-top:4px}
+  .clidato{font-size:11px;padding:4px 8px;border-radius:7px;margin:4px 0;cursor:pointer;font-weight:700}
+  .clidato.ok{background:#EAF7EF;color:var(--ok)}
+  .clidato.falta{background:#FDECEC;color:var(--mora)}
+  .clidato .edit{opacity:.6;margin-left:4px}
+  .fichacopy{margin-top:8px}
+  .chk{cursor:pointer}
+  .cuotamas{margin-top:6px;padding:6px 9px;background:#FFF6E9;border-radius:8px;font-size:12px;font-weight:700;color:#B8860B;border-left:3px solid var(--riqueza)}
+  .cuotamenos{margin-top:6px;padding:6px 9px;background:#FDECEC;border-radius:8px;font-size:12px;font-weight:700;color:var(--mora);border-left:3px solid var(--mora)}
+  .subrow{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--tinta)}
+  .subrow b{font-weight:800}
+  .subrow.tot{border-top:1px solid var(--linea);margin-top:4px;padding-top:6px;font-size:15px}
+  .subrow.tot b{color:var(--rio)}
+  .subrow.cnt{font-size:12px;color:var(--gris)}
+  .semrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--linea)}
+  .semrow:last-child{border-bottom:0}
+  .semname{flex:1;font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .movrow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--linea)}
+  .movrow:last-child{border-bottom:0}
+  .movinfo{flex:1;min-width:0}
+  .movtop{font-size:14px}
+  .movtag{font-size:11px;font-weight:800;color:#fff;background:var(--rio);padding:2px 8px;border-radius:10px}
+  .movfolio{font-size:10px;font-weight:800;color:var(--atardecer);background:#FFF0E6;padding:2px 7px;border-radius:8px;letter-spacing:.3px}
+  .movvia{font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;margin-left:4px}
+  .movvia.efe{background:#E3F5EC;color:var(--efe)}.movvia.transf{background:#E5EAFB;color:var(--transf)}
+  .movdel{flex:none;width:30px;height:30px;border:0;background:#FDE2E5;color:var(--mora);border-radius:8px;font-weight:900;font-size:14px}
+  .renovrow{padding:12px 2px;border-bottom:1px solid var(--linea)}
+  .renovrow:last-child{border-bottom:0}
+  .renovtop{font-size:14px}
+  .renovbar{height:7px;background:#EEF0F8;border-radius:6px;margin:7px 0 3px;overflow:hidden}
+  .renovfill{height:100%;border-radius:6px}
+  .renovinfo{display:flex;justify-content:space-between;font-size:11px;color:var(--gris)}
+  .renovsug{font-size:12px;margin-top:6px;color:var(--tinta)}
+  .renovsug b{color:var(--rio)}
+  .renovnota{font-size:10px;color:var(--gris);font-style:italic}
+  .renovmora{font-size:11px;margin-top:6px;color:var(--mora);font-weight:700}
+  .renovalerta{font-size:11px;margin-top:5px;color:#fff;background:var(--atardecer);padding:5px 8px;border-radius:8px;font-weight:700}
+  .renovkpi{display:flex;gap:7px;margin-top:10px}
+  .rk{flex:1;background:#F4F6FC;border-radius:10px;padding:8px;text-align:center}
+  .rk span{display:block;font-size:10px;color:var(--gris)}
+  .rk b{font-size:14px;color:var(--rio)}
+  .rk.alerta{background:#FFF0E6}.rk.alerta b{color:var(--atardecer)}
+  .rk.micro{background:#EAE7FB}.rk.micro b{color:#6B5BD2}
+  .microtag{color:#fff !important;background:#6B5BD2 !important}
+  .micromora{font-size:11px;margin-top:5px;color:#fff;background:#6B5BD2;padding:5px 8px;border-radius:8px;font-weight:700}
+  .gerprog{margin-top:4px}
+  .gerbar{height:9px;background:#EEF0F8;border-radius:6px;overflow:hidden}
+  .gerfill{height:100%;background:var(--ok);border-radius:6px;transition:width .3s}
+  .gerinfo{font-size:13px;margin-top:7px;text-align:center}
+  .gerfn{font-size:12px;font-weight:800;color:var(--rio);margin:12px 4px 6px;text-transform:uppercase;letter-spacing:.5px}
+  .gertask{display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--linea);border-radius:12px;padding:12px;margin-bottom:8px}
+  .gertask.on{border-color:var(--ok);background:#F0FBF5}
+  .gerchk{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--linea);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff}
+  .gertask.on .gerchk{background:var(--ok);border-color:var(--ok)}
+  .gertxt{font-size:14px;font-weight:600;line-height:1.3}
+  .diagok{background:#F0FBF5;color:var(--ok);font-weight:700;font-size:13px;padding:12px;border-radius:10px;text-align:center}
+  .diagrow{border-left:4px solid var(--riqueza);background:#FFFBEF;border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .diagrow.alta{border-left-color:var(--mora);background:#FDF0F1}
+  .diagtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .diagtipo{font-size:13px;font-weight:800;color:var(--tinta)}
+  .diagsev{font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;color:#fff;background:var(--riqueza)}
+  .diagsev.alta{background:var(--mora)}
+  .diagdet{font-size:12px;color:var(--tinta);line-height:1.4}
+  .diagresp{font-size:11px;color:var(--gris);margin-top:4px}
+  .diagresp b{color:var(--rio)}
+  .renovgest{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .rgbtn{font-size:11px;font-weight:700;padding:6px 9px;border:1.5px solid var(--linea);background:#fff;color:var(--gris);border-radius:8px;font-family:inherit}
+  .rgbtn.on{background:var(--rio);color:#fff;border-color:var(--rio)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">FOOAX · COBRANZA</div>
+  <h1>Julio</h1>
+  <div class="sub" id="fechaHoy">—</div>
+  <div class="sub" id="guardadoMsg" style="font-size:10px;opacity:.75">Guardado automático activo</div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="cobranza" onclick="showTab('cobranza')">Cobranza</button>
+  
+  <button class="tab" data-tab="renov" onclick="showTab('renov')">Renovaciones</button>
+  
+  <button class="tab" data-tab="movs" onclick="showTab('movs')">Otros mov.</button>
+  <button class="tab" data-tab="liquida" onclick="showTab('liquida')">Liquidación</button>
+  <button class="tab" data-tab="arqueo" onclick="showTab('arqueo')">Arqueo</button>
+  <button class="tab" data-tab="resumen" onclick="showTab('resumen')">Resumen</button>
+</div>
+
+<div class="wrap" id="tab-cobranza">
+  <div class="card">
+    <div class="row2">
+      <div><label>Día de cobro</label><select id="selDia" onchange="render()"></select></div>
+      <div><label>Fecha</label><input type="date" id="inpFecha" onchange="updFecha()"></div>
+    </div>
+    <div style="margin-top:10px">
+      <label>Centro</label>
+      <select id="selCentro" onchange="render()"><option value="">— Elige un centro —</option></select>
+    </div>
+    <button class="btn btn-light" style="width:100%;margin-top:10px" onclick="toggleAltaClienta()">+ Agregar clienta nueva</button>
+    <div id="formAlta" class="hidden" style="margin-top:10px;border-top:1px solid var(--linea);padding-top:10px">
+      <div class="meta" style="margin-bottom:8px">Agrega una clienta a tu padrón. Queda guardada en tu celular. Avisa a Monse para que también la registre en la base.</div>
+      <div class="row2">
+        <div><label>Centro</label>
+          <select id="altaCentro"><option value="">— Centro —</option></select>
+        </div>
+        <div><label>Producto</label>
+          <select id="altaProd">
+            <option value="Grupal-Basico">Grupal-Básico</option>
+            <option value="Grupal-Micro">Grupal-Micro</option>
+            <option value="Grupal-Adicional">Grupal-Adicional</option>
+            <option value="Individual">Individual</option>
+            <option value="Foxi Plus - 1">Foxi Plus</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:8px"><label>Nombre completo</label><input type="text" id="altaNombre" placeholder="Nombre de la clienta"></div>
+      <div class="row2" style="margin-top:8px">
+        <div><label>No. Socio</label><input type="number" inputmode="numeric" id="altaSocio" placeholder="11113000000"></div>
+        <div><label>Saldo</label><input type="text" inputmode="decimal" id="altaSaldo" placeholder="0"></div>
+      </div>
+      <button class="btn btn-wa" style="width:100%;margin-top:10px" onclick="agregarClienta()">Guardar clienta</button>
+    </div>
+  </div>
+  <div id="listaClientas"></div>
+</div>
+
+
+
+<div class="wrap hidden" id="tab-renov">
+  <div class="card">
+    <div class="sectitle">Renovaciones próximas</div>
+    <div class="meta">Clientas cerca de liquidar su crédito (por avance de pago). Tarea semanal: contáctalas y registra la gestión. Los montos son sugerencia, sujeta a evaluación.</div>
+    <div id="renovResumen"></div>
+  </div>
+  <div id="listaRenov"></div>
+  <div class="card">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-wamsg" style="flex:1" onclick="enviarRenov()">Enviar avance a Monse</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="wrap hidden" id="tab-movs">
+  <div class="card">
+    <div class="sectitle">Otros movimientos del día</div>
+    <div class="meta">Comisiones, liquidaciones, recuperaciones, desembolsos y gastos. Lo que el ejecutivo trae además de la cobranza.</div>
+  </div>
+  <div class="card">
+    <div><label>Concepto</label>
+      <select id="movConcepto" onchange="toggleDesemb()">
+        <option value="COMISION">Comisión de desembolso</option>
+        <option value="LIQUIDACION">Liquidación (pago total)</option>
+        <option value="RECUPERACION">Recuperación / adelanto</option>
+        <option value="GARANTIA">Garantía (ahorro)</option>
+        <option value="DESEMBOLSO">Desembolso (crédito nuevo)</option>
+        <option value="GASTO">Gasto</option>
+      </select>
+    </div>
+    <div class="row2" style="margin-top:9px">
+      <div><label>Centro</label>
+        <select id="movCentro"><option value="">— Centro —</option></select>
+      </div>
+      <div><label>Clienta (opcional)</label>
+        <select id="movClienta"><option value="">— Si aplica —</option></select>
+      </div>
+    </div>
+    <div class="row2" style="margin-top:9px">
+      <div><label>Cantidad</label><input type="text" inputmode="decimal" id="movMonto" placeholder="0"></div>
+      <div><label>Vía</label>
+        <select id="movVia" onchange="toggleCheque()"><option value="E">Efectivo</option><option value="T">Transferencia</option><option value="CH">Cheque</option></select>
+      </div>
+    </div>
+    <div id="chequeBox" style="margin-top:9px;display:none"><label>Número de cheque</label><input type="text" inputmode="numeric" id="movCheque" placeholder="Ej. 0012345"></div>
+    <div id="desembBox" style="margin-top:9px;display:none">
+      <div class="row2">
+        <div><label>Fecha de desembolso</label><input type="date" id="movFechaDesem"></div>
+        <div><label>Fecha del primer pago</label><input type="date" id="movFechaPrimerPago"></div>
+      </div>
+      <div class="meta" style="margin-top:6px">Estas fechas viajan a Monse para que su Excel las jale solo (ya no las captura a mano).</div>
+    </div>
+    <div style="margin-top:9px"><label>Nota / referencia (opcional)</label><input type="text" id="movNota" placeholder="Ej. pagaré, descuento, nombre"></div>
+    <div class="meta" style="margin-top:7px">Cada movimiento recibe un <b>folio</b>. Si tienes evidencia (foto del pagaré, ticket), mándala por WhatsApp a Monse citando el folio.</div>
+    <button class="btn btn-wa" style="width:100%;margin-top:12px" onclick="agregarMov()">Agregar movimiento</button>
+  </div>
+  <div id="listaMovs"></div>
+</div>
+
+<div class="wrap hidden" id="tab-liquida">
+  <div class="card">
+    <div class="sectitle">Liquidaciones</div>
+    <div class="meta">Clientas que abonaron a su crédito fuera de su cuota: <b>liquidaciones</b> y <b>recuperaciones</b>. Se registran en "Otros mov." eligiendo a la clienta; las dos le bajan su saldo.</div>
+  </div>
+  <div id="liquidaBox"></div>
+</div>
+
+<div id="barraCierre">
+  <div class="bc-i"><div class="bc-t" id="bcTxt">Llevas capturado hoy</div><div class="bc-n" id="bcNum">$0</div></div>
+  <button class="bc-b" id="bcBtn" onclick="irACerrar()">Terminar día</button>
+</div>
+<div class="wrap hidden" id="tab-arqueo">
+  <div class="card"><div class="sectitle">Arqueo de efectivo</div>
+    <div class="meta">Cuenta billetes y monedas físicos. Abajo se compara contra lo cobrado.</div></div>
+  <div class="card" id="arqueoBox"></div>
+  <div class="card">
+    <div class="sectitle" style="font-size:14px">Lo que debes tener en efectivo</div>
+    <div class="kv"><span>Cobranza efectivo (fichas/garantías/solidario)</span><b id="arqCob">$0</b></div>
+    <div class="kv"><span>Otros movimientos en efectivo (+entradas −gastos)</span><b id="arqMovs">$0</b></div>
+    <div class="kv" style="border-top:2px solid var(--linea);padding-top:6px;margin-top:4px"><span><b>Total esperado en efectivo</b></span><b id="arqEsperado" style="color:var(--rio)">$0</b></div>
+  </div>
+  <div class="card">
+    <div class="kv"><span>Total contado (físico)</span><b id="arqueoTotal" style="color:var(--rio)">$0</b></div>
+    <div class="kv"><span>Diferencia (contado − esperado)</span><b id="arqueoDif">$0</b></div>
+  </div>
+  <div class="card">
+    <button class="btn btn-wa" style="width:100%" onclick="enviarArqueoYCerrar()">Enviar arqueo y cerrar captura</button>
+    <div class="meta" style="margin-top:8px;text-align:center">Sube la cobranza a la nube, manda el arqueo del día y cierra la captura en este teléfono.</div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="tab-resumen">
+  <div class="card">
+    <div class="sectitle">Resumen del día</div>
+    <div class="meta">Meta: 14 centros · 625 integrantes</div>
+    <div id="resumenStats" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <div class="sectitle">🔍 Diagnóstico — cuellos de botella</div>
+    <div class="meta">Lo que está frenando hoy, con el responsable. Atiende esto antes de cerrar.</div>
+    <div id="diagPanel" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <div class="sectitle">Semáforo por centro</div>
+    <div class="meta">Verde 100% · Amarillo 70-99% · Rojo menos de 70%. Mide clientas que pagaron y monto cobrado.</div>
+    <div id="semaforoPanel" style="margin-top:10px"></div>
+  <div class="card">
+    <div class="sectitle">Mensaje para WhatsApp</div>
+    <div class="summary-box" id="waText">—</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wamsg" style="flex:1" onclick="enviarMensajeGrupo('diario')">Enviar al grupo (diario)</button>
+      <button class="btn btn-light" onclick="copiarWA()">Copiar</button>
+    </div>
+    <button class="btn btn-light" style="width:100%;margin-top:8px" onclick="enviarMensajeGrupo('semanal')">Mensaje de CIERRE SEMANAL</button>
+  </div>
+  <div class="card">
+    <div class="sectitle">Enviar detalle a Monse (Excel)</div>
+    <div class="meta">Exporta el detalle por clienta en el formato de la hoja PEGAR CAPTURA. Descarga el archivo o copia para pegar directo.</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wa" style="flex:1" onclick="descargarExport()">Descargar archivo</button>
+      <button class="btn btn-light" style="flex:1" onclick="copiarExport()">Copiar para Excel</button>
+    </div>
+    <button class="btn btn-wamsg" style="width:100%;margin-top:8px" onclick="enviarWhatsApp('cobranza')">📤 Subir mi reporte al grupo (obligatorio)</button>
+    <div class="meta" style="margin-top:6px;color:var(--mora)">El día no cierra hasta que subas tu reporte al grupo.</div>
+  </div>
+  <div class="card">
+    <div class="sectitle">Enviar garantías a Ing. Alejandra</div>
+    <div class="meta">Solo las clientas con garantía capturada hoy, en el formato del control de garantías.</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wa" style="flex:1" onclick="descargarGarantias()">Descargar garantías</button>
+      <button class="btn btn-light" style="flex:1" onclick="copiarGarantias()">Copiar garantías</button>
+    </div>
+    <button class="btn btn-wamsg" style="width:100%;margin-top:8px" onclick="enviarWhatsApp('garantias')">Enviar por WhatsApp</button>
+  </div>
+  <div class="card">
+    <div class="sectitle">Enviar otros movimientos a Monse</div>
+    <div class="meta">Comisiones, liquidaciones, recuperaciones, desembolsos y gastos, en el formato de DETALLE MOVIMIENTOS.</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-wa" style="flex:1" onclick="descargarMovs()">Descargar movimientos</button>
+      <button class="btn btn-light" style="flex:1" onclick="copiarMovs()">Copiar movimientos</button>
+    </div>
+    <button class="btn btn-wamsg" style="width:100%;margin-top:8px" onclick="enviarWhatsApp('movs')">Enviar por WhatsApp</button>
+    <button class="btn btn-light" style="width:100%;margin-top:8px" onclick="descargarDesembolsos()">📤 Descargar solo DESEMBOLSOS (control aparte)</button>
+  </div>
+  <div class="card">
+    <div class="sectitle">Ajustes</div>
+    <div class="meta">Al terminar tu día, envía el arqueo: primero SUBE todo al sistema y, solo cuando el servidor confirma, se limpia este celular.</div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn btn-wa" style="flex:1" onclick="enviarArqueoYCerrar()">Enviar arqueo y cerrar captura</button>
+    </div>
+    <div class="meta" style="margin-top:14px">Cuando Monse mande un padrón nuevo (altas/bajas), impórtalo aquí sin cambiar de app:</div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
+      <label class="btn btn-light" style="flex:1;text-align:center;cursor:pointer">Actualizar padrón
+        <input type="file" accept=".csv,text/csv" style="display:none" onchange="importarPadron(this)">
+      </label>
+      <button class="btn btn-light" onclick="restablecerPadron()">Restablecer</button>
+    </div>
+  </div>
+</div>
+
+<div class="totbar">
+  <div><div class="lbl">TOTAL COBRADO HOY</div><div class="val" id="totHoy">$0</div>
+    <div class="mini" id="totMini">Efe $0 · Transf $0</div>
+    <div class="mini" id="semGlobal" style="margin-top:2px">🔴 0% clientas · 🔴 0% monto</div></div>
+  <button class="btn btn-wa" onclick="showTab('resumen')">Resumen ▸</button>
+</div>
+
+<script>
+const EJECUTIVO="Julio";
+const EJECUTIVO_BASE="Julio".toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const META={centros:14,integrantes:625};
+const DIAS=["Lunes","Martes","Miercoles","Jueves","Viernes","Sabado"];
+const CONCEPTOS=["pago","garantia","solidario"]; // 3 conceptos confirmados
+
+// ===== PADRÓN: editable, parte del catálogo incrustado pero actualizable =====
+const STORE_KEY="fooax_cob_"+EJECUTIVO_BASE;
+// Conteo de billetes de la pestana Arqueo, {valor: cantidad}. Antes vivia solo
+// en window._arqueo (memoria): se perdia al recargar y el servidor NUNCA lo veia,
+// por eso el arqueo de Direccion salia en ceros aunque si se contara el efectivo.
+let arqueo={};
+const PADRON_VERSION=20260722;
+const PADRON_KEY="fooax_padron_"+EJECUTIVO_BASE;
+// CENTROS e INDIVIDUALES vienen del archivo; si hay padrón importado guardado, se usa ese
+let CENTROS={};
+let INDIVIDUALES=[{"n": "SOLEDAD FABIOLA MENDOZA", "f": "11113064631", "sub": "MAGNUS", "k": "11113064631|MAGNUS|SOLEDAD FABIOLA MENDOZA|0", "imp": 100000, "saldo": 83333.32, "esp": 7018.34, "impOrig": 100000, "mora": 0, "sug": 120000, "des": "2026-02-28", "dia": ""}, {"n": "JAVIER VAZQUEZ SANCHEZ", "f": "11113089148", "sub": "MAGNUS", "k": "11113089148|MAGNUS|JAVIER VAZQUEZ SANCHEZ|0", "imp": 100000, "saldo": 87499.99, "esp": 7160.92, "impOrig": 100000, "mora": 0, "sug": 120000, "des": "2026-03-25", "dia": ""}, {"n": "ANGELES BECSAHIDA AVENDAÑO", "f": "11112769851", "sub": "MAGNUS", "k": "11112769851|MAGNUS|ANGELES BECSAHIDA AVENDAÑO|0", "imp": 80000, "saldo": 76666.67, "esp": 5956.86, "impOrig": 80000, "mora": 0, "sug": 96000, "des": "2026-05-22", "dia": ""}, {"n": "BLANCA LUIS BERNAL", "f": "11112931059", "sub": "COMADRE", "k": "11112931059|COMADRE|BLANCA LUIS BERNAL|0", "imp": 11000, "saldo": 7772.5, "esp": 1554.5, "impOrig": 11000, "mora": 0, "sug": 13200, "des": "2026-05-28", "dia": "JUEVES"}, {"n": "JUANA RITA LUIS BERNAL", "f": "11113014663", "sub": "COMADRE", "k": "11113014663|COMADRE|JUANA RITA LUIS BERNAL|0", "imp": 20000, "saldo": 16962, "esp": 2827, "impOrig": 20000, "mora": 0, "sug": 24000, "des": "2026-06-11", "dia": "JUEVES"}];
+(function cargarPadron(){
+  try{const p=localStorage.getItem(PADRON_KEY);if(p){const d=JSON.parse(p);if((d.v||0)>=PADRON_VERSION){if(d.CENTROS)CENTROS=d.CENTROS;if(d.INDIVIDUALES)INDIVIDUALES=d.INDIVIDUALES;}else{localStorage.removeItem(PADRON_KEY);}}}catch(e){}
+})();
+
+// registro[centro][socio]={pago,garantia,solidario,forma}
+let reg={};
+let regI={};
+let movs=[]; // otros movimientos: {concepto,centro,clienta,socio,monto,via,nota}
+// Consecutivo de folio que NUNCA se reutiliza. Antes el folio salía del LARGO
+// de la lista: si se borraba un movimiento, el siguiente repetía un folio ya
+// enviado y el servidor lo ignoraba (los movimientos son append-only), así que
+// ese movimiento nunca llegaba al arqueo. Se persiste con el día.
+let folioSeq=0;
+let gestRenov={}; // gestión de renovaciones por llave: {estado, ts}
+let tareasGerente={}; // solo Nery: {tareaId: true}
+let datosCli={}; // datos permanentes por clienta (llave): {plazo, semana, tsSemana} — NO se borra al cerrar día
+const DATOS_KEY="fooax_datoscli_"+EJECUTIVO_BASE;
+function guardarDatosCli(){try{localStorage.setItem(DATOS_KEY,JSON.stringify(datosCli));}catch(e){}}
+function restaurarDatosCli(){try{const raw=localStorage.getItem(DATOS_KEY);if(raw)datosCli=JSON.parse(raw);}catch(e){}}
+// ===== Histórico semanal: guarda un snapshot de cada día al cerrarlo =====
+const SEMANA_KEY="fooax_semana_"+EJECUTIVO_BASE;
+function cargarSemana(){try{const raw=localStorage.getItem(SEMANA_KEY);return raw?JSON.parse(raw):[];}catch(e){return [];}}
+function guardarDiaEnSemana(){
+  try{
+    const {t,efe,tr,n,acc}=totales();
+    const fecha=document.getElementById('inpFecha').value||hoyISO();
+    // desglose por centro
+    const porCentro={};
+    for(const c in reg){let sc=0,nc=0;for(const s in reg[c]){const tt=rTot(reg[c][s]);if(tt>0){sc+=tt;nc++;}}if(sc>0)porCentro[c]={monto:sc,pagadas:nc};}
+    // desglose por producto
+    const porProd={};
+    for(const c in reg){const cl=CENTROS[c]||[];for(const s in reg[c]){const tt=rTot(reg[c][s]);if(tt>0){const clienta=cl.find(x=>(x.k||x.f)===s);const sub=clienta?(clienta.sub||'Otro'):'Otro';porProd[sub]=(porProd[sub]||0)+(reg[c][s].pago||0);}}}
+    // movimientos del día (copia)
+    const movsDia=movs.map(m=>({concepto:m.concepto,monto:m.monto,via:m.via,clienta:m.clienta}));
+    const snap={fecha,t,efe,tr,n,pago:acc.pago,garantia:acc.garantia,solidario:acc.solidario,porCentro,porProd,movs:movsDia,efeEntregar:efe+movsEfectivoNeto()};
+    let semana=cargarSemana();
+    // si ya existe ese día, lo reemplaza; si no, lo agrega
+    semana=semana.filter(d=>d.fecha!==fecha);
+    semana.push(snap);
+    // mantener solo los últimos 8 días (una semana + margen)
+    semana.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    if(semana.length>8)semana=semana.slice(-8);
+    localStorage.setItem(SEMANA_KEY,JSON.stringify(semana));
+  }catch(e){}
+}
+function limpiarSemana(){try{localStorage.removeItem(SEMANA_KEY);}catch(e){}}
+const ES_GERENTE=false;
+// ===== Guardado automático en el celular (sobrevive cierres/recargas) =====
+function guardar(){
+  try{
+    const fecha=document.getElementById('inpFecha').value||hoyISO();
+    localStorage.setItem(STORE_KEY, JSON.stringify({fecha,reg,regI,movs,gestRenov,tareasGerente,arqueo,folioSeq,ts:Date.now()}));
+    const ind=document.getElementById('guardadoMsg');
+    if(ind){ind.textContent='Guardado '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});}
+  }catch(e){}
+}
+function restaurar(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);if(!raw)return;
+    const d=JSON.parse(raw);
+    const hoy=hoyISO();
+    // Si lo guardado es de un DÍA ANTERIOR, no lo cargamos como si fuera de hoy:
+    // avisamos y limpiamos, para que no se junte la cobranza de ayer con la de hoy.
+    if(d.fecha && d.fecha!==hoy){
+      const tieneAlgo=(d.reg&&Object.keys(d.reg).length)||(d.regI&&Object.keys(d.regI).length)||(d.movs&&d.movs.length);
+      if(tieneAlgo){
+        // BLOQUEO TOTAL (regla Karina 23-jul): un día anterior sin enviar su
+        // arqueo detiene la app. Se carga tal cual (con SU fecha) y lo único
+        // que se puede hacer es tocar "Enviar arqueo". Al enviarlo, la app
+        // queda lista para hoy; sin señal, la captura sigue guardada.
+        if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs;
+        if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
+        folioSeq=Math.max(d.folioSeq||0,(movs||[]).length);
+        if(d.arqueo){arqueo=d.arqueo;setTimeout(()=>{let usados={};DENOM.forEach((dd,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');if(!inp)return;const tot=arqueo[dd.v]||0;const ya=usados[dd.v]||0;const q=Math.max(0,tot-ya);if(q>0){inp.value=q;usados[dd.v]=ya+q;}});if(document.querySelector('[data-den]'))calcArqueo();},0);}
+        document.getElementById('inpFecha').value=d.fecha; // conserva SU fecha real
+        try{sessionStorage.setItem('fooax_fecha_ok',d.fecha);}catch(e){}
+        if(typeof updFecha==='function')try{updFecha();}catch(e){}
+        setTimeout(function(){mostrarBloqueoArqueo(d.fecha);},60);
+        return;
+      }
+    }
+    if(d.reg)reg=d.reg; if(d.regI)regI=d.regI; if(d.movs)movs=d.movs; if(d.gestRenov)gestRenov=d.gestRenov; if(d.tareasGerente)tareasGerente=d.tareasGerente;
+    folioSeq=Math.max(d.folioSeq||0, (movs||[]).length);
+    // El conteo de billetes tambien se recupera: si cierra y abre la app a media
+    // jornada, no tiene que volver a contar la caja.
+    if(d.arqueo&&d.fecha===hoy){arqueo=d.arqueo;setTimeout(()=>{let usados={};DENOM.forEach((dd,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');if(!inp)return;const tot=arqueo[dd.v]||0;const ya=usados[dd.v]||0;const q=Math.max(0,tot-ya);if(q>0){inp.value=q;usados[dd.v]=ya+q;}});if(document.querySelector('[data-den]'))calcArqueo();},0);}
+    // la fecha SIEMPRE es la de hoy al abrir, no la guardada
+    document.getElementById('inpFecha').value=hoy;
+  }catch(e){}
+}
+function textoArqueoApp(){
+  if(typeof calcArqueo==='function')calcArqueo();
+  const {efe,tr,acc}=totales();
+  const movEfe=(typeof movsEfectivoNeto==='function')?movsEfectivoNeto():0;
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
+  const L=[];
+  L.push('🧾 *FOOAX · ARQUEO DEL DÍA*');
+  L.push('👤 '+EJECUTIVO);
+  L.push('📅 '+fechaLinda);
+  L.push('━━━━━━━━━━');
+  L.push('Cobranza en efectivo: '+fmt(efe));
+  if(movEfe!==0)L.push('Otros movimientos: '+(movEfe<0?'−'+fmt(Math.abs(movEfe)):'+'+fmt(movEfe)));
+  L.push('💵 Efectivo a entregar: '+fmt(efe+movEfe));
+  if(tr>0)L.push('Transferencias: '+fmt(tr));
+  if(acc.garantia>0)L.push('Garantías: '+fmt(acc.garantia));
+  if(window._arqueo && window._arqueoTotal>0){
+    L.push('');L.push('Conteo físico:');
+    window._arqueo.forEach(a=>{if(a.q>0)L.push('  '+a.l+': '+a.q+' = '+fmt(a.sub));});
+    L.push('Total contado: '+fmt(window._arqueoTotal));
+    const dif=window._arqueoTotal-(window._arqueoEsperado||0);
+    L.push('Diferencia: '+(Math.abs(dif)<0.01?'$0 ✓':(dif<0?'−'+fmt(Math.abs(dif)):fmt(dif))));
+  }
+  return L.join('\n');
+}
+// —— "Vas a mandar esto": confirmación con palomita (regla Karina 23-jul).
+// Sin la palomita de "es verdad", el botón de enviar no se activa.
+// Palomita verde de éxito: el arqueo es INTERNO (regla Karina 23-jul), ya no
+// se abre WhatsApp — se sube al sistema y se confirma aquí mismo.
+function __palomitaExito(titulo,sub){
+  var o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;z-index:100003;background:rgba(42,31,53,.94);display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML='<div style="background:#fff;border-radius:20px;max-width:340px;width:100%;padding:26px 22px;text-align:center">'
+    +'<div style="width:74px;height:74px;border-radius:50%;background:#E7F6EE;margin:0 auto 14px;display:flex;align-items:center;justify-content:center">'
+    +'<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#0B7247" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>'
+    +'<div style="font:800 17px/1.3 inherit;color:#0B7247">'+titulo+'</div>'
+    +'<div style="font:600 13px/1.5 inherit;color:#3a3142;margin-top:6px">'+sub+'</div>'
+    +'<button style="margin-top:16px;width:100%;font:800 14px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">Listo</button></div>';
+  o.querySelector('button').onclick=function(){o.remove();};
+  document.body.appendChild(o);
+}
+function confirmarArqueo(texto,nota){
+  return new Promise(function(res){
+    var o=document.createElement('div');o.id='fooax-conf-arqueo';
+    o.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(42,31,53,.96);display:flex;align-items:center;justify-content:center;padding:16px';
+    o.innerHTML='<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;max-height:86vh;display:flex;flex-direction:column;overflow:hidden">'
+      +'<div style="padding:14px 16px 10px;font:800 16px/1.3 inherit;color:#2A1F35">Vas a mandar esto</div>'
+      +(nota?'<div style="margin:0 16px 8px;padding:8px 11px;background:#FBF0DD;border-radius:10px;font:600 12px/1.4 inherit;color:#8A5A00">'+nota+'</div>':'')
+      +'<pre style="margin:0 16px;padding:10px 12px;background:#F6F3F9;border-radius:12px;white-space:pre-wrap;font:12.5px/1.5 inherit;color:#2A1F35;overflow:auto;flex:1">'+String(texto).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</pre>'
+      +'<label style="display:flex;gap:9px;align-items:flex-start;padding:12px 16px 4px;font:600 13px/1.4 inherit;color:#2A1F35;cursor:pointer">'
+      +'<input id="fooaxChkVerdad" type="checkbox" style="width:20px;height:20px;flex:none;accent-color:#0B7247">'
+      +'<span>Confirmo que lo que capturé es <b>verdadero</b> y está completo.</span></label>'
+      +'<div style="display:flex;gap:8px;padding:12px 16px 16px">'
+      +'<button id="fooaxConfNo" style="flex:1;font:700 14px inherit;background:#EEF0F8;color:#324AB6;border:none;border-radius:12px;padding:12px">Volver</button>'
+      +'<button id="fooaxConfSi" disabled style="flex:2;font:800 14px inherit;background:#B9C2D2;color:#fff;border:none;border-radius:12px;padding:12px">Enviar arqueo</button>'
+      +'</div></div>';
+    document.body.appendChild(o);
+    var chk=o.querySelector('#fooaxChkVerdad'),si=o.querySelector('#fooaxConfSi');
+    chk.onchange=function(){si.disabled=!chk.checked;si.style.background=chk.checked?'#0B7247':'#B9C2D2';};
+    o.querySelector('#fooaxConfNo').onclick=function(){o.remove();res(false);};
+    si.onclick=function(){if(!chk.checked)return;o.remove();res(true);};
+  });
+}
+// Limpieza común después de enviar el arqueo (día cerrado, app lista para HOY).
+function __despuesDeEnviar(){
+  // recuerda que HOY ya se envio el arqueo: si vuelve a entrar, la app pregunta
+  // si va a AGREGAR algo o a CAPTURAR TODO de nuevo (evita el dia doblado 24-jul)
+  try{localStorage.setItem('fooax_cerrado_'+STORE_KEY,(document.getElementById('inpFecha')||{}).value||hoyISO());}catch(e){}
+  try{localStorage.removeItem(STORE_KEY);}catch(e){}
+  reg={};regI={};movs=[];folioSeq=0;
+  arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
+  if(typeof gestRenov!=='undefined')gestRenov={};
+  if(typeof tareasGerente!=='undefined')tareasGerente={};
+  window._reporteEnviado=false;
+  try{document.getElementById('inpFecha').value=(window.__hoyServidor||hoyISO());}catch(e){}
+  if(typeof updFecha==='function')try{updFecha();}catch(e){}
+  if(typeof render==='function')render();
+  if(typeof renderIndiv==='function')renderIndiv();
+  if(typeof renderRenov==='function')renderRenov();
+  if(typeof recalc==='function')recalc();
+  if(typeof ES_GERENTE!=='undefined'&&ES_GERENTE&&typeof renderGerente==='function')renderGerente();
+  if(typeof calcArqueo==='function')try{calcArqueo();}catch(e){}
+  // calcArqueo/guardar re-crean un registro VACÍO del día: se quita para que
+  // el teléfono quede realmente limpio (el blindaje del servidor igual
+  // rechazaría un vacío, pero mejor no mandarlo siquiera).
+  try{localStorage.removeItem(STORE_KEY);}catch(e){}
+}
+// —— BLOQUEO TOTAL: día anterior sin enviar = la app no se puede usar hasta
+// mandar ese arqueo (regla Karina 23-jul). Un solo botón: Enviar arqueo.
+function mostrarBloqueoArqueo(fechaVieja){
+  if(document.getElementById('fooax-bloqueo'))return;
+  var tt=0,nn=0;try{var x=totales();tt=x.t;nn=x.n;}catch(e){}
+  var o=document.createElement('div');o.id='fooax-bloqueo';
+  o.style.cssText='position:fixed;inset:0;z-index:100001;background:rgba(42,31,53,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;font-family:inherit';
+  o.innerHTML='<div style="font-size:44px">🔒</div>'
+    +'<div style="font:800 19px/1.3 inherit;margin-top:8px">Por favor envía el arqueo</div>'
+    +'<div style="font:600 13.5px/1.5 inherit;opacity:.92;margin-top:8px;max-width:320px">Tienes la captura del <u>'+fechaVieja+'</u> sin enviar ('+fmt(tt)+' · '+nn+' pagos).<br>Para seguir usando la app, primero mándala.</div>'
+    +'<button onclick="__enviarArqueoBloqueado()" style="margin-top:18px;font:800 15px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:14px 28px;cursor:pointer">Enviar arqueo</button>'
+    +'<div id="fooaxBloqueoMsg" style="font:600 12px/1.45 inherit;color:#FFD9A8;margin-top:12px;max-width:300px"></div>';
+  document.body.appendChild(o);
+}
+async function __enviarArqueoBloqueado(){
+  if(bloqueoPorErrores('ENVIAR EL ARQUEO'))return;
+  var texto=textoArqueoApp();
+  var okc=await confirmarArqueo(texto);
+  if(!okc)return;
+  var subio=false;try{if(window.__forzarSync)subio=await window.__forzarSync();}catch(e){}
+  if(!subio){
+    var m=document.getElementById('fooaxBloqueoMsg');
+    if(m)m.innerHTML='Sin señal ahora mismo. Tu captura está guardada: en cuanto el teléfono tenga internet, vuelve a tocar <b>Enviar arqueo</b>.';
+    return;
+  }
+  if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
+  avisarCierre();
+  __despuesDeEnviar();
+  try{sessionStorage.removeItem('fooax_fecha_ok');}catch(e){}
+  var b=document.getElementById('fooax-bloqueo');if(b)b.remove();
+  __palomitaExito('Arqueo del día anterior enviado ✓','Quedó guardado en el sistema. La app está lista para HOY.');
+}
+async function enviarArqueoYCerrar(){
+  if(typeof ES_GERENTE!=='undefined' && ES_GERENTE && typeof tareasGerentePendientes==='function'){
+    const faltan=tareasGerentePendientes();
+    if(faltan.length>0){alert('🔒 Antes de cerrar, cumple tus funciones de gerente:\n\n'+faltan.map(t=>'• '+t).join('\n'));showTab('gerente');return;}
+  }
+  if(bloqueoPorErrores('ENVIAR EL ARQUEO Y CERRAR'))return;
+  const {t}=totales();
+  if(t<=0 && !(window._arqueoTotal>0)){alert('Aún no hay cobranza ni conteo para el arqueo de hoy.');return;}
+  // CERRAR = MANDÓ SU ARQUEO (regla Karina 27-jul). Si hay efectivo que
+  // entregar y no ha contado un solo billete, no se cierra: se le manda a
+  // contar. El efectivo se calcula aquí y no se lee de _arqueoEsperado, que
+  // solo se actualiza si abrió la pestaña Arqueo.
+  var _efe=0;
+  try{_efe=(totales().efe||0)+((typeof movsEfectivoNeto==='function')?movsEfectivoNeto():0);}catch(e){}
+  if(_efe>0 && !(window._arqueoTotal>0)){
+    alert('Falta contar tu efectivo.\n\nDebes entregar '+fmt(_efe)+' y todavía no anotas ningún billete.\n\nVe a la pestaña ARQUEO, anota cuántos billetes y monedas traes, y vuelve a darle a Enviar arqueo.');
+    showTab('arqueo');
+    return;
+  }
+  const texto=textoArqueoApp();
+  const rp=(typeof renovPendientes==='function')?renovPendientes():{pendientes:0};
+  const nota=(rp.pendientes>0)?('Tienes '+rp.pendientes+' renovación(es) sin gestionar.'):'';
+  const okc=await confirmarArqueo(texto,nota);
+  if(!okc)return;
+  // La captura SOLO se borra del telefono cuando el servidor CONFIRMA que la
+  // recibio. Antes esta linea ignoraba el resultado: sin senal, igual borraba
+  // y la captura se perdia (la trampa que cerramos el 24-jul).
+  var subio=false;try{if(window.__forzarSync)subio=await window.__forzarSync();}catch(e){}
+  if(!subio){alert('Sin senal ahora mismo. Tu captura NO se borro: sigue guardada en este telefono.\n\nEn cuanto tengas internet, vuelve a tocar "Enviar arqueo y cerrar captura".');return;}
+  if(typeof guardarDiaEnSemana==='function')guardarDiaEnSemana();
+  // El servidor CONFIRMA el cierre solo si recibió el arqueo. Si lo rechaza, la
+  // captura ya está a salvo (la subida se confirmó arriba) pero el día NO queda
+  // cerrado, y hay que decirlo — antes esto fallaba en silencio.
+  var cierre={ok:true};
+  try{cierre=await avisarCierre()||{ok:true};}catch(e){}
+  window._reporteEnviado=true;
+  __despuesDeEnviar();
+  if(cierre.ok)__palomitaExito('Arqueo enviado ✓','La captura quedó cerrada y guardada en el sistema.');
+  else alert('Tu cobranza SÍ se guardó en el sistema, pero el día NO quedó cerrado.\n\n'+(cierre.error||'Intenta de nuevo con señal.'));
+}
+// Avisa al servidor que la ejecutiva CERRÓ su día (para que el tablero
+// muestre quién usó el botón y quién se lo saltó).
+function avisarCierre(){
+  // Devuelve una promesa: el servidor RECHAZA el cierre si no llegó el arqueo,
+  // y la ejecutiva tiene que enterarse (antes se ignoraba en silencio).
+  try{
+    var f=document.getElementById('inpFecha').value||hoyISO();
+    return fetch('/api/cierre',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fecha:f,confirmado:true})})
+      .then(function(r){return r.json().catch(function(){return {};}).then(function(d){return {ok:r.ok,error:d&&d.error};});})
+      .catch(function(){return {ok:false};});
+  }catch(e){return Promise.resolve({ok:false});}
+}
+function cerrarDia(){
+  // El boton viejo borraba el telefono SIN subir primero: sin senal se
+  // perdia la captura. Ahora es la MISMA ruta segura del arqueo (sube,
+  // el servidor confirma y solo entonces se limpia el celular).
+  enviarArqueoYCerrar();
+}
+
+
+// Números como los teclea la gente: "$1,500", "432,50", "1 000". La coma
+// mexicana de miles y la coma decimal se interpretan bien — antes "1,500" se
+// convertía en $1 y en el conteo de billetes en CERO, sin avisar.
+function numMX(v){
+  v=String(v==null?'':v).trim().replace(/\$/g,'').replace(/\s+/g,'');
+  if(v.indexOf(',')>=0){
+    if(v.indexOf('.')>=0)v=v.replace(/,/g,'');
+    else{
+      const partes=v.split(',');
+      if(partes.length===2&&partes[1].length<=2)v=partes[0]+'.'+partes[1];
+      else v=v.replace(/,/g,'');
+    }
+  }
+  const n=parseFloat(v);return isNaN(n)?0:n;
+}
+function fmt(n){const v=Math.round((+n||0)*100)/100;return '$'+v.toLocaleString('es-MX',{minimumFractionDigits:(v%1)?2:0,maximumFractionDigits:2});}
+function hoyISO(){
+  // La fecha OFICIAL es la del servidor (hora de México). Antes esto usaba
+  // toISOString(), que es UTC: después de las 6pm en México ya daba el día
+  // SIGUIENTE, y la captura y el reporte se etiquetaban con la fecha mal.
+  if(window.__hoyServidor)return window.__hoyServidor;
+  try{return new Date().toLocaleDateString('en-CA',{timeZone:'America/Mexico_City'});}
+  catch(e){return new Date().toISOString().slice(0,10);}
+}
+
+// new Date("2026-07-23") se interpreta como UTC: en México (-6) getDate()
+// devuelve 22, o sea UN DÍA ANTES. Eso hacía que la app mostrara el día
+// equivocado en el encabezado, eligiera mal el día de la semana, pusiera folios
+// con la fecha de ayer, y que el reporte de la ejecutiva saliera fechado un día
+// antes (Monse comparaba contra el arqueo del día que no era).
+function fechaLocal(s){
+  s=String(s||'');
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s+'T12:00') : new Date(s);
+}
+function initFecha(){document.getElementById('inpFecha').value=hoyISO();updFecha();}
+function updFecha(){
+  const d=fechaLocal(document.getElementById('inpFecha').value||hoyISO());
+  document.getElementById('fechaHoy').textContent=d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const ds=DIAS[(d.getDay()+6)%7];
+  const sel=document.getElementById('selDia');
+  for(const o of sel.options){if(o.value===ds){sel.value=ds;break;}}
+  render();
+}
+function initSelects(){const s=document.getElementById('selDia');DIAS.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;s.appendChild(o);});}
+function fillCentros(){
+  const sel=document.getElementById('selCentro');sel.innerHTML='<option value="">— Elige un centro —</option>';
+  Object.keys(CENTROS).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k+' ('+CENTROS[k].length+')';sel.appendChild(o);});
+}
+
+function getReg(store,centro,socio){
+  if(centro){if(!store[centro])store[centro]={};if(!store[centro][socio])store[centro][socio]={pago:0,garantia:0,solidario:0,forma:''};return store[centro][socio];}
+  if(!store[socio])store[socio]={pago:0,garantia:0,solidario:0,forma:''};return store[socio];
+}
+function rTot(r){return (r.pago||0)+(r.garantia||0)+(r.solidario||0);}
+
+function semaforoCentro(centro){
+  const clientas=CENTROS[centro]||[];
+  const total=clientas.length;
+  let pagadas=0, montoCobrado=0, montoEsp=0, garCobrada=0, solCobrado=0, moraCentro=0, clientasMora=0;
+  clientas.forEach(cl=>{
+    const r=(reg[centro]&&reg[centro][cl.k||cl.f])||{};
+    if(rTot(r)>0)pagadas++;
+    montoCobrado+=(r.pago||0);
+    garCobrada+=(r.garantia||0);
+    solCobrado+=(r.solidario||0);
+    montoEsp+=(cl.esp||0);
+    if((cl.mora||0)>0){moraCentro+=cl.mora;clientasMora++;}
+  });
+  const pctCli= total? Math.round(pagadas/total*100):0;
+  const pctMonto= montoEsp? Math.round(montoCobrado/montoEsp*100):0;
+  return {total,pagadas,pctCli,pctMonto,montoCobrado,montoEsp,garCobrada,solCobrado,moraCentro,clientasMora};
+}
+function colorSem(pct){ if(pct>=100)return 'var(--ok)'; if(pct>=70)return 'var(--riqueza)'; return 'var(--mora)'; }
+function emojiSem(pct){ if(pct>=100)return '🟢'; if(pct>=70)return '🟡'; return '🔴'; }
+function semBadges(s){
+  return '<div class="sembadges">'
+    +'<span class="sembadge" style="background:'+colorSem(s.pctCli)+'">'+emojiSem(s.pctCli)+' Clientas '+s.pagadas+'/'+s.total+' ('+s.pctCli+'%)</span>'
+    +'<span class="sembadge" style="background:'+colorSem(s.pctMonto)+'">'+emojiSem(s.pctMonto)+' Monto '+s.pctMonto+'%</span>'
+    +'</div>';
+}
+function subtotalCentro(s){
+  const tot=s.montoCobrado+s.garCobrada+s.solCobrado;
+  return '<div class="subcentro">'
+    +'<div class="subrow"><span>Pagos</span><b>'+fmt(s.montoCobrado)+'</b></div>'
+    +'<div class="subrow"><span>Garantías</span><b>'+fmt(s.garCobrada)+'</b></div>'
+    +(s.solCobrado>0?'<div class="subrow"><span>Solidarios</span><b>'+fmt(s.solCobrado)+'</b></div>':'')
+    +'<div class="subrow tot"><span>Total centro</span><b>'+fmt(tot)+'</b></div>'
+    +'<div class="subrow cnt"><span>Pagaron</span><b>'+s.pagadas+' de '+s.total+'</b></div>'
+    +(s.moraCentro>0?'<div class="subrow cnt" style="color:var(--mora)"><span>⚠ Mora del centro</span><b style="color:var(--mora)">'+fmt(s.moraCentro)+' ('+s.clientasMora+' clientas)</b></div>':'')
+    +'</div>';
+}
+function render(){
+  const centro=document.getElementById('selCentro').value;
+  const cont=document.getElementById('listaClientas');
+  if(!centro){cont.innerHTML='<div class="card muted">Elige un centro para capturar la cobranza.</div>';recalc();return;}
+  const clientas=CENTROS[centro];
+  const s=semaforoCentro(centro);
+  let h='<div class="card"><div class="sectitle">'+centro+' <span class="pill">'+clientas.length+' integrantes</span></div>';
+  h+=semBadges(s);
+  h+=subtotalCentro(s);
+  h+='<button class="btn btn-wa" style="width:100%;margin:6px 0" onclick="todasPagaron(\''+centro.replace(/'/g,"\\'")+'\')">✓ Todas pagaron su cuota</button>';
+  h+='<div class="meta" style="margin:-2px 0 8px;text-align:center">Marca a todas con su cuota en efectivo. Luego quítale la palomita a las que NO pagaron.</div>';
+  h+='<button class="btn btn-light" style="width:100%;margin:6px 0" onclick="toggleFicha(\''+centro.replace(/'/g,"\\'")+'\')">📋 Ver ficha del centro (cuotas)</button>';
+  h+=fichaCentro(centro);
+  clientas.forEach(cl=>{h+=cliRow(centro,cl);});
+  h+='</div>';cont.innerHTML=h;recalc();
+}
+function fichaCentro(centro){
+  const clientas=CENTROS[centro]||[];
+  let filas='', totalEsp=0, totalSaldo=0;
+  const totProd={BASICO:0, ADICIONAL:0, MICROCREDITO:0};
+  clientas.forEach(cl=>{
+    const key=cl.k||cl.f;
+    const dcli=datosCli[key]||{};
+    const cuota=(dcli.cuota&&dcli.cuota>0)?dcli.cuota:(cl.esp||0);
+    totalEsp+=cuota; totalSaldo+=(cl.saldo||0);
+    const microtag=(cl.sub||'').toLowerCase().includes('micro');
+    // Categoría de producto para el total
+    const sub=(cl.sub||'').toLowerCase();
+    let cat='BASICO';
+    if(sub.includes('adicional'))cat='ADICIONAL';
+    else if(sub.includes('micro'))cat='MICROCREDITO';
+    totProd[cat]+=cuota;
+    // Número de pago: usa el capturado (real) si existe, si no el aproximado por saldo
+    const dc=datosCli[key]||{};
+    let noPago='—';
+    if(dc.semana && dc.plazo){
+      noPago=dc.semana+'/'+dc.plazo;
+    }else{
+      const imp=cl.impOrig||cl.imp||0;
+      if(imp>0 && cuota>0){
+        const pagado=imp-(cl.saldo||0);
+        const nPago=Math.round(pagado/cuota);
+        if(nPago>0)noPago='~'+nPago;
+      }
+    }
+    filas+='<tr'+(microtag?' style="background:#FFF6E9"':'')+'>'
+      +'<td>'+cl.n+'</td>'
+      +'<td style="text-align:center">'+(cl.sub||'')+'</td>'
+      +'<td style="text-align:center">'+noPago+'</td>'
+      +'<td style="text-align:right">'+fmt(cl.saldo||0)+'</td>'
+      +'<td style="text-align:right;font-weight:800;color:var(--rio)">'+fmt(cuota)+'</td>'
+      +'</tr>';
+  });
+  let totalesProd='';
+  if(totProd.BASICO>0)totalesProd+='<tr class="fichaprod"><td colspan="4">Básico</td><td style="text-align:right">'+fmt(totProd.BASICO)+'</td></tr>';
+  if(totProd.ADICIONAL>0)totalesProd+='<tr class="fichaprod"><td colspan="4">Adicional</td><td style="text-align:right">'+fmt(totProd.ADICIONAL)+'</td></tr>';
+  if(totProd.MICROCREDITO>0)totalesProd+='<tr class="fichaprod"><td colspan="4">Microcrédito</td><td style="text-align:right">'+fmt(totProd.MICROCREDITO)+'</td></tr>';
+  return '<div class="fichabox" id="ficha_'+centro.replace(/[^a-zA-Z0-9]/g,'')+'" style="display:none">'
+    +'<div class="fichatit">📋 Ficha de cobranza · '+centro+'</div>'
+    +'<table class="fichatab"><thead><tr>'
+    +'<th>Clienta</th><th style="text-align:center">Producto</th><th style="text-align:center">No.pago</th><th style="text-align:right">Saldo</th><th style="text-align:right">Cuota</th>'
+    +'</tr></thead><tbody>'+filas
+    +totalesProd
+    +'<tr class="fichatot"><td colspan="4">TOTAL DEL CENTRO (cuota semanal)</td><td style="text-align:right">'+fmt(totalEsp)+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="fichanota">El No.pago es aproximado (calculado por el avance del saldo).</div>'
+    +'<div class="fichacopy"><button class="btn btn-light" onclick="copiarFicha(\''+centro.replace(/'/g,"\\'")+'\')">📋 Copiar ficha</button></div>'
+    +'</div>';
+}
+function toggleFicha(centro){
+  const el=document.getElementById('ficha_'+centro.replace(/[^a-zA-Z0-9]/g,''));
+  if(el)el.style.display=(el.style.display==='none')?'block':'none';
+}
+function copiarFicha(centro){
+  const clientas=CENTROS[centro]||[];
+  let txt='FICHA DE COBRANZA · '+centro+'\n\n';
+  let totalEsp=0;
+  const totProd={BASICO:0,ADICIONAL:0,MICROCREDITO:0};
+  clientas.forEach(cl=>{
+    const c=cl.esp||0;totalEsp+=c;
+    const sub=(cl.sub||'').toLowerCase();
+    let cat='BASICO'; if(sub.includes('adicional'))cat='ADICIONAL'; else if(sub.includes('micro'))cat='MICROCREDITO';
+    totProd[cat]+=c;
+    txt+=cl.n+' ('+(cl.sub||'')+'): '+fmt(c)+'\n';
+  });
+  txt+='\n';
+  if(totProd.BASICO>0)txt+='Básico: '+fmt(totProd.BASICO)+'\n';
+  if(totProd.ADICIONAL>0)txt+='Adicional: '+fmt(totProd.ADICIONAL)+'\n';
+  if(totProd.MICROCREDITO>0)txt+='Microcrédito: '+fmt(totProd.MICROCREDITO)+'\n';
+  txt+='\nTOTAL DEL CENTRO: '+fmt(totalEsp);
+  copiar(txt);
+}
+function cliRow(centro,cl){
+  const key=cl.k||cl.f;
+  const r=getReg(centro?reg:regI,centro,key);
+  const tot=rTot(r);
+  const axCli=(typeof abonosExtra==='function')?abonosExtra(cl.f):{liq:0,rec:0,total:0};
+  const liqCli=axCli.total;
+  const saldoNeto=Math.max(0,(cl.saldo||0)-tot-liqCli);
+  const open=tot>0||r.forma?'open':'';
+  const chk=tot>0?'on':'';const chkc=tot>0?'✓':'';
+  const efeOn=r.forma==='E'?'efe':'';const trOn=r.forma==='T'?'transf':'';const mixOn=r.forma==='M'?'mix':'';const depOn=r.forma==='D'?'dep':'';
+  const pre=centro?('c|'+centro):'i';
+  const dcli=datosCli[key]||{};
+  const cuota=(dcli.cuota&&dcli.cuota>0)?dcli.cuota:(cl.esp||0);
+  const cuotaEditada=(dcli.cuota&&dcli.cuota>0);
+  const _err=(typeof problemaDe==='function')?problemaDe(r,tot):'';
+  return '<div class="cli '+open+(_err?' conerr':'')+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
+    +'<div class="cli-head">'
+      +'<div class="chk '+chk+'" onclick="palomear(\''+(centro||'')+'\',\''+key+'\','+cuota+')">'+chkc+'</div>'
+      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
+        +(((cl.sub||'').toLowerCase().includes('micro')&&(cl.mora||0)>0)?'<div class="micromora">⚠ Micro con mora ('+fmt(cl.mora)+'). Producto de alto monto: prioriza recuperar.</div>':'')
+        +fichaClienteDato(key)
+        +'<div class="rowtot">'+(tot>0?('Total: '+fmt(tot)):'')+'</div></div>'
+      +'<div class="forma">'
+        +'<button class="'+efeOn+'" onclick="setForma(\''+(centro||'')+'\',\''+key+'\',\'E\')">Efe</button>'
+        +'<button class="'+trOn+'" onclick="setForma(\''+(centro||'')+'\',\''+key+'\',\'T\')">Transf</button>'
+        +'<button class="'+depOn+'" onclick="setForma(\''+(centro||'')+'\',\''+key+'\',\'D\')">Depósito</button>'
+        +'<button class="'+mixOn+'" onclick="setForma(\''+(centro||'')+'\',\''+key+'\',\'M\')">Mixto</button>'
+      +'</div>'
+    +'</div>'
+    +'<div class="campos">'
+      +campo(centro,key,'pago','Pago',r.pago)
+      +campo(centro,key,'garantia','Garantía',r.garantia)
+      +campo(centro,key,'solidario','Solidario',r.solidario)
+    +'</div>'
+    +cuotaAviso(r,cuota)
+    +avisoError(r,tot)
+    +(r.forma==='M'?('<div class="mixbox">'
+      +'<div class="mixnota">Pago mixto: anota UNO de los dos (el otro se calcula solo). Deben sumar el total ('+fmt(tot)+').</div>'
+      +'<div class="mixcampos">'
+        +'<div class="campo"><label>En efectivo</label><input type="text" inputmode="decimal" placeholder="0" value="'+((r.mixEfe&&r.mixEfe>0)?r.mixEfe:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixEfe\',this.value)"></div>'
+        +'<div class="campo"><label>Transferencia</label><input type="text" inputmode="decimal" placeholder="0" value="'+((r.mixTr&&r.mixTr>0)?r.mixTr:'')+'" onchange="setMix(\''+(centro||'')+'\',\''+key+'\',\'mixTr\',this.value)"></div>'
+      +'</div>'
+      +mixAviso(r,tot)
+      +'</div>'):'')
+    +((r.forma==='T'||r.forma==='D')?('<div class="anombrebox">'
+      +'<label class="anombrelbl">¿A nombre de quién llegó? <span>(solo si NO es la clienta: familiar, tienda, etc.)</span></label>'
+      +'<input type="text" placeholder="Ej. su esposo Pedro López, u Oxxo" value="'+(r.aNombre||'').replace(/"/g,'&quot;')+'" onchange="setANombre(\''+(centro||'')+'\',\''+key+'\',this.value)">'
+      +'</div>'):'')
+    +'</div>';
+}
+function fichaClienteDato(key){
+  const d=datosCli[key]||{};
+  if(d.plazo && d.semana){
+    // ya tiene datos: muestra "pago X de Y" con opción de corregir
+    return '<div class="clidato ok" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Pago '+d.semana+' de '+d.plazo+' <span class="edit">✎</span></div>';
+  }
+  // falta capturar
+  return '<div class="clidato falta" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Falta: plazo y semana de esta clienta (toca para capturar)</div>';
+}
+function editarDato(key){
+  const d=datosCli[key]||{};
+  const plazo=prompt('¿De cuántas semanas es el crédito? (plazo total)', d.plazo||'');
+  if(plazo===null)return;
+  const semana=prompt('¿En qué número de pago/semana va? (ej. 13)', d.semana||'');
+  if(semana===null)return;
+  const p=parseInt(plazo)||0, s=parseInt(semana)||0;
+  if(p>0 && s>0){
+    datosCli[key]={plazo:p, semana:s, tsSemana:Date.now()};
+    guardarDatosCli();
+    // re-render
+    const centro=document.getElementById('selCentro').value;
+    if(centro)render(); else renderIndiv();
+  }else{
+    alert('Pon números válidos (plazo y semana).');
+  }
+}
+function todasPagaron(centro){
+  const clientas=CENTROS[centro]||[];
+  if(!clientas.length)return;
+  let porMarcar=0, sinCuota=0;
+  clientas.forEach(cl=>{
+    const key=cl.k||cl.f;
+    const r=getReg(reg,centro,key);
+    const dc=datosCli[key]||{};
+    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:(cl.esp||0);
+    if(r.pago>0)return;
+    if(cuota>0)porMarcar++; else sinCuota++;
+  });
+  if(porMarcar===0){alert(sinCuota>0?('Ninguna clienta tiene cuota registrada. Ponles su cuota (✎) y palom\u00e9alas.'):('Todas las clientas de este centro ya est\u00e1n marcadas.'));return;}
+  let msg='\u00bfMarcar a las '+porMarcar+' clientas que faltan con su cuota en EFECTIVO?\n\nDespu\u00e9s qu\u00edtale la palomita a las que NO pagaron.';
+  if(sinCuota>0)msg+='\n\n('+sinCuota+' no tienen cuota: ponles su cuota y palom\u00e9alas aparte.)';
+  if(!confirm(msg))return;
+  clientas.forEach(cl=>{
+    const key=cl.k||cl.f;
+    const r=getReg(reg,centro,key);
+    if(r.pago>0)return;
+    const dc=datosCli[key]||{};
+    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:(cl.esp||0);
+    if(cuota>0){r.pago=cuota;if(!r.forma)r.forma='E';}
+  });
+  render();recalc();guardar();
+}
+// ===== REVISIÓN ANTES DE ENVIAR =====
+// Nada se manda ni se cierra si la captura tiene huecos: forma de pago sin
+// marcar o un mixto que no cuadra. Antes esto pasaba callado y descuadraba el
+// arqueo de Monse (el efectivo del mixto se perdía).
+function problemaDe(r,tot){
+  if(!(tot>0))return '';
+  if(!r.forma)return 'falta marcar cómo pagó (Efe / Transf / Depósito / Mixto)';
+  if(r.forma==='M'){
+    const suma=(r.mixEfe||0)+(r.mixTr||0);
+    if(Math.abs(suma-tot)>0.01)
+      return 'el pago MIXTO no cuadra: efectivo + transferencia deben sumar '+fmt(tot)+' (hoy suman '+fmt(suma)+')';
+  }
+  return '';
+}
+function avisoError(r,tot){
+  const p=problemaDe(r,tot);
+  return p?('<div class="caperr">⚠ FALTA: '+p+'</div>'):'';
+}
+function nombreDeKey(centro,key){
+  const lista=centro?(CENTROS[centro]||[]):(typeof INDIVIDUALES!=='undefined'?INDIVIDUALES:[]);
+  const cl=lista.find(c=>(c.k||c.f)===key);
+  return cl?cl.n:key;
+}
+function problemasCaptura(){
+  const P=[];
+  for(const c in reg)for(const k in reg[c]){
+    const r=reg[c][k]; if(!r||typeof r!=='object')continue;
+    const p=problemaDe(r,rTot(r));
+    if(p)P.push({nombre:nombreDeKey(c,k),centro:c,txt:p});
+  }
+  for(const k in regI){
+    const r=regI[k]; if(!r||typeof r!=='object')continue;
+    const p=problemaDe(r,rTot(r));
+    if(p)P.push({nombre:nombreDeKey(null,k),centro:'Individuales',txt:p});
+  }
+  // Conteo de billetes: una cantidad absurda casi seguro es el IMPORTE
+  // tecleado donde va la CANTIDAD (ej. "4500" pesos en la casilla de billetes
+  // de $500 en vez de "9"). Se marca en rojo y no deja enviar.
+  document.querySelectorAll('[data-den]').forEach(function(inp){
+    const q=Math.round(numMX(inp.value));
+    if(q>400){const dv=+inp.dataset.val;P.push({nombre:'Billetes/monedas de $'+dv,centro:'ARQUEO',txt:'pusiste '+q+' — ¿es la CANTIDAD o el importe? Escribe cuántos billetes son'});}
+  });
+  // Fecha: la app no puede estar en un día distinto al del servidor
+  const inp=document.getElementById('inpFecha');
+  const fa=inp&&inp.value, fs=window.__hoyServidor;
+  let fechaOk=true;
+  try{fechaOk=(sessionStorage.getItem('fooax_fecha_ok')===fa);}catch(e){}
+  if(fa&&fs&&fa!==fs&&!fechaOk)
+    P.unshift({nombre:'',centro:'FECHA',txt:'la app está en '+fa+' y hoy es '+fs+'. Corrige la fecha antes de enviar.'});
+  return P;
+}
+function bloqueoPorErrores(accion){
+  const P=problemasCaptura();
+  if(!P.length)return false;
+  let msg='⛔ NO SE PUEDE '+accion+'\n\nTe falta corregir '+P.length+' cosa(s):\n\n';
+  P.slice(0,10).forEach(p=>{msg+='• '+(p.nombre?(p.nombre+' — '):'')+p.txt+'\n\n';});
+  if(P.length>10)msg+='…y '+(P.length-10)+' más.\n\n';
+  msg+='Están marcadas en ROJO en tu lista. Corrígelas y vuelve a intentar.';
+  alert(msg);
+  try{render();renderIndiv();}catch(e){}
+  return true;
+}
+function palomear(centro,key,cuota){
+  const r=getReg(centro?reg:regI,centro||null,key);
+  // usar la cuota corregida por el ejecutivo si existe
+  const dc=datosCli[key]||{};
+  const cuotaReal=(dc.cuota&&dc.cuota>0)?dc.cuota:cuota;
+  const pagoActual=r.pago||0;
+  if(pagoActual>0){
+    // Si el pago es DISTINTO de la cuota, es un pago manual: NO lo borramos, avisamos
+    if(cuotaReal>0 && Math.abs(pagoActual-cuotaReal)>0.01){
+      if(!confirm('Esta clienta tiene un pago de '+fmt(pagoActual)+' (distinto a su cuota '+fmt(cuotaReal)+').\n\n¿Quieres QUITAR ese pago? Si lo capturaste a mano, toca CANCELAR para conservarlo.')){
+        return; // conserva el pago manual
+      }
+    }
+    r.pago=0; // desmarcar
+  }else{
+    r.pago=cuotaReal;
+    if(!r.forma)r.forma='E';
+  }
+  if(centro)render(); else renderIndiv();
+  recalc();guardar();
+}
+function editarCuota(centro,key,cuotaActual){
+  const dc=datosCli[key]||{};
+  const actual=(dc.cuota&&dc.cuota>0)?dc.cuota:cuotaActual;
+  const nueva=prompt('Cuota semanal correcta de esta clienta (la de su ficha):', actual||'');
+  if(nueva===null)return;
+  const c=numMX(nueva);
+  if(c>0){
+    datosCli[key]=Object.assign(datosCli[key]||{},{cuota:c});
+    guardarDatosCli();
+    if(centro)render(); else renderIndiv();
+    recalc();
+  }
+}
+function cuotaAviso(r,cuota){
+  const pago=r.pago||0;
+  if(pago<=0||cuota<=0)return '';
+  if(Math.abs(pago-cuota)<0.01)return '';
+  if(pago>cuota)return '<div class="cuotamas">⚠ Pagó '+fmt(pago)+' — es MÁS que su cuota ('+fmt(cuota)+'). Diferencia: +'+fmt(pago-cuota)+'</div>';
+  return '<div class="cuotamenos">⚠ Pagó '+fmt(pago)+' — es MENOS que su cuota ('+fmt(cuota)+'). Falta: '+fmt(cuota-pago)+'</div>';
+}
+function mixAviso(r,tot){
+  const suma=(r.mixEfe||0)+(r.mixTr||0);
+  if(suma===0)return '';
+  if(Math.abs(suma-tot)<0.01)return '<div class="mixok">✓ Cuadra: '+fmt(suma)+'</div>';
+  return '<div class="mixerr">⚠ Suma '+fmt(suma)+' pero el total es '+fmt(tot)+'. Ajusta para que cuadre.</div>';
+}
+function campo(centro,socio,key,lbl,val){
+  return '<div class="campo '+key+'"><label>'+lbl+'</label>'
+    +'<input type="text" inputmode="decimal" placeholder="0" value="'+((val&&val>0)?val:'')
+    +'" onchange="setCampo(\''+(centro||'')+'\',\''+socio+'\',\''+key+'\',this.value)"></div>';
+}
+function setCampo(centro,socio,key,v){
+  const r=getReg(centro?reg:regI,centro||null,socio);
+  const prev=r[key]||0;
+  const val=numMX(v);
+  // Guardia anti-dedazo: un cero de más en el pago destroza el arqueo. Si el
+  // pago es 4 veces su cuota (o $20,000+), se confirma antes de aceptarlo.
+  if(key==='pago'&&val>0){
+    const lista=centro?(CENTROS[centro]||[]):(typeof INDIVIDUALES!=='undefined'?INDIVIDUALES:[]);
+    const cl=lista.find(function(c){return (c.k||c.f)===socio;});
+    const dc=datosCli[socio]||{};
+    const cuota=(dc.cuota&&dc.cuota>0)?dc.cuota:((cl&&cl.esp)||0);
+    const raro=(cuota>0&&val>=cuota*4&&val-cuota>=500)||val>=20000;
+    if(raro&&!confirm('¿SEGURO? '+(cl?cl.n:'Esta clienta')+(cuota>0?(' tiene cuota de '+fmt(cuota)):'')+' y pusiste '+fmt(val)+'.\n\nACEPTAR: sí es correcto.\nCANCELAR: corregirlo.')){
+      r[key]=prev;reflow(centro,socio);recalc();guardar();return;
+    }
+  }
+  r[key]=val;
+  reflow(centro,socio);recalc();guardar();
+}
+function setForma(centro,socio,f){
+  const r=getReg(centro?reg:regI,centro||null,socio);
+  r.forma=(r.forma===f)?'':f;
+  if(r.forma!=='M'){r.mixEfe=0;r.mixTr=0;} // si deja de ser mixto, limpia
+  if(r.forma!=='T'&&r.forma!=='D')r.aNombre=''; // limpia el nombre si ya no es transfer/depósito
+  if(centro)render(); else renderIndiv();
+  recalc();guardar();
+}
+function setANombre(centro,socio,v){
+  const r=getReg(centro?reg:regI,centro||null,socio);
+  r.aNombre=v||'';
+  guardar();
+}
+function setMix(centro,socio,key,v){
+  const r=getReg(centro?reg:regI,centro||null,socio);
+  r[key]=numMX(v);
+  // El OTRO campo se calcula solo: siempre suman el total del pago. Si teclea
+  // de más, el otro queda en 0 y el error rojo avisa (pago mayor al total).
+  const tot=rTot(r);
+  const otro=(key==='mixTr')?'mixEfe':'mixTr';
+  r[otro]=Math.max(0,Math.round((tot-(r[key]||0))*100)/100);
+  if(centro)render(); else renderIndiv();
+  recalc();guardar();
+}
+function reflow(centro,socio){
+  // actualizar total visible sin redibujar todo
+  if(centro)render(); else renderIndiv();
+}
+
+function totales(){
+  let t=0,efe=0,tr=0,dep=0,n=0;
+  const acc={pago:0,garantia:0,solidario:0};
+  function add(r){const tt=rTot(r);if(tt>0){t+=tt;n++;CONCEPTOS.forEach(k=>acc[k]+=(r[k]||0));
+    if(r.forma==='E')efe+=tt;
+    else if(r.forma==='T')tr+=tt;
+    else if(r.forma==='D')dep+=tt; // depósito (Oxxo/tienda): va directo al banco, NO lo entrega el ejecutivo
+    else if(r.forma==='M'){
+      // pago mixto: la transferencia es lo capturado; el efectivo es el RESTO del total,
+      // así la suma efe+tr SIEMPRE iguala el total y no se pierden pesos
+      const mt=r.mixTr||0;
+      const me=(r.mixEfe!=null && (mt+ (r.mixEfe||0))===tt) ? r.mixEfe : (tt-mt);
+      tr+=mt; efe+=me;
+    }
+  }}
+  for(const c in reg)for(const s in reg[c])add(reg[c][s]);
+  for(const s in regI)add(regI[s]);
+  return {t,efe,tr,dep,n,acc};
+}
+function semaforoGlobalDia(){
+  // suma todos los centros que tienen al menos una captura ese día + individuales
+  let totalCli=0,pagadas=0,montoCob=0,montoEsp=0,centrosTocados=0,centrosCompletos=0;
+  for(const ck in CENTROS){
+    if(!reg[ck])continue; // solo centros con algo capturado cuentan al avance del día
+    const s=semaforoCentro(ck);
+    centrosTocados++;
+    if(s.pctCli>=100)centrosCompletos++;
+    totalCli+=s.total;pagadas+=s.pagadas;montoCob+=s.montoCobrado;montoEsp+=s.montoEsp;
+  }
+  // individuales
+  let iPag=0,iTot=INDIVIDUALES.length,iCob=0,iEsp=0;
+  for(const cl of INDIVIDUALES){const r=regI[cl.k||cl.f]||{};if(rTot(r)>0)iPag++;iCob+=(r.pago||0);iEsp+=(cl.esp||0);}
+  if(iPag>0){totalCli+=iTot;pagadas+=iPag;montoCob+=iCob;montoEsp+=iEsp;}
+  const pctCli=totalCli?Math.round(pagadas/totalCli*100):0;
+  const pctMonto=montoEsp?Math.round(montoCob/montoEsp*100):0;
+  return {pctCli,pctMonto,pagadas,totalCli,centrosTocados,centrosCompletos};
+}
+// Barra de cierre: lleva a la ejecutiva al arqueo desde donde esté. Si el día
+// ya se envió, la barra desaparece sola (no molesta).
+function irACerrar(){
+  showTab('arqueo');
+  try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}
+  var b=document.getElementById('barraCierre');
+  if(b){b.classList.add('listo');}
+}
+function pintarBarraCierre(){
+  var b=document.getElementById('barraCierre'); if(!b)return;
+  var t=0,n=0; try{var x=totales();t=x.t;n=x.n;}catch(e){}
+  var yaEnvio=!!window._reporteEnviado;
+  var hay=(t>0||(window._arqueoTotal>0))&&!yaEnvio;
+  b.classList.toggle('on',hay);
+  document.body.classList.toggle('con-barra',hay);
+  if(!hay)return;
+  var enArqueo=false;
+  try{var ta=document.getElementById('tab-arqueo');enArqueo=ta&&!ta.classList.contains('hidden');}catch(e){}
+  document.getElementById('bcNum').textContent=fmt(t)+(n?(' \u00b7 '+n+(n===1?' pago':' pagos')):'');
+  document.getElementById('bcTxt').textContent=enArqueo?'Cuando termines de contar':'Llevas capturado hoy';
+  var btn=document.getElementById('bcBtn');
+  if(enArqueo){btn.textContent='Enviar arqueo';btn.onclick=function(){enviarArqueoYCerrar();};b.classList.add('listo');}
+  else{btn.textContent='Terminar día';btn.onclick=irACerrar;b.classList.remove('listo');}
+}
+function recalc(){
+  const {t,efe,tr}=totales();
+  try{pintarBarraCierre();}catch(e){}
+  document.getElementById('totHoy').textContent=fmt(t);
+  document.getElementById('totMini').textContent='Efe '+fmt(efe)+' · Transf '+fmt(tr);
+  const g=semaforoGlobalDia();
+  const gd=document.getElementById('semGlobal');
+  if(gd){
+    const rp=renovPendientes();
+    let txt=emojiSem(g.pctCli)+' '+g.pctCli+'% clientas · '+emojiSem(g.pctMonto)+' '+g.pctMonto+'% monto';
+    if(rp.total>0){
+      const renovOk=rp.pendientes===0;
+      txt+=' · '+(renovOk?'🟢':'🔴')+' Renov '+(rp.total-rp.pendientes)+'/'+rp.total;
+    }
+    gd.innerHTML=txt;
+  }
+}
+
+/* INDIVIDUALES */
+function renderIndiv(){
+  const cont=document.getElementById('listaIndiv');if(!cont)return;
+  let h='<div class="card"><div class="sectitle">Clientas individuales <span class="pill">'+INDIVIDUALES.length+'</span></div>';
+  INDIVIDUALES.forEach(cl=>{h+=cliRow('',cl);});
+  h+='</div>';cont.innerHTML=h;
+}
+
+/* ARQUEO — estructura idéntica al cierre semanal (billetes + monedas) */
+const DENOM=[
+  {l:"Billete $1,000",v:1000},{l:"Billete $500",v:500},{l:"Billete $200",v:200},
+  {l:"Billete $100",v:100},{l:"Billete $50",v:50},{l:"Billete $20",v:20},
+  {l:"Moneda $20",v:20,m:1},{l:"Moneda $10",v:10,m:1},{l:"Moneda $5",v:5,m:1},
+  {l:"Moneda $2",v:2,m:1},{l:"Moneda $1",v:1,m:1},{l:"Moneda $0.50",v:0.5,m:1}
+];
+function initArqueo(){const box=document.getElementById('arqueoBox');let h='';
+  DENOM.forEach((d,i)=>{
+    if(i===0)h+='<div class="meta" style="font-weight:800;color:var(--rio);margin:2px 0 6px">BILLETES</div>';
+    if(i===6)h+='<div class="meta" style="font-weight:800;color:var(--rio);margin:10px 0 6px">MONEDAS</div>';
+    h+='<div class="arqueo-row"><div class="den">'+d.l.replace("Billete ","").replace("Moneda ","")+'</div><span>×</span><input type="text" inputmode="numeric" placeholder="0" data-den="'+i+'" data-val="'+d.v+'" oninput="calcArqueo()"><div class="sub" id="sub'+i+'">$0</div></div>';
+  });
+  box.innerHTML=h;}
+function movsEfectivoNeto(){
+  // entradas en efectivo suman, gastos/desembolsos en efectivo restan
+  let neto=0;
+  movs.forEach(m=>{
+    if(m.via!=='E')return;
+    const c=(m.concepto||'').toLowerCase();
+    if(c.includes('gasto')||c.includes('desembolso'))neto-=m.monto;
+    else neto+=m.monto; // comisión, liquidación, recuperación
+  });
+  return neto;
+}
+function calcArqueo(){let t=0;
+  document.querySelectorAll('[data-den]').forEach(inp=>{const val=+inp.dataset.val;const q=Math.round(numMX(inp.value));const s=val*q;t+=s;const raro=q>400;inp.style.background=raro?'#FDECEC':'';inp.style.borderColor=raro?'#B4232F':'';document.getElementById('sub'+inp.dataset.den).textContent=fmt(s);});
+  document.getElementById('arqueoTotal').textContent=fmt(t);
+  const {efe}=totales();
+  const movsEfe=movsEfectivoNeto();
+  const esperado=efe+movsEfe;
+  const ac=document.getElementById('arqCob'); if(ac)ac.textContent=fmt(efe);
+  const am=document.getElementById('arqMovs'); if(am)am.textContent=(movsEfe<0?'-'+fmt(Math.abs(movsEfe)):fmt(movsEfe));
+  const ae=document.getElementById('arqEsperado'); if(ae)ae.textContent=fmt(esperado);
+  const dif=t-esperado;const de=document.getElementById('arqueoDif');
+  de.textContent=(Math.abs(dif)<0.01?'$0 ✓':fmt(dif));de.style.color=Math.abs(dif)<0.01?'var(--ok)':'var(--mora)';
+  window._arqueo=DENOM.map((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');return {l:d.l,q:+(inp.value||0),sub:d.v*(+(inp.value||0))};});
+  window._arqueoTotal=t; window._arqueoEsperado=esperado; window._arqueoMovsEfe=movsEfe;
+  // Se suman por VALOR (el billete de $20 y la moneda de $20 caen en "20"):
+  // el importe queda exacto, que es lo que cuadra la caja.
+  arqueo={};DENOM.forEach((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');const q=Math.round(numMX(inp&&inp.value));if(q>0)arqueo[d.v]=(arqueo[d.v]||0)+q;});
+  guardar();}
+
+/* ===== OTROS MOVIMIENTOS ===== */
+function fillMovSelects(){
+  const sc=document.getElementById('movCentro');
+  if(sc){sc.innerHTML='<option value="">— Centro —</option>';
+    Object.keys(CENTROS).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sc.appendChild(o);});
+    const oi=document.createElement('option');oi.value='INDIVIDUAL';oi.textContent='INDIVIDUAL';sc.appendChild(oi);
+    sc.onchange=fillMovClientas;
+  }
+}
+function fillMovClientas(){
+  const cen=document.getElementById('movCentro').value;
+  const scl=document.getElementById('movClienta');
+  scl.innerHTML='<option value="">— Si aplica —</option>';
+  let lista=[];
+  if(cen==='INDIVIDUAL')lista=INDIVIDUALES;
+  else if(cen&&CENTROS[cen])lista=CENTROS[cen];
+  lista.forEach(cl=>{const o=document.createElement('option');o.value=(cl.k||cl.f);o.textContent=cl.n+' ('+cl.sub+')';scl.appendChild(o);});
+}
+/* LIQUIDACIONES — una liquidación BAJA el saldo de la clienta por el monto
+   registrado. Si con eso su saldo llega a cero, queda marcada como LIQUIDADO y
+   aparece en la pestaña Liquidación. */
+function abonosExtra(socio){
+  const out={liq:0,rec:0,total:0};
+  if(!socio)return out;
+  (movs||[]).forEach(m=>{
+    if(String(m.socio||'')!==String(socio))return;
+    const c=String(m.concepto||'').toUpperCase();
+    if(c==='LIQUIDACION')out.liq+=(m.monto||0);
+    else if(c==='RECUPERACION')out.rec+=(m.monto||0);
+  });
+  out.total=out.liq+out.rec;
+  return out;
+}
+function liquidadoDe(socio){return abonosExtra(socio).total;}
+function etiquetaAbono(ax){return (ax.liq>0&&ax.rec>0)?'abonó':(ax.rec>0?'recuperó':'liquidó');}
+function renderLiquida(){
+  const cont=document.getElementById('liquidaBox');if(!cont)return;
+  const filas=[];
+  const meter=(cl,centro)=>{
+    const ax=abonosExtra(cl.f);
+    const liq=ax.total;
+    if(liq<=0)return;
+    const r=getReg(centro?reg:regI,centro||null,cl.k||cl.f);
+    const pagado=rTot(r);
+    const antes=cl.saldo||0;
+    const despues=Math.max(0,antes-pagado-liq);
+    filas.push({n:cl.n,socio:cl.f,sub:cl.sub||'',centro:centro||'Individual',antes,liq,pagado,despues,ax});
+  };
+  for(const c in CENTROS)(CENTROS[c]||[]).forEach(cl=>meter(cl,c));
+  (INDIVIDUALES||[]).forEach(cl=>meter(cl,null));
+  if(!filas.length){
+    cont.innerHTML='<div class="card muted">Todavía no hay liquidaciones ni recuperaciones hoy.<div class="meta" style="margin-top:6px">Ve a <b>Otros mov.</b>, elige <b>Liquidación</b> o <b>Recuperación</b>, escoge a la clienta y pon el monto. Aquí aparecerá y se le bajará su saldo.</div></div>';
+    return;
+  }
+  let cerradas=0;filas.forEach(f=>{if(f.despues<=0.01)cerradas++;});
+  let h='<div class="card"><div class="kv"><span>Clientas con abono extra hoy</span><b>'+filas.length+'</b></div>'
+    +'<div class="kv"><span>Créditos que quedaron en cero</span><b style="color:var(--ok)">'+cerradas+'</b></div></div>';
+  filas.forEach(f=>{
+    const cerrado=f.despues<=0.01;
+    h+='<div class="card">'
+      +'<div class="sectitle" style="font-size:14px">'+f.n+(cerrado?' <span class="pill" style="background:#0B7247;color:#fff">LIQUIDADO</span>':'')+'</div>'
+      +'<div class="meta">Socio '+f.socio+' · '+f.sub+' · '+f.centro+'</div>'
+      +'<div class="kv" style="margin-top:6px"><span>Saldo antes</span><b>'+fmt(f.antes)+'</b></div>'
+      +(f.pagado>0?'<div class="kv"><span>Pago de hoy</span><b>−'+fmt(f.pagado)+'</b></div>':'')
+      +(f.ax.liq>0?'<div class="kv"><span>Liquidación</span><b style="color:#0B7247">−'+fmt(f.ax.liq)+'</b></div>':'')
+      +(f.ax.rec>0?'<div class="kv"><span>Recuperación / adelanto</span><b style="color:#0B7247">−'+fmt(f.ax.rec)+'</b></div>':'')
+      +'<div class="kv" style="border-top:2px solid var(--linea);padding-top:6px;margin-top:4px"><span><b>Saldo después</b></span><b style="color:'+(cerrado?'var(--ok)':'var(--rio)')+'">'+fmt(f.despues)+'</b></div>'
+      +'</div>';
+  });
+  cont.innerHTML=h;
+}
+function agregarMov(){
+  const concepto=document.getElementById('movConcepto').value;
+  const cen=document.getElementById('movCentro').value;
+  const clk=document.getElementById('movClienta').value;
+  const monto=numMX(document.getElementById('movMonto').value);
+  const via=document.getElementById('movVia').value;
+  const nota=document.getElementById('movNota').value||'';
+  const cheque=(via==='CH')?(document.getElementById('movCheque').value||''):'';
+  if(monto<=0){alert('Escribe la cantidad del movimiento.');return;}
+  if(monto>=20000&&!confirm('¿Seguro que el movimiento es de '+fmt(monto)+'?\n\nRevisa que no le sobre un cero.'))return;
+  // Una liquidación TIENE que ir ligada a una clienta: es lo que le baja su saldo.
+  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !document.getElementById('movClienta').value){
+    alert('Elige a la CLIENTA de este movimiento.\n\nLa liquidación y la recuperación le bajan el saldo a esa clienta, así que sin clienta no se pueden registrar.');
+    return;
+  }
+  if(via==='CH' && !cheque){alert('Escribe el número de cheque.');return;}
+  // Fechas de desembolso (solo si el concepto es DESEMBOLSO)
+  let fechaDesem='', fechaPrimerPago='';
+  if(concepto==='DESEMBOLSO'){
+    fechaDesem=document.getElementById('movFechaDesem').value||'';
+    fechaPrimerPago=document.getElementById('movFechaPrimerPago').value||'';
+    if(!fechaDesem||!fechaPrimerPago){
+      if(!confirm('No pusiste la fecha de desembolso o la del primer pago.\n\nEstas fechas le sirven a Monse para que su Excel las jale solo. ¿Agregar el desembolso sin ellas de todos modos?'))return;
+    }
+  }
+  let clienta='',socio='';
+  if(clk){
+    const arr=(cen==='INDIVIDUAL')?INDIVIDUALES:(CENTROS[cen]||[]);
+    const cl=arr.find(x=>(x.k||x.f)===clk);
+    if(cl){clienta=cl.n;socio=cl.f;}
+  }
+  movs.push({folio:nuevoFolio(),concepto,centro:cen,clienta,socio,monto,via,cheque,nota,fechaDesem,fechaPrimerPago});
+  document.getElementById('movMonto').value='';document.getElementById('movNota').value='';
+  if(document.getElementById('movCheque'))document.getElementById('movCheque').value='';
+  if(document.getElementById('movFechaDesem'))document.getElementById('movFechaDesem').value='';
+  if(document.getElementById('movFechaPrimerPago'))document.getElementById('movFechaPrimerPago').value='';
+  renderMovs();guardar();recalc();if(typeof calcArqueo==='function')calcArqueo();
+}
+function toggleCheque(){
+  const v=document.getElementById('movVia').value;
+  const box=document.getElementById('chequeBox');
+  if(box)box.style.display=(v==='CH')?'block':'none';
+}
+function toggleDesemb(){
+  const c=document.getElementById('movConcepto').value;
+  const box=document.getElementById('desembBox');
+  if(box)box.style.display=(c==='DESEMBOLSO')?'block':'none';
+}
+function viaNombre(v){return v==='E'?'Efectivo':(v==='T'?'Transferencia':(v==='CH'?'Cheque':v));}
+function viaCorto(v){return v==='E'?'Efvo':(v==='T'?'Transf':(v==='CH'?'Cheque':v));}
+function nuevoFolio(){
+  // folio único corto: iniciales ejecutivo + fecha (ddmm) + consecutivo del día
+  const ini=EJECUTIVO.substring(0,3).toUpperCase();
+  const f=fechaLocal(document.getElementById('inpFecha').value||hoyISO());
+  const dm=('0'+f.getDate()).slice(-2)+('0'+(f.getMonth()+1)).slice(-2);
+  folioSeq=Math.max(folioSeq+1, movs.length+1);
+  return ini+'-'+dm+'-'+('0'+folioSeq).slice(-2);
+}
+function eliminarMov(i){movs.splice(i,1);renderMovs();guardar();recalc();if(typeof calcArqueo==='function')calcArqueo();}
+function renderMovs(){
+  const cont=document.getElementById('listaMovs');if(!cont)return;
+  if(movs.length===0){cont.innerHTML='<div class="card muted">Aún no agregas movimientos.</div>';return;}
+  const etiq={COMISION:'Comisión',LIQUIDACION:'Liquidación',RECUPERACION:'Recuperación',GARANTIA:'Garantía',DESEMBOLSO:'Desembolso',GASTO:'Gasto'};
+  let h='<div class="card"><div class="sectitle">Movimientos capturados ('+movs.length+')</div>';
+  movs.forEach((m,i)=>{
+    h+='<div class="movrow"><div class="movinfo"><div class="movtop"><span class="movfolio">'+(m.folio||'')+'</span> <span class="movtag">'+etiq[m.concepto]+'</span> <b>'+fmt(m.monto)+'</b> <span class="movvia '+(m.via==='E'?'efe':'transf')+'">'+viaCorto(m.via)+'</span></div>'
+      +'<div class="mt">'+(m.centro||'—')+(m.clienta?(' · '+m.clienta):'')+(m.cheque?(' · cheque '+m.cheque):'')+(m.nota?(' · '+m.nota):'')+'</div></div>'
+      +'<button class="movdel" onclick="eliminarMov('+i+')">✕</button></div>';
+  });
+  // totales por concepto
+  const tot={};let suma=0,efe=0,tr=0;
+  movs.forEach(m=>{tot[m.concepto]=(tot[m.concepto]||0)+m.monto;suma+=m.monto;if(m.via==='E')efe+=m.monto;else tr+=m.monto;});
+  h+='<div style="margin-top:10px;border-top:1px solid var(--linea);padding-top:8px">';
+  for(const k in tot)h+='<div class="kv"><span>'+etiq[k]+'</span><b>'+fmt(tot[k])+'</b></div>';
+  h+='<div class="kv"><span><b>Total movimientos</b></span><b>'+fmt(suma)+'</b></div>';
+  h+='<div class="chips"><span class="chip efe">Efectivo '+fmt(efe)+'</span><span class="chip transf">Transferencia '+fmt(tr)+'</span></div>';
+  h+='</div></div>';
+  cont.innerHTML=h;
+}
+function buildExportMovs(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['FOLIO','FECHA','CONCEPTO','CENTRO','CLIENTA','No.SOCIO','EJECUTIVO','VIA','No.CHEQUE','MONTO','NOTA']];
+  movs.forEach(m=>{
+    rows.push([m.folio||'',fecha,m.concepto,m.centro,m.clienta,m.socio,EJECUTIVO,viaNombre(m.via).toUpperCase(),m.cheque||'',m.monto,m.nota]);
+  });
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+/* EXPORT DEDICADO DE DESEMBOLSOS — para el control aparte de Monse */
+function buildExportDesembolsos(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['FOLIO','FECHA','CENTRO','CLIENTA','No.SOCIO','EJECUTIVO','MONTO ENTREGADO','MÉTODO SALIDA','No.CHEQUE','FECHA DESEMBOLSO','FECHA PRIMER PAGO','NOTA']];
+  movs.filter(m=>m.concepto==='DESEMBOLSO').forEach(m=>{
+    rows.push([m.folio||'',fecha,m.centro,m.clienta,m.socio,EJECUTIVO,m.monto,viaNombre(m.via).toUpperCase(),m.cheque||'',m.fechaDesem||'',m.fechaPrimerPago||'',m.nota]);
+  });
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+/* ===== RENOVACIONES ===== */
+function clientasRenov(){
+  // recolecta todos los créditos con avance >= 70% y sin mora, de todo el padrón
+  const out=[];
+  function consider(cl, centroKey){
+    const io=cl.impOrig||cl.imp||0; const s=cl.saldo||0;
+    if(io<=0)return;
+    const avance=1-(s/io);
+    if(avance<0.70)return;
+    out.push({k:cl.k||cl.f, n:cl.n, f:cl.f, sub:cl.sub, centro:centroKey,
+      avance:avance, saldo:s, impOrig:io, mora:cl.mora||0, sug:cl.sug||0});
+  }
+  for(const ck in CENTROS)CENTROS[ck].forEach(cl=>consider(cl,ck));
+  INDIVIDUALES.forEach(cl=>consider(cl,'INDIVIDUAL'));
+  out.sort((a,b)=>b.avance-a.avance);
+  return out;
+}
+const ESTADOS_RENOV=['Pendiente','Contactada','Interesada','Renovó','No quiso'];
+function renderRenov(){
+  const cont=document.getElementById('listaRenov');if(!cont)return;
+  const lista=clientasRenov();
+  // resumen de crecimiento potencial de SU cartera
+  const rr=document.getElementById('renovResumen');
+  if(rr){
+    let potencial=0, conAnalisis=0, sinMora=0, micros=0;
+    lista.forEach(r=>{
+      if(r.mora>0)return;
+      sinMora++;
+      const aum=r.sug-r.impOrig;
+      if(aum>0)potencial+=aum;
+      if(aum>=3000||r.impOrig>=10000)conAnalisis++;
+      if((r.sub||'').toLowerCase().includes('micro'))micros++;
+    });
+    rr.innerHTML='<div class="renovkpi"><div class="rk"><span>Próximas sin mora</span><b>'+sinMora+'</b></div>'
+      +'<div class="rk"><span>Crecimiento potencial</span><b>'+fmt(potencial)+'</b></div>'
+      +'<div class="rk alerta"><span>Requieren análisis</span><b>'+conAnalisis+'</b></div>'
+      +'<div class="rk micro"><span>Micros por renovar</span><b>'+micros+'</b></div></div>'
+      +'<div class="renovnota" style="margin-top:6px">Crecimiento potencial = lo que sumaría tu cartera si renuevan al alza. Los Micros son de mayor monto: valida bien la capacidad de pago.</div>';
+  }
+  if(lista.length===0){cont.innerHTML='<div class="card muted">No hay clientas próximas a renovar por ahora.</div>';return;}
+  let h='<div class="card"><div class="sectitle">Próximas a renovar <span class="pill">'+lista.length+'</span></div>';
+  lista.forEach(r=>{
+    const g=gestRenov[r.k]||{estado:'Pendiente'};
+    const conMora=r.mora>0;
+    const pct=Math.round(r.avance*100);
+    const colorAv=pct>=90?'var(--ok)':(pct>=80?'var(--riqueza)':'var(--atardecer)');
+    h+='<div class="renovrow">'
+      +'<div class="renovtop"><b>'+r.n+'</b> <span class="prodtag'+((r.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+r.sub+'</span></div>'
+      +'<div class="mt">'+r.centro+' · Socio '+r.f+'</div>'
+      +'<div class="renovbar"><div class="renovfill" style="width:'+pct+'%;background:'+colorAv+'"></div></div>'
+      +'<div class="renovinfo"><span>Avance '+pct+'%</span><span>Saldo '+fmt(r.saldo)+'</span></div>';
+    if(conMora){
+      h+='<div class="renovmora">⚠ Tiene mora ('+fmt(r.mora)+'). No se sugiere monto hasta regularizar.</div>';
+    } else {
+      const aumento=r.sug-r.impOrig;
+      const requiereAnalisis=(aumento>=3000)||(r.impOrig>=10000);
+      h+='<div class="renovsug">Sugerido próximo ciclo: <b>'+fmt(r.sug)+'</b> <span class="renovnota">(sugerencia, sujeta a evaluación)</span></div>';
+      if(requiereAnalisis){
+        h+='<div class="renovalerta">⚠ Aumento de '+fmt(aumento)+'. REQUIERE análisis de capacidad de pago antes de autorizar (riesgo de sobreendeudamiento).</div>';
+      }
+    }
+    // selector de estado de gestión
+    h+='<div class="renovgest">';
+    ESTADOS_RENOV.forEach(e=>{
+      h+='<button class="rgbtn'+(g.estado===e?' on':'')+'" onclick="setRenov(\''+r.k+'\',\''+e+'\')">'+e+'</button>';
+    });
+    h+='</div></div>';
+  });
+  h+='</div>';cont.innerHTML=h;
+}
+function setRenov(k,estado){
+  gestRenov[k]={estado:estado,fecha:document.getElementById('inpFecha').value||hoyISO(),por:EJECUTIVO,ts:Date.now()};
+  renderRenov();guardar();recalc();
+}
+function renovPendientes(){
+  const lista=clientasRenov();
+  let pend=0;
+  lista.forEach(r=>{const g=gestRenov[r.k];if(!g||g.estado==='Pendiente')pend++;});
+  return {total:lista.length, pendientes:pend};
+}
+function buildExportRenov(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['FECHA','EJECUTIVO','CLIENTA','No.SOCIO','PRODUCTO','CENTRO','AVANCE','SALDO','MORA','SUGERIDO','REQUIERE ANALISIS','GESTION']];
+  clientasRenov().forEach(r=>{
+    const g=gestRenov[r.k]||{estado:'Pendiente'};
+    const aumento=r.sug-r.impOrig;
+    const reqAnalisis=(r.mora>0)?'':((aumento>=3000||r.impOrig>=10000)?'SÍ':'No');
+    rows.push([fecha,EJECUTIVO,r.n,r.f,r.sub,r.centro,Math.round(r.avance*100)+'%',Math.round(r.saldo),Math.round(r.mora),(r.mora>0?'':r.sug),reqAnalisis,g.estado]);
+  });
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+function enviarRenov(){
+  const data=buildExportRenov();
+  if(data.split('\n').length<=1){alert('No hay renovaciones para enviar.');return;}
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const texto='RENOVACIONES '+EJECUTIVO+' '+fecha+'\n\n'+data;
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+
+function descargarDesembolsos(){
+  const desem=movs.filter(m=>m.concepto==='DESEMBOLSO');
+  if(desem.length===0){alert('No hay desembolsos capturados hoy.');return;}
+  const data=buildExportDesembolsos();const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='Desembolsos_'+EJECUTIVO+'_'+fecha+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function descargarMovs(){
+  if(movs.length===0){alert('No hay movimientos capturados.');return;}
+  const data=buildExportMovs();const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='Movimientos_'+EJECUTIVO+'_'+fecha+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function copiarMovs(){
+  if(movs.length===0){alert('No hay movimientos capturados.');return;}
+  const data=buildExportMovs();
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(data).then(()=>alert('Movimientos copiados. Pásalos a Monse (DETALLE MOVIMIENTOS).')).catch(()=>fallbackCopy(data));}
+  else fallbackCopy(data);
+}
+
+/* RESUMEN */
+function diagnosticoCuellos(){
+  // detecta los 4 tipos de cuello de botella, con responsable (EJECUTIVO de esta app)
+  const cuellos=[];
+  // 1. Centros atrasados (semáforo rojo: <70% monto)
+  Object.keys(CENTROS).forEach(ck=>{
+    const s=semaforoCentro(ck);
+    if(s.total>0 && s.pctMonto<70 && (s.montoCobrado>0||s.pagadas>0)){
+      cuellos.push({tipo:'Centro atrasado',det:ck+' va al '+s.pctMonto+'% del monto ('+s.pagadas+'/'+s.total+' pagaron)',resp:EJECUTIVO,sev:s.pctMonto<40?'alta':'media'});
+    }
+  });
+  // 2. Clientas que no pagaron (en centros ya trabajados hoy)
+  let noPagaron=0, centrosTrabajados=0;
+  Object.keys(CENTROS).forEach(ck=>{
+    const s=semaforoCentro(ck);
+    if(s.montoCobrado>0){ centrosTrabajados++; noPagaron+=(s.total-s.pagadas); }
+  });
+  if(noPagaron>0){
+    cuellos.push({tipo:'Clientas sin pagar',det:noPagaron+' clientas no pagaron en los centros trabajados hoy',resp:EJECUTIVO,sev:noPagaron>10?'alta':'media'});
+  }
+  // 3. Renovaciones atoradas (no contactadas o no quiso)
+  const lista=clientasRenov();
+  let atoradas=0;
+  lista.forEach(r=>{
+    const g=gestRenov[r.k];
+    if(!g||g.estado==='Pendiente'||g.estado==='No quiso'||g.estado==='No localizada')atoradas++;
+  });
+  if(atoradas>0){
+    cuellos.push({tipo:'Renovaciones atoradas',det:atoradas+' de '+lista.length+' renovaciones sin avanzar (pendientes, no quiso o no localizadas)',resp:EJECUTIVO,sev:atoradas>lista.length/2?'alta':'media'});
+  }
+  // 4. Micros y montos altos en mora
+  let microsMora=0, montoMora=0;
+  function revisar(cl){
+    if((cl.mora||0)>0 && ((cl.sub||'').toLowerCase().includes('micro')||(cl.impOrig||cl.imp||0)>=10000)){
+      microsMora++; montoMora+=(cl.mora||0);
+    }
+  }
+  Object.keys(CENTROS).forEach(ck=>CENTROS[ck].forEach(revisar));
+  INDIVIDUALES.forEach(revisar);
+  if(microsMora>0){
+    cuellos.push({tipo:'Mora en montos altos',det:microsMora+' Micros/créditos grandes en mora ('+fmt(montoMora)+'). Prioridad de recuperación',resp:EJECUTIVO,sev:'alta'});
+  }
+  return cuellos;
+}
+function renderDiagnostico(){
+  const cont=document.getElementById('diagPanel');if(!cont)return;
+  const cuellos=diagnosticoCuellos();
+  if(cuellos.length===0){cont.innerHTML='<div class="diagok">✓ Sin cuellos de botella detectados. Buen trabajo.</div>';return;}
+  let h='';
+  cuellos.forEach(c=>{
+    h+='<div class="diagrow '+c.sev+'"><div class="diagtop"><span class="diagtipo">'+c.tipo+'</span><span class="diagsev '+c.sev+'">'+(c.sev==='alta'?'ALTA':'Media')+'</span></div>'
+      +'<div class="diagdet">'+c.det+'</div>'
+      +'<div class="diagresp">Responsable: <b>'+c.resp+'</b></div></div>';
+  });
+  cont.innerHTML=h;
+}
+
+function buildResumen(){
+  const {t,efe,tr,dep,n,acc}=totales();
+  const fecha=fechaLocal(document.getElementById('inpFecha').value||hoyISO()).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  let lineas=[],centrosCob=0;
+  for(const c in reg){let sc=0,nc=0;for(const s in reg[c]){const tt=rTot(reg[c][s]);if(tt>0){sc+=tt;nc++;}}if(sc>0){centrosCob++;lineas.push('• '+c+': '+fmt(sc)+' ('+nc+')');}}
+  let iSum=0,iN=0;for(const s in regI){const tt=rTot(regI[s]);if(tt>0){iSum+=tt;iN++;}}
+  document.getElementById('resumenStats').innerHTML=
+    '<div class="kv"><span>Total cobrado</span><b>'+fmt(t)+'</b></div>'
+    +'<div class="kv"><span>Pago (capital+interés)</span><b>'+fmt(acc.pago)+'</b></div>'
+    +'<div class="kv"><span>Garantías</span><b>'+fmt(acc.garantia)+'</b></div>'
+    +'<div class="kv"><span>Solidarios</span><b>'+fmt(acc.solidario)+'</b></div>'
+    +'<div class="kv"><span>Pagos registrados</span><b>'+n+'</b></div>'
+    +'<div class="kv"><span>Centros con cobranza</span><b>'+centrosCob+'</b></div>'
+    +(INDIVIDUALES.length?'<div class="kv"><span>Individuales</span><b>'+fmt(iSum)+' ('+iN+')</b></div>':'')
+    +'<div class="chips"><span class="chip efe">Efectivo '+fmt(efe)+'</span><span class="chip transf">Transferencia '+fmt(tr)+'</span></div>';
+  // panel semáforo por centro (solo centros tocados)
+  const g=semaforoGlobalDia();
+  let panel='<div class="kv"><span><b>Global del día</b></span><b>'+emojiSem(g.pctCli)+' '+g.pctCli+'% clientas · '+emojiSem(g.pctMonto)+' '+g.pctMonto+'% monto</b></div>';
+  const tocados=Object.keys(reg).filter(ck=>CENTROS[ck]&&Object.values(reg[ck]).some(r=>rTot(r)>0));
+  if(tocados.length===0){panel+='<div class="meta" style="margin-top:8px">Aún no capturas ningún centro hoy.</div>';}
+  tocados.sort().forEach(ck=>{const s=semaforoCentro(ck);
+    panel+='<div class="semrow"><span class="semname">'+ck+'</span>'
+      +'<span class="sembadge" style="background:'+colorSem(s.pctCli)+'">'+s.pagadas+'/'+s.total+'</span>'
+      +'<span class="sembadge" style="background:'+colorSem(s.pctMonto)+'">'+s.pctMonto+'%</span></div>';
+  });
+  document.getElementById('semaforoPanel').innerHTML=panel;
+  const soloMovs=(n===0 && movs.length>0);
+  let wa;
+  if(soloMovs){
+    // Día de recuperación/movimientos (ej. sábados): sin cobranza de centros
+    wa='FOOAX · '+EJECUTIVO+'\n'+fecha+'\n(Día de recuperación y movimientos)';
+  }else{
+    wa='FOOAX · Cobranza '+EJECUTIVO+'\n'+fecha+'\n\n'+lineas.join('\n');
+    if(iN>0)wa+='\n• Individuales: '+fmt(iSum)+' ('+iN+')';
+    wa+='\n\nDESGLOSE\nPago: '+fmt(acc.pago)+'\nGarantías: '+fmt(acc.garantia)+'\nSolidarios: '+fmt(acc.solidario)
+      +'\n\nEfectivo: '+fmt(efe)+'\nTransferencia: '+fmt(tr)+(dep>0?'\nDepósito (Oxxo/tienda): '+fmt(dep):'')
+      +'\n\nTOTAL DÍA: '+fmt(t)+'  ('+n+' pagos)';
+  }
+  // OTROS MOVIMIENTOS (recuperación, garantía, comisión, gastos, desembolsos)
+  if(movs.length>0){
+    const etiqM={COMISION:'Comisión',RECUPERACION:'Recuperación',LIQUIDACION:'Liquidación',GARANTIA:'Garantía',GASTO:'Gasto',DESEMBOLSO:'Desembolso'};
+    let sumMov=0;
+    wa+='\n\nOTROS MOVIMIENTOS';
+    movs.forEach(m=>{
+      const cc=(m.concepto||'').toUpperCase();
+      const nom=etiqM[cc]||m.concepto;
+      const esSalida=(cc==='GASTO'||cc==='DESEMBOLSO');
+      const via=(m.via==='E'?'efectivo':(m.via==='CH'?'cheque':'transf'));
+      wa+='\n'+(esSalida?'− ':'+ ')+nom+': '+fmt(m.monto)+' ('+via+')';
+      sumMov+=esSalida?-m.monto:m.monto;
+    });
+    wa+='\nNeto movimientos: '+(sumMov<0?'−'+fmt(Math.abs(sumMov)):fmt(sumMov));
+    // efectivo a entregar = efectivo cobrado + neto movimientos en efectivo
+    const movEfe=movsEfectivoNeto();
+    wa+='\n\n💵 EFECTIVO A ENTREGAR: '+fmt(efe+movEfe);
+  }
+  // arqueo por denominación si se contó
+  calcArqueo();
+  if(window._arqueo && window._arqueoTotal>0){
+    wa+='\n\nARQUEO EFECTIVO';
+    window._arqueo.forEach(a=>{if(a.q>0)wa+='\n'+a.l+': '+a.q+' = '+fmt(a.sub);});
+    wa+='\nTotal contado: '+fmt(window._arqueoTotal);
+  }
+  // cuellos de botella en el mensaje
+  const cuellos=diagnosticoCuellos();
+  if(cuellos.length>0){
+    wa+='\n\n⚠ CUELLOS DE BOTELLA';
+    cuellos.forEach(c=>{wa+='\n• '+c.tipo+': '+c.det+' ['+c.resp+']';});
+  }
+  // metas del día siguiente
+  const lista=clientasRenov();
+  const renovPend=lista.filter(r=>{const g=gestRenov[r.k];return !g||g.estado==='Pendiente';}).length;
+  wa+='\n\n🎯 METAS MAÑANA';
+  if(renovPend>0)wa+='\n• Gestionar '+renovPend+' renovaciones pendientes';
+  const rojos=Object.keys(CENTROS).filter(ck=>{const s=semaforoCentro(ck);return s.montoCobrado>0&&s.pctMonto<70;}).length;
+  if(rojos>0)wa+='\n• Recuperar en '+rojos+' centros en rojo';
+  if(renovPend===0&&rojos===0)wa+='\n• Mantener el ritmo, vas bien';
+  const hayAlgo=(n>0)||(movs.length>0);
+  document.getElementById('waText').textContent=hayAlgo?wa:'Aún no hay pagos capturados.';
+  window._wa=hayAlgo?wa:'';
+  renderDiagnostico();
+}
+function enviarMensajeGrupo(tipo){
+  buildResumen();
+  let texto=window._wa||'';
+  if(tipo==='semanal'){
+    // CIERRE SEMANAL: acumulado de todos los días guardados en la semana
+    const semana=cargarSemana();
+    if(semana.length===0){
+      alert('Aún no hay días cerrados esta semana.\n\nEl cierre semanal junta la información de cada día que cierras. Ve cerrando tus días con "Cerrar día" y el sábado tendrás el acumulado completo.');
+      return;
+    }
+    let tW=0,efeW=0,trW=0,nW=0,pagoW=0,garW=0,solW=0,efeEntW=0;
+    const centrosAcum={}, prodAcum={};
+    let recupTot=0, garMovTot=0, desemTot=0, comisTot=0, gastoTot=0;
+    semana.forEach(d=>{
+      tW+=d.t||0; efeW+=d.efe||0; trW+=d.tr||0; nW+=d.n||0;
+      pagoW+=d.pago||0; garW+=d.garantia||0; solW+=d.solidario||0; efeEntW+=d.efeEntregar||0;
+      for(const c in (d.porCentro||{})){centrosAcum[c]=(centrosAcum[c]||0)+d.porCentro[c].monto;}
+      for(const p in (d.porProd||{})){prodAcum[p]=(prodAcum[p]||0)+d.porProd[p];}
+      (d.movs||[]).forEach(m=>{
+        const cc=(m.concepto||'').toUpperCase();
+        if(cc==='RECUPERACION')recupTot+=m.monto;
+        else if(cc==='GARANTIA')garMovTot+=m.monto;
+        else if(cc==='DESEMBOLSO')desemTot+=m.monto;
+        else if(cc==='COMISION')comisTot+=m.monto;
+        else if(cc==='GASTO')gastoTot+=m.monto;
+      });
+    });
+    const f1=new Date(semana[0].fecha+'T12:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+    const f2=new Date(semana[semana.length-1].fecha+'T12:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+    texto='FOOAX · CIERRE SEMANAL\n'+EJECUTIVO+'\n'+f1+' al '+f2+' ('+semana.length+' días)\n\n';
+    texto+='💰 COBRANZA DE LA SEMANA\n';
+    texto+='Total cobrado: '+fmt(tW)+'  ('+nW+' pagos)\n';
+    texto+='Efectivo: '+fmt(efeW)+' · Transferencia: '+fmt(trW)+'\n';
+    texto+='Pago: '+fmt(pagoW)+' · Garantías: '+fmt(garW)+' · Solidario: '+fmt(solW)+'\n';
+    const prodKeys=Object.keys(prodAcum).filter(k=>prodAcum[k]>0);
+    if(prodKeys.length){texto+='\n📦 POR PRODUCTO\n';prodKeys.forEach(p=>{texto+='• '+p+': '+fmt(prodAcum[p])+'\n';});}
+    const cenKeys=Object.keys(centrosAcum).sort();
+    if(cenKeys.length){texto+='\n🏘 POR CENTRO\n';cenKeys.forEach(c=>{texto+='• '+c+': '+fmt(centrosAcum[c])+'\n';});}
+    const totMov=recupTot+garMovTot+desemTot+comisTot+gastoTot;
+    if(totMov>0){
+      texto+='\n🔄 MOVIMIENTOS DE LA SEMANA\n';
+      if(recupTot>0)texto+='• Recuperaciones: '+fmt(recupTot)+'\n';
+      if(garMovTot>0)texto+='• Garantías: '+fmt(garMovTot)+'\n';
+      if(desemTot>0)texto+='• Desembolsos: '+fmt(desemTot)+'\n';
+      if(comisTot>0)texto+='• Comisiones: '+fmt(comisTot)+'\n';
+      if(gastoTot>0)texto+='• Gastos: '+fmt(gastoTot)+'\n';
+    }
+    texto+='\n💵 Efectivo entregado en la semana: '+fmt(efeEntW)+'\n';
+    const cuellos=diagnosticoCuellos();
+    const lista=clientasRenov();
+    texto+='\n📋 RENOVACIONES\n• '+lista.length+' clientas próximas a renovar\n';
+    if(cuellos.length>0){
+      texto+='\n⚠ CUELLOS DE BOTELLA\n';
+      cuellos.forEach(c=>{texto+='• '+c.tipo+': '+c.det+'\n';});
+    }
+    texto+='\n_Creciendo juntas, avanzando siempre_';
+  }
+  if(!texto){alert('No hay información para enviar.');return;}
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+function copiarWA(){const txt=window._wa||'';
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>alert('Mensaje copiado. Pégalo en WhatsApp.'));}
+  else{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();alert('Copiado.');}
+}
+
+/* EXPORTAR detalle por clienta — formato exacto de la hoja PEGAR CAPTURA del v4 */
+/* RESUMEN EN TEXTO para WhatsApp — con suma por centro y total del ejecutivo.
+   No descarga archivo; manda texto legible (lo pidió el Lic.). */
+function resumenTextoCobranza(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
+  let txt='🌸 *FOOAX · COBRANZA DEL DÍA*\n';
+  txt+='👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n';
+  txt+='━━━━━━━━━━━━━━━\n';
+  let granTotal=0, granPago=0, granGar=0, granSol=0, granCli=0, granPagaron=0;
+  for(const centroKey in reg){
+    const clientas=CENTROS[centroKey]||[];
+    const s=semaforoCentro(centroKey);
+    let cTot=0,cPago=0,cGar=0,cSol=0,cN=0;
+    for(const k in reg[centroKey]){
+      const r=reg[centroKey][k];const tot=rTot(r);if(tot<=0)continue;
+      cTot+=tot;cPago+=(r.pago||0);cGar+=(r.garantia||0);cSol+=(r.solidario||0);cN++;
+    }
+    if(cTot>0){
+      const emj= s.pctCli>=100?'🟢':(s.pctCli>=70?'🟡':'🔴');
+      txt+='\n'+emj+' *'+centroKey+'*\n';
+      txt+='    💵 Fichas: '+fmt(cPago)+'\n';
+      if(cGar>0)txt+='    🔐 Garantías: '+fmt(cGar)+'\n';
+      if(cSol>0)txt+='    🤝 Solidario: '+fmt(cSol)+'\n';
+      txt+='    ✅ Pagaron: '+cN+' de '+s.total+'\n';
+      if(s.moraCentro>0)txt+='    ⚠️ Mora: '+fmt(s.moraCentro)+'\n';
+      txt+='    ➡️ *Subtotal: '+fmt(cTot)+'*\n';
+      granTotal+=cTot;granPago+=cPago;granGar+=cGar;granSol+=cSol;granCli+=s.total;granPagaron+=cN;
+    }
+  }
+  let iTot=0,iPago=0,iGar=0,iSol=0,iN=0;
+  for(const k in regI){const r=regI[k];const tot=rTot(r);if(tot<=0)continue;iTot+=tot;iPago+=(r.pago||0);iGar+=(r.garantia||0);iSol+=(r.solidario||0);iN++;}
+  if(iTot>0){
+    txt+='\n👤 *INDIVIDUALES*\n    💵 Fichas: '+fmt(iPago)+'\n';
+    if(iGar>0)txt+='    🔐 Garantías: '+fmt(iGar)+'\n';
+    txt+='    ✅ Pagaron: '+iN+'\n    ➡️ *Subtotal: '+fmt(iTot)+'*\n';
+    granTotal+=iTot;granPago+=iPago;granGar+=iGar;granSol+=iSol;granPagaron+=iN;
+  }
+  txt+='\n━━━━━━━━━━━━━━━\n';
+  // Otros movimientos del día (recuperaciones, comisiones, gastos, desembolsos, garantías)
+  if(movs.length>0){
+    const etiqM={COMISION:'Comisión',RECUPERACION:'Recuperación',LIQUIDACION:'Liquidación',GARANTIA:'Garantía',GASTO:'Gasto',DESEMBOLSO:'Desembolso'};
+    let sumMov=0, sumMovEfe=0;
+    txt+='🔄 *OTROS MOVIMIENTOS*\n';
+    movs.forEach(m=>{
+      const c=(m.concepto||'').toUpperCase();
+      const nom=etiqM[c]||m.concepto;
+      const esSalida=(c==='GASTO'||c==='DESEMBOLSO');
+      const signo=esSalida?'-':'+';
+      txt+='    '+signo+' '+nom+': '+fmt(m.monto)+' ('+(m.via==='E'?'efectivo':(m.via==='CH'?'cheque':'transf'))+')\n';
+      if(esSalida){sumMov-=m.monto;if(m.via==='E')sumMovEfe-=m.monto;}
+      else {sumMov+=m.monto;if(m.via==='E')sumMovEfe+=m.monto;}
+    });
+    txt+='    ➡️ *Neto movimientos: '+(sumMov<0?'-'+fmt(Math.abs(sumMov)):fmt(sumMov))+'*\n';
+    txt+='\n━━━━━━━━━━━━━━━\n';
+  }
+  txt+='📊 *TOTAL DEL DÍA*\n';
+  txt+='    Fichas: '+fmt(granPago)+'\n';
+  if(granGar>0)txt+='    Garantías: '+fmt(granGar)+'\n';
+  if(granSol>0)txt+='    Solidario: '+fmt(granSol)+'\n';
+  txt+='    Clientas que pagaron: '+granPagaron+'\n';
+  txt+='\n💰 *TOTAL: '+fmt(granTotal)+'*\n';
+  // Efectivo a entregar = cobranza en efectivo + neto de movimientos en efectivo
+  const efeCob=totales().efe;
+  const movEfeNeto=movsEfectivoNeto();
+  const efeEntregar=efeCob+movEfeNeto;
+  txt+='━━━━━━━━━━━━━━━\n';
+  txt+='💵 *Efectivo a entregar: '+fmt(efeEntregar)+'*\n';
+  txt+='   (cobranza efvo '+fmt(efeCob)+(movEfeNeto!==0?(movEfeNeto<0?' − '+fmt(Math.abs(movEfeNeto))+' movs':' + '+fmt(movEfeNeto)+' movs'):'')+')\n';
+  txt+='_Creciendo juntas, avanzando siempre_';
+  return granTotal>0?txt:'';
+}
+function resumenTextoGarantias(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
+  let txt='🔐 *FOOAX · GARANTÍAS DEL DÍA*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
+  let gran=0, granN=0;
+  for(const centroKey in reg){
+    const clientas=CENTROS[centroKey]||[];
+    let cGar=0; let lineas=''; let cn=0;
+    for(const k in reg[centroKey]){
+      const g=reg[centroKey][k].garantia||0;if(g<=0)continue;
+      const cl=clientas.find(x=>(x.k||x.f)===k)||{n:'',f:''};
+      lineas+='    • '+cl.n+': '+fmt(g)+'\n'; cGar+=g; cn++;
+    }
+    if(cGar>0){txt+='\n📍 *'+centroKey+'*\n'+lineas+'    ➡️ *Subtotal: '+fmt(cGar)+'*\n';gran+=cGar;granN+=cn;}
+  }
+  for(const k in regI){
+    const g=regI[k].garantia||0;if(g<=0)continue;
+    const cl=INDIVIDUALES.find(x=>(x.k||x.f)===k)||{n:''};
+    txt+='\n👤 *INDIVIDUAL*\n    • '+cl.n+': '+fmt(g)+'\n';gran+=g;granN++;
+  }
+  txt+='\n━━━━━━━━━━━━━━━\n🔐 *TOTAL GARANTÍAS: '+fmt(gran)+'*\n    ('+granN+' clientas)\n━━━━━━━━━━━━━━━\n_Ing. Alejandra · control de garantías_';
+  return gran>0?txt:'';
+}
+function resumenTextoMovs(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  let fechaLinda=new Date(fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  // Si la captura es de un día anterior, el reporte lo DICE: así Monse no lo
+  // archiva en el día equivocado (pasó con los reportes del martes).
+  if(window.__hoyServidor && fecha!==window.__hoyServidor)fechaLinda+=' \u26a0 captura de un DÍA ANTERIOR';
+  if(movs.length===0)return '';
+  let txt='📋 *FOOAX · OTROS MOVIMIENTOS*\n👤 '+EJECUTIVO+'\n📅 '+fechaLinda+'\n━━━━━━━━━━━━━━━\n';
+  const porConcepto={}; let gran=0;
+  const emojiC={'Comisión':'💵','Liquidación':'✔️','Recuperación':'♻️','Garantía':'🔐','Desembolso':'📤','Gasto':'🧾'};
+  movs.forEach(m=>{
+    const e=emojiC[m.concepto]||'•';
+    txt+='\n'+e+' *'+m.concepto+'* · '+fmt(m.monto)+' ('+viaCorto(m.via)+(m.cheque?' '+m.cheque:'')+')\n';
+    txt+='    '+(m.centro||'')+(m.clienta?' · '+m.clienta:'')+'\n    📎 folio '+(m.folio||'')+'\n';
+    porConcepto[m.concepto]=(porConcepto[m.concepto]||0)+m.monto; gran+=m.monto;
+  });
+  txt+='\n━━━━━━━━━━━━━━━\n📊 *POR CONCEPTO:*\n';
+  for(const c in porConcepto)txt+='    '+c+': '+fmt(porConcepto[c])+'\n';
+  txt+='\n💰 *TOTAL MOVIMIENTOS: '+fmt(gran)+'*\n━━━━━━━━━━━━━━━\n_Ing. Monse · validar por folio_';
+  return txt;
+}
+function formaTexto(r){
+  if(r.forma==='E')return 'EFECTIVO';
+  if(r.forma==='T')return 'TRANSFERENCIA';
+  if(r.forma==='D')return 'DEPOSITO (Oxxo/tienda)';
+  if(r.forma==='M')return 'MIXTO (Efe '+fmt(r.mixEfe||0)+' / Transf '+fmt(r.mixTr||0)+')';
+  return '';
+}
+function buildExport(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  // headers iguales a PEGAR CAPTURA: FECHA No.CENTRO CENTRO CLIENTA No.SOCIO EJECUTIVO PRODUCTO DESTINO PAGO GARANTÍA SOLIDARIO FORMA TOTAL
+  const sep='\t'; // tab: se pega directo en Excel
+  const rows=[['FECHA','No.CENTRO','CENTRO','CLIENTA','No.SOCIO','EJECUTIVO','PRODUCTO','PAGO','GARANTIA','SOLIDARIO','FORMA','A NOMBRE DE','TOTAL','PLAZO SEM','No.SEMANA']];
+  function destino(sub){const s=(sub||'').toLowerCase();if(s.includes('individual')||s.includes('foxi'))return'INDIVIDUAL';if(s.includes('adicional'))return'ADICIONAL';if(s.includes('micro'))return'MICRO';return'BASICO';}
+  // grupales
+  for(const centroKey in reg){
+    const noCentro=centroKey.split(' · ')[0].replace('C-','');
+    const nombreCentro=centroKey.split(' · ')[1]||centroKey;
+    const clientas=CENTROS[centroKey]||[];
+    for(const k in reg[centroKey]){
+      const r=reg[centroKey][k];const tot=rTot(r);if(tot<=0&&!r.forma)continue;
+      const cl=clientas.find(x=>(x.k||x.f)===k)||{n:'',sub:'',f:k.split('|')[0]};
+      const dc=datosCli[k]||{};
+      rows.push([fecha,noCentro,nombreCentro,cl.n,cl.f,EJECUTIVO,cl.sub,r.pago||0,r.garantia||0,r.solidario||0,formaTexto(r),r.aNombre||'',tot,dc.plazo||'',dc.semana||'']);
+    }
+  }
+  // individuales
+  for(const k in regI){
+    const r=regI[k];const tot=rTot(r);if(tot<=0&&!r.forma)continue;
+    const cl=INDIVIDUALES.find(x=>(x.k||x.f)===k)||{n:'',sub:'',f:k.split('|')[0]};
+    const dc=datosCli[k]||{};
+    rows.push([fecha,'0','INDIVIDUAL',cl.n,cl.f,EJECUTIVO,cl.sub,r.pago||0,r.garantia||0,r.solidario||0,formaTexto(r),r.aNombre||'',tot,dc.plazo||'',dc.semana||'']);
+  }
+  // FILA DE TOTALES (sumatoria general)
+  if(rows.length>1){
+    let tP=0,tG=0,tS=0,tT=0;
+    for(let i=1;i<rows.length;i++){tP+=(+rows[i][7]||0);tG+=(+rows[i][8]||0);tS+=(+rows[i][9]||0);tT+=(+rows[i][12]||0);}
+    rows.push(['','','','','','','TOTALES','','','','','','']);
+    rows.push([fecha,'','','TOTAL '+EJECUTIVO,'','','',tP,tG,tS,'','',tT]);
+  }
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+/* EXPORTAR GARANTÍAS — formato del REPORTE de Alejandra (solo clientas con garantía>0) */
+function buildExportGarantias(){
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const sep='\t';
+  const rows=[['ID','NOMBRE DE LA CLIENTA','CENTRO','EJECUTIVO','MONTO','OBSERVACIONES']];
+  let granTotal=0;
+  for(const centroKey in reg){
+    const nombreCentro=centroKey;
+    const clientas=CENTROS[centroKey]||[];
+    let cGar=0, cN=0;
+    for(const k in reg[centroKey]){
+      const g=reg[centroKey][k].garantia||0;
+      if(g<=0)continue;
+      const cl=clientas.find(x=>(x.k||x.f)===k)||{n:'',f:k.split('|')[0]};
+      rows.push([cl.f,cl.n,nombreCentro,EJECUTIVO,g,'GARANTIA ADICIONAL '+(cl.sub||'')+' '+fecha]);
+      cGar+=g; cN++;
+    }
+    if(cGar>0){rows.push(['','SUBTOTAL '+nombreCentro,nombreCentro,EJECUTIVO,cGar,cN+' clientas']);granTotal+=cGar;}
+  }
+  let iGar=0;
+  for(const k in regI){
+    const g=regI[k].garantia||0; if(g<=0)continue;
+    const cl=INDIVIDUALES.find(x=>(x.k||x.f)===k)||{n:'',f:k.split('|')[0]};
+    rows.push([cl.f,cl.n,'INDIVIDUAL',EJECUTIVO,g,'GARANTIA ADICIONAL '+(cl.sub||'')+' '+fecha]);
+    iGar+=g;
+  }
+  if(iGar>0){rows.push(['','SUBTOTAL INDIVIDUAL','INDIVIDUAL',EJECUTIVO,iGar,'']);granTotal+=iGar;}
+  if(granTotal>0){
+    rows.push(['','','','','','']);
+    rows.push(['','TOTAL GARANTÍAS DEL DÍA','',EJECUTIVO,granTotal,fecha]);
+  }
+  return rows.map(r=>r.join(sep)).join('\n');
+}
+function descargarGarantias(){
+  const data=buildExportGarantias();
+  if(data.split('\n').length<=1){alert('No hay garantías capturadas hoy.');return;}
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='Garantias_'+EJECUTIVO+'_'+fecha+'.csv';document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function copiarGarantias(){
+  const data=buildExportGarantias();
+  if(data.split('\n').length<=1){alert('No hay garantías capturadas hoy.');return;}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(data).then(()=>alert('Garantías copiadas. Pásalas a Ing. Alejandra (control de garantías).')).catch(()=>fallbackCopy(data));}
+  else fallbackCopy(data);
+}
+function descargarExport(){
+  const data=buildExport();
+  const fecha=document.getElementById('inpFecha').value||hoyISO();
+  const nombre='Cobranza_'+EJECUTIVO+'_'+fecha+'.csv';
+  // CSV con BOM para que Excel respete acentos; usar coma como separador en el archivo
+  const csv='\ufeff'+data.split('\n').map(l=>l.split('\t').map(c=>{c=String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=nombre;document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+}
+function copiarExport(){
+  const data=buildExport(); // tab-separated, se pega directo en Excel
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(data).then(()=>alert('Detalle copiado. Pégalo en la hoja PEGAR CAPTURA del Excel (Monse).')).catch(()=>fallbackCopy(data));
+  } else fallbackCopy(data);
+}
+function fallbackCopy(data){const t=document.createElement('textarea');t.value=data;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.focus();t.select();try{document.execCommand('copy');alert('Detalle copiado. Pégalo en la hoja PEGAR CAPTURA.');}catch(e){alert('No se pudo copiar automáticamente. Usa Descargar archivo.');}t.remove();}
+
+/* ENVIAR POR WHATSAPP — manda el RESUMEN EN TEXTO (con sumas por centro y total).
+   No descarga archivo, como lo pidió el Lic. para no llenar el teléfono. */
+function enviarWhatsApp(tipo){
+  if(tipo==='cobranza' && bloqueoPorErrores('ENVIAR TU REPORTE'))return;
+  let texto='';
+  if(tipo==='cobranza')texto=resumenTextoCobranza();
+  else if(tipo==='garantias')texto=resumenTextoGarantias();
+  else if(tipo==='movs')texto=resumenTextoMovs();
+  if(!texto){alert('No hay datos capturados para enviar.');return;}
+  if(tipo==='cobranza')window._reporteEnviado=true; // habilita el cierre del día
+  window.open('https://wa.me/?text='+encodeURIComponent(texto),'_blank');
+}
+
+/* ACTUALIZAR PADRÓN — importa CSV con altas/bajas sin regenerar la app */
+function importarPadron(input){
+  const file=input.files[0];if(!file)return;
+  const fr=new FileReader();
+  fr.onload=function(e){
+    try{
+      const txt=e.target.result.replace(/^\ufeff/,'');
+      const lineas=txt.split(/\r?\n/).filter(l=>l.trim());
+      // formato esperado: No.CENTRO,CENTRO,CLIENTA,No.SOCIO,PRODUCTO,SALDO  (mismo de PEGAR CAPTURA, sin montos)
+      const head=lineas[0].toLowerCase();
+      const start=(head.includes('clienta')||head.includes('socio'))?1:0;
+      const nuevosCentros={};const nuevosIndiv=[];
+      for(let i=start;i<lineas.length;i++){
+        const c=lineas[i].split(/[,\t]/).map(x=>x.replace(/^"|"$/g,'').trim());
+        if(c.length<4)continue;
+        const noCentro=c[0],nombreC=c[1],clienta=c[2],socio=c[3],prod=c[4]||'',saldo=parseFloat(c[5])||0;
+        const sl=(prod||'').toLowerCase();
+        if(noCentro==='0'||nombreC.toUpperCase()==='INDIVIDUAL'||sl.includes('individual')||sl.includes('foxi')){
+          nuevosIndiv.push({n:clienta,f:socio,sub:prod,k:socio+"|"+prod,imp:0,saldo:saldo});
+        }else{
+          const key='C-'+noCentro+' · '+nombreC;
+          if(!nuevosCentros[key])nuevosCentros[key]=[];
+          nuevosCentros[key].push({n:clienta,f:socio,sub:prod,k:socio+"|"+prod,imp:0,saldo:saldo});
+        }
+      }
+      const nC=Object.keys(nuevosCentros).length, nI=nuevosIndiv.length;
+      const nCli=Object.values(nuevosCentros).reduce((a,v)=>a+v.length,0);
+      if(nC===0&&nI===0){alert('El archivo no tiene filas válidas. Revisa el formato.');return;}
+      if(!confirm('Actualizar padrón a: '+nC+' centros, '+nCli+' clientas grupales, '+nI+' individuales. ¿Continuar?'))return;
+      CENTROS=nuevosCentros; INDIVIDUALES=nuevosIndiv;
+      localStorage.setItem(PADRON_KEY, JSON.stringify({CENTROS,INDIVIDUALES,ts:Date.now(),v:PADRON_VERSION}));
+      fillCentros();renderIndiv();render();
+      alert('Padrón actualizado. Ya puedes capturar con la lista nueva.');
+    }catch(err){alert('No se pudo leer el archivo: '+err.message);}
+    input.value='';
+  };
+  fr.readAsText(file,'UTF-8');
+}
+function restablecerPadron(){
+  if(!confirm('¿Volver al padrón original de la app? Esto descarta el padrón importado y las clientas que agregaste.'))return;
+  localStorage.removeItem(PADRON_KEY);
+  location.reload();
+}
+
+/* AGREGAR CLIENTA — la suma al padrón sin borrar nada, guarda en el celular */
+function toggleAltaClienta(){
+  const f=document.getElementById('formAlta');
+  f.classList.toggle('hidden');
+  if(!f.classList.contains('hidden'))fillAltaCentros();
+}
+function fillAltaCentros(){
+  const sc=document.getElementById('altaCentro');
+  sc.innerHTML='<option value="">— Centro —</option>';
+  Object.keys(CENTROS).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k;sc.appendChild(o);});
+  const oi=document.createElement('option');oi.value='INDIVIDUAL';oi.textContent='INDIVIDUAL';sc.appendChild(oi);
+}
+function guardarPadronLocal(){
+  try{localStorage.setItem(PADRON_KEY,JSON.stringify({CENTROS,INDIVIDUALES,ts:Date.now(),v:PADRON_VERSION}));}catch(e){}
+}
+function agregarClienta(){
+  const centro=document.getElementById('altaCentro').value;
+  const prod=document.getElementById('altaProd').value;
+  const nombre=(document.getElementById('altaNombre').value||'').trim();
+  const socio=(document.getElementById('altaSocio').value||'').trim();
+  const saldo=numMX(document.getElementById('altaSaldo').value);
+  if(!centro){alert('Elige el centro.');return;}
+  if(!nombre){alert('Escribe el nombre de la clienta.');return;}
+  if(!socio){alert('Escribe el No. de socio.');return;}
+  // Llave única: socio|producto|nombre|índice (evita colisión si comparten socio o producto)
+  const arr = centro==='INDIVIDUAL' ? INDIVIDUALES : (CENTROS[centro]||[]);
+  const base=socio+'|'+prod+'|'+nombre;
+  let idx=0; arr.forEach(x=>{ if((x.k||'').startsWith(base+'|'))idx++; });
+  const k=base+'|'+idx;
+  const nueva={n:nombre,f:socio,sub:prod,k:k,imp:0,saldo:saldo,esp:0};
+  if(centro==='INDIVIDUAL'){
+    INDIVIDUALES.push(nueva);
+  } else {
+    if(!CENTROS[centro])CENTROS[centro]=[];
+    CENTROS[centro].push(nueva);
+  }
+  guardarPadronLocal();
+  fillCentros();renderIndiv();
+  // limpiar form
+  document.getElementById('altaNombre').value='';document.getElementById('altaSocio').value='';document.getElementById('altaSaldo').value='';
+  // seleccionar el centro donde se agregó y mostrarlo
+  if(centro!=='INDIVIDUAL'){document.getElementById('selCentro').value=centro;render();}
+  alert('Clienta agregada a tu padrón: '+nombre+'. Recuerda avisar a Monse para registrarla en la base.');
+}
+
+
+function showTab(name){
+  setTimeout(function(){try{pintarBarraCierre();}catch(e){}},0);
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  ['cobranza','indiv','renov','gerente','movs','liquida','arqueo','resumen'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('hidden',t!==name);});
+  if(name==='resumen')buildResumen();
+  if(name==='arqueo')calcArqueo();
+  if(name==='movs')renderMovs();
+  if(name==='liquida')renderLiquida();
+  if(name==='renov')renderRenov();
+  if(name==='gerente'&&ES_GERENTE)renderGerente();
+}
+
+// Soporte de toque para visores limitados (ej. navegador interno de WhatsApp en iPhone):
+// algunos WebView no disparan bien onclick; reforzamos con touchend.
+function reforzarToque(){
+  document.querySelectorAll('[onclick]').forEach(el=>{
+    if(el._tch)return; el._tch=1;
+    el.addEventListener('touchend',function(e){
+      // evitar doble disparo y permitir scroll
+      if(el.tagName==='INPUT'||el.tagName==='SELECT')return;
+      e.preventDefault();
+      el.click();
+    },{passive:false});
+  });
+}
+
+// Detectar si abrió dentro de WhatsApp/Instagram WebView y avisar
+function avisarWebView(){
+  const ua=navigator.userAgent||'';
+  if(/WhatsApp|Instagram|FBAN|FBAV|Line/i.test(ua)){
+    const b=document.createElement('div');
+    b.style.cssText='background:#F44C5D;color:#fff;font-size:12px;font-weight:700;padding:10px 14px;text-align:center;line-height:1.4';
+    b.innerHTML='Para que funcione bien, abre esta app en Safari: toca el botón Compartir y elige "Abrir en Safari", luego "Agregar a inicio".';
+    document.body.insertBefore(b,document.body.firstChild);
+  }
+}
+
+// —— PREGUNTA AL VOLVER DESPUES DE CERRAR (regla Karina 24-jul): si hoy ya
+// envio su arqueo y vuelve a entrar, la app pregunta QUE va a hacer.
+// AGREGAR = lo nuevo se SUMA a lo ya enviado. CAPTURAR TODO de nuevo = el dia
+// cuenta desde cero con lo que capture ahora (lo anterior queda de respaldo en
+// el servidor, recuperable por Direccion). Sin esto, recapturar DOBLABA el dia.
+function preguntarPostCierre(){
+  var KEYC='fooax_cerrado_'+STORE_KEY, f=null;
+  try{f=localStorage.getItem(KEYC);}catch(e){}
+  if(!f)return;
+  if(f!==hoyISO()){try{localStorage.removeItem(KEYC);}catch(e){}return;}
+  if(localStorage.getItem(STORE_KEY))return; // ya hay captura nueva en curso
+  var o=document.createElement('div');o.id='fooax-postcierre';
+  o.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(42,31,53,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px;font-family:inherit;overflow:auto';
+  o.innerHTML='<div style="font:800 20px/1.3 inherit">Ya enviaste tu arqueo de hoy</div>'
+    +'<div style="font:600 13.5px/1.5 inherit;opacity:.92;margin-top:8px;max-width:330px">Antes de seguir, dinos que vas a hacer:</div>'
+    +'<button id="fooaxPcAdd" style="margin-top:20px;width:100%;max-width:330px;font:800 15px/1.35 inherit;background:#0B7247;color:#fff;border:none;border-radius:14px;padding:14px 18px;cursor:pointer">Voy a AGREGAR algo que falto<br><span style="font:600 11.5px/1.4 inherit;opacity:.85">Un pago o movimiento nuevo. Lo que ya mandaste se queda igual y esto se le suma.</span></button>'
+    +'<button id="fooaxPcCero" style="margin-top:12px;width:100%;max-width:330px;font:800 15px/1.35 inherit;background:transparent;color:#FFD9A8;border:2px solid #FFD9A8;border-radius:14px;padding:14px 18px;cursor:pointer">Voy a CAPTURAR TODO de nuevo<br><span style="font:600 11.5px/1.4 inherit;opacity:.85">Empezar de cero: tu dia contara SOLO con lo que captures ahora. Lo anterior queda guardado de respaldo.</span></button>'
+    +'<div id="fooaxPcMsg" style="font:600 12px/1.45 inherit;color:#FFD9A8;margin-top:12px;max-width:320px"></div>';
+  document.body.appendChild(o);
+  document.getElementById('fooaxPcAdd').onclick=function(){
+    try{localStorage.removeItem(KEYC);}catch(e){}
+    o.remove();
+  };
+  document.getElementById('fooaxPcCero').onclick=function(){
+    if(!confirm('SEGURA que vas a capturar TODO el dia otra vez?\n\nTu dia contara SOLO con lo que captures desde ahora. La version que ya habias enviado queda guardada de respaldo para Direccion.'))return;
+    var b=this;b.disabled=true;
+    fetch('/api/dia/reinicio',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({fecha:hoyISO()})})
+      .then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})
+      .then(function(x){
+        if(!x.ok){document.getElementById('fooaxPcMsg').textContent=(x.d&&x.d.error)||'No se pudo. Intenta otra vez.';b.disabled=false;return;}
+        try{localStorage.removeItem(KEYC);}catch(e){}
+        o.remove();
+        alert('Listo. Captura tu dia completo: contara desde cero.');
+      })
+      .catch(function(){document.getElementById('fooaxPcMsg').textContent='Para empezar de cero necesitas internet. Conectate y vuelve a intentarlo.';b.disabled=false;});
+  };
+}
+initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();preguntarPostCierre();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
+avisarWebView();reforzarToque();
+// reforzar toque cada vez que se redibuja contenido
+const _obs=new MutationObserver(()=>reforzarToque());
+_obs.observe(document.body,{childList:true,subtree:true});
+</script>
+</body>
+</html>
