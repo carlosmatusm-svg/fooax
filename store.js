@@ -8,7 +8,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const DATA_DIR = path.join(__dirname, "data");
+// Carpeta de datos. Se puede apuntar a otra con DATA_DIR para correr la batería
+// sobre datos limpios y desechables SIN tocar los de trabajo (la batería exige
+// datos limpios y antes había que vaciar `data/`, que es cobranza de verdad):
+//   DATA_DIR=/tmp/fooax-prueba node server.js
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;

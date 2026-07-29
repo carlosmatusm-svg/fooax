@@ -852,6 +852,18 @@ function corteSaldos() {
   const cortes = store.cambiosPadron().filter((c) => c.tipo === "corte" && /^\d{4}-\d{2}-\d{2}$/.test(c.fecha || ""));
   return cortes.length ? cortes[cortes.length - 1].fecha : CORTE_SALDOS_DEFECTO;
 }
+// SEMÁNTICA DEL CORTE (decidido el 29-jul, después de comprobarlo con Karina):
+// el corte es el PRIMER DÍA CUYOS ABONOS SÍ SE DESCUENTAN — se cuenta ese día
+// incluido. Se intentó cambiarlo a "el último día que la plantilla ya trae
+// descontado" para que la cobranza del sábado no reapareciera el lunes, y se
+// DESECHÓ: habría desplazado un día de cobranza en TODOS los cortes, también los
+// viejos, y Karina comprobó que el Excel del sábado ya mostraba los pagos del
+// sábado (o sea, las plantillas se han venido cortando ANTES del sábado y los
+// saldos han salido bien así).
+// Para dejar un día fuera NO se toca código: Anel o Monse mueven el corte al día
+// siguiente desde el tablero. Ej.: plantilla que ya trae el sábado 25 → corte 26.
+// Con hora no se puede y no hace falta: las capturas guardan fecha, no hora, y
+// nadie captura después de cerrar su día.
 
 function carteraViva(usuario) {
   // Saldos = saldo de plantilla − TODO lo abonado desde el corte (no solo la
@@ -894,15 +906,23 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const s = wb.addWorksheet("Saldos actualizados");
   const AURORA = "FFF1228E", RIO = "FF324AB6";
-  s.mergeCells("A1:M1");
+  s.mergeCells("A1:N1");
   const t = s.getCell("A1");
-  t.value = `FOOAX · SALDOS ACTUALIZADOS · abonos desde el corte ${corte} · al ${hoy}`;
+  // Dice ACUMULADO y con el día del corte incluido, porque eso es lo que hace: el
+  // reporte no es "lo de esta semana", es todo lo abonado desde el corte. Por eso
+  // la cobranza del sábado reaparece cada lunes y Monse creía que no se había
+  // contado (29-jul). La columna "Días de pago" es la que resuelve la duda.
+  t.value = `FOOAX · SALDOS ACTUALIZADOS · ACUMULADO desde el ${corte} (ese día incluido) · al ${hoy}`;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
   t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
   t.alignment = { horizontal: "center", vertical: "middle" }; s.getRow(1).height = 24;
+  // "Días de pago" dice EN QUÉ FECHAS se abonó. Sin ella, el acumulado desde el
+  // corte es un solo número y no hay forma de saber si ya se recibió o es nuevo:
+  // así se armó la confusión del sábado 25-jul (Monse buscó $15,232 en el arqueo
+  // del lunes y del martes, cuando eran del sábado).
   const head = [["Ejecutivo", 13], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-    ["Saldo al corte", 13], ["Abonado", 13], ["Liquid./recup.", 13], ["Saldo actualizado", 16], ["Garantía", 11], ["Cuota", 10],
-    ["Mora", 11], ["Estatus", 12]];
+    ["Saldo al corte", 13], ["Abonado", 13], ["Liquid./recup.", 13], ["Saldo actualizado", 16], ["Garantía", 11],
+    ["Días de pago", 20], ["Cuota", 10], ["Mora", 11], ["Estatus", 12]];
   const hr = s.getRow(2);
   head.forEach(([h2, w], i) => { const c = hr.getCell(i + 1); c.value = h2; s.getColumn(i + 1).width = w;
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -948,24 +968,35 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
     r.getCell(1).value = c.ejecutivo || ""; r.getCell(2).value = c.centro || "";
     r.getCell(3).value = c.nombre || ""; r.getCell(4).value = c.id; r.getCell(5).value = c.producto || "";
     r.getCell(6).value = ini; r.getCell(7).value = pagado || null; r.getCell(8).value = liquidado || null;
-    r.getCell(9).value = act; r.getCell(10).value = garan || null; r.getCell(11).value = c.cuota || 0;
+    r.getCell(9).value = act; r.getCell(10).value = garan || null;
+    // Días en que se abonó, de lo más viejo a lo más nuevo (ej. "25-jul, 28-jul").
+    // Es lo que le permite a Monse distinguir "esto ya lo recibí" de "esto es nuevo"
+    // sin tener que cruzar contra los arqueos a mano.
+    const dcl = (detalle[claveCredito(c.id, c.producto)] || {}).fechas || {};
+    const dias = Object.keys(dcl).sort().map((f) => {
+      const p = f.split("-");
+      return Number(p[2]) + "-" + ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"][Number(p[1]) - 1];
+    });
+    r.getCell(11).value = dias.length ? dias.join(", ") : "";
+    r.getCell(11).alignment = { horizontal: "center" };
+    r.getCell(12).value = c.cuota || 0;
     const mora = Number(c.mora) > 0 ? Number(c.mora) : 0; tMora += mora;
-    r.getCell(12).value = mora || null;
-    r.getCell(13).value = (c.estatus && c.estatus !== "VIGENTE" && c.estatus !== "BAJA") ? c.estatus : "";
-    [6, 7, 8, 9, 10, 11, 12].forEach(i => r.getCell(i).numFmt = dinero);
+    r.getCell(13).value = mora || null;
+    r.getCell(14).value = (c.estatus && c.estatus !== "VIGENTE" && c.estatus !== "BAJA") ? c.estatus : "";
+    [6, 7, 8, 9, 10, 12, 13].forEach(i => r.getCell(i).numFmt = dinero);
     if (pagado > 0) r.getCell(7).font = { bold: true, color: { argb: "FF0B7247" } };
     if (liquidado > 0) r.getCell(8).font = { bold: true, color: { argb: "FF0B7247" } };
     if (act <= 0 && (pagado > 0 || liquidado > 0)) r.getCell(9).font = { bold: true, color: { argb: "FF0B7247" } };
     if (garan > 0) r.getCell(10).font = { bold: true, color: { argb: "FF8A5A00" } };
-    if (mora > 0) r.getCell(12).font = { bold: true, color: { argb: "FFB00020" } };
-    if (c.estatus === "VENCIDA") r.getCell(13).font = { bold: true, color: { argb: "FFB00020" } };
+    if (mora > 0) r.getCell(13).font = { bold: true, color: { argb: "FFB00020" } };
+    if (c.estatus === "VENCIDA") r.getCell(14).font = { bold: true, color: { argb: "FFB00020" } };
     if ((fila - 3) % 2 === 1) r.eachCell({ includeEmpty: true }, c2 => { if (!c2.fill || c2.fill.type !== "pattern") c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F1F8" } }; });
   }
   const tr = s.getRow(fila);
   tr.getCell(5).value = "TOTAL"; tr.getCell(5).font = { bold: true };
   tr.getCell(6).value = tIni; tr.getCell(7).value = tPag; tr.getCell(8).value = tLiq;
-  tr.getCell(9).value = tAct; tr.getCell(10).value = tGar; tr.getCell(12).value = tMora || null;
-  [6, 7, 8, 9, 10, 12].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
+  tr.getCell(9).value = tAct; tr.getCell(10).value = tGar; tr.getCell(13).value = tMora || null;
+  [6, 7, 8, 9, 10, 13].forEach(i => { tr.getCell(i).numFmt = dinero; tr.getCell(i).font = { bold: true, color: { argb: AURORA } }; });
   fila++;
 
   // Cuadre explícito — SIEMPRE con la ventana SEMANAL (lunes → hoy), aunque
@@ -1593,7 +1624,10 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
 // cargar plantillas nuevas). Queda en la bitácora del padrón con quién y cuándo.
 app.get("/api/saldos/corte", requiere("direccion", "admin"), (req, res) => {
-  res.json({ corte: corteSaldos() });
+  // `desde` = el primer día cuyos abonos se descuentan, que es el corte MISMO.
+  // Va explícito para que el tablero se lo pueda decir a Monse con palabras y no
+  // haya que adivinar si el día del corte cuenta o no.
+  res.json({ corte: corteSaldos(), desde: corteSaldos() });
 });
 app.post("/api/saldos/corte", soloAnelMonse, (req, res) => {
   const fecha = String((req.body || {}).fecha || "").trim();
@@ -1973,7 +2007,14 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
 });
 
 // ---------- RESUMEN del día (campanita de alertas para dirección) ----------
-function pesos(n) { return "$" + Math.round(n || 0).toLocaleString("es-MX"); }
+// Con CENTAVOS: las garantías traen medios pesos (57.50, 40.50) y este texto los
+// redondeaba a peso entero, así que la campanita y el resumen de WhatsApp decían
+// $58 donde la captura era $57.50 (reportado por Monse el 29-jul). El dato
+// guardado siempre estuvo bien; era solo el texto. Centavos solo si existen.
+function pesos(n) {
+  const v = Math.round((n || 0) * 100) / 100;
+  return "$" + v.toLocaleString("es-MX", { minimumFractionDigits: (v % 1) ? 2 : 0, maximumFractionDigits: 2 });
+}
 
 app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();

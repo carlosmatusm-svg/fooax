@@ -14,6 +14,16 @@ window.__limpiarFooax = function () {
   Object.keys(localStorage).forEach((k) => { if (k.indexOf("fooax_") === 0) localStorage.removeItem(k); });
 };
 
+// Dinero con CENTAVOS. Las garantías traen medios pesos (57.50, 40.50) y
+// redondear a peso entero hacía que el aviso dijera $58 cuando la captura era
+// $57.50 — Monse lo reportó el 29-jul y creyó que faltaría $1 por cada
+// redondeo. El dato guardado siempre estuvo bien; era solo el texto. Se muestran
+// los centavos SOLO cuando existen, para no ensuciar los montos redondos.
+function fmtMX(n) {
+  const v = Math.round((+n || 0) * 100) / 100;
+  return v.toLocaleString("es-MX", { minimumFractionDigits: (v % 1) ? 2 : 0, maximumFractionDigits: 2 });
+}
+
 // Si intenta CERRAR la app con captura sin enviar, el navegador la frena con
 // su aviso de "¿salir de esta página?" (no se puede personalizar, pero es el
 // alto). El candado fuerte es el del botón Salir + el bloqueo al reabrir.
@@ -250,7 +260,7 @@ window.__corregirFechaHoy = function (hoy) {
         '<div style="width:64px;height:64px;border-radius:50%;background:#E7F6EE;margin:0 auto 12px;display:flex;align-items:center;justify-content:center">' +
         '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#0B7247" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
         '<div style="font-size:18px;font-weight:800;color:#0B7247">Tu cobranza está en la nube</div>' +
-        '<div style="font-size:14px;color:#3a3142;margin-top:6px">' + n + " pago(s) · <b>$" + Math.round(t).toLocaleString("es-MX") + "</b> ya están guardados.<br><b>Ojo:</b> esto NO cierra tu día. Al terminar tu ruta, usa el botón <b>«Terminar día»</b> de abajo para contar tu efectivo y mandar el arqueo.</div>" +
+        '<div style="font-size:14px;color:#3a3142;margin-top:6px">' + n + " pago(s) · <b>$" + fmtMX(t) + "</b> ya están guardados.<br><b>Ojo:</b> esto NO cierra tu día. Al terminar tu ruta, usa el botón <b>«Terminar día»</b> de abajo para contar tu efectivo y mandar el arqueo.</div>" +
         '<button onclick="document.getElementById(\'fooax-cierre\').remove()" style="margin-top:16px;width:100%;font:700 15px inherit;background:#0B7247;color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">Listo</button>';
     } else {
       const motivo = navigator.onLine
@@ -260,7 +270,7 @@ window.__corregirFechaHoy = function (hoy) {
         '<div style="width:64px;height:64px;border-radius:50%;background:#FDECEC;margin:0 auto 12px;display:flex;align-items:center;justify-content:center">' +
         '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#B4232F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>' +
         '<div style="font-size:18px;font-weight:800;color:#B4232F">Aún NO se ha subido</div>' +
-        '<div style="font-size:13.5px;color:#3a3142;margin-top:6px;text-align:left">Tu captura (' + n + " pago(s) · $" + Math.round(t).toLocaleString("es-MX") + ") <b>sigue guardada en tu teléfono</b> — no se pierde. " + motivo + "</div>" +
+        '<div style="font-size:13.5px;color:#3a3142;margin-top:6px;text-align:left">Tu captura (' + n + " pago(s) · $" + fmtMX(t) + ") <b>sigue guardada en tu teléfono</b> — no se pierde. " + motivo + "</div>" +
         '<button onclick="document.getElementById(\'fooax-cierre\').remove()" style="margin-top:16px;width:100%;font:700 15px inherit;background:#B4232F;color:#fff;border:none;border-radius:99px;padding:13px;cursor:pointer">Entendido</button>';
     }
   };

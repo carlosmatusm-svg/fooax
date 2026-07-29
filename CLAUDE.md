@@ -23,14 +23,20 @@ por ejecutiva en `apps/`, tablero de dirección en `public/tablero.html`.
    ```
 
 2) **Batería (`tests/bateria_arqueo.js`)** — casos finos del arqueo (81+).
-   SOLO local y necesita DATOS LIMPIOS antes de correr:
+   SOLO local y necesita DATOS LIMPIOS antes de correr. **NO vacíes `data/`** — eso
+   es cobranza de verdad. Usa una carpeta desechable con `DATA_DIR` (29-jul-2026):
 
    ```bash
-   printf '{}' > data/snapshots.json; printf '[]' > data/movimientos.json
-   printf '[]' > data/padron_cambios.json; rm -f data/snapshots_hist.jsonl
-   # reiniciar el servidor y luego:
+   D=/tmp/fooax-prueba; rm -rf $D; mkdir -p $D; cp data/padron.json $D/
+   printf '{}' > $D/snapshots.json; printf '[]' > $D/movimientos.json
+   printf '[]' > $D/padron_cambios.json; printf '{}' > $D/sesiones.json
+   DATA_DIR=$D PORT=3899 node server.js &   # y en otra terminal:
    node tests/bateria_arqueo.js
    ```
+
+   El padrón se copia porque la batería lo necesita para arrancar. Al terminar, el
+   servidor de trabajo y sus datos siguen intactos. Si algún día hay que vaciar
+   `data/` de verdad, **respaldar primero** (`archivo.bak-FECHA`).
 
 ## Gotchas que ya nos mordieron (no reaprender)
 

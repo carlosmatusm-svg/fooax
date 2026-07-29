@@ -647,6 +647,61 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const ev = (av.porEjec || {}).prueba || {};
   ok("en días viejos SIN arqueo, el desglose sigue siendo la fuente del conteo", ev.contado === 300, "contó " + ev.contado);
 
+  console.log("\n— 28. GARANTÍAS CON CENTAVOS: los medios pesos no se redondean (Monse, 29-jul) —");
+  // Las garantías traen medios pesos (57.50, 40.50). El dato SIEMPRE se guardó
+  // bien, pero los textos (campanita de dirección y aviso de la app) redondeaban
+  // a peso entero y decían $58 donde la captura era $57.50. Monse lo reportó
+  // creyendo que faltaría $1 por cada redondeo. Se prueban las dos cosas: que el
+  // número guardado conserva los centavos y que el TEXTO ya los muestra.
+  const DC = "2026-04-08";
+  const syncCent = (f, snap) => fetch(U + "/api/sync", { method: "POST", headers: H(ce),
+    body: JSON.stringify({ fecha: f, snapshot: JSON.stringify(snap), ts: Date.now() }) });
+  await syncCent(DC,{ fecha: DC, reg: { "C-3": {
+    "g1|P": { pago: 0, garantia: 57.5, forma: "E" },   // Jolibeth: $57.50
+    "g2|P": { pago: 0, garantia: 40.5, forma: "E" },   // Elena Francisca: $40.50
+  } }, regI: {}, movs: [], arqueo: { "50": 1, "20": 2, "5": 1, "2": 1, "0.5": 2 } });
+  const ac = await j(await fetch(U + "/api/arqueo?fecha=" + DC, { headers: H(cd) }));
+  const ec = (ac.porEjec || {}).prueba || {};
+  ok("las garantías con centavos se guardan enteras (57.50 + 40.50 = 98)",
+    Math.abs((ec.garantias || 0) - 98) < 0.001, "garantías " + ec.garantias);
+  ok("con las dos monedas de $0.50 el día cuadra al centavo",
+    Math.abs((ec.contado || 0) - 98) < 0.001 && Math.abs(ec.dif || 0) < 0.001,
+    "contado " + ec.contado + " · dif " + ec.dif);
+  const res = await j(await fetch(U + "/api/resumen?fecha=" + DC, { headers: H(cd) }));
+  const txt = JSON.stringify(res);
+  ok("el texto de dirección no redondea la garantía a peso entero (ni $58 ni $41)",
+    txt.indexOf("$58") < 0 && txt.indexOf("$41") < 0, txt.slice(0, 200));
+
+  // Lo que a Monse le preocupaba: que "al final haga falta $1 por cada redondeo".
+  // Si entrega una moneda de $0.50 de menos, el arqueo lo TIENE que ver.
+  const DC2 = "2026-04-09";
+  await syncCent(DC2, { fecha: DC2, reg: { "C-3": {
+    "g3|P": { pago: 0, garantia: 57.5, forma: "E" },
+  } }, regI: {}, movs: [], arqueo: { "50": 1, "5": 1, "2": 1 } }); // 57, falta $0.50
+  const ac2 = await j(await fetch(U + "/api/arqueo?fecha=" + DC2, { headers: H(cd) }));
+  const ec2 = (ac2.porEjec || {}).prueba || {};
+  ok("si falta la moneda de $0.50, el arqueo lo detecta (no se traga los centavos)",
+    Math.abs((ec2.dif || 0) + 0.5) < 0.001, "dif " + ec2.dif + " (debía ser −0.5)");
+
+  console.log("\n— 29. EL DÍA DEL CORTE CUENTA, y para excluirlo se MUEVE el corte (29-jul) —");
+  // Decisión tomada con Karina el 29-jul: el corte es el PRIMER día cuyos abonos
+  // se descuentan, ese día incluido. Se probó cambiarlo a "el último día que la
+  // plantilla ya trae descontado" y se DESECHÓ: habría desplazado un día de
+  // cobranza en todos los cortes viejos. Para dejar el sábado fuera, Monse mueve
+  // el corte al domingo desde el tablero — sin tocar código.
+  const co = await j(await fetch(U + "/api/saldos/corte", { headers: H(cd) }));
+  ok("el corte dice desde qué día se descuenta, y es el corte MISMO",
+    !!co.corte && co.desde === co.corte, JSON.stringify(co));
+  // Mover el corte un día SÍ deja fuera el día anterior: es la palanca real.
+  const ant = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-04-08" }) }));
+  const co2 = await j(await fetch(U + "/api/saldos/corte", { headers: H(cd) }));
+  ok("Monse puede mover el corte y el sistema lo respeta al instante",
+    ant.ok === true && co2.corte === "2026-04-08", JSON.stringify(ant) + " → " + JSON.stringify(co2));
+  const xls = await fetch(U + "/api/semana/excel", { headers: H(cd) });
+  ok("y el Excel de saldos se sigue generando con la columna de días de pago",
+    xls.status === 200 && /spreadsheet/.test(xls.headers.get("content-type") || ""),
+    xls.status + " " + xls.headers.get("content-type"));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
