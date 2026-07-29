@@ -50,6 +50,10 @@ function aplicarCambios(base, cambios) {
         if (k.cuota != null && Number.isFinite(Number(k.cuota))) cl.cuota = Number(k.cuota);
         if (k.mora != null && Number.isFinite(Number(k.mora))) cl.mora = Number(k.mora);
         if (k.estatus) cl.estatus = k.estatus;
+        // Reasignar el crédito a otro ejecutivo o centro. Se guarda de quién
+        // venía: mover cartera deja huella (regla §6.1 del Complemento).
+        if (k.ejecutivo) { cl.ejecutivo_anterior = cl.ejecutivo; cl.ejecutivo = k.ejecutivo; }
+        if (k.centro) { cl.centro_anterior = cl.centro; cl.centro = k.centro; }
         cl.ajuste_motivo = c.motivo || null; cl.ajuste_por = c.por || null; cl.ajuste_fecha = c.fecha || null;
       }
     }

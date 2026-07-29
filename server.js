@@ -1502,6 +1502,13 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
   if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo del ajuste (queda en la bitácora)." });
   const campos = { saldo };
   if (b.cuota != null && b.cuota !== "" && Number.isFinite(Number(b.cuota)) && Number(b.cuota) >= 0) campos.cuota = Number(b.cuota);
+  // Reasignar el crédito a otro ejecutivo (mover cartera). Solo nombres reales.
+  if (b.ejecutivo) {
+    const nombres = idsEjecutivos(req.usuario).map((id) => USUARIOS[id].nombre);
+    const ok = nombres.find((n) => norm(n) === norm(String(b.ejecutivo)));
+    if (!ok) return res.status(400).json({ error: "Ese ejecutivo no existe. Elige uno de: " + nombres.join(", ") });
+    campos.ejecutivo = ok;
+  }
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
     saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
@@ -2379,11 +2386,42 @@ function repararCapturaKarina24jul() {
   console.log(`[reparación] Karina 24-jul: cobranza reconstruida · ${addl} liquidaciones agregadas · ${anulados} movimientos basura anulados`);
 }
 
+// Corrección ÚNICA de la cartera de Julio (29-jul). Al cargar su plantilla, las
+// dos clientas de COMADRE quedaron a nombre de Christopher —la plantilla traía
+// la columna "PROVENIENCIA: PLANTILLA CHRISTOPHER" y se tomó como el ejecutivo—
+// y a JUANA RITA se le capturó el saldo de ANTES del pago de esa semana
+// ($19,789 en vez de $16,962: exactamente una cuota de más).
+// Confirmado por Karina: son de Julio, y el saldo correcto es $16,962.
+function repararCarteraJulio() {
+  const CENTINELA = "MIGR-JULIO-COMADRE-2026-07-29";
+  if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;
+  const CAMBIOS = [
+    { id: "11112931059", producto: "Comadre", campos: { ejecutivo: "Julio" },
+      motivo: "Cartera de Julio: venía marcada como de Christopher por la columna de proveniencia" },
+    { id: "11113014663", producto: "Comadre", campos: { ejecutivo: "Julio", saldo: 16962 },
+      motivo: "Cartera de Julio + saldo corregido a $16,962 (se había capturado el de antes del pago)" },
+  ];
+  let n = 0;
+  for (const c of CAMBIOS) {
+    const actual = PADRON.find((x) => String(x.id) === c.id && nprod(x.producto) === nprod(c.producto) && x.activa !== false);
+    if (!actual) { console.warn("[reparación Julio] no encontré", c.id); continue; }
+    store.agregarCambioPadron({ tipo: "ajuste", id: c.id, producto: actual.producto, campos: c.campos,
+      motivo: c.motivo, fecha: hoyMX(), por: "Karina (corrección de carga)", ts: Date.now() });
+    n++;
+  }
+  if (n) {
+    refrescarPadron();
+    store.agregarMovimiento({ folio: CENTINELA, fecha: "2000-01-01", monto: 0, concepto: "migración", anulado: true, usuario: "julio", ts: Date.now() });
+    console.log(`[reparación] cartera de Julio corregida: ${n} créditos de Comadre reasignados`);
+  }
+}
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
   recuperarMovimientosHistoricos();
   repararAnuladosFalsos();
   repararCapturaKarina24jul();
+  repararCarteraJulio();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });
