@@ -702,6 +702,43 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     xls.status === 200 && /spreadsheet/.test(xls.headers.get("content-type") || ""),
     xls.status + " " + xls.headers.get("content-type"));
 
+  console.log("\n— 30. LAS LIQUIDACIONES TRAEN SU FECHA en el Excel (Karina, 29-jul) —");
+  // La columna "Días de pago" salía VACÍA en liquidaciones y recuperaciones: los
+  // pagos vienen del snapshot (por crédito) y las liquidaciones de movimientos
+  // (por socio), y solo se estaban leyendo las primeras. Justo las 6 de Neri del
+  // 25-jul eran liquidaciones, o sea la mitad del problema que se quería resolver.
+  const cnn = await login("neri", "neri2026");
+  // Se toma del padrón que usa el servidor (el mismo archivo que se copió a la
+  // carpeta de pruebas), para que el caso sea siempre el mismo y no dependa de la
+  // búsqueda del API.
+  const padronFile = process.env.DATA_DIR ? require("path").join(process.env.DATA_DIR, "padron.json") : "data/padron.json";
+  const clNeri = JSON.parse(require("fs").readFileSync(padronFile, "utf8"))
+    .find((x) => x.ejecutivo === "Neri" && (x.saldo || 0) > 1000 && x.estatus !== "BAJA");
+  ok("hay un crédito de Neri con saldo para probar la liquidación", !!clNeri, padronFile);
+  {
+    const FL = "2026-07-22";
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cnn), body: JSON.stringify({ fecha: FL, ts: Date.now(),
+      snapshot: JSON.stringify({ fecha: FL, reg: {}, regI: {},
+        movs: [{ folio: "LQFECHA", concepto: "LIQUIDACION", monto: 500, via: "E", socio: String(clNeri.id), clienta: clNeri.nombre }],
+        arqueo: { "500": 1 } }) }) });
+    const xr = await fetch(U + "/api/semana/excel", { headers: H(cm) });
+    const ExcelJS2 = require("exceljs");
+    const wb2 = new ExcelJS2.Workbook();
+    await wb2.xlsx.load(Buffer.from(await xr.arrayBuffer()));
+    const ws2 = wb2.getWorksheet("Saldos actualizados");
+    ok("la columna 11 del Excel es 'Días de pago'",
+      String(ws2.getRow(2).getCell(11).value).indexOf("Días") >= 0, String(ws2.getRow(2).getCell(11).value));
+    let conLiq = 0, conFecha = 0;
+    ws2.eachRow((r2, n2) => {
+      if (n2 < 3) return;
+      if (String(r2.getCell(5).value) === "TOTAL") return;
+      const liq = Number(r2.getCell(8).value) || 0;
+      if (liq > 0) { conLiq++; if (String(r2.getCell(11).value || "").trim()) conFecha++; }
+    });
+    ok("TODA liquidación del Excel trae su día (antes salían todas vacías)",
+      conLiq > 0 && conFecha === conLiq, conFecha + " con fecha de " + conLiq + " liquidaciones");
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -820,7 +820,11 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
 // FUERA de la cuota que también bajan el saldo. Antes esto vivía SOLO dentro
 // del Excel; por eso el tablero (búsqueda y panel) no las restaba y una clienta
 // que liquidó seguía mostrando su saldo viejo.
-function liquidacionesDeLaSemana(usuario, desde) {
+// `fechasOut` (opcional): se llena con {socio: {fecha:true}} para poder decir EN
+// QUÉ DÍA se liquidó. Sin esto la columna "Días de pago" del Excel salía vacía en
+// las liquidaciones y recuperaciones — que son justo la mitad del problema (las 6
+// de Neri del 25-jul eran todas liquidaciones). Lo cachó Karina el 29-jul.
+function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
   const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
   const liqPorSocio = {};
   const d0 = new Date(lunes + "T12:00:00");
@@ -833,7 +837,10 @@ function liquidacionesDeLaSemana(usuario, desde) {
       const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
       if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
       const soc = socioDeMov(m);
-      if (soc) liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
+      if (soc) {
+        liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
+        if (fechasOut) (fechasOut[soc] = fechasOut[soc] || {})[fISO] = true;
+      }
     }
   }
   return liqPorSocio;
@@ -870,7 +877,8 @@ function carteraViva(usuario) {
   // semana: los lunes la ventana semanal se vacía y los saldos "rebotaban").
   const corte = corteSaldos();
   const { pago: pagos, gar: garantias } = pagosDeLaSemana(usuario, corte);
-  const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario, corte));
+  const fechasLiq = {};   // socio → días en que liquidó/recuperó
+  const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario, corte, fechasLiq));
   const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
     .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) ||
       String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
@@ -883,7 +891,10 @@ function carteraViva(usuario) {
     const liquidado = Math.min(disp, Math.max(0, (c.saldo || 0) - pagado));
     if (liquidado > 0) liqRestante[soc] = disp - liquidado;
     porCredito.set(clave, { pagado, liquidado, garantia: garantias[clave] || 0,
-      saldoActual: Math.max(0, (c.saldo || 0) - pagado - liquidado) });
+      saldoActual: Math.max(0, (c.saldo || 0) - pagado - liquidado),
+      // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo
+      // (una liquidación es por socio y se reparte entre sus créditos).
+      fechasLiq: liquidado > 0 ? Object.keys(fechasLiq[soc] || {}) : [] });
   }
   return { porCredito, pagos, garantias };
 }
@@ -972,8 +983,12 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
     // Días en que se abonó, de lo más viejo a lo más nuevo (ej. "25-jul, 28-jul").
     // Es lo que le permite a Monse distinguir "esto ya lo recibí" de "esto es nuevo"
     // sin tener que cruzar contra los arqueos a mano.
-    const dcl = (detalle[claveCredito(c.id, c.producto)] || {}).fechas || {};
-    const dias = Object.keys(dcl).sort().map((f) => {
+    // Se juntan las DOS fuentes: los pagos/garantías (vienen del snapshot, por
+    // crédito) y las liquidaciones/recuperaciones (vienen de movimientos, por
+    // socio). Si falta una, la columna miente por omisión.
+    const fs = Object.assign({}, (detalle[clave] || {}).fechas || {});
+    (info.fechasLiq || []).forEach((f) => { fs[f] = true; });
+    const dias = Object.keys(fs).sort().map((f) => {
       const p = f.split("-");
       return Number(p[2]) + "-" + ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"][Number(p[1]) - 1];
     });
