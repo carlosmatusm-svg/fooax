@@ -298,7 +298,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   cr = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cd), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", mora: 300 }) }));
   ok("la cuenta de prueba tampoco", !!cr.error, (cr.error || "").slice(0, 60));
   cr = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", mora: 300 }) }));
-  ok("Monse marca VENCIDA + mora", cr.ok === true && cr.clienta.estatus === "VENCIDA" && cr.clienta.mora === 300, JSON.stringify(cr.clienta || {}).slice(0, 90));
+  ok("Monse marca VENCIDO + mora (la palabra de la plantilla, no 'VENCIDA')", cr.ok === true && cr.clienta.estatus === "VENCIDO" && cr.clienta.mora === 300, JSON.stringify(cr.clienta || {}).slice(0, 90));
   let lv = await j(await fetch(U + "/api/creditos?estado=vencidas", { headers: H(ca) }));
   ok("la vencida aparece en la lista de vencidas", (lv.resultados || []).some(c => String(c.id) === "70000000050"), "vencidas " + (lv.resultados || []).length);
   cr = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", saldo: 400, motivo: "corrección de captura" }) }));
@@ -306,7 +306,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   cr = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", saldo: 400 }) }));
   ok("ajuste SIN motivo se rechaza (queda bitácora)", !!cr.error && /motivo/.test(cr.error), (cr.error || "").slice(0, 60));
   cr = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba", mora: 0 }) }));
-  ok("mora 0 le quita lo VENCIDA (vuelve a VIGENTE)", cr.ok === true && cr.clienta.estatus === "VIGENTE" && (cr.clienta.mora || 0) === 0, JSON.stringify(cr.clienta || {}).slice(0, 80));
+  ok("mora 0 le quita lo VENCIDO (vuelve a VIGENTE)", cr.ok === true && cr.clienta.estatus === "VIGENTE" && (cr.clienta.mora || 0) === 0, JSON.stringify(cr.clienta || {}).slice(0, 80));
   cr = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba 2", saldo: 1500, cuota: 150 }) }));
   ok("re-dar crédito crea uno NUEVO, mismo grupo, guardando el anterior", cr.ok === true && cr.clienta.producto === "Credito Prueba 2" && cr.clienta.recredito === true, JSON.stringify(cr.clienta || {}).slice(0, 90));
   cr = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm), body: JSON.stringify({ id: "70000000050", producto: "Credito Prueba 2", saldo: 1500, cuota: 150 }) }));
@@ -738,6 +738,96 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     ok("TODA liquidación del Excel trae su día (antes salían todas vacías)",
       conLiq > 0 && conFecha === conLiq, conFecha + " con fecha de " + conLiq + " liquidaciones");
   }
+
+  console.log("\n— 31. UN VENCIDO NO TIENE CALENDARIO: no se le pide nº de pago (Karina, 29-jul) —");
+  // Karina explicó el 29-jul que a los VENCIDOS nunca les pagaron, y por eso la
+  // plantilla les pone cuota 0 y plazo 0 a propósito. Antes el sistema los sacaba
+  // como "dato incompleto" y se le iba a pedir a Monse la cuota y el plazo de 22
+  // créditos que NO tienen. Además el semáforo preguntaba por estatus "VENCIDA"
+  // (con A) y en la plantilla dice "VENCIDO": 29 no se marcaban como vencidos.
+  const car = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  const padr = JSON.parse(require("fs").readFileSync(padronFile, "utf8"));
+  const esVenc = (c) => /vencid/i.test(String(c.estatus || ""));
+  const vencPadron = padr.filter((c) => esVenc(c) && c.activa !== false).length;
+  ok("la plantilla trae créditos con estatus VENCIDO (no 'VENCIDA')",
+    vencPadron > 0, vencPadron + " vencidos en el padrón");
+  ok("el semáforo los cuenta como vencidas (antes solo los cachaba la mora capturada)",
+    (car.semaforo || {}).vencida >= vencPadron,
+    "semáforo.vencida=" + (car.semaforo || {}).vencida + " vs " + vencPadron + " vencidos");
+  const incVenc = (car.inconsistentes || []).filter((x) => {
+    const c = padr.find((y) => String(y.id) === String(x.socio) && y.producto === x.producto);
+    return c && esVenc(c);
+  });
+  ok("NINGÚN vencido sale como 'plazo mal capturado' (no se le pide un dato que no existe)",
+    incVenc.length === 0, incVenc.length + " vencidos en la lista de inconsistentes");
+  // Prueba CAUSAL (no contra el archivo del padrón, que la batería ya modificó con
+  // sus altas): se dan de alta dos créditos con la MISMA cuota, uno vencido y uno
+  // vigente, y se mide cuánto se movió el esperado. El vencido no debe moverlo.
+  const esp = async () => (await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).esperadoSemana;
+  const espAntes = await esp();
+  // El alta siempre nace VIGENTE (el endpoint fuerza el estatus), así que primero
+  // se da de alta y DESPUÉS se marca morosa — que es como pasa en la vida real.
+  const r31 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: "70000000311", nombre: "CLIENTA VENCIDA PRUEBA", producto: "Grupal-Basico",
+      centro: clNeri.centro, ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 10 }) }));
+  const espVigente = await esp();
+  ok("un crédito nuevo VIGENTE con cuota $500 sube el esperado $500 (la prueba muerde)",
+    !r31.error && Math.abs(espVigente - espAntes - 500) < 0.01,
+    "antes " + espAntes + " → después " + espVigente + (r31.error ? " · " + r31.error : ""));
+  const rm = await j(await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000000311", producto: "Grupal-Basico", mora: 1500 }) }));
+  const espVencida = await esp();
+  ok("al marcarla morosa queda VENCIDO y su cuota SALE del esperado (baja los $500)",
+    !rm.error && Math.abs(espVencida - espAntes) < 0.01,
+    "esperado " + espVencida + " · debía volver a " + espAntes + (rm.error ? " · " + rm.error : ""));
+  const cliVenc = (await j(await fetch(U + "/api/creditos?q=70000000311", { headers: H(cm) }))).resultados || [];
+  ok("y el estatus que escribe el sistema es 'VENCIDO', como en la plantilla (no 'VENCIDA')",
+    cliVenc.some((x) => String(x.estatus) === "VENCIDO"),
+    JSON.stringify(cliVenc.map((x) => x.estatus)));
+
+  console.log("\n— 32. RENOVACIÓN: lo del ciclo viejo NO se le resta al nuevo (Karina, 29-jul) —");
+  // Karina: "LIQUIDADO es que ya terminaron de pagar, pero a veces renuevan y se
+  // vuelve a dar de alta". La llave de un crédito es socio+producto y al renovar el
+  // nombre es el MISMO → los abonos del ciclo cerrado se le restaban al nuevo:
+  // renovaba $10,000 y el tablero lo mostraba en $8,000. No se arregla por fecha
+  // (liquidan y renuevan el mismo día, y solo se guarda fecha, no hora): al cerrar
+  // el ciclo se anota cuánto llevaba abonado y eso se descuenta.
+  const cenR = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  const renueva = async (soc, via) => {
+    await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
+      id: soc, nombre: "RENUEVA " + via, producto: "Grupal-Basico", centro: cenR,
+      ejecutivo: "Neri", saldo: 2000, cuota: 500, plazo: 4 }) });
+    const snap = via === "pago"
+      ? { fecha: HOY, reg: {}, regI: { [soc + "|Grupal-Basico"]: { pago: 2000, forma: "E" } }, movs: [], arqueo: { "500": 4 } }
+      : { fecha: HOY, reg: {}, regI: {}, arqueo: { "500": 4 },
+          movs: [{ folio: "LQR" + soc, concepto: "LIQUIDACION", monto: 2000, via: "E", socio: soc, clienta: "RENUEVA " + via }] };
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cnn),
+      body: JSON.stringify({ fecha: HOY, ts: Date.now(), snapshot: JSON.stringify(snap) }) });
+    const r = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm), body: JSON.stringify({
+      id: soc, producto: "Grupal-Basico", centro: cenR, ejecutivo: "Neri", saldo: 10000, cuota: 1000, plazo: 10 }) }));
+    const lst = (await j(await fetch(U + "/api/creditos?q=" + soc, { headers: H(cm) }))).resultados || [];
+    return { r, nuevo: lst.find((x) => x.recredito) || lst[0] };
+  };
+  const rp = await renueva("70000000921", "pago");
+  ok("liquidó con PAGO y renovó el MISMO día → el ciclo nuevo vale sus $10,000 completos",
+    !rp.r.error && rp.nuevo && Math.abs(rp.nuevo.saldoActual - 10000) < 0.01,
+    "saldo del nuevo: " + (rp.nuevo || {}).saldoActual + (rp.r.error ? " · " + rp.r.error : ""));
+  const rl = await renueva("70000000922", "liquidacion");
+  ok("liquidó con LIQUIDACIÓN y renovó el MISMO día → también vale sus $10,000",
+    !rl.r.error && rl.nuevo && Math.abs(rl.nuevo.saldoActual - 10000) < 0.01,
+    "saldo del nuevo: " + (rl.nuevo || {}).saldoActual + (rl.r.error ? " · " + rl.r.error : ""));
+  ok("y el ciclo anterior quedó cerrado (no conviven dos con la misma llave)",
+    rp.r.cerroAnterior === "Grupal-Basico" && rl.r.cerroAnterior === "Grupal-Basico",
+    JSON.stringify([rp.r.cerroAnterior, rl.r.cerroAnterior]));
+  // Y si TODAVÍA debe, la renovación con el mismo nombre se sigue bloqueando.
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: "70000000923", nombre: "RENUEVA DEBIENDO", producto: "Grupal-Basico", centro: cenR,
+    ejecutivo: "Neri", saldo: 2000, cuota: 500, plazo: 4 }) });
+  const rb = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm), body: JSON.stringify({
+    id: "70000000923", producto: "Grupal-Basico", centro: cenR, ejecutivo: "Neri", saldo: 10000, cuota: 1000, plazo: 10 }) }));
+  ok("si el ciclo anterior AÚN DEBE, la renovación con el mismo nombre se rechaza",
+    !!rb.error && /saldo/i.test(rb.error), JSON.stringify(rb).slice(0, 110));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

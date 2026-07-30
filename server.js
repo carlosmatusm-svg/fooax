@@ -780,7 +780,7 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
   // del viernes de Neri que se notó el lunes 27-jul). `hastaOpt` cierra la
   // ventana antes de hoy (para mirar un solo día).
   const hoy = hastaOpt || hoyMX(), lunes = desde || lunesDeLaSemana(hoyMX());
-  const pago = {}, gar = {}, detalle = {};
+  const pago = {}, gar = {}, detalle = {}, porFecha = {};
   const permitidas = new Set(idsEjecutivos(usuario));
   const snaps = store.respaldo().snapshots || {};
   const sumar = (nodo, key, ej, fecha) => {
@@ -791,6 +791,14 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
     const clave = claveCredito(partes[0], partes[1]);
     if (p > 0) pago[clave] = (pago[clave] || 0) + p;
     if (g > 0) gar[clave] = (gar[clave] || 0) + g;
+    // Desglose por DÍA: lo necesitan las renovaciones. Como la llave es
+    // socio+producto y al renovar el nombre es el mismo, el ciclo nuevo solo debe
+    // contar los pagos hechos DESDE su alta (ver `alta_fecha`).
+    if (fecha) {
+      const pf = porFecha[clave] || (porFecha[clave] = {});
+      const b = pf[fecha] || (pf[fecha] = { p: 0, g: 0 });
+      b.p += p; b.g += g;
+    }
     const d = detalle[clave] || (detalle[clave] = { socio: partes[0], producto: partes[1] || "", pago: 0, gar: 0, ejec: {}, fechas: {} });
     d.pago += p; d.gar += g;
     if (ej) d.ejec[ej] = true;
@@ -813,7 +821,7 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
       rec(data.reg); rec(data.regI);
     }
   }
-  return { pago, gar, detalle };
+  return { pago, gar, detalle, porFecha };
 }
 
 // Liquidaciones y recuperaciones de la semana, por socio: abonos al crédito
@@ -839,7 +847,13 @@ function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
       const soc = socioDeMov(m);
       if (soc) {
         liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
-        if (fechasOut) (fechasOut[soc] = fechasOut[soc] || {})[fISO] = true;
+        // Guarda el MONTO por día (no solo la fecha): las renovaciones necesitan
+        // saber cuánto se liquidó en cada día para no darle al ciclo nuevo lo del
+        // anterior. Las fechas se siguen leyendo con Object.keys().
+        if (fechasOut) {
+          const fo = fechasOut[soc] = fechasOut[soc] || {};
+          fo[fISO] = (fo[fISO] || 0) + m.monto;
+        }
       }
     }
   }
@@ -876,8 +890,8 @@ function carteraViva(usuario) {
   // Saldos = saldo de plantilla − TODO lo abonado desde el corte (no solo la
   // semana: los lunes la ventana semanal se vacía y los saldos "rebotaban").
   const corte = corteSaldos();
-  const { pago: pagos, gar: garantias } = pagosDeLaSemana(usuario, corte);
-  const fechasLiq = {};   // socio → días en que liquidó/recuperó
+  const { pago: pagos, gar: garantias, porFecha } = pagosDeLaSemana(usuario, corte);
+  const fechasLiq = {};   // socio → día → monto liquidado/recuperado
   const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario, corte, fechasLiq));
   const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
     .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) ||
@@ -885,15 +899,29 @@ function carteraViva(usuario) {
   const porCredito = new Map();
   for (const c of activos) {
     const clave = claveCredito(c.id, c.producto);
-    const pagado = pagos[clave] || 0;
     const soc = String(c.id);
-    const disp = liqRestante[soc] || 0;
+    // RENOVACIONES. La llave de un crédito es socio+producto y al renovar el nombre
+    // es el MISMO, así que los abonos del ciclo anterior se le restaban al nuevo:
+    // probado el 29-jul, renovó $10,000 y el tablero lo mostraba en $8,000 porque le
+    // descontó los $2,000 con que liquidó el ciclo viejo.
+    // NO se resuelve por fecha: la clienta suele liquidar y renovar el MISMO día, y
+    // las capturas solo guardan fecha, no hora. Se resuelve con lo exacto: al hacer
+    // el recrédito se anota cuánto llevaba abonado el ciclo que se cerró (`previo`),
+    // y ese monto se descuenta aquí. Solo vale mientras no se mueva el corte —
+    // cuando se mueve, los acumulados arrancan de cero y el descuento ya no aplica.
+    const prev = (c.previo && c.previo.corte === corte) ? c.previo : null;
+    const pagado = Math.max(0, (pagos[clave] || 0) - (prev ? (prev.pago || 0) : 0));
+    const garan = Math.max(0, (garantias[clave] || 0) - (prev ? (prev.gar || 0) : 0));
+    // Las liquidaciones son por SOCIO y se reparten entre sus créditos en orden
+    // fijo. Lo que ya consumió el ciclo cerrado se aparta antes de repartir.
+    const usado = liqRestante["__usado__" + soc] || (liqRestante["__usado__" + soc] = 0);
+    const bolsa = Object.values(fechasLiq[soc] || {}).reduce((a, b) => a + b, 0);
+    const disp = Math.max(0, bolsa - usado - (prev ? (prev.liq || 0) : 0));
     const liquidado = Math.min(disp, Math.max(0, (c.saldo || 0) - pagado));
-    if (liquidado > 0) liqRestante[soc] = disp - liquidado;
-    porCredito.set(clave, { pagado, liquidado, garantia: garantias[clave] || 0,
+    if (liquidado > 0) liqRestante["__usado__" + soc] = usado + liquidado;
+    porCredito.set(clave, { pagado, liquidado, garantia: garan,
       saldoActual: Math.max(0, (c.saldo || 0) - pagado - liquidado),
-      // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo
-      // (una liquidación es por socio y se reparte entre sus créditos).
+      // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo.
       fechasLiq: liquidado > 0 ? Object.keys(fechasLiq[soc] || {}) : [] });
   }
   return { porCredito, pagos, garantias };
@@ -1004,7 +1032,7 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
     if (act <= 0 && (pagado > 0 || liquidado > 0)) r.getCell(9).font = { bold: true, color: { argb: "FF0B7247" } };
     if (garan > 0) r.getCell(10).font = { bold: true, color: { argb: "FF8A5A00" } };
     if (mora > 0) r.getCell(13).font = { bold: true, color: { argb: "FFB00020" } };
-    if (c.estatus === "VENCIDA") r.getCell(14).font = { bold: true, color: { argb: "FFB00020" } };
+    if (esVencido(c)) r.getCell(14).font = { bold: true, color: { argb: "FFB00020" } };
     if ((fila - 3) % 2 === 1) r.eachCell({ includeEmpty: true }, c2 => { if (!c2.fill || c2.fill.type !== "pattern") c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F1F8" } }; });
   }
   const tr = s.getRow(fila);
@@ -1268,7 +1296,7 @@ app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
 
 // ---------- CRÉDITOS Y SALDOS · solo Anel y Monse ----------
 // Manejo de cartera reservado a las dos personas de confianza (regla Karina):
-// marcar morosas (VENCIDA + mora), re-dar crédito a las que liquidaron, y
+// marcar morosas (VENCIDO + mora), re-dar crédito a las que liquidaron, y
 // ajustar saldos. Todo deja rastro en la capa de cambios del padrón. La cuenta
 // de prueba nunca toca el padrón real.
 function soloAnelMonse(req, res, next) {
@@ -1293,9 +1321,19 @@ function creditoActivo(id, producto) {
 // Verificado contra el padrón real: 559 de 588 créditos dan entero exacto. Si
 // los restantes exceden el plazo, el PLAZO del padrón está mal capturado (8
 // casos): no se inventa un número, se marca para que Monse lo corrija.
+// VENCIDO = crédito que NUNCA pagó (dictado de Karina/Monse, 29-jul). Por eso la
+// plantilla les pone cuota 0 y plazo 0: no traen calendario de pagos, están en
+// recuperación. Se comprobó en el padrón: los 26 "VENCIDO" tienen cuota=0 Y
+// plazo=0, los 26 sin excepción. La palabra la pone la plantilla, así que se
+// reconoce por el nombre; el mapeo fino de los 7 estatus lo dicta Monse.
+function esVencido(c) { return /vencid/i.test(String(c && c.estatus || "")); }
 function numeroDePago(c, saldoActual) {
   const cuota = Number(c.cuota) || 0, plazo = Number(c.plazo) || 0;
   if (esCuotaVariable(c.producto)) return null;   // cuota decreciente: no se puede derivar
+  // A un vencido no se le puede ni se le debe derivar el nº de pago: no hay
+  // calendario. Antes salían como "plazo mal capturado" y se le pedía a Monse un
+  // dato que no existe — 22 de los 38 de esa lista eran esto.
+  if (esVencido(c)) return null;
   if (!(cuota > 0) || !(plazo > 0)) return null;
   const restantes = Math.round((saldoActual || 0) / cuota);
   if (restantes > plazo) return { pago: null, plazo, restantes, inconsistente: true };
@@ -1306,7 +1344,10 @@ function numeroDePago(c, saldoActual) {
 // mora, mora-semana vs recuperación, cartera activa vs total); cuando llegue,
 // aquí se cambia la regla, no la estructura.
 function semaforoDe(c, info, pagoSemana) {
-  if (c.estatus === "VENCIDA" || Number(c.mora) > 0) return "vencida";
+  // Antes preguntaba por `estatus === "VENCIDA"` (con A) y esa palabra NO EXISTE
+  // en la plantilla: dice "VENCIDO", "CREDITO VENCIDO A RECUPERAR". Resultado: 29
+  // vencidos no se marcaban como vencidos (solo los cachaba la mora capturada).
+  if (esVencido(c) || Number(c.mora) > 0) return "vencida";
   if (info.saldoActual <= 0) return "liquidada";
   // Cuota VARIABLE (Magnus): su cuota baja cada periodo, así que compararla
   // contra la del padrón daría un semáforo falso. Se aparta hasta que exista
@@ -1338,8 +1379,11 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       conSaldo++;
       // Lo que DEBÍA entrar esta semana por ese crédito: su cuota, o el saldo
       // si ya le falta menos de una cuota para liquidar. Los de cuota VARIABLE
-      // no suman: su cuota del padrón ya no es la vigente.
-      if (!esCuotaVariable(c.producto)) esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+      // no suman: su cuota del padrón ya no es la vigente. Los VENCIDOS tampoco:
+      // dictado de Monse (29-jul) "mora = los faltantes de pago de los créditos
+      // ACTIVOS". Un vencido ya no tiene cuota que esperar, está en recuperación
+      // — y lo que entre de él es RECUPERACIÓN, no cobranza de la semana.
+      if (!esCuotaVariable(c.producto) && !esVencido(c)) esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
     }
     if (info.saldoActual <= 0) acc.liquidadas++;
     const mora = Number(c.mora) > 0 ? Number(c.mora) : 0;
@@ -1348,7 +1392,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
     const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
     e.creditos++; e.cartera += info.saldoActual; e.mora += mora; e[s]++;
-    if (info.saldoActual > 0 && !esCuotaVariable(c.producto)) e.esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+    if (info.saldoActual > 0 && !esCuotaVariable(c.producto) && !esVencido(c)) e.esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
     e.cobrado += pagoSemana;
   }
   const r2 = (n) => Math.round(n * 100) / 100;
@@ -1510,7 +1554,10 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   const conSaldo = base.map((c) => ({ ...c, ...infoCredito(cv, c) }));
   let lista = conSaldo;
   if (estado === "liquidadas") lista = conSaldo.filter((c) => (c.saldo || 0) > 0 && c.saldoActual <= 0);
-  else if (estado === "vencidas") lista = conSaldo.filter((c) => c.estatus === "VENCIDA");
+  // esVencido(): reconoce "VENCIDO" y "CREDITO VENCIDO A RECUPERAR" como los
+  // escribe la plantilla. Antes comparaba contra "VENCIDA" y este filtro devolvía
+  // SIEMPRE vacío, aunque hubiera 29 vencidos reales (29-jul).
+  else if (estado === "vencidas") lista = conSaldo.filter((c) => esVencido(c) || Number(c.mora) > 0);
   else if (q.length >= 2) {
     const t = q.split(/\s+/);
     lista = conSaldo.filter((c) => { const h = norm(c.nombre) + " " + c.id; return t.every((x) => h.includes(x)); });
@@ -1519,14 +1566,17 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   res.json({ total: base.length, resultados: lista });
 });
 
-// Marcar / quitar VENCIDA con su mora (y, si hace falta, corregir el saldo).
+// Marcar / quitar VENCIDO con su mora (y, si hace falta, corregir el saldo).
 app.post("/api/creditos/mora", soloAnelMonse, (req, res) => {
   const b = req.body || {};
   const c = creditoActivo(b.id, b.producto);
   if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
   const mora = Number(b.mora);
   if (!Number.isFinite(mora) || mora < 0) return res.status(400).json({ error: "La mora debe ser un monto válido (0 la quita)." });
-  const campos = { mora, estatus: mora > 0 ? "VENCIDA" : "VIGENTE" };
+  // "VENCIDO", no "VENCIDA": es la palabra que usa la plantilla de Monse. Antes
+  // escribía "VENCIDA" y con eso el sistema inventaba un 8º estatus ajeno a su
+  // vocabulario — y encima nada lo reconocía después (29-jul).
+  const campos = { mora, estatus: mora > 0 ? "VENCIDO" : "VIGENTE" };
   if (b.saldo != null && b.saldo !== "" && Number.isFinite(Number(b.saldo))) campos.saldo = Number(b.saldo);
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos,
@@ -1616,8 +1666,16 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     .reduce((s, c) => s + infoCredito(cv, c).saldoActual, 0);
   // Se guarda el nombre CANÓNICO (el de USUARIOS), no el que llegó tecleado:
   // la app de cada ejecutiva se arma comparando este nombre.
+  // `previo`: cuánto llevaba abonado el ciclo que se está cerrando. Como el ciclo
+  // nuevo hereda la MISMA llave (socio+producto), sin esto el tablero le restaría
+  // esos abonos al crédito nuevo. Se guarda con el corte vigente porque los
+  // acumulados se miden desde ahí: si el corte cambia, el descuento ya no aplica.
+  const infoPrev = choca ? infoCredito(cv, choca) : null;
+  const previo = infoPrev
+    ? { pago: infoPrev.pagado || 0, gar: infoPrev.garantia || 0, liq: infoPrev.liquidado || 0, corte: corteSaldos() }
+    : null;
   const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
-    mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null,
+    mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito

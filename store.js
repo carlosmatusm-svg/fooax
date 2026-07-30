@@ -34,7 +34,12 @@ function aplicarCambios(base, cambios) {
       const ya = arr.some((cl) => String(cl.id) === String(c.clienta.id) &&
         norm2(cl.producto) === norm2(c.clienta.producto) &&
         cl.activa !== false && cl.estatus !== "BAJA");
-      if (!ya) arr.push(Object.assign({}, c.clienta, { origen: "alta", activa: true }));
+      // `alta_fecha` es indispensable para las RENOVACIONES: la llave de un crédito
+      // es socio+producto, y al renovar el nombre es el MISMO. Sin la fecha desde la
+      // que existe este ciclo, los pagos del ciclo anterior se le descuentan al
+      // nuevo (probado el 29-jul: renovó $10,000 y salía en $8,000 porque le
+      // restaron los $2,000 con que liquidó el ciclo viejo).
+      if (!ya) arr.push(Object.assign({}, c.clienta, { origen: "alta", activa: true, alta_fecha: c.fecha || null }));
     } else if (c.tipo === "baja") {
       for (const cl of arr) {
         if (String(cl.id) === String(c.id) && (!c.producto || norm2(cl.producto) === norm2(c.producto))) {
