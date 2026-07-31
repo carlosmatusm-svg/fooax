@@ -625,6 +625,10 @@ async function buscar() {
   resultados.innerHTML = (window.__CRED_ROWS = d.resultados).map(tarjetaCredito).join("");
 }
 
+// La plantilla escribe "VENCIDO" (y "CREDITO VENCIDO A RECUPERAR"), no "VENCIDA":
+// comparar contra "VENCIDA" hacía que el botón dijera "Marcar vencida" en un
+// crédito que YA estaba vencido (mismo detalle que se corrigió en el servidor).
+function esVencidaUI(c) { return /vencid/i.test(String((c && c.estatus) || "")); }
 // ---------- créditos y saldos · solo Anel y Monse ----------
 // Saber quién entró para revelar el panel y las acciones de cartera.
 async function cargarYo() {
@@ -665,6 +669,10 @@ async function verCreditos(estado) {
   let d;
   try { d = await (await fetch("/api/creditos?estado=" + encodeURIComponent(estado), { credentials: "include" })).json(); }
   catch { resultados.innerHTML = '<div class="rvacio">Sin conexión con el servidor.</div>'; return; }
+  // Los nombres reales de los ejecutivos vienen con la lista: los usa el menú de
+  // "Reasignar" para no dejar escribir un nombre a mano (un "Nery" mal tecleado
+  // mandaba el crédito a un ejecutivo que no existe y no le aparecía a nadie).
+  if (d.ejecutivos && d.ejecutivos.length) window.EJECUTIVOS_LISTA = d.ejecutivos;
   if (!d.resultados || !d.resultados.length) { resultados.innerHTML = '<div class="rvacio">No hay clientas en esta lista.</div>'; return; }
   resultados.innerHTML = (window.__CRED_ROWS = d.resultados).map(tarjetaCredito).join("");
 }
@@ -681,7 +689,8 @@ function tarjetaCredito(c, i) {
       ? '<button class="credbtn reda" onclick="pedirRecredito(this,' + i + ')">Re-dar crédito</button>' : "";
     acc = '<div class="credacc">'
       + '<button class="credbtn" onclick="pedirAjuste(this,' + i + ')">Ajustar saldo</button>'
-      + '<button class="credbtn venc" onclick="pedirMora(this,' + i + ')">' + (c.estatus === "VENCIDA" ? "Editar mora" : "Marcar vencida") + "</button>"
+      + '<button class="credbtn" onclick="pedirReasignar(this,' + i + ')">Reasignar</button>'
+      + '<button class="credbtn venc" onclick="pedirMora(this,' + i + ')">' + (esVencidaUI(c) ? "Editar mora" : "Marcar vencida") + "</button>"
       + reda + "</div>";
   }
   return '<div class="rcard">'
@@ -714,6 +723,33 @@ async function hacerAjuste(btn, i) {
     const r = await fetch("/api/creditos/ajuste", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { err.textContent = d.error || "No se pudo ajustar."; btn.disabled = false; return; }
+    refrescarLista();
+  } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
+}
+// REASIGNAR: mover un crédito de un ejecutivo a otro. Va aparte del ajuste de
+// saldo a propósito — antes había que reescribir el saldo para poder cambiar de
+// ejecutivo, y un dedazo ahí le cambiaba el dinero a la clienta (30-jul).
+function pedirReasignar(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  const nombres = (window.EJECUTIVOS_LISTA || []).filter((n) => n !== c.ejecutivo);
+  if (!nombres.length) { alert("No hay otro ejecutivo al que pasarlo."); return; }
+  box.className = "credbox";
+  box.innerHTML = "<span>Pasar a " + hesc(c.nombre) + " (hoy es de <b>" + hesc(c.ejecutivo || "—") + "</b>) a:</span>"
+    + '<select class="credin" id="reEjec">' + nombres.map((n) => '<option>' + hesc(n) + "</option>").join("") + "</select>"
+    + '<input class="credin ancho" id="reMotivo" placeholder="motivo (ej. la clienta es de su ruta)">'
+    + '<button class="credok" onclick="hacerReasignar(this,' + i + ')">Pasar</button>'
+    + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
+    + '<div class="crederr" id="reErr"></div>';
+  $("reMotivo").focus();
+}
+async function hacerReasignar(btn, i) {
+  const c = credRow(i), err = $("reErr"); btn.disabled = true;
+  // NO se manda el saldo: solo cambia de ejecutivo. El dinero no se toca.
+  const body = { id: c.id, producto: c.producto, ejecutivo: $("reEjec").value, motivo: $("reMotivo").value };
+  try {
+    const r = await fetch("/api/creditos/ajuste", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = d.error || "No se pudo reasignar."; btn.disabled = false; return; }
     refrescarLista();
   } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
 }

@@ -1563,7 +1563,10 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
     lista = conSaldo.filter((c) => { const h = norm(c.nombre) + " " + c.id; return t.every((x) => h.includes(x)); });
   } else lista = [];
   lista = lista.sort((a, b) => String(a.centro).localeCompare(String(b.centro), "es") || String(a.nombre).localeCompare(String(b.nombre), "es")).slice(0, 120);
-  res.json({ total: base.length, resultados: lista });
+  // La lista de ejecutivos va con la respuesta: el tablero la necesita para el
+  // menú de "Reasignar" (mover un crédito de un ejecutivo a otro).
+  res.json({ total: base.length, resultados: lista,
+    ejecutivos: idsEjecutivos(req.usuario).map((id) => USUARIOS[id].nombre) });
 });
 
 // Marcar / quitar VENCIDO con su mora (y, si hace falta, corregir el saldo).
@@ -1592,11 +1595,17 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
   const b = req.body || {};
   const c = creditoActivo(b.id, b.producto);
   if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  // El saldo es OPCIONAL: si viene vacío no se toca. Antes era obligatorio, así
+  // que para solo REASIGNAR un crédito a otro ejecutivo había que volver a
+  // teclear el saldo — y un dedazo ahí le cambiaba el dinero a la clienta.
+  // Mover cartera y corregir un saldo son dos cosas distintas (30-jul).
+  const traeSaldo = b.saldo != null && String(b.saldo).trim() !== "";
   const saldo = Number(b.saldo);
-  if (!Number.isFinite(saldo) || saldo < 0) return res.status(400).json({ error: "El nuevo saldo debe ser un monto válido." });
+  if (traeSaldo && (!Number.isFinite(saldo) || saldo < 0)) return res.status(400).json({ error: "El nuevo saldo debe ser un monto válido." });
   const motivo = String(b.motivo || "").trim();
   if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo del ajuste (queda en la bitácora)." });
-  const campos = { saldo };
+  const campos = {};
+  if (traeSaldo) campos.saldo = saldo;
   if (b.cuota != null && b.cuota !== "" && Number.isFinite(Number(b.cuota)) && Number(b.cuota) >= 0) campos.cuota = Number(b.cuota);
   // Reasignar el crédito a otro ejecutivo (mover cartera). Solo nombres reales.
   if (b.ejecutivo) {
@@ -1605,6 +1614,7 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
     if (!ok) return res.status(400).json({ error: "Ese ejecutivo no existe. Elige uno de: " + nombres.join(", ") });
     campos.ejecutivo = ok;
   }
+  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota o el ejecutivo." });
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
     saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
@@ -2552,6 +2562,30 @@ function repararAnuladosFalsos() {
 // liquidaciones correctas (el día doblado había dejado movimientos basura que
 // inflaban "otros" a $37,992 en vez de $16,380). Nada se borra: los extras
 // quedan ANULADOS (con rastro) y dejan de contar. Corre una sola vez (centinela).
+// MARTHA PATRICIA VASQUEZ HERNANDEZ (11113236921, Foxi Plus - 2) pasa de
+// Christopher a JULIO: la clienta es de su ruta. Lo pidió Karina el 30-jul.
+// Va como corrección única (centinela) para que el SERVIDOR quede igual que las
+// apps, donde ya se movió. El saldo NO se toca: solo cambia el ejecutivo, y
+// queda `ejecutivo_anterior` como rastro. De aquí en adelante esto ya no
+// necesita programación: el tablero tiene el botón "Reasignar".
+function reasignarMarthaPatricia30jul() {
+  const CENTINELA = "MIGR-MARTHA-JULIO-2026-07-30";
+  const ID = "11113236921", PROD = "Foxi Plus - 2";
+  if (store.cambiosPadron().some((c) => c.centinela === CENTINELA)) return;   // ya aplicada
+  const c = PADRON.find((x) => String(x.id) === ID && x.activa !== false && x.estatus !== "BAJA");
+  if (!c) return;                                   // no está: nada que hacer
+  if (norm(c.ejecutivo) === norm("Julio")) return;   // ya es de Julio
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: ID, producto: c.producto || PROD,
+    campos: { ejecutivo: "Julio" },
+    motivo: "La clienta es de la ruta de Julio (la tenía registrada Christopher)",
+    saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: "Karina (desarrollo)",
+    centinela: CENTINELA, ts: Date.now(),
+  });
+  refrescarPadron();
+  console.log("[reasignación] MARTHA PATRICIA 11113236921 → Julio (saldo intacto)");
+}
+
 function repararCapturaKarina24jul() {
   const CENTINELA = "MIGR-KARINA-2026-07-24-v2";
   if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;   // ya aplicada
@@ -2637,6 +2671,7 @@ store.init().then(() => {
   recuperarMovimientosHistoricos();
   repararAnuladosFalsos();
   repararCapturaKarina24jul();
+reasignarMarthaPatricia30jul();
   repararCarteraJulio();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });
