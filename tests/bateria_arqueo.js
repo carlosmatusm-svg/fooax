@@ -829,6 +829,39 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("si el ciclo anterior AÚN DEBE, la renovación con el mismo nombre se rechaza",
     !!rb.error && /saldo/i.test(rb.error), JSON.stringify(rb).slice(0, 110));
 
+  console.log("\n— 33. GASTOS: el arqueo aguanta y el Excel dice DE QUÉ fueron (Karina, 30-jul) —");
+  // El Excel de arqueo decía "− Gastos $450" y nada más: Monse veía el monto pero
+  // no de qué fue, y tenía que preguntar uno por uno. Ahora van renglón por
+  // renglón con quién lo capturó, y el neto cuadra con el efectivo a entregar.
+  const FGAS = "2026-06-24";
+  await syncCent(FGAS, { fecha: FGAS,
+    reg: { "C-9": { "gx1|P": { pago: 2000, forma: "E" }, "gx2|P": { pago: 1000, forma: "E" } } }, regI: {},
+    movs: [{ folio: "GA1", concepto: "GASTO", monto: 300, via: "E", nota: "pasaje" },
+           { folio: "GA2", concepto: "GASTO", monto: 150, via: "E", nota: "papeleria" },
+           { folio: "GA3", concepto: "RECUPERACION", monto: 600, via: "E", entrada: true, clienta: "ROSA MARIA" }],
+    arqueo: { "500": 6, "100": 1, "50": 1 } });   // 3,150 = 3,000 - 450 + 600
+  const arqGasto = await j(await fetch(U + "/api/arqueo?fecha=" + FGAS, { headers: H(cd) }));
+  const ejeGasto = (arqGasto.porEjec || {}).prueba || {};
+  ok("con gastos y una entrada, el día CUADRA en $0",
+    Math.abs(ejeGasto.dif || 0) < 0.01 && Math.abs(ejeGasto.aEntregar - 3150) < 0.01,
+    "cobró " + ejeGasto.efectivo + " · neto " + (-ejeGasto.egresoEfectivo) + " · entrega " + ejeGasto.aEntregar +
+    " · contó " + ejeGasto.contado + " · dif " + ejeGasto.dif);
+  const xlsGasto = await fetch(U + "/api/arqueo/excel?fecha=" + FGAS, { headers: H(cd) });
+  const ExcelGasto = require("exceljs");
+  const wbGasto = new ExcelGasto.Workbook();
+  await wbGasto.xlsx.load(Buffer.from(await xlsGasto.arrayBuffer()));
+  const wsGasto = wbGasto.getWorksheet("Arqueo");
+  const filasGasto = [];
+  wsGasto.eachRow((r) => { const f = []; r.eachCell({ includeEmpty: true }, (c) => f.push(String(c.value == null ? "" : c.value))); filasGasto.push(f.join(" | ")); });
+  const planoGasto = filasGasto.join("\n");
+  ok("el Excel trae el bloque de gastos con su detalle",
+    /GASTOS Y MOVIMIENTOS DE CAJA/.test(planoGasto) && /pasaje/.test(planoGasto) && /papeleria/.test(planoGasto),
+    planoGasto.slice(0, 150));
+  ok("cada gasto sale en NEGATIVO y la entrada en positivo",
+    /-300/.test(planoGasto) && /-150/.test(planoGasto) && /\|\s*600/.test(planoGasto), "");
+  ok("y aparece el 'Total contado', para que no parezca que la suma no cuadra",
+    /Total contado/.test(planoGasto) && /3150/.test(planoGasto), "");
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

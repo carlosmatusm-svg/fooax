@@ -2044,6 +2044,11 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   // Mismos renglones y mismos números que la tarjeta de arqueo del tablero,
   // para poder compararlos lado a lado sin traducir nada. egresosEfectivo es el
   // NETO: si es negativo, la caja recibió más de lo que gastó (recuperaciones).
+  // "Total contado" se imprime SIEMPRE que hayan contado: sin él, arriba quedaban
+  // unas denominaciones que suman una cosa y un "TOTAL EFECTIVO" que dice otra
+  // (el cobrado), y parecía un error de suma. Ahora los dos números están a la
+  // vista y se entiende que uno es lo que cobró y el otro lo que trae en la mano.
+  if (totalEfe > 0) linea("Total contado (billetes y monedas)", totalEfe);
   if (egresosEfectivo >= 0) linea("− Gastos y retiros en efectivo", -egresosEfectivo);
   else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEfectivo);
   linea("Efectivo a entregar", a.efectivo - egresosEfectivo);
@@ -2072,6 +2077,60 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     if (e.movSalidas) extra.push("otros −" + pesos(e.movSalidas));
     r.getCell(4).value = extra.join(" · ");
     r.getCell(4).alignment = { horizontal: "right" }; }
+
+  // DETALLE DE GASTOS Y MOVIMIENTOS. Antes el Excel decía "− Gastos $450" y nada
+  // más: Monse veía el monto pero no DE QUÉ fue, y tenía que preguntar por cada
+  // uno. Aquí van renglón por renglón, con quién lo capturó y su nota. Los
+  // ANULADOS también se listan (tachados en gris): si alguien borró un gasto de
+  // $2,000 eso tiene que verse, no desaparecer.
+  const movsDia = (movs || []).filter((m) => Number(m.monto) > 0);
+  if (movsDia.length) {
+    fila++;
+    const rt = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 4);
+    const ct2 = rt.getCell(1);
+    ct2.value = "GASTOS Y MOVIMIENTOS DE CAJA DEL DÍA";
+    ct2.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    ct2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NARANJA } };
+    const rh2 = s.getRow(fila++);
+    ["Concepto", "Quién / nota", "Forma", "Monto"].forEach((h, i) => {
+      const c = rh2.getCell(i + 1); c.value = h;
+      c.font = { bold: true, color: { argb: "FF2A1F35" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFECE6F1" } };
+      c.alignment = { horizontal: i === 3 ? "right" : "left" };
+    });
+    // Los campos son los que guarda el servidor: `registradoPor`, `metodo` y
+    // `autorizadoA` (no `ejecutivo`/`via`/`nota`, que son los de la app).
+    const via = { E: "Efectivo", T: "Transferencia", D: "Depósito", CH: "Cheque",
+      efectivo: "Efectivo", transferencia: "Transferencia", deposito: "Depósito", cheque: "Cheque" };
+    for (const m of movsDia) {
+      const r = s.getRow(fila++);
+      const entra = !!m.entrada;
+      r.getCell(1).value = String(m.concepto || m.categoria || "Movimiento");
+      r.getCell(2).value = [m.registradoPor || m.usuario || "",
+        m.autorizadoA ? "a " + m.autorizadoA : ""].filter(Boolean).join(" · ");
+      const mt = String(m.metodo || m.via || "efectivo");
+      r.getCell(3).value = via[mt] || via[mt.toUpperCase()] || mt;
+      const cmn = r.getCell(4);
+      // Con signo: entra en positivo, sale en negativo. Así la columna se puede
+      // sumar y da exactamente el neto que aparece arriba.
+      cmn.value = entra ? Number(m.monto) : -Number(m.monto);
+      cmn.numFmt = dinero;
+      const gris = { argb: "FF9A93A6" };
+      if (m.anulado) {
+        [1, 2, 3, 4].forEach((i) => { r.getCell(i).font = { strike: true, color: gris }; });
+        r.getCell(2).value = (r.getCell(2).value ? r.getCell(2).value + " · " : "") + "ANULADO";
+      } else {
+        cmn.font = { bold: true, color: { argb: entra ? "FF0B7247" : "FFB00020" } };
+      }
+    }
+    const rtot = s.getRow(fila++);
+    rtot.getCell(1).value = "Neto de caja (así se movió el efectivo a entregar)";
+    rtot.getCell(1).font = { bold: true };
+    const ctt = rtot.getCell(4);
+    ctt.value = -egresosEfectivo; ctt.numFmt = dinero;
+    ctt.font = { bold: true, color: { argb: AURORA } };
+  }
 
   const buf = await wb.xlsx.writeBuffer();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
