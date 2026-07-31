@@ -872,6 +872,38 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     movG.netoEfectivo === 150,
     "neto " + movG.netoEfectivo + " · el bruto de antes daba " + movG.totalEfectivo);
 
+  console.log("\n— 34. ANULAR un movimiento de Dirección, con rastro (Karina, 30-jul) —");
+  // Karina registró un gasto de prueba de $100 desde el tablero y NO HABÍA forma
+  // de quitarlo: el día quedaba marcando "sobran $100" para siempre. Los
+  // movimientos de la ejecutiva se anulan al borrarlos en su app; los de
+  // Dirección (folio DIR-…) no tenían salida. Nunca se borra: se tacha con quién
+  // lo anuló y por qué.
+  const FANU = "2026-06-26";
+  await syncCent(FANU, { fecha: FANU, reg: { "C-1": { "z1|P": { pago: 2000, forma: "E" } } },
+    regI: {}, movs: [], arqueo: { "500": 4 } });
+  const diaA = async () => { const a = await j(await fetch(U + "/api/arqueo?fecha=" + FANU, { headers: H(cd) }));
+    return { efe: a.efectivo, egr: a.egresosEfectivo || 0 }; };
+  const d0 = await diaA();
+  ok("el día arranca sin egresos", d0.efe === 2000 && d0.egr === 0, JSON.stringify(d0));
+  const rmov = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cd),
+    body: JSON.stringify({ fecha: FANU, monto: 100, concepto: "gasto de prueba", categoria: "Otro", metodo: "efectivo" }) }));
+  const d1 = await diaA();
+  ok("un gasto de $100 RESTA del efectivo a entregar (2,000 → 1,900)",
+    d1.egr === 100 && d1.efe - d1.egr === 1900, JSON.stringify(d1));
+  const sinMot = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cd),
+    body: JSON.stringify({ folio: rmov.movimiento.folio, fecha: FANU }) }));
+  ok("anular SIN motivo se rechaza (el rastro es obligatorio)", !!sinMot.error, JSON.stringify(sinMot).slice(0, 80));
+  const conMot = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cd),
+    body: JSON.stringify({ folio: rmov.movimiento.folio, fecha: FANU, motivo: "era una prueba, el dinero nunca salió" }) }));
+  const d2 = await diaA();
+  ok("al anularlo el día VUELVE A CUADRAR (1,900 → 2,000)",
+    conMot.ok === true && d2.egr === 0 && d2.efe - d2.egr === 2000, JSON.stringify(d2));
+  const listaA = (await j(await fetch(U + "/api/movimientos?fecha=" + FANU, { headers: H(cd) }))).lista || [];
+  const anu = listaA.find((x) => x.folio === rmov.movimiento.folio) || {};
+  ok("el movimiento NO se borra: queda con quién lo anuló y por qué",
+    anu.anulado === true && !!anu.anuladoPor && /prueba/i.test(anu.anuladoMotivo || ""),
+    JSON.stringify({ anulado: anu.anulado, por: anu.anuladoPor, motivo: anu.anuladoMotivo }));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

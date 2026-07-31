@@ -1800,6 +1800,28 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   res.json({ ok: true, movimiento: mov });
 });
 
+// ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
+// anuló y por qué, y deja de contar en los totales y en el arqueo. Nació el
+// 30-jul: Karina registró un gasto de prueba de $100 desde el tablero y NO HABÍA
+// forma de quitarlo — el día quedaba marcando "sobran $100" para siempre. Los
+// movimientos que captura la ejecutiva se anulan solos al borrarlos en su app;
+// los que registra Dirección (folio DIR-…) no tenían salida.
+app.post("/api/movimiento/anular", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const folio = String(b.folio || "").trim();
+  const motivo = String(b.motivo || "").trim();
+  const anular = b.anular !== false;   // por omisión anula; con false se revive
+  if (!folio) return res.status(400).json({ error: "Falta el folio del movimiento." });
+  // El motivo es obligatorio al anular: es lo que Monse va a leer cuando pregunte
+  // por qué la caja de ese día cambió.
+  if (anular && !motivo) return res.status(400).json({ error: "Escribe por qué se anula (queda en el rastro)." });
+  const m = store.movimientosDeFecha(b.fecha || hoyMX()).find((x) => x.folio === folio) ||
+    store.todosMovimientos().find((x) => x.folio === folio);
+  if (!m) return res.status(400).json({ error: "No encuentro ese movimiento." });
+  store.setMovimientoAnulado(folio, anular, req.usuario.nombre, motivo || null);
+  res.json({ ok: true, folio, anulado: anular });
+});
+
 // ---------- ARQUEO consolidado del día ----------
 // Reproduce el FORMATO ARQUEO de FOOAX: desglose de billetes/monedas por
 // ejecutivo, efectivo total, menos egresos (gastos/retiros), efectivo a

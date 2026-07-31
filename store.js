@@ -378,11 +378,16 @@ module.exports = {
   },
   // Marca/desmarca un movimiento como ANULADO. Nunca se borra: si la ejecutiva
   // lo quitó en su app, aquí queda el rastro (y deja de contar en los totales).
-  setMovimientoAnulado(folio, anulado) {
+  // `por` y `motivo` (opcionales): cuando lo anula Dirección desde el tablero
+  // queda escrito QUIÉN y POR QUÉ — un movimiento de caja que desaparece sin
+  // explicación es justo lo que no puede pasar en una SOFOM.
+  setMovimientoAnulado(folio, anulado, por, motivo) {
     const m = mem.movimientos.find((x) => x.folio === folio);
     if (!m || !!m.anulado === !!anulado) return;
     m.anulado = !!anulado;
     m.anuladoTs = anulado ? Date.now() : null;
+    m.anuladoPor = anulado ? (por || null) : null;
+    m.anuladoMotivo = anulado ? (motivo || null) : null;
     if (usePg) {
       pool.query("UPDATE movimientos SET data=$2 WHERE folio=$1", [folio, m])
         .catch((e) => console.error("[store] anular:", e.message));

@@ -190,6 +190,9 @@
   .movlista{margin:8px 16px 0;display:flex;flex-direction:column;gap:7px}
   .movitem.anulado{opacity:.5}.movitem.anulado .mi-monto{text-decoration:line-through}
   .mi-anulado{font-size:10px;font-weight:800;color:#B00020;letter-spacing:.04em}
+  .mi-anular{background:none;border:1px solid var(--linea);color:var(--gris);font:700 11px inherit;
+    border-radius:99px;padding:3px 10px;margin-left:10px;cursor:pointer;flex:0 0 auto}
+  .mi-anular:hover{border-color:#B00020;color:#B00020}
   .movitem{background:var(--tarjeta);border:1px solid var(--linea);border-radius:13px;
     padding:11px 13px;display:flex;align-items:center;gap:10px}
   .movitem .mi-info{flex:1;min-width:0}
@@ -855,6 +858,17 @@ function toggleMovForm() {
   f.style.display = abierto ? "none" : "flex";
   t.textContent = abierto ? "+ Registrar retiro o gasto" : "Cerrar";
 }
+async function anularMov(folio) {
+  const motivo = prompt("¿Por qué se anula este movimiento?\n\nQueda escrito en el rastro: el movimiento no se borra, se tacha con tu nombre y este motivo.");
+  if (motivo === null) return;                       // canceló
+  if (!motivo.trim()) { alert("Escribe el motivo: es lo que va a leer Monse cuando pregunte por la caja de ese día."); return; }
+  const r = await fetch("/api/movimiento/anular", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folio, motivo: motivo.trim(), fecha: FECHA_VISTA || undefined }) });
+  const j = await r.json().catch(() => ({}));
+  if (j.error) { alert(j.error); return; }
+  await cargarMovs();
+  if (typeof cargarArqueo === "function") cargarArqueo();   // el arqueo cambia al anular
+}
 async function registrarMov(e) {
   e.preventDefault();
   const err = $("movErr"); err.classList.remove("on");
@@ -889,7 +903,7 @@ async function cargarMovs() {
     return tipo ? tipo + " · Otro" : "Otro";
   };
   cont.innerHTML = d.lista.map(m =>
-    '<div class="movitem' + (m.anulado ? " anulado" : "") + '"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + (m.anulado ? ' <span class="mi-anulado">ANULADO por la ejecutiva</span>' : "") + "</div>"
+    '<div class="movitem' + (m.anulado ? " anulado" : "") + '"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + (m.anulado ? ' <span class="mi-anulado">ANULADO' + (m.anuladoPor ? " por " + hesc(m.anuladoPor) : " por la ejecutiva") + (m.anuladoMotivo ? " · " + hesc(m.anuladoMotivo) : "") + "</span>" : "") + "</div>"
     + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo) + (m.cheque ? " #" + hesc(m.cheque) : "")
     + (m.autorizadoA ? " · a " + hesc(m.autorizadoA) : "")
     + " · registró " + hesc(m.registradoPor)
@@ -899,7 +913,12 @@ async function cargarMovs() {
     // dinero a la caja. Pintarlas con "−" como todo lo demás hacía leer una
     // recuperación como si fuera un gasto.
     + '<div class="mi-monto"' + (m.entrada ? ' style="color:#0B7247"' : "") + ">"
-    + (m.entrada ? "+" : "−") + dinero(m.monto) + "</div></div>"
+    + (m.entrada ? "+" : "−") + dinero(m.monto) + "</div>"
+    // Anular: nunca borra, deja el movimiento tachado con quién y por qué. Los
+    // que captura la ejecutiva se anulan en SU app; este botón es para los que
+    // registra Dirección (folio DIR-…), que antes no tenían forma de quitarse.
+    + (m.anulado ? "" : '<button class="mi-anular" title="Anular este movimiento" onclick="anularMov(\'' + m.folio + '\')">Anular</button>')
+    + "</div>"
   ).join("")
   // Los netos (entradas − salidas), no los brutos: al lado de "Salidas −$100" un
   // "efectivo" que SUMABA esos $100 se leía como si el gasto no se hubiera
