@@ -859,8 +859,13 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     planoGasto.slice(0, 150));
   ok("cada gasto sale en NEGATIVO y la entrada en positivo",
     /-300/.test(planoGasto) && /-150/.test(planoGasto) && /\|\s*600/.test(planoGasto), "");
-  ok("y aparece el 'Total contado', para que no parezca que la suma no cuadra",
-    /Total contado/.test(planoGasto) && /3150/.test(planoGasto), "");
+  ok("el arqueo se muestra INTACTO: 'TOTAL CONTADO EN CAJA' con lo que ella contó",
+    /TOTAL CONTADO EN CAJA/i.test(planoGasto) && /3150/.test(planoGasto), "");
+  ok("y las deducciones van en su propio bloque, después del arqueo",
+    /CUENTAS DEL DÍA/i.test(planoGasto) &&
+    planoGasto.indexOf("CUENTAS DEL DÍA") > planoGasto.indexOf("TOTAL CONTADO EN CAJA"), "");
+  ok("cuando el gasto es REAL no sale advertencia: dice que el día cuadra",
+    /El día CUADRA/i.test(planoGasto) && !/SOBRAN|FALTAN/.test(planoGasto), "");
   // El renglón del tablero sumaba las salidas en vez de restarlas: al lado de
   // "Salidas −$100" decía "efectivo $6,786" cuando el neto era $6,586. Karina lo
   // cachó el 30-jul con una prueba de $100 (caso real: 6,686 de entradas).

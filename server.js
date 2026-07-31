@@ -2019,61 +2019,71 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     c.alignment = { horizontal: "center" };
     fila++;
   }
-  // TOTAL EFECTIVO = el efectivo REALMENTE cobrado, no la suma de los billetes.
-  // Antes se sumaban las denominaciones: si las ejecutivas no capturaron el
-  // conteo de billetes (que es lo normal), el arqueo decía "TOTAL EFECTIVO
-  // $0.00" un día en que entraron $31,389. Un arqueo en cero cuando sí hubo
-  // dinero es justo lo que no puede pasar.
+  // ── BLOQUE 1: EL ARQUEO TAL COMO LO MANDARON ─────────────────────────────
+  // Regla de Karina (30-jul): el arqueo se deja INTACTO —lo que la ejecutiva
+  // contó, sin restarle nada— y las deducciones van aparte. Antes se mezclaba:
+  // debajo de unas denominaciones que sumaban $72,043 aparecía un "TOTAL
+  // EFECTIVO $65,357" (que era la COBRANZA, otra cosa), y luego la advertencia
+  // ANTES de los números que la explican. Se leía al revés y confundía.
   s.mergeCells(fila, 1, fila, 3);
-  const ct = s.getCell(fila, 1); ct.value = "TOTAL EFECTIVO " + nomDia.toUpperCase();
+  const ct = s.getCell(fila, 1);
+  ct.value = totalEfe > 0 ? "TOTAL CONTADO EN CAJA" : "ESTE DÍA NO SE CAPTURÓ EL CONTEO";
   ct.font = { bold: true, color: { argb: "FFFFFFFF" } };
   ct.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NARANJA } };
-  const cv = s.getCell(fila, 4); cv.value = a.efectivo; cv.numFmt = dinero;
+  const cv = s.getCell(fila, 4); cv.value = totalEfe; cv.numFmt = dinero;
   cv.font = { bold: true, color: { argb: "FFFFFFFF" } };
   cv.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
-  fila++;
-  // La caja se compara contra el EFECTIVO A ENTREGAR (cobranza + otros
-  // movimientos en efectivo), no contra la cobranza sola: la ejecutiva trae en
-  // la mano las dos cosas. Antes se comparaba contra la cobranza y los otros
-  // movimientos salían como un "sobrante" falso — a Monse le aparecían $6,768
-  // de más cuando la diferencia real era de $848.
+  fila += 2;
+
+  // ── BLOQUE 2: DE DÓNDE SALE ESE NÚMERO ───────────────────────────────────
   const aEntregar = a.efectivo - egresosEfectivo;
   const sinDesglosar = Math.round((aEntregar - totalEfe) * 100) / 100;
+  s.mergeCells(fila, 1, fila, 4);
+  const ch = s.getCell(fila, 1);
+  ch.value = "CUENTAS DEL DÍA · así se llega a lo que debe entregar";
+  ch.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  ch.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+  fila++;
+  const linea = (lbl, val, negrita) => { const r = s.getRow(fila++); r.getCell(1).value = lbl;
+    if (negrita) r.getCell(1).font = { bold: true };
+    const c = r.getCell(4); c.value = val; c.numFmt = dinero; c.font = { bold: true }; };
+  // La cobranza va aquí, con su nombre: NO es lo contado. Se imprime siempre,
+  // aunque no hayan capturado el conteo — si no, un día con $31,389 de cobranza
+  // salía en cero y parecía un arqueo vacío.
+  linea("Cobranza en efectivo del día", a.efectivo);
+  // egresosEfectivo es el NETO: si es negativo, entró más de lo que salió.
+  if (egresosEfectivo >= 0) linea("− Gastos y retiros en efectivo", -egresosEfectivo);
+  else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEfectivo);
+  linea("= Efectivo a entregar", aEntregar, true);
+  // La diferencia va AL FINAL, cuando el lector ya vio las cuentas de arriba.
   if (Math.abs(sinDesglosar) >= 0.01) {
     const r = s.getRow(fila++);
     s.mergeCells(fila - 1, 1, fila - 1, 3);
     const c = r.getCell(1);
-    // Si SÍ contaron la caja y no cuadra, es una diferencia de caja real
-    // (falta o sobra efectivo), no un tema de formato. Se dice con todas sus
-    // letras: es el número por el que Monse tiene que preguntar.
     const falta = sinDesglosar > 0;
-    c.value = totalEfe > 0
-      ? "⚠ DIFERENCIA DE CAJA · a entregar $" + aEntregar.toLocaleString("es-MX") +
-        " (cobranza $" + a.efectivo.toLocaleString("es-MX") +
-        (egresosEfectivo ? (egresosEfectivo < 0 ? " + otros $" + (-egresosEfectivo).toLocaleString("es-MX") : " − otros $" + egresosEfectivo.toLocaleString("es-MX")) : "") +
-        ") vs contado $" + totalEfe.toLocaleString("es-MX") + " → " + (falta ? "FALTAN" : "SOBRAN")
-      : "⚠ Este día no se capturó el conteo de billetes — el efectivo de arriba viene de los pagos registrados";
-    const color = totalEfe > 0 ? "FFB00020" : "FF8A5A00";
+    if (totalEfe > 0) {
+      // Cuando hay gastos registrados se dice la causa más probable con todas
+      // sus letras: casi siempre es un gasto anotado cuyo dinero no salió de la
+      // caja, no un faltante de la ejecutiva.
+      c.value = "⚠ " + (falta ? "FALTAN" : "SOBRAN") + " contra lo contado" +
+        (!falta && egresosEfectivo > 0
+          ? " — revisa si algún gasto se anotó pero el dinero no salió de la caja"
+          : (falta ? " — revisa la cobranza y el conteo" : ""));
+    } else {
+      c.value = "⚠ Sin conteo de billetes: el efectivo de arriba viene de los pagos registrados";
+    }
+    const color = totalEfe > 0 ? (falta ? "FFB00020" : "FF8A5A00") : "FF8A5A00";
     c.font = { bold: true, color: { argb: color } };
     c.alignment = { wrapText: true };
-    const cd = r.getCell(4); cd.value = Math.abs(sinDesglosar); cd.numFmt = dinero;
-    cd.font = { bold: true, color: { argb: color } };
+    const cd2 = r.getCell(4); cd2.value = Math.abs(sinDesglosar); cd2.numFmt = dinero;
+    cd2.font = { bold: true, color: { argb: color } };
+  } else if (totalEfe > 0) {
+    const r = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c = r.getCell(1); c.value = "✓ El día CUADRA: lo contado es exactamente lo que debe entregar";
+    c.font = { bold: true, color: { argb: "FF0B7247" } };
   }
-  fila += 2;
-  // desglose de cierre
-  const linea = (lbl, val) => { const r = s.getRow(fila++); r.getCell(1).value = lbl;
-    const c = r.getCell(4); c.value = val; c.numFmt = dinero; c.font = { bold: true }; };
-  // Mismos renglones y mismos números que la tarjeta de arqueo del tablero,
-  // para poder compararlos lado a lado sin traducir nada. egresosEfectivo es el
-  // NETO: si es negativo, la caja recibió más de lo que gastó (recuperaciones).
-  // "Total contado" se imprime SIEMPRE que hayan contado: sin él, arriba quedaban
-  // unas denominaciones que suman una cosa y un "TOTAL EFECTIVO" que dice otra
-  // (el cobrado), y parecía un error de suma. Ahora los dos números están a la
-  // vista y se entiende que uno es lo que cobró y el otro lo que trae en la mano.
-  if (totalEfe > 0) linea("Total contado (billetes y monedas)", totalEfe);
-  if (egresosEfectivo >= 0) linea("− Gastos y retiros en efectivo", -egresosEfectivo);
-  else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEfectivo);
-  linea("Efectivo a entregar", a.efectivo - egresosEfectivo);
+  fila++;
   if (a.deposito > 0) {
     linea("Transferencias", a.transferencia - a.deposito);
     linea("Depósitos Oxxo / tienda", a.deposito);
