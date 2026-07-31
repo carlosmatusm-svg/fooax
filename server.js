@@ -1563,10 +1563,7 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
     lista = conSaldo.filter((c) => { const h = norm(c.nombre) + " " + c.id; return t.every((x) => h.includes(x)); });
   } else lista = [];
   lista = lista.sort((a, b) => String(a.centro).localeCompare(String(b.centro), "es") || String(a.nombre).localeCompare(String(b.nombre), "es")).slice(0, 120);
-  // La lista de ejecutivos va con la respuesta: el tablero la necesita para el
-  // menú de "Reasignar" (mover un crédito de un ejecutivo a otro).
-  res.json({ total: base.length, resultados: lista,
-    ejecutivos: idsEjecutivos(req.usuario).map((id) => USUARIOS[id].nombre) });
+  res.json({ total: base.length, resultados: lista });
 });
 
 // Marcar / quitar VENCIDO con su mora (y, si hace falta, corregir el saldo).
