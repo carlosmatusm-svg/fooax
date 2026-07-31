@@ -901,9 +901,13 @@ async function cargarMovs() {
     + '<div class="mi-monto"' + (m.entrada ? ' style="color:#0B7247"' : "") + ">"
     + (m.entrada ? "+" : "−") + dinero(m.monto) + "</div></div>"
   ).join("")
+  // Los netos (entradas − salidas), no los brutos: al lado de "Salidas −$100" un
+  // "efectivo" que SUMABA esos $100 se leía como si el gasto no se hubiera
+  // restado. Se dice "neto en efectivo" para que no quede duda de qué es.
   + '<div class="movtot">Entradas <b style="color:#0B7247">+' + dinero(d.entradas || 0)
-  + '</b> · Salidas <b>−' + dinero(d.salidas || 0) + "</b> · efectivo <b>"
-  + dinero(d.totalEfectivo) + "</b> · transf. <b>" + dinero(d.totalTransf) + "</b>"
+  + '</b> · Salidas <b>−' + dinero(d.salidas || 0) + "</b> · neto en efectivo <b>"
+  + dinero(d.netoEfectivo != null ? d.netoEfectivo : d.totalEfectivo) + "</b> · transf. <b>"
+  + dinero(d.netoTransf != null ? d.netoTransf : d.totalTransf) + "</b>"
   + (d.totalCheques > 0 ? ' · cheques <b style="color:#8A5A00">' + dinero(d.totalCheques) + "</b>" : "") + "</div>";
 }
 

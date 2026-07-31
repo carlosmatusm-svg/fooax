@@ -861,6 +861,16 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     /-300/.test(planoGasto) && /-150/.test(planoGasto) && /\|\s*600/.test(planoGasto), "");
   ok("y aparece el 'Total contado', para que no parezca que la suma no cuadra",
     /Total contado/.test(planoGasto) && /3150/.test(planoGasto), "");
+  // El renglón del tablero sumaba las salidas en vez de restarlas: al lado de
+  // "Salidas −$100" decía "efectivo $6,786" cuando el neto era $6,586. Karina lo
+  // cachó el 30-jul con una prueba de $100 (caso real: 6,686 de entradas).
+  const movG = await j(await fetch(U + "/api/movimientos?fecha=" + FGAS, { headers: H(cd) }));
+  ok("entradas y salidas se reportan por separado",
+    movG.entradas === 600 && movG.salidas === 450,
+    "entradas " + movG.entradas + " · salidas " + movG.salidas);
+  ok("el NETO en efectivo resta las salidas (no las suma)",
+    movG.netoEfectivo === 150,
+    "neto " + movG.netoEfectivo + " · el bruto de antes daba " + movG.totalEfectivo);
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

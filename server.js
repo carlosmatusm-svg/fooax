@@ -2358,7 +2358,17 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   // recuperación (entra) con un gasto (sale) en una sola cifra engañosa.
   const entradas = vivos.filter(m => m.entrada).reduce((s, m) => s + m.monto, 0);
   const salidas = vivos.filter(m => !m.entrada).reduce((s, m) => s + m.monto, 0);
-  res.json({ fecha, lista, totalEfectivo, totalTransf, totalCheques, total: totalEfectivo + totalTransf, entradas, salidas });
+  // NETO por forma de pago (entradas − salidas). Los `total*` de arriba suman
+  // TODO sin importar la dirección, así que un gasto de $100 en efectivo SUMABA
+  // $100: al lado de "Entradas +$6,686 · Salidas −$100" aparecía "efectivo
+  // $6,786" cuando el efectivo de verdad se movió $6,586. Karina lo cachó el
+  // 30-jul haciendo una prueba de $100. Es lo mismo que el propio comentario de
+  // arriba quería evitar: una cifra que mezcla lo que entra con lo que sale.
+  const neto = (met) => vivos.filter((m) => m.metodo === met)
+    .reduce((s, m) => s + (m.entrada ? m.monto : -m.monto), 0);
+  res.json({ fecha, lista, totalEfectivo, totalTransf, totalCheques, total: totalEfectivo + totalTransf,
+    entradas, salidas,
+    netoEfectivo: neto("efectivo"), netoTransf: neto("transferencia"), netoCheques: neto("cheque") });
 });
 
 // ---------- páginas ----------
