@@ -186,6 +186,7 @@
 
 <div class="tabs">
   <button class="tab active" data-tab="cobranza" onclick="showTab('cobranza')">Cobranza</button>
+  <button class="tab" data-tab="indiv" onclick="showTab('indiv')">Individuales</button>
   
   <button class="tab" data-tab="renov" onclick="showTab('renov')">Renovaciones</button>
   
@@ -234,6 +235,16 @@
 </div>
 
 
+
+<div class="wrap hidden" id="tab-indiv">
+  <div class="card">
+    <div class="row2">
+      <div><label>Fecha</label><input type="date" id="inpFechaI" disabled></div>
+    </div>
+    <div class="meta" style="margin-top:8px">Clientas individuales (FOXI / Individual / MAGNUS / COMADRE). Captura su pago directamente.</div>
+  </div>
+  <div id="listaIndiv"></div>
+</div>
 
 <div class="wrap hidden" id="tab-renov">
   <div class="card">
