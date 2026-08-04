@@ -456,6 +456,10 @@
     <button class="movtoggle" id="movToggle" onclick="toggleMovForm()">+ Registrar retiro o gasto</button>
     <form class="movform" id="movForm" onsubmit="registrarMov(event)" style="display:none">
       <div class="mrow">
+        <!-- FECHA DEL GASTO. Antes no existía y TODO caía en el día de hoy: si se
+             subían los gastos de la semana, se descontaban del efectivo de un
+             solo día y el arqueo salía en negativo (reportado el 4-ago). -->
+        <div class="mcampo"><label>Fecha del gasto</label><input id="mFecha" type="date" required></div>
         <div class="mcampo"><label>Monto</label><input id="mMonto" type="number" inputmode="decimal" min="0" step="0.01" required></div>
         <div class="mcampo"><label>Método</label><select id="mMetodo"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="cheque">Cheque</option></select></div>
       </div>
@@ -635,6 +639,9 @@ async function cargarYo() {
   try {
     const d = await (await fetch("/api/me", { credentials: "include" })).json();
     window.__YO = d.usuario || null;
+    // La fecha la manda el SERVIDOR, no el navegador: un tablero con la fecha
+    // mal puesta capturaba gastos en un día equivocado.
+    if (d.hoy) window.__HOY_SERVIDOR = d.hoy;
     window.__PUEDE_CREDITO = (d.usuario === "anel" || d.usuario === "monse");
     if (window.__PUEDE_CREDITO) {
       const p = $("credPanel"); if (p) p.style.display = "flex";
@@ -861,6 +868,15 @@ function toggleMovForm() {
   const abierto = f.style.display !== "none";
   f.style.display = abierto ? "none" : "flex";
   t.textContent = abierto ? "+ Registrar retiro o gasto" : "Cerrar";
+  // La fecha arranca en el DÍA QUE SE ESTÁ VIENDO, no siempre en hoy: si Monse
+  // está revisando el arqueo del sábado y captura ahí un gasto, es del sábado.
+  // Y no deja elegir fechas futuras.
+  const fi = $("mFecha");
+  if (fi && !abierto) {
+    const hoy = (window.__HOY_SERVIDOR || new Date().toISOString().slice(0, 10));
+    fi.max = hoy;
+    if (!fi.value) fi.value = FECHA_VISTA || hoy;
+  }
 }
 async function anularMov(folio) {
   const motivo = prompt("¿Por qué se anula este movimiento?\n\nQueda escrito en el rastro: el movimiento no se borra, se tacha con tu nombre y este motivo.");
@@ -878,9 +894,11 @@ async function registrarMov(e) {
   const err = $("movErr"); err.classList.remove("on");
   const btn = e.target.querySelector(".movsubmit"); btn.disabled = true;
   const body = {
+    fecha: $("mFecha").value || undefined,
     monto: $("mMonto").value, metodo: $("mMetodo").value,
     categoria: $("mCategoria").value, concepto: $("mConcepto").value, autorizadoA: $("mAut").value,
   };
+  if (!body.fecha) { err.textContent = "Elige la fecha en que salió el gasto."; err.classList.add("on"); btn.disabled = false; return; }
   try {
     const r = await fetch("/api/movimiento", {
       method: "POST", headers: { "Content-Type": "application/json" },

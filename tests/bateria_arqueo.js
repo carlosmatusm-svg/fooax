@@ -930,6 +930,27 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     anu.anulado === true && !!anu.anuladoPor && /prueba/i.test(anu.anuladoMotivo || ""),
     JSON.stringify({ anulado: anu.anulado, por: anu.anuladoPor, motivo: anu.anuladoMotivo }));
 
+  console.log("\n— 35. EL GASTO SE REGISTRA EN SU PROPIA FECHA (Monse, 4-ago) —");
+  // El formulario no tenía campo de fecha y TODO caía en el día de hoy: al subir
+  // los gastos de varios días de golpe, se descontaban del efectivo de uno solo
+  // y el arqueo salía en NEGATIVO. Ahora la fecha se elige y se valida.
+  const FGA = "2026-06-17";
+  const egrHoyAntes = ((await j(await fetch(U + "/api/arqueo", { headers: H(cd) }))).egresosEfectivo) || 0;
+  const rFec = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cd),
+    body: JSON.stringify({ fecha: FGA, monto: 500, concepto: "gasto de otro día", categoria: "Gasto operativo", metodo: "efectivo" }) }));
+  ok("un gasto se puede registrar con la fecha en que salió",
+    rFec.ok === true && rFec.movimiento.fecha === FGA, JSON.stringify(rFec).slice(0, 90));
+  const arqFec = await j(await fetch(U + "/api/arqueo?fecha=" + FGA, { headers: H(cd) }));
+  ok("y descuenta del arqueo de ESE día, no del de hoy",
+    (arqFec.egresosEfectivo || 0) === 500, "egresos " + FGA + ": " + arqFec.egresosEfectivo);
+  const egrHoyDespues = ((await j(await fetch(U + "/api/arqueo", { headers: H(cd) }))).egresosEfectivo) || 0;
+  ok("y el arqueo de HOY no se mueve ni un peso por ese gasto",
+    Math.abs(egrHoyDespues - egrHoyAntes) < 0.01,
+    "hoy antes " + egrHoyAntes + " · después " + egrHoyDespues);
+  const rFut = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cd),
+    body: JSON.stringify({ fecha: "2027-01-01", monto: 500, concepto: "futuro", categoria: "Otro", metodo: "efectivo" }) }));
+  ok("una fecha FUTURA se rechaza", !!rFut.error && /futura/i.test(rFut.error), JSON.stringify(rFut).slice(0, 80));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

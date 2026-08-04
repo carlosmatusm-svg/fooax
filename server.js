@@ -1848,6 +1848,11 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const categoria = CATEGORIAS.includes(b.categoria) ? b.categoria : null;
   const metodo = METODOS.includes(b.metodo) ? b.metodo : null;
   const fecha = b.fecha || hoyMX();
+  // La fecha del gasto la elige quien captura: antes no había campo y TODO caía
+  // en el día de hoy. Al subir los gastos de varios días de golpe, se descontaban
+  // del efectivo de uno solo y el arqueo salía en negativo (reportado el 4-ago).
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
+  if (fecha > hoyMX()) return res.status(400).json({ error: "El gasto no puede ser de una fecha futura." });
   if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
   if (!concepto) return res.status(400).json({ error: "Escribe un concepto para el movimiento." });
   if (!categoria) return res.status(400).json({ error: "Elige una categoría válida." });
