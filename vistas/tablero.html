@@ -1019,6 +1019,27 @@ async function cargarCartera() {
       + d.inconsistentes.slice(0, 10).map((x) => "• " + hesc(x.nombre) + " (" + hesc(x.producto) + "): plazo dice <b>" + x.plazoPadron + "</b>, real <b>" + x.plazoReal + "</b>").join("<br>")
       + "</div>";
   }
+  // ATORADAS EN SU ÚLTIMO PAGO. Suele ser un abono capturado ANTES del corte que
+  // la plantilla no alcanzó a traer: el sistema deja de descontarlo y la clienta
+  // se queda debiendo justo una cuota, para siempre. Lo cachó Karina el 4-ago.
+  if ((d.ultimoPago || []).length) {
+    const tot = d.ultimoPago.reduce((a, b) => a + (b.saldo || 0), 0);
+    h += '<div class="ct-nota"><b>⚠ ' + d.ultimoPago.length + " créditos parados en su ÚLTIMO pago (" + dinero(tot) + ").</b> "
+      + "Deben exactamente una cuota y ahí se quedaron. Casi siempre es un abono que se capturó <b>antes del corte</b> y la plantilla no alcanzó a traer: el sistema deja de descontarlo y la clienta sigue apareciendo como deudora. "
+      + "Revisa si ya pagaron; si sí, ajústales el saldo a $0 desde este panel.<br>"
+      + d.ultimoPago.slice(0, 12).map((x) => "• " + hesc(x.ejecutivo || "—") + " · " + hesc(x.nombre) + " (" + hesc(x.producto) + "): " + dinero(x.saldo)).join("<br>")
+      + (d.ultimoPago.length > 12 ? "<br>… y " + (d.ultimoPago.length - 12) + " más" : "")
+      + "</div>";
+  }
+  // Liquidaciones que entraron a caja pero no le bajaron el saldo a nadie.
+  if ((d.liquidacionesSinClienta || []).length) {
+    const totL = d.liquidacionesSinClienta.reduce((a, b) => a + (b.monto || 0), 0);
+    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">🔴 ' + d.liquidacionesSinClienta.length
+      + " liquidaciones sin clienta (" + dinero(totL) + ").</b> Ese dinero entró a la caja pero <b>no le bajó el saldo a nadie</b>, porque el movimiento no dice de qué clienta es. "
+      + "La app de la ejecutiva ya lo impide; estos vienen del tablero o son viejos. Hay que anularlos y volverlos a capturar con su clienta.<br>"
+      + d.liquidacionesSinClienta.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.concepto) + " · " + dinero(x.monto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "")).join("<br>")
+      + "</div>";
+  }
   if (S.cuotaVariable) {
     h += '<div class="ct-nota"><b>' + S.cuotaVariable + ' créditos de CUOTA VARIABLE (Magnus).</b> Su cuota baja cada periodo, así que la del padrón deja de servir al primer pago. Para no marcarles mora falsa, quedan fuera del esperado, del semáforo y del “pago 13 de 18” hasta que exista el módulo de intereses. Su cobranza y su arqueo sí cuentan normal.</div>';
   }

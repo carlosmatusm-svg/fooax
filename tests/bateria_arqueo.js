@@ -466,6 +466,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // lunes la ventana se vaciaba y lo pagado el viernes dejaba de descontar.
   await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000095", nombre: "SALDO TEST", producto: "Credito Saldo", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
   const D5 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 5); return d.toISOString().slice(0, 10); })();
+  // La prueba fija SU corte antes del pago: si se queda el corte que traiga el
+  // sistema (que se mueve con cada plantilla nueva), este pago cae antes y la
+  // prueba falla sin que nada esté mal. El corte va un día antes del abono.
+  const CORTE20 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 6); return d.toISOString().slice(0, 10); })();
+  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: CORTE20 }) }));
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: D5, snapshot: JSON.stringify({ fecha: D5, reg: { "C-88": { "70000000095|Credito Saldo": { pago: 200, forma: "E" } } }, regI: {}, movs: [] }), ts: Date.now() }) });
   const saldoDe = async () => { const s = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("SALDO TEST"), { headers: H(ca) })); return ((s.resultados || []).find((c) => String(c.id) === "70000000095") || {}).saldoActual; };
   ok("un pago de la SEMANA PASADA sigue bajando el saldo (1000 − 200 = 800)", (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
@@ -950,6 +955,66 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const rFut = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cd),
     body: JSON.stringify({ fecha: "2027-01-01", monto: 500, concepto: "futuro", categoria: "Otro", metodo: "efectivo" }) }));
   ok("una fecha FUTURA se rechaza", !!rFut.error && /futura/i.test(rFut.error), JSON.stringify(rFut).slice(0, 80));
+
+  console.log("\n— 36. LIQUIDACIÓN SIN CLIENTA: entra a caja pero no baja ningún saldo (Karina, 4-ago) —");
+  // Karina sospechó que las liquidaciones no estaban descontando. Se probó: SÍ
+  // descuentan cuando traen clienta. Fallan en dos casos, y los dos son reales:
+  // (1) capturadas ANTES del corte y (2) sin número de socio. La app ya exige la
+  // clienta; el tablero de Dirección no, y por ahí se cuelan.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  const cenL = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: "70000000851", nombre: "LIQ CON CLIENTA", producto: "Grupal-Basico", centro: cenL,
+    ejecutivo: "Neri", saldo: 540, cuota: 540, plazo: 24 }) });
+  const saldoL = async (id) => {
+    const r = await j(await fetch(U + "/api/creditos?q=" + id, { headers: H(cm) }));
+    return ((r.resultados || [])[0] || {}).saldoActual;
+  };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cnn), body: JSON.stringify({ fecha: HOY, ts: Date.now(),
+    snapshot: JSON.stringify({ fecha: HOY, reg: {}, regI: {}, arqueo: {},
+      movs: [{ folio: "LQOK", concepto: "LIQUIDACION", monto: 540, via: "E", socio: "70000000851", clienta: "LIQ CON CLIENTA" }] }) }) });
+  ok("una liquidación CON clienta sí le deja el saldo en cero",
+    (await saldoL("70000000851")) === 0, "saldo " + (await saldoL("70000000851")));
+  const rSin = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, monto: 1500, concepto: "Liquidación sin decir de quién", categoria: "Otro", metodo: "efectivo" }) }));
+  const carL = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("una liquidación SIN clienta se detecta y se avisa (antes pasaba en silencio)",
+    (carL.liquidacionesSinClienta || []).some((x) => x.folio === rSin.movimiento.folio),
+    JSON.stringify((carL.liquidacionesSinClienta || []).map((x) => x.folio)));
+  ok("y el tablero lista los créditos parados en su último pago",
+    Array.isArray(carL.ultimoPago) && carL.ultimoPago.every((x) => x.saldo > 0),
+    "atorados: " + (carL.ultimoPago || []).length);
+
+  console.log("\n— 37. COBRANZA vs RECUPERACIÓN por ESTADO del crédito (dictado de Monse, 4-ago) —");
+  // «Recuperación es todo lo entrante, tanto de créditos de mora como de créditos
+  // vencidos» — y ese dinero cuenta SOLO como recuperación, no también como
+  // cobranza (opción A). Antes la recuperación la definía la ETIQUETA que ponía
+  // la ejecutiva; ahora la define el ESTADO del crédito.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  const cenR2 = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
+  const altaR = (id, n) => fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id, nombre: n, producto: "Grupal-Basico", centro: cenR2, ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 24 }) });
+  await altaR("70000000901", "SANA RECUP"); await altaR("70000000902", "CON MORA RECUP");
+  await fetch(U + "/api/creditos/mora", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000000902", producto: "Grupal-Basico", mora: 1500 }) });
+  const antesR = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cnn), body: JSON.stringify({ fecha: HOY, ts: Date.now(),
+    snapshot: JSON.stringify({ fecha: HOY, arqueo: {}, movs: [], regI: {},
+      reg: { "C-Z": { "70000000901|Grupal-Basico": { pago: 500, forma: "E" },
+                      "70000000902|Grupal-Basico": { pago: 500, forma: "E" } } } }) }) });
+  const despR = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  // El sync REEMPLAZA el día de la ejecutiva (así manda la app: su día completo),
+  // así que después de este sync la cobranza de Neri de hoy son EXACTAMENTE estos
+  // dos pagos. Por eso se afirma el valor absoluto del cobrado y no una resta:
+  // el "antes" ya no existe una vez que se reemplaza el día.
+  const dRec = despR.recuperacionSemana - antesR.recuperacionSemana;
+  ok("el pago de la clienta SANA es lo único que queda en cobranza",
+    despR.cobradoSemana === 500, "cobrado " + despR.cobradoSemana);
+  ok("el pago de la clienta CON MORA se fue a recuperación",
+    dRec === 500, "subió recuperación " + dRec);
+  ok("y NO se contó dos veces (opción A de Monse)",
+    despR.cobradoSemana === 500 && dRec === 500,
+    "cobrado " + despR.cobradoSemana + " · recuperación +" + dRec);
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

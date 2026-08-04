@@ -848,6 +848,28 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
 // QUÉ DÍA se liquidó. Sin esto la columna "Días de pago" del Excel salía vacía en
 // las liquidaciones y recuperaciones — que son justo la mitad del problema (las 6
 // de Neri del 25-jul eran todas liquidaciones). Lo cachó Karina el 29-jul.
+// Liquidaciones y recuperaciones que NO traen clienta: entran a la caja pero
+// NO le bajan el saldo a nadie, en silencio. La app ya lo impide, pero un
+// movimiento capturado desde el tablero de Dirección no lleva socio, y los
+// movimientos viejos tampoco. Se detectan para poder avisar (4-ago).
+function liquidacionesSinClienta(usuario, desde) {
+  const hoy = hoyMX(), inicio = desde || lunesDeLaSemana(hoy);
+  const d0 = new Date(inicio + "T12:00:00");
+  const out = [];
+  for (let i = 0; i < (desde ? 400 : 7); i++) {
+    const f = new Date(d0); f.setDate(d0.getDate() + i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "";
+      if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+      if (socioDeMov(m)) continue;
+      out.push({ folio: m.folio, fecha: m.fecha, monto: m.monto, concepto: m.concepto,
+        registradoPor: m.registradoPor || m.usuario || "" });
+    }
+  }
+  return out;
+}
 function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
   const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
   const liqPorSocio = {};
@@ -1395,6 +1417,10 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   // comparaba dos días contra cinco. Ahora se mide contra lo que YA debió entrar.
   let esperadoHoy = 0, moraReal = 0, pendienteCobro = 0;
   const HOY_IDX = idxHoy();
+  // Un crédito está EN RECUPERACIÓN si trae cuotas sin pagar (columna `mora` de
+  // la plantilla, que Monse definió como «las cuotas que no ha pagado el
+  // cliente») o si ya está vencido. Su dinero cuenta SOLO como recuperación.
+  const enRecuperacion = (c) => Number(c.mora) > 0 || esVencido(c);
   for (const c of activos) {
     const info = infoCredito(cv, c);
     const clave = claveCredito(c.id, c.producto);
@@ -1438,13 +1464,30 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       if (dE > 0 && dE < HOY_IDX) e.mora += Math.max(0, cuE - pagoSemana);
       else e.pendiente_ += Math.max(0, cuE - pagoSemana);
     }
-    e.cobrado += pagoSemana;
+    // Mismo criterio por ejecutiva: lo de un crédito en mora o vencido va a su
+    // recuperación, no a su cobranza.
+    if (enRecuperacion(c)) e.recuperacion = (e.recuperacion || 0) + pagoSemana;
+    else e.cobrado += pagoSemana;
   }
   const r2 = (n) => Math.round(n * 100) / 100;
-  const cobrado = Object.values(sem.pago).reduce((a, b) => a + b, 0);
-  // RECUPERACIÓN de la semana: liquidaciones y recuperaciones registradas como
-  // "otros movimientos" — dinero del crédito que entra FUERA de la cuota.
-  const recuperacion = Object.values(liquidacionesDeLaSemana(req.usuario)).reduce((a, b) => a + b, 0);
+  // COBRANZA vs RECUPERACIÓN (dictado de Monse, 4-ago, opción A):
+  // «recuperación es todo lo entrante, tanto de créditos de mora como de créditos
+  // vencidos», y ese dinero cuenta SOLO como recuperación — NO se suma también a
+  // la cobranza. Antes la recuperación se definía por la ETIQUETA que ponía la
+  // ejecutiva; ahora la define el ESTADO del crédito, que es lo que ella dictó.
+  // Un crédito está «en mora» cuando trae cuotas sin pagar (columna `mora` de la
+  // plantilla = «las cuotas que no ha pagado el cliente», también opción A).
+  let cobrado = 0, recupPagos = 0;
+  for (const c of activos) {
+    const pw = sem.pago[claveCredito(c.id, c.producto)] || 0;
+    if (enRecuperacion(c)) recupPagos += pw;   // NO entra a cobranza: solo recuperación
+    else cobrado += pw;
+  }
+  // Las liquidaciones y recuperaciones registradas como movimiento siguen
+  // contando en recuperación, como siempre: es dinero del crédito que entra
+  // FUERA de la cuota. No se tocan — lo único que cambió es que los PAGOS de un
+  // crédito en mora o vencido ahora también son recuperación y ya no cobranza.
+  const recuperacion = recupPagos + Object.values(liquidacionesDeLaSemana(req.usuario)).reduce((a, b) => a + b, 0);
   res.json({
     corte: corteSaldos(), hoy: hoyMX(), lunes: lunesDeLaSemana(hoyMX()),
     creditosActivos: activos.length, conSaldo,
@@ -1479,6 +1522,17 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       moraSemana: r2(e.mora), pendienteSemana: r2(e.pendiente_),
       cumplimiento: e.esperadoALaFecha > 0 ? r2((e.cobrado / e.esperadoALaFecha) * 100) : 0 })),
     inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
+    // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
+    liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
+    // Créditos parados EXACTAMENTE en una cuota: si llevan semanas así, suele ser
+    // un último pago que se capturó antes del corte y la plantilla no alcanzó a
+    // traer. Se listan para que Monse los revise en vez de descubrirlos de uno en
+    // uno (lo cachó Karina el 4-ago con PATRICIA ELISOL y ADRIANA BETSAI).
+    ultimoPago: activos.filter((c) => {
+      const info = infoCredito(cv, c), q = Number(c.cuota) || 0;
+      return q > 0 && info.saldoActual > 0 && Math.abs(info.saldoActual - q) < 0.01 && !esVencido(c);
+    }).map((c) => ({ socio: String(c.id), nombre: c.nombre, producto: c.producto,
+      ejecutivo: c.ejecutivo, centro: c.centro, saldo: r2(infoCredito(cv, c).saldoActual) })),
     // el dictado de Monse sigue pendiente: se declara para que el tablero lo diga
     definicionMoraPendiente: true,
   });
