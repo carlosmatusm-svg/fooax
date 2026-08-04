@@ -1533,8 +1533,16 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       return q > 0 && info.saldoActual > 0 && Math.abs(info.saldoActual - q) < 0.01 && !esVencido(c);
     }).map((c) => ({ socio: String(c.id), nombre: c.nombre, producto: c.producto,
       ejecutivo: c.ejecutivo, centro: c.centro, saldo: r2(infoCredito(cv, c).saldoActual) })),
-    // el dictado de Monse sigue pendiente: se declara para que el tablero lo diga
-    definicionMoraPendiente: true,
+    // El dictado de Monse LLEGÓ el 4-ago y ya está programado: mora = cuotas no
+    // pagadas · recuperación por estado del crédito, contada una sola vez ·
+    // activo recuperable, vigente y activo mora son ACTIVOS. Lo único que sigue
+    // sin definir es dónde va CUENTA IRREGULAR REESTRUCTURA (1 crédito), y por
+    // eso se nombra aparte en vez de dejar todo marcado como provisional.
+    definicionMoraPendiente: false,
+    definicionMoraFecha: "2026-08-04",
+    estatusSinClasificar: [...new Set(activos
+      .filter((c) => /irregular|reestructura/i.test(String(c.estatus || "")))
+      .map((c) => String(c.estatus)))],
   });
 });
 

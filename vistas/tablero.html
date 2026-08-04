@@ -1043,7 +1043,7 @@ async function cargarCartera() {
   if (S.cuotaVariable) {
     h += '<div class="ct-nota"><b>' + S.cuotaVariable + ' créditos de CUOTA VARIABLE (Magnus).</b> Su cuota baja cada periodo, así que la del padrón deja de servir al primer pago. Para no marcarles mora falsa, quedan fuera del esperado, del semáforo y del “pago 13 de 18” hasta que exista el módulo de intereses. Su cobranza y su arqueo sí cuentan normal.</div>';
   }
-  h += '<div class="ct-nota"><b>Mora</b> es la amortización que <b>ya venció</b> sin cubrirse: su día de cobro pasó y la clienta no completó su cuota. <b>Pendiente de cobro</b> es la que todavía no vence —su día no ha llegado, o es hoy— y es operación normal, no morosidad. El <b>cumplimiento</b> se mide contra lo que ya debía entrar a la fecha, no contra la semana completa. La mora <i>acumulada</i> de semanas anteriores, con sus días de atraso e IVA, requiere el motor de intereses y no está incluida aquí.</div>';
+  h += '<div class="ct-nota"><b>Mora</b> es la amortización que <b>ya venció</b> sin cubrirse: su día de cobro pasó y la clienta no completó su cuota. <b>Pendiente de cobro</b> es la que todavía no vence —su día no ha llegado, o es hoy— y es operación normal, no morosidad. El <b>cumplimiento</b> se mide contra lo que ya debía entrar a la fecha, no contra la semana completa. La mora <i>acumulada</i> de semanas anteriores, con sus días de atraso e IVA, requiere el motor de intereses y no está incluida aquí.<br><br><b>Estas definiciones las dictó Ing. Monse el 4-ago-2026:</b> la mora son las cuotas que la clienta no ha pagado, y el dinero de un crédito en mora o vencido cuenta <b>solo</b> como recuperación — no se suma también a la cobranza.</div>';
   box.innerHTML = h;
 }
 
