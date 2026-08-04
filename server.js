@@ -713,8 +713,24 @@ const CREDS_SOCIO = {};  // socio -> [cuotas] (fallback cuando el producto no co
 // Hoy solo MAGNUS (CCF03). El cálculo correcto llega con el módulo de intereses.
 const CUOTA_VARIABLE = /magnus|ccf0?3/i;
 function esCuotaVariable(producto) { return CUOTA_VARIABLE.test(String(producto || "")); }
+// DÍA DE COBRO por crédito. Vive en las apps desde el origen (cada clienta trae
+// su día) pero NO subía al padrón del servidor: solo 141 de 627 lo tenían, y por
+// eso el tablero no podía distinguir a quien ya venció de quien todavía no le
+// toca. Este archivo lo puentea; cuando la plantilla de Monse traiga la columna,
+// se toma de ahí y esto se puede retirar.
+let DIAS_COBRO = {};
+try { DIAS_COBRO = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "dias_cobro.json"), "utf8")); }
+catch { DIAS_COBRO = {}; }
+const DIAS_SEMANA = { LUNES: 1, MARTES: 2, MIERCOLES: 3, "MIÉRCOLES": 3, JUEVES: 4, VIERNES: 5, SABADO: 6, "SÁBADO": 6, DOMINGO: 7 };
+// Lunes = 1 … domingo = 7, para poder comparar "ya pasó su día" con un número.
+function idxDia(d) { return DIAS_SEMANA[String(d || "").trim().toUpperCase()] || 0; }
+function idxHoy() { const n = new Date(hoyMX() + "T12:00:00").getDay(); return n === 0 ? 7 : n; }
 function refrescarPadron() {
   PADRON = store.padron();
+  // Se sella el día de cobro en cada crédito que no lo traiga de la plantilla.
+  PADRON.forEach((c) => {
+    if (!c.diaPago) { const d = DIAS_COBRO[claveCredito(c.id, c.producto)]; if (d) c.diaPago = d; }
+  });
   for (const k in CUOTA) delete CUOTA[k];
   for (const k in CREDS_SOCIO) delete CREDS_SOCIO[k];
   PADRON.forEach((c) => {
@@ -1343,6 +1359,9 @@ function numeroDePago(c, saldoActual) {
 // contra su cuota). ⚠️ La definición oficial de mora la dicta Monse (ficha de
 // mora, mora-semana vs recuperación, cartera activa vs total); cuando llegue,
 // aquí se cambia la regla, no la estructura.
+// OJO: ya existe un `cuotaDe(key)` que busca por llave de captura. Este es otro:
+// toma el CRÉDITO. Nombres distintos a propósito — el choque dejó `faltantes` en 0.
+function cuotaDelCredito(c) { return Number(c.cuota) || 0; }
 function semaforoDe(c, info, pagoSemana) {
   // Antes preguntaba por `estatus === "VENCIDA"` (con A) y esa palabra NO EXISTE
   // en la plantilla: dice "VENCIDO", "CREDITO VENCIDO A RECUPERAR". Resultado: 29
@@ -1353,11 +1372,14 @@ function semaforoDe(c, info, pagoSemana) {
   // contra la del padrón daría un semáforo falso. Se aparta hasta que exista
   // el módulo de intereses.
   if (esCuotaVariable(c.producto)) return "cuotaVariable";
-  const cuota = Number(c.cuota) || 0;
   // "pendiente" NO es mora: cada centro cobra en su día, y el lunes casi nadie
-  // ha pagado todavía. Se cuenta aparte para no leer 590 morosas cada lunes.
-  if (pagoSemana <= 0) return "pendiente";
-  if (cuota > 0 && pagoSemana + 0.01 < cuota) return "parcial";
+  // ha pagado todavía. Ahora que el crédito trae su DÍA, se puede separar de
+  // verdad (lo pidió Anel el 4-ago): si su día ya PASÓ y no cubrió, eso sí es
+  // mora; si todavía no le toca —o le toca hoy—, es pendiente de cobro.
+  const dc = idxDia(c.diaPago), hy = idxHoy();
+  if (pagoSemana <= 0) return (dc > 0 && dc < hy) ? "enMora" : "pendiente";
+  if (dc > 0 && dc < hy && cuotaDelCredito(c) > 0 && pagoSemana + 0.01 < cuotaDelCredito(c)) return "enMora";
+  if (cuotaDelCredito(c) > 0 && pagoSemana + 0.01 < cuotaDelCredito(c)) return "parcial";
   return "alCorriente";
 }
 app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
@@ -1365,9 +1387,14 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   const sem = pagosDeLaSemana(req.usuario);          // ventana semanal (lunes → hoy)
   const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
   const acc = { cartera: 0, moraMonto: 0, moraCreditos: 0, saldoPromedio: 0, liquidadas: 0 };
-  const semaforo = { alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 };
+  const semaforo = { alCorriente: 0, parcial: 0, pendiente: 0, enMora: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 };
   const porEjec = {}, inconsistentes = [], vencidas = [];
   let conSaldo = 0, esperado = 0;
+  // A LA FECHA vs SEMANA COMPLETA. El cumplimiento se medía contra la semana
+  // entera, así que un martes marcaba 10% aunque la cobranza fuera perfecta:
+  // comparaba dos días contra cinco. Ahora se mide contra lo que YA debió entrar.
+  let esperadoHoy = 0, moraReal = 0, pendienteCobro = 0;
+  const HOY_IDX = idxHoy();
   for (const c of activos) {
     const info = infoCredito(cv, c);
     const clave = claveCredito(c.id, c.producto);
@@ -1383,16 +1410,34 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       // dictado de Monse (29-jul) "mora = los faltantes de pago de los créditos
       // ACTIVOS". Un vencido ya no tiene cuota que esperar, está en recuperación
       // — y lo que entre de él es RECUPERACIÓN, no cobranza de la semana.
-      if (!esCuotaVariable(c.producto) && !esVencido(c)) esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+      if (!esCuotaVariable(c.producto) && !esVencido(c)) {
+        const cu = Math.min(Number(c.cuota) || 0, info.saldoActual);
+        esperado += cu;
+        const d = idxDia(c.diaPago);
+        // Su día ya llegó (o es hoy) → cuenta en lo esperado A LA FECHA.
+        // Sin día registrado se cuenta también: es lo conservador, no esconde nada.
+        if (d === 0 || d <= HOY_IDX) esperadoHoy += cu;
+        const falta = Math.max(0, cu - pagoSemana);
+        // MORA REAL = su día ya PASÓ y no cubrió su cuota.
+        if (d > 0 && d < HOY_IDX) moraReal += falta;
+        else pendienteCobro += falta;   // aún no le toca, o le toca hoy
+      }
     }
     if (info.saldoActual <= 0) acc.liquidadas++;
     const mora = Number(c.mora) > 0 ? Number(c.mora) : 0;
     if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, mora, saldoActual: info.saldoActual }); }
     const np = numeroDePago(c, info.saldoActual);
     if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
-    const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
-    e.creditos++; e.cartera += info.saldoActual; e.mora += mora; e[s]++;
-    if (info.saldoActual > 0 && !esCuotaVariable(c.producto) && !esVencido(c)) e.esperado += Math.min(Number(c.cuota) || 0, info.saldoActual);
+    const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, esperadoALaFecha: 0, pendiente_: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, enMora: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
+    e.creditos++; e.cartera += info.saldoActual; e.moraAcum = (e.moraAcum || 0) + mora; e[s]++;
+    if (info.saldoActual > 0 && !esCuotaVariable(c.producto) && !esVencido(c)) {
+      const cuE = Math.min(Number(c.cuota) || 0, info.saldoActual);
+      const dE = idxDia(c.diaPago);
+      e.esperado += cuE;
+      if (dE === 0 || dE <= HOY_IDX) e.esperadoALaFecha += cuE;
+      if (dE > 0 && dE < HOY_IDX) e.mora += Math.max(0, cuE - pagoSemana);
+      else e.pendiente_ += Math.max(0, cuE - pagoSemana);
+    }
     e.cobrado += pagoSemana;
   }
   const r2 = (n) => Math.round(n * 100) / 100;
@@ -1412,14 +1457,27 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // provisional hasta el dictado de Monse): esperado = suma de cuotas de los
     // créditos con saldo; mora = lo que faltó de ese esperado.
     esperadoSemana: r2(esperado),
+    // Lo que YA debió entrar a la fecha: solo los centros cuyo día ya llegó.
+    esperadoALaFecha: r2(esperadoHoy),
     cobradoSemana: r2(cobrado),
-    moraSemana: r2(Math.max(0, esperado - cobrado)),
+    // PENDIENTE DE COBRO ≠ MORA (corrección de Anel, 4-ago). Pendiente es la
+    // amortización cuyo día no ha llegado o llega hoy: operación normal. Mora es
+    // la que YA venció sin cubrirse: ese es el número de riesgo.
+    pendienteSemana: r2(pendienteCobro),
+    moraSemana: r2(moraReal),
+    // Se conserva el cálculo anterior con su nombre viejo para no romper nada que
+    // lo lea, pero el tablero ya no lo muestra como "mora".
+    esperadoMenosCobrado: r2(Math.max(0, esperado - cobrado)),
     recuperacionSemana: r2(recuperacion),
-    cumplimiento: esperado > 0 ? r2((cobrado / esperado) * 100) : 0,
+    // El cumplimiento se mide contra lo esperado A LA FECHA, no contra la semana
+    // completa: si no, siempre se ve mal hasta el viernes.
+    cumplimiento: esperadoHoy > 0 ? r2((cobrado / esperadoHoy) * 100) : 0,
+    cumplimientoSemana: esperado > 0 ? r2((cobrado / esperado) * 100) : 0,
     semaforo,
-    porEjec: Object.values(porEjec).map((e) => ({ ...e, cartera: r2(e.cartera), mora: r2(e.mora),
-      esperado: r2(e.esperado), cobrado: r2(e.cobrado), moraSemana: r2(Math.max(0, e.esperado - e.cobrado)),
-      cumplimiento: e.esperado > 0 ? r2((e.cobrado / e.esperado) * 100) : 0 })),
+    porEjec: Object.values(porEjec).map((e) => ({ ...e, cartera: r2(e.cartera), mora: r2(e.moraAcum || 0),
+      esperado: r2(e.esperado), esperadoALaFecha: r2(e.esperadoALaFecha), cobrado: r2(e.cobrado),
+      moraSemana: r2(e.mora), pendienteSemana: r2(e.pendiente_),
+      cumplimiento: e.esperadoALaFecha > 0 ? r2((e.cobrado / e.esperadoALaFecha) * 100) : 0 })),
     inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
     // el dictado de Monse sigue pendiente: se declara para que el tablero lo diga
     definicionMoraPendiente: true,
@@ -2668,7 +2726,7 @@ store.init().then(() => {
   recuperarMovimientosHistoricos();
   repararAnuladosFalsos();
   repararCapturaKarina24jul();
-reasignarMarthaPatricia30jul();
+  reasignarMarthaPatricia30jul();
   repararCarteraJulio();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });

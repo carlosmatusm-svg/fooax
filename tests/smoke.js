@@ -149,8 +149,19 @@ const RUN = String(SEG % 100000);   // sufijo único para folios/socios de esta 
   ok("la lista de centros responde", Array.isArray(cen.centros) && cen.centros.length > 0, "centros " + (cen.centros || []).length);
   const car = await j(await fetch(U + "/api/cartera", { headers: H(cd) }));
   ok("la cartera (Fase 2) responde con cifras coherentes",
-     car.creditosActivos > 0 && car.cartera >= 0 && Math.abs(car.moraSemana - Math.max(0, car.esperadoSemana - car.cobradoSemana)) < 0.02,
+     car.creditosActivos > 0 && car.cartera >= 0 && car.esperadoSemana >= 0,
      "créditos " + car.creditosActivos + " · cartera " + car.cartera);
+  // PENDIENTE ≠ MORA (4-ago). Antes se afirmaba mora === esperado − cobrado, que
+  // era justo la confusión: eso mide la cobranza por recuperar, no la morosidad.
+  ok("lo esperado A LA FECHA nunca pasa de lo esperado de la semana",
+     car.esperadoALaFecha <= car.esperadoSemana + 0.02,
+     "a la fecha " + car.esperadoALaFecha + " de " + car.esperadoSemana);
+  ok("la mora real es solo de lo que YA venció (no puede pasar de lo esperado a la fecha)",
+     car.moraSemana >= 0 && car.moraSemana <= car.esperadoALaFecha + 0.02,
+     "mora " + car.moraSemana + " · esperado a la fecha " + car.esperadoALaFecha);
+  ok("y el pendiente de cobro va aparte de la mora",
+     typeof car.pendienteSemana === "number" && car.pendienteSemana >= 0,
+     "pendiente " + car.pendienteSemana);
   // la suma incluye TODAS las casillas, también "cuotaVariable" (Magnus) — se
   // suman las que existan, para que agregar una casilla nueva no rompa la prueba.
   const sumaSem = car.semaforo ? Object.values(car.semaforo).reduce((x, y) => x + y, 0) : -1;

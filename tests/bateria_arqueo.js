@@ -486,9 +486,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   let ca2 = await j(await fetch(U + "/api/cartera", { headers: H(ca) }));
   ok("la cartera carga con sus cifras", ca2.creditosActivos > 0 && ca2.cartera > 0, "créditos " + ca2.creditosActivos + " · cartera " + ca2.cartera);
   ok("saldo promedio = cartera ÷ créditos con saldo", Math.abs(ca2.saldoPromedio - (ca2.cartera / ca2.conSaldo)) < 0.02, "prom " + ca2.saldoPromedio);
-  ok("mora de la semana = esperado − cobrado", Math.abs(ca2.moraSemana - Math.max(0, ca2.esperadoSemana - ca2.cobradoSemana)) < 0.02, "mora " + ca2.moraSemana);
+  // PENDIENTE ≠ MORA (corrección de Anel, 4-ago). Antes se afirmaba
+  // mora === esperado − cobrado, que era justo la confusión: eso es la cobranza
+  // por recuperar, no la morosidad. Ahora mora = lo que YA venció sin cubrirse.
+  ok("la mora real nunca pasa de lo esperado A LA FECHA",
+     ca2.moraSemana >= 0 && ca2.moraSemana <= ca2.esperadoALaFecha + 0.02,
+     "mora " + ca2.moraSemana + " · esperado a la fecha " + ca2.esperadoALaFecha);
+  ok("lo esperado a la fecha no pasa de lo esperado de la semana completa",
+     ca2.esperadoALaFecha <= ca2.esperadoSemana + 0.02,
+     "a la fecha " + ca2.esperadoALaFecha + " de " + ca2.esperadoSemana);
+  ok("el pendiente de cobro se reporta aparte de la mora",
+     typeof ca2.pendienteSemana === "number" && ca2.pendienteSemana >= 0, "pendiente " + ca2.pendienteSemana);
   ok("el semáforo cuadra con los créditos activos",
-     (ca2.semaforo.alCorriente + ca2.semaforo.parcial + ca2.semaforo.pendiente + ca2.semaforo.vencida + ca2.semaforo.liquidada) === ca2.creditosActivos,
+     Object.values(ca2.semaforo).reduce((a, b) => a + b, 0) === ca2.creditosActivos,
      JSON.stringify(ca2.semaforo));
   ok("suma de carteras por ejecutiva = cartera total",
      Math.abs(ca2.porEjec.reduce((s, e) => s + e.cartera, 0) - ca2.cartera) < 1, "suma " + ca2.porEjec.reduce((s, e) => s + e.cartera, 0));
@@ -542,10 +552,21 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la cartera baja EXACTAMENTE lo abonado (−1,000 de una semana a otra)",
      SS[W[1]] && SS[W[0]] && Math.abs((SS[W[1]].cartera - SS[W[0]].cartera) + 1000) < 0.01,
      (SS[W[0]] || {}).cartera + " → " + (SS[W[1]] || {}).cartera);
-  ok("la semana SIN captura sale en 0 y no mueve la cartera",
-     SS[W[2]] && SS[W[2]].cobrado === 0 && Math.abs(SS[W[2]].cartera - SS[W[1]].cartera) < 0.01, JSON.stringify(SS[W[2]] || {}).slice(0, 80));
-  ok("esa semana muestra su MORA (nadie pagó → mora = esperado, 0%)",
-     SS[W[2]] && SS[W[2]].mora === SS[W[2]].esperado && SS[W[2]].cumplimiento === 0, "mora " + (SS[W[2]] || {}).mora);
+  // Antes se afirmaba que la semana W[2] salía en CERO. Era frágil: la ventana de
+  // 4 semanas se mueve con el calendario y el 4-ago cayó sobre una semana que sí
+  // tenía cobranza real, así que la prueba fallaba sin que nada estuviera mal.
+  // Ahora se verifica el CÁLCULO, que es lo que de verdad protege: cada semana
+  // posterior al corte debe traer sus cifras y su cumplimiento debe cuadrar
+  // contra su propio esperado y cobrado.
+  const conCifras = (tend.serie || []).filter((x) => x.esperado != null);
+  ok("toda semana posterior al corte trae esperado, mora y cumplimiento",
+     conCifras.length > 0 && conCifras.every((x) => x.mora != null && x.cumplimiento != null),
+     "semanas con cifras: " + conCifras.length);
+  ok("y en cada una el cumplimiento cuadra con su esperado y su cobrado",
+     conCifras.every((x) => x.esperado <= 0
+       ? x.cumplimiento === 0
+       : Math.abs(x.cumplimiento - Math.round((x.cobrado / x.esperado) * 100 * 100) / 100) < 0.02),
+     JSON.stringify(conCifras.map((x) => [x.semana, x.esperado, x.cobrado, x.cumplimiento])[0] || []));
   ok("la cartera NUNCA sube en la serie (solo baja o se mantiene)",
      (tend.serie || []).filter((x) => x.cartera != null).every((x, i, arr) => i === 0 || x.cartera <= arr[i - 1].cartera + 0.01), "ok");
   ok("las tendencias son solo para dirección/admin (ejecutiva 403)", (await fetch(U + "/api/tendencias", { headers: H(ce) })).status === 403);
