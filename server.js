@@ -2017,6 +2017,23 @@ function egresosEnEfectivo(movs) {
   return movs.filter((m) => m.metodo === "efectivo")
     .reduce((s, m) => s + (m.entrada ? -m.monto : m.monto), 0);
 }
+// Lo que los "otros movimientos" mueven POR CADA FORMA que no es efectivo.
+// El efectivo ya va por egresosEnEfectivo(); esto es lo demás. Nació el 5-ago:
+// una recuperación que la ejecutiva capturó POR TRANSFERENCIA no aparecía en el
+// renglón de Transferencias del arqueo —solo en su "otros +"— así que el dinero
+// que llegó al banco quedaba sin sumar donde Monse lo busca.
+// Entrada suma, salida resta: un gasto pagado por transferencia SACA del banco.
+function netoMovsPorMetodo(movs) {
+  const out = { transferencia: 0, cheque: 0 };
+  for (const m of movs || []) {
+    const k = String(m.metodo || "efectivo");
+    if (!(k in out)) continue;
+    out[k] += m.entrada ? Number(m.monto) : -Number(m.monto);
+  }
+  out.transferencia = Math.round(out.transferencia * 100) / 100;
+  out.cheque = Math.round(out.cheque * 100) / 100;
+  return out;
+}
 // Los movimientos también viven en su burbuja: los de una cuenta de prueba no
 // se cuelan al arqueo ni al tablero reales. Un movimiento viejo sin `usuario`
 // se considera real (así eran todos los de dirección antes de esto).
@@ -2260,8 +2277,13 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     e.aEntregar = Math.round((e.efectivo - (e.egresoEfectivo || 0)) * 100) / 100;
     e.dif = Math.round((e.contado - e.aEntregar) * 100) / 100;
   }
+  // Los "otros movimientos" que NO son efectivo también son dinero que llegó (o
+  // salió) del banco: van al renglón que les toca, no solo al "otros +" de la
+  // ejecutiva. Lo pidió Karina el 5-ago viendo el arqueo.
+  const movsMet = netoMovsPorMetodo(movs);
   res.json({
     fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
+    movsTransferencia: movsMet.transferencia, movsCheque: movsMet.cheque,
     denominaciones: DENOMS_ARQUEO,
   });
 });
@@ -2404,12 +2426,18 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     c.font = { bold: true, color: { argb: "FF0B7247" } };
   }
   fila++;
+  // Igual que en el tablero: la transferencia de los "otros movimientos" es
+  // dinero que entró o salió del banco y va en este renglón, no solo en el
+  // "otros +" de la ejecutiva (Karina, 5-ago).
+  const movsMetX = netoMovsPorMetodo(movs);
   if (a.deposito > 0) {
-    linea("Transferencias", a.transferencia - a.deposito);
+    linea("Transferencias", a.transferencia - a.deposito + movsMetX.transferencia);
     linea("Depósitos Oxxo / tienda", a.deposito);
   } else {
-    linea("Depósitos / transferencias", a.transferencia);
+    linea("Depósitos / transferencias", a.transferencia + movsMetX.transferencia);
   }
+  if (movsMetX.transferencia) linea("   de eso, otros movimientos", movsMetX.transferencia);
+  if (movsMetX.cheque) linea("Cheques (no son billetes)", movsMetX.cheque);
   linea("Garantías", a.garantias);
   const rm = s.getRow(fila++); rm.getCell(1).value = "Mora del día (faltantes)";
   const cm = rm.getCell(4); cm.value = a.faltantes; cm.numFmt = dinero;

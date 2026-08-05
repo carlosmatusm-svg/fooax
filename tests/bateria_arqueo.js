@@ -1196,6 +1196,28 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       metodo: "efectivo", socio: "99999999" }) });
   ok("un número de socio inventado se rechaza", rMal41.status === 400, "status " + rMal41.status);
 
+  console.log("\n— 42. LOS OTROS MOVIMIENTOS QUE NO SON EFECTIVO VAN A SU RENGLÓN (Karina, 5-ago) —");
+  // Una recuperación que la ejecutiva capturó POR TRANSFERENCIA es dinero que
+  // llegó al banco: tiene que sumar en el renglón de Transferencias del arqueo,
+  // no quedarse solo en su "otros +". Igual el cheque, que va aparte porque no
+  // son billetes. El efectivo sigue yendo por "efectivo a entregar".
+  const D42 = "2026-02-04";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D42,
+    snapshot: { reg: {}, movs: [
+      { folio: "42a", concepto: "RECUPERACION", monto: 5000, via: "T", clienta: "ANA", socio: "70000000001" },
+      { folio: "42b", concepto: "GASTO", monto: 1200, via: "T", nota: "pago proveedor" },
+      { folio: "42c", concepto: "LIQUIDACION", monto: 3000, via: "CH", clienta: "BETY", socio: "70000000002", cheque: "445" },
+      { folio: "42d", concepto: "GASTO", monto: 300, via: "E" },
+    ] }, ts: Date.now() }) });
+  const a42 = await j(await fetch(U + "/api/arqueo?fecha=" + D42, { headers: H(cd) }));
+  ok("la transferencia de los otros movimientos se reporta (5,000 entra − 1,200 sale)",
+    a42.movsTransferencia === 3800, "movsTransferencia " + a42.movsTransferencia);
+  ok("el cheque se reporta aparte: no son billetes", a42.movsCheque === 3000, "movsCheque " + a42.movsCheque);
+  ok("y NADA de eso toca el efectivo a entregar (solo el gasto de 300 en efectivo)",
+    a42.egresosEfectivo === 300, "egresosEfectivo " + a42.egresosEfectivo);
+  const xls42 = await fetch(U + "/api/arqueo/excel?fecha=" + D42, { headers: H(cd) });
+  ok("y el Excel del arqueo se genera con eso adentro", xls42.status === 200, "status " + xls42.status);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
