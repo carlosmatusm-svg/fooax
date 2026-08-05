@@ -1214,7 +1214,7 @@
   "mora": 0,
   "plazo": 18,
   "semana": 0,
-  "estatus": "ACTIVO MORA",
+  "estatus": "CREDITO VENCIDO A RECUPERAR",
   "desembolso": "2026-03-17",
   "diaPago": "JUEVES"
  },
@@ -2233,15 +2233,17 @@
   "producto": "Grupal-Basico 2",
   "centro": "JESSE",
   "ejecutivo": "Neri",
-  "saldo": 10368,
-  "cuota": 576,
+  "saldo": 9216.0,
+  "cuota": 576.0,
   "mora": 0,
   "plazo": 18,
   "semana": 0,
-  "estatus": "LIQUIDADO",
-  "activa": false,
-  "fecha_baja": "2026-07-14",
-  "motivo_baja": "Liquidado (ya no viene en la plantilla oficial)"
+  "estatus": "ACTIVO RECUPERABLE",
+  "activa": true,
+  "saldo_liquidado_anterior": 10368,
+  "desembolso": "2026-07-17",
+  "diaPago": "VIERNES",
+  "reingreso_fecha": "2026-08-05"
  },
  {
   "id": "11112972707",
@@ -3580,7 +3582,7 @@
   "mora": 0,
   "plazo": 13,
   "semana": 0,
-  "estatus": "ACTIVO MORA",
+  "estatus": "CREDITO VENCIDO A RECUPERAR",
   "desembolso": "2026-05-01",
   "diaPago": "VIERNES"
  },
@@ -3640,7 +3642,7 @@
   "mora": 0,
   "plazo": 24,
   "semana": 0,
-  "estatus": "ACTIVO MORA",
+  "estatus": "CREDITO VENCIDO A RECUPERAR",
   "desembolso": "2025-08-16",
   "diaPago": "VIERNES"
  },
@@ -4890,7 +4892,7 @@
   "mora": 0,
   "plazo": 13,
   "semana": 0,
-  "estatus": "ACTIVO MORA",
+  "estatus": "CREDITO VENCIDO A RECUPERAR",
   "desembolso": "2026-04-29",
   "diaPago": "MIERCOLES"
  },
