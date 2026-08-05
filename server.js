@@ -875,29 +875,60 @@ function liquidacionesSinClienta(usuario, desde) {
 function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
   const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
   const liqPorSocio = {};
+  const sumar = (m, fISO) => {
+    const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+    if (!/^(liquidaci|recuperaci)/i.test(tipo)) return;
+    const soc = socioDeMov(m);
+    if (!soc) return;
+    liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
+    // Guarda el MONTO por día (no solo la fecha): las renovaciones necesitan
+    // saber cuánto se liquidó en cada día para no darle al ciclo nuevo lo del
+    // anterior. Las fechas se siguen leyendo con Object.keys().
+    if (fechasOut) {
+      const fo = fechasOut[soc] = fechasOut[soc] || {};
+      fo[fISO] = (fo[fISO] || 0) + m.monto;
+    }
+  };
   const d0 = new Date(lunes + "T12:00:00");
   // Tope 400 días: con `desde` (corte de saldos) la ventana puede ser larga.
   for (let i = 0; i < (desde ? 400 : 7); i++) {
     const f = new Date(d0); f.setDate(d0.getDate() + i);
     const fISO = f.toISOString().slice(0, 10);
     if (fISO > hoy) break;
+    for (const m of movsDeFecha(fISO, usuario)) sumar(m, fISO);
+  }
+  // ABONOS CON FECHA ATRASADA. Lo normal es no contar nada anterior al corte:
+  // el saldo de la plantilla ya lo trae. Pero si alguien captura HOY un
+  // movimiento y le pone la fecha del viernes, ese abono NO pudo estar en la
+  // plantilla —se registró después— y antes desaparecía en silencio: entraba a
+  // la caja y no le bajaba el saldo a nadie. Lo pidió arreglar Karina el 5-ago.
+  // Se distingue por la HORA DE CAPTURA (`ts`) contra la hora en que se fijó el
+  // corte: capturado después del corte = la plantilla no lo tenía = sí cuenta.
+  for (const m of movsAtrasadosQueSiCuentan(usuario, desde)) sumar(m, String(m.fecha));
+  return liqPorSocio;
+}
+// Cuándo se fijó el corte vigente. Sirve para saber si un movimiento con fecha
+// vieja se capturó ANTES (y entonces ya venía en la plantilla) o DESPUÉS.
+function corteTs() {
+  const cortes = store.cambiosPadron().filter((c) => c.tipo === "corte" && /^\d{4}-\d{2}-\d{2}$/.test(c.fecha || ""));
+  return cortes.length ? (Number(cortes[cortes.length - 1].ts) || 0) : 0;
+}
+// Movimientos con FECHA anterior al corte pero CAPTURADOS después de fijarlo.
+// La plantilla no pudo traerlos, así que sí tienen que descontar.
+function movsAtrasadosQueSiCuentan(usuario, desde) {
+  if (!desde) return [];
+  const ts0 = corteTs();
+  if (!ts0) return [];
+  const out = [];
+  const d0 = new Date(desde + "T12:00:00");
+  for (let i = 1; i <= 120; i++) {                  // hasta 4 meses hacia atrás
+    const f = new Date(d0); f.setDate(d0.getDate() - i);
+    const fISO = f.toISOString().slice(0, 10);
     for (const m of movsDeFecha(fISO, usuario)) {
-      const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
-      if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
-      const soc = socioDeMov(m);
-      if (soc) {
-        liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
-        // Guarda el MONTO por día (no solo la fecha): las renovaciones necesitan
-        // saber cuánto se liquidó en cada día para no darle al ciclo nuevo lo del
-        // anterior. Las fechas se siguen leyendo con Object.keys().
-        if (fechasOut) {
-          const fo = fechasOut[soc] = fechasOut[soc] || {};
-          fo[fISO] = (fo[fISO] || 0) + m.monto;
-        }
-      }
+      if (Number(m.ts) > ts0) out.push({ ...m, fecha: fISO });
     }
   }
-  return liqPorSocio;
+  return out;
 }
 // CARTERA VIVA · fuente ÚNICA del saldo actual por crédito, para que el Excel y
 // el tablero siempre cuadren. Para cada crédito activo: lo pagado y lo liquidado
@@ -1614,6 +1645,16 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
+    // Abonos capturados DESPUÉS del corte pero con fecha anterior a él. Ya
+    // descuentan (antes se perdían en silencio), pero se avisan: mueven saldos
+    // de días que la plantilla daba por cerrados, y eso Monse tiene que verlo.
+    movsAtrasados: movsAtrasadosQueSiCuentan(req.usuario, corteSaldos())
+      .filter((m) => /^(liquidaci|recuperaci)/i.test(String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim()))
+      .map((m) => { const s = socioDeMov(m); const cl = s && PADRON.find((c) => String(c.id) === String(s));
+        return { folio: m.folio, fecha: m.fecha, monto: m.monto, socio: s || null,
+          clienta: cl ? cl.nombre : null, registradoPor: m.registradoPor || null,
+          capturado: new Date(Number(m.ts)).toISOString().slice(0, 10) }; })
+      .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha))),
     // Créditos ATRASADOS EN NÚMERO DE PAGOS. Sustituye al aviso de «plazo
     // vencido» del 4-ago, que estaba mal planteado: trataba el plazo como fecha
     // límite cuando es un número de pagos. Ver atrasoEnPagos(). Se listan de 4

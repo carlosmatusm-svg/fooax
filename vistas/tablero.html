@@ -1165,6 +1165,20 @@ async function cargarCartera() {
       + d.liquidacionesSinClienta.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.concepto) + " · " + dinero(x.monto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "")).join("<br>")
       + "</div>";
   }
+  // Abonos con fecha vieja capturados después del corte: SÍ descuentan (antes se
+  // perdían), pero mueven saldos de días que la plantilla daba por cerrados.
+  if ((d.movsAtrasados || []).length) {
+    const totA = d.movsAtrasados.reduce((a, b) => a + (b.monto || 0), 0);
+    h += '<div class="ct-nota" style="border-color:#FD6E29"><b style="color:#FD6E29">⚠ ' + d.movsAtrasados.length
+      + " abonos capturados con fecha atrasada (" + dinero(totA) + ").</b> Son anteriores al corte del "
+      + hesc(d.corte) + ", pero se registraron después, así que <b>la plantilla no los traía</b>. "
+      + "El sistema ya se los descuenta a su clienta — se avisan porque mueven saldos de días que la plantilla daba por cerrados.<br>"
+      + d.movsAtrasados.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.clienta || "sin clienta")
+          + " · " + dinero(x.monto) + " · capturado el " + hesc(x.capturado)
+          + (x.registradoPor ? " por " + hesc(x.registradoPor) : "")).join("<br>")
+      + (d.movsAtrasados.length > 8 ? "<br>… y " + (d.movsAtrasados.length - 8) + " más" : "")
+      + "</div>";
+  }
   if (S.cuotaVariable) {
     h += '<div class="ct-nota"><b>' + S.cuotaVariable + ' créditos de CUOTA VARIABLE (Magnus).</b> Su cuota baja cada periodo, así que la del padrón deja de servir al primer pago. Para no marcarles mora falsa, quedan fuera del esperado, del semáforo y del “pago 13 de 18” hasta que exista el módulo de intereses. Su cobranza y su arqueo sí cuentan normal.</div>';
   }

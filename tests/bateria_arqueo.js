@@ -1258,6 +1258,38 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     Math.abs((await saldo43("MARTHA SILVIA")).act - mar.base) < 0.01,
     "quedó en " + (await saldo43("MARTHA SILVIA")).act + " y debía volver a " + mar.base);
 
+  console.log("\n— 44. UN ABONO CAPTURADO CON FECHA ATRASADA SÍ DESCUENTA (Karina, 5-ago) —");
+  // Lo normal es que nada anterior al corte descuente: la plantilla ya lo trae.
+  // Pero si alguien captura HOY un abono y le pone la fecha del viernes, la
+  // plantilla NO pudo traerlo, y antes desaparecía en silencio. Se distingue por
+  // la hora de captura contra la hora en que se fijó el corte.
+  // OJO: esta sección va al FINAL a propósito, porque mueve el corte a hoy.
+  const s44 = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=AIDE%20YULICELI", { headers: H(cm) }));
+    const x = (d.resultados || []).filter((y) => y.activa !== false)[0];
+    return x ? x.saldoActual : null;
+  };
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  const antes44 = await s44();
+  await new Promise((r) => setTimeout(r, 30));      // que la captura quede DESPUÉS del corte
+  const VIE44 = new Date(new Date(HOY + "T12:00") - 4 * 864e5).toISOString().slice(0, 10);
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: VIE44,
+    snapshot: { reg: {}, movs: [{ folio: "AT44", concepto: "LIQUIDACION", monto: 200, via: "E",
+      clienta: "AIDE", socio: "11112997831" }] }, ts: Date.now() }) });
+  const desp44 = await s44();
+  ok("el abono con fecha vieja SÍ le baja el saldo (antes se perdía en silencio)",
+    Math.abs(desp44 - (antes44 - 200)) < 0.01, antes44 + " → " + desp44);
+  const car44 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("y el tablero lo avisa, con la fecha y quién lo capturó",
+    (car44.movsAtrasados || []).some((x) => x.monto === 200 && String(x.socio) === "11112997831"),
+    JSON.stringify(car44.movsAtrasados || []));
+  // Contraprueba: si el corte se fija DESPUÉS de la captura, ya venía en la
+  // plantilla y NO debe volver a descontarse.
+  await new Promise((r) => setTimeout(r, 30));
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  ok("pero si el corte se fija después de la captura, deja de descontar",
+    Math.abs((await s44()) - antes44) < 0.01, "quedó en " + (await s44()) + " y debía volver a " + antes44);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
