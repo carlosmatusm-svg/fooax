@@ -2761,27 +2761,31 @@ function altasParaApp(usuario) {
   // pagar NO queda dada de baja —sigue activa con saldo cero—, así que no
   // entraba aquí y se le seguía apareciendo en la lista de cobro.
   //
-  // OJO CON EL DÍA DE HOY: el saldo se mide SIN los abonos de hoy. Si se quitara
-  // a la que acaba de dar su última cuota esta misma mañana, su renglón
-  // desaparecería del teléfono y —como el sync REEMPLAZA el día completo— ese
-  // pago se perdería al sincronizar. Así que desaparece hasta mañana.
+  // El saldo se lee de carteraViva(), que es la ÚNICA fuente de saldo del
+  // sistema: ya resuelve el corte, reparte las liquidaciones entre los créditos
+  // de una misma socia y descuenta lo del ciclo anterior en las renovaciones.
+  // El primer intento (5-ago) calculaba esto aparte, mirando solo desde el
+  // corte, y por eso una clienta que liquidó AYER le seguía apareciendo: ayer
+  // queda fuera de esa ventana. Lo cachó Karina preguntando «¿seguro?».
+  //
+  // ÚNICA EXCEPCIÓN, el día de hoy: a la que acaba de dar su última cuota esta
+  // mañana NO se le quita todavía. Si se le borrara el renglón del teléfono
+  // —y el sync REEMPLAZA el día completo— ese pago se perdería al sincronizar.
+  // Desaparece mañana.
   const hoy = hoyMX();
   const corte = corteSaldos();
+  const cv = carteraViva(usuario);
   const { porFecha } = pagosDeLaSemana(usuario, corte);
   const fechasLiq = {};
   liquidacionesDeLaSemana(usuario, corte, fechasLiq);
-  const liquidadoAntesDeHoy = (c) => {
-    const clave = claveCredito(c.id, c.producto);
-    const pf = porFecha[clave] || {};
-    let pagado = 0;
-    for (const f in pf) if (f < hoy) pagado += pf[f].p || 0;
-    let liq = 0;
-    const fl = fechasLiq[String(c.id)] || {};
-    for (const f in fl) if (f < hoy) liq += fl[f] || 0;
-    return (c.saldo || 0) > 0 && (c.saldo || 0) - pagado - liq <= 0.009;
+  const cobroHoy = (c) => {
+    const pf = porFecha[claveCredito(c.id, c.producto)] || {};
+    if ((pf[hoy] && pf[hoy].p) > 0) return true;
+    return ((fechasLiq[String(c.id)] || {})[hoy] || 0) > 0;   // liquidó hoy por caja
   };
+  const yaNoDebe = (c) => infoCredito(cv, c).saldoActual <= 0.009 && !cobroHoy(c);
   const quitar = PADRON
-    .filter((c) => mia(c) && (!viva(c) || liquidadoAntesDeHoy(c)))
+    .filter((c) => mia(c) && (!viva(c) || yaNoDebe(c)))
     .map((c) => ({ id: String(c.id), producto: c.producto }));
   return { altas, centros, quitar };
 }

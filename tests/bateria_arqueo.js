@@ -1121,6 +1121,42 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       "en cero: " + ceroDeChris.length + " · sin quitar: " + faltantes.length);
     void todos40; void buscar40;
   }
+  // Los cuatro casos de campo, con clientas de Christopher que no toca ninguna
+  // otra sección y en fechas propias. Preguntó Karina «¿seguro que ya no
+  // aparecen?» — y no lo estaba: (1) el saldo se calculaba aparte, mirando solo
+  // desde el corte, y (2) los créditos que YA vienen en cero en la plantilla se
+  // quedaban dentro porque se exigía saldo > 0.
+  // La sección 38 deja el corte en la fecha de la plantilla, y con eso los pagos
+  // de meses atrás quedan ANTES del corte (donde por diseño ya están dentro del
+  // saldo de la plantilla). Para estos casos se regresa el corte al principio
+  // del año, que es donde lo pone la batería al arrancar.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-01-01" }) });
+  const sync40 = (fecha, reg, t) => fetch(U + "/api/sync", { method: "POST", headers: H(cCh),
+    body: JSON.stringify({ fecha, snapshot: { reg }, ts: Date.now() + t }) });
+  const K40 = (id, p, nom) => id + "|" + p + "|" + nom + "|0";
+  const qDe = async () => {
+    const html = await (await fetch(U + "/app", { headers: H(cCh) })).text();
+    const mm = /var _Q=(\[.*?\]);/.exec(html); return mm ? JSON.parse(mm[1]) : [];
+  };
+  const enQ = (q, id, p) => q.some((x) => String(x.id) === String(id) && x.producto === p);
+  await sync40("2026-05-13", { C40: { [K40("11112783089", "Grupal-Basico", "CARMEN VIANEY EVANGELISTA MARTINEZ")]: { pago: 2340, forma: "E" } } }, 1);
+  await sync40("2026-04-22", { C40: { [K40("11112807346", "Grupal-Basico", "EMMA GUADALUPE EVANGELISTA MARTINEZ")]: { pago: 900, forma: "E" } } }, 2);
+  const q40 = await qDe();
+  ok("la que LIQUIDÓ en un día pasado sale de la app", enQ(q40, "11112783089", "Grupal-Basico"),
+    "CARMEN liquidó y le sigue apareciendo");
+  ok("la que pagó A MEDIAS se queda: todavía le deben", !enQ(q40, "11112807346", "Grupal-Basico"),
+    "EMMA aún debe $900 y se la quitaron");
+  await sync40(HOY, { C40: { [K40("11112932017", "Grupal-Basico 2", "FLOR SILVIA LOPEZ MARTINEZ")]: { pago: 2304, forma: "E" } } }, 3);
+  const q40b = await qDe();
+  ok("la que liquida HOY se queda hoy (si no, el sync borraría su pago)",
+    !enQ(q40b, "11112932017", "Grupal-Basico 2"), "se le quitó el mismo día");
+  // Los que YA vienen en cero desde la plantilla: nunca tuvieron pago que
+  // esperar, y aun así se le aparecían a la ejecutiva.
+  const cero40 = [["11113232046", "Grupal-Adicional"], ["11112993402", "Grupal-Adicional"], ["11112772748", "Grupal-Basico 2"]];
+  ok("los créditos que ya vienen en CERO en la plantilla también salen",
+    cero40.every(([id, p]) => enQ(q40b, id, p)),
+    JSON.stringify(cero40.filter(([id, p]) => !enQ(q40b, id, p))));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
