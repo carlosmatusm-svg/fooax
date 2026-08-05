@@ -1,0 +1,3 @@
+﻿id_scheduler_config,modulo,activo,hora_ejecucion,frecuencia,cron_expresion,dias_semana,ultima_ejecucion,estatus,descripcion,fecha_creacion,fecha_actualizacion
+1,CARTERA,1,19:00:00,DIARIA,0 19 * * *,"LUN,MAR,MIE,JUE,VIE",,ACTIVO,Programación diaria por defecto,2025-11-10 16:35:40,2025-11-10 16:35:40
+2,MORA,1,20:00:00,DIARIA,0 20 * * *,"lunes,martes,miercoles,jueves,viernes,sabado,domingo",,ACTIVO,Procesamiento automático diario de mora a las 8pm México,2026-05-27 14:28:28,2026-05-27 14:28:28

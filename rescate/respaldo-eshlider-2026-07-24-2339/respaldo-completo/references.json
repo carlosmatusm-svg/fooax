@@ -1,0 +1,5932 @@
+[
+ {
+  "id_reference": 7,
+  "nombre": "Alejandro Pedro Cruz",
+  "curp": null,
+  "telefono": "9514762371",
+  "relacion": "Pareja",
+  "fecha_creacion": "2025-06-17 23:49:06",
+  "fecha_actualizacion": "2025-06-17 23:49:06",
+  "id_cliente": 11113025129
+ },
+ {
+  "id_reference": 8,
+  "nombre": "Benjamin Perez Martinez",
+  "curp": null,
+  "telefono": "9514215740",
+  "relacion": "Pareja",
+  "fecha_creacion": "2025-06-25 00:15:08",
+  "fecha_actualizacion": "2025-06-25 00:15:08",
+  "id_cliente": 11112925238
+ },
+ {
+  "id_reference": 9,
+  "nombre": "Norman Josue",
+  "curp": null,
+  "telefono": "9516502882",
+  "relacion": "Esposo",
+  "fecha_creacion": "2025-06-26 00:35:07",
+  "fecha_actualizacion": "2025-06-26 00:35:07",
+  "id_cliente": 11112903012
+ },
+ {
+  "id_reference": 10,
+  "nombre": "David Heriberto Baltazar Garcia",
+  "curp": null,
+  "telefono": "9512343958",
+  "relacion": "Esposo",
+  "fecha_creacion": "2025-06-27 19:48:34",
+  "fecha_actualizacion": "2025-06-27 19:48:34",
+  "id_cliente": 11113008579
+ },
+ {
+  "id_reference": 11,
+  "nombre": "Rosa Maria Muno Lopez",
+  "curp": null,
+  "telefono": "9516419277",
+  "relacion": "Hija",
+  "fecha_creacion": "2025-06-27 20:56:36",
+  "fecha_actualizacion": "2025-06-27 20:56:36",
+  "id_cliente": 11112984597
+ },
+ {
+  "id_reference": 14,
+  "nombre": "Julian Aragon Sanjuan",
+  "curp": null,
+  "telefono": "9513558969",
+  "relacion": "Esposo",
+  "fecha_creacion": "2025-07-03 23:55:43",
+  "fecha_actualizacion": "2025-07-03 23:55:43",
+  "id_cliente": 11113098291
+ },
+ {
+  "id_reference": 17,
+  "nombre": "Isaac Martinez Lopez",
+  "curp": "",
+  "telefono": "9513415277",
+  "relacion": "Primo",
+  "fecha_creacion": "2025-07-15 20:23:42",
+  "fecha_actualizacion": "2025-07-15 20:23:42",
+  "id_cliente": 11112919810
+ },
+ {
+  "id_reference": 18,
+  "nombre": "Eva Gonzalez Lopez",
+  "curp": "",
+  "telefono": "9515823764",
+  "relacion": "Cuñada",
+  "fecha_creacion": "2025-07-15 20:48:22",
+  "fecha_actualizacion": "2025-07-15 20:48:22",
+  "id_cliente": 11112861463
+ },
+ {
+  "id_reference": 19,
+  "nombre": "Rosario Mayte Osorio Cruz",
+  "curp": "",
+  "telefono": "9515874032",
+  "relacion": "Sobrina",
+  "fecha_creacion": "2025-07-15 21:49:21",
+  "fecha_actualizacion": "2025-07-15 21:49:21",
+  "id_cliente": 11112899272
+ },
+ {
+  "id_reference": 20,
+  "nombre": "Ana Lilia Guerrero De La Luz",
+  "curp": "",
+  "telefono": "9514642283",
+  "relacion": "Consuegra",
+  "fecha_creacion": "2025-07-15 22:07:03",
+  "fecha_actualizacion": "2025-07-15 22:07:03",
+  "id_cliente": 11112985973
+ },
+ {
+  "id_reference": 21,
+  "nombre": "Ediberto De La Luz Gomez",
+  "curp": "",
+  "telefono": "9511159623",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-07-15 22:51:41",
+  "fecha_actualizacion": "2025-07-15 22:51:41",
+  "id_cliente": 11112821963
+ },
+ {
+  "id_reference": 22,
+  "nombre": "Julia Esther Vallarta Gonzalez",
+  "curp": "",
+  "telefono": "9512319234",
+  "relacion": "Hija",
+  "fecha_creacion": "2025-07-16 15:33:05",
+  "fecha_actualizacion": "2025-07-16 15:33:05",
+  "id_cliente": 11112918184
+ },
+ {
+  "id_reference": 23,
+  "nombre": "Luisa Nieves Ramirez Lopez",
+  "curp": "",
+  "telefono": "0000000000",
+  "relacion": "Conocida ",
+  "fecha_creacion": "2025-07-16 15:43:29",
+  "fecha_actualizacion": "2025-07-16 15:43:29",
+  "id_cliente": 11112922068
+ },
+ {
+  "id_reference": 24,
+  "nombre": "Esperanza Merlin Garcia",
+  "curp": "MEGE620328MOCRRC03",
+  "telefono": "9512087313",
+  "relacion": "Amigas",
+  "fecha_creacion": "2025-07-16 16:30:36",
+  "fecha_actualizacion": "2025-07-16 16:30:36",
+  "id_cliente": 11113129537
+ },
+ {
+  "id_reference": 25,
+  "nombre": "Balentina Jines De La Luz",
+  "curp": "JILB800214MOCNZL06",
+  "telefono": "9515947496",
+  "relacion": "Compañero/a de estudios",
+  "fecha_creacion": "2025-07-22 20:11:27",
+  "fecha_actualizacion": "2025-07-22 20:11:27",
+  "id_cliente": 11113204127
+ },
+ {
+  "id_reference": 26,
+  "nombre": "Aide  Lopez Pacheco",
+  "curp": "LOPA891128MOCPCD07",
+  "telefono": "9512343958",
+  "relacion": "Compañero/a de trabajo",
+  "fecha_creacion": "2025-07-22 20:31:21",
+  "fecha_actualizacion": "2025-07-22 20:31:21",
+  "id_cliente": 11113208518
+ },
+ {
+  "id_reference": 27,
+  "nombre": "Elijio Soto Liliana",
+  "curp": "",
+  "telefono": "9513577674",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-07-30 18:07:59",
+  "fecha_actualizacion": "2025-07-30 18:07:59",
+  "id_cliente": 11112791994
+ },
+ {
+  "id_reference": 28,
+  "nombre": "Mauricio Ramirez Santos",
+  "curp": "RASM070404HOCMNRA2",
+  "telefono": "9514268752",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-07-30 18:29:53",
+  "fecha_actualizacion": "2025-07-30 18:29:53",
+  "id_cliente": 11112971766
+ },
+ {
+  "id_reference": 29,
+  "nombre": "Jael Esau Zarate Diaz",
+  "curp": "ZADJ060715HOCRZLA9",
+  "telefono": "9514644436",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-07-30 18:44:46",
+  "fecha_actualizacion": "2025-07-30 18:44:46",
+  "id_cliente": 11112979148
+ },
+ {
+  "id_reference": 30,
+  "nombre": "Jose Lopez Gonsalez",
+  "curp": "LOGJ960830HOCPNS02",
+  "telefono": "9514390044",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-07-30 19:08:12",
+  "fecha_actualizacion": "2025-07-30 19:08:12",
+  "id_cliente": 11113029053
+ },
+ {
+  "id_reference": 31,
+  "nombre": "Berenice Gomes Espinoza",
+  "curp": "GOEV921124MOCMSR09",
+  "telefono": "9513619606",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-07-30 19:25:25",
+  "fecha_actualizacion": "2025-07-30 19:25:25",
+  "id_cliente": 11113017302
+ },
+ {
+  "id_reference": 32,
+  "nombre": "Natalia Cruz Castellanos",
+  "curp": "CUCN740727MOCRST01",
+  "telefono": "9516373022",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-07-30 19:42:18",
+  "fecha_actualizacion": "2025-07-30 19:42:18",
+  "id_cliente": 11112871315
+ },
+ {
+  "id_reference": 33,
+  "nombre": "Flavio Martinez Gonsalez",
+  "curp": "MAGF130724HOCNRLA9",
+  "telefono": "9515801175",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-07-30 20:09:16",
+  "fecha_actualizacion": "2025-07-30 20:09:16",
+  "id_cliente": 11112966560
+ },
+ {
+  "id_reference": 34,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-07-30 21:49:36",
+  "fecha_actualizacion": "2025-07-30 21:49:36",
+  "id_cliente": 11112805333
+ },
+ {
+  "id_reference": 36,
+  "nombre": "Omelia Gonzalez Cruz",
+  "curp": "GOCO830512MOCNRM00",
+  "telefono": "9513410197",
+  "relacion": "Vecino/a",
+  "fecha_creacion": "2025-07-30 23:09:25",
+  "fecha_actualizacion": "2025-07-30 23:09:25",
+  "id_cliente": 11112835706
+ },
+ {
+  "id_reference": 37,
+  "nombre": "Lourdez Diaz Hernandez",
+  "curp": "",
+  "telefono": "9514645902",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-07-30 23:21:49",
+  "fecha_actualizacion": "2025-07-30 23:21:49",
+  "id_cliente": 11112901442
+ },
+ {
+  "id_reference": 38,
+  "nombre": "Divina Chavez Perez",
+  "curp": "",
+  "telefono": "9513960115",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-07-30 23:47:48",
+  "fecha_actualizacion": "2025-07-30 23:47:48",
+  "id_cliente": 11112909806
+ },
+ {
+  "id_reference": 39,
+  "nombre": "Filadelfo Rojas Garcia",
+  "curp": "",
+  "telefono": "9516511048",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-01 16:35:46",
+  "fecha_actualizacion": "2025-08-01 16:35:46",
+  "id_cliente": 11112949301
+ },
+ {
+  "id_reference": 40,
+  "nombre": "Angelica Hernandez",
+  "curp": "",
+  "telefono": "9513639762",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-01 17:06:15",
+  "fecha_actualizacion": "2025-08-01 17:06:15",
+  "id_cliente": 11112913368
+ },
+ {
+  "id_reference": 41,
+  "nombre": "Test Test Test",
+  "curp": "MAGF880419MOCRRR03",
+  "telefono": "1999999999",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-01 17:50:04",
+  "fecha_actualizacion": "2025-08-01 17:50:04",
+  "id_cliente": 11113204612
+ },
+ {
+  "id_reference": 42,
+  "nombre": "Abril Valeria Cuevas Lopez",
+  "curp": "CULA060403MOCVPBA2",
+  "telefono": "9516492278",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-01 18:46:58",
+  "fecha_actualizacion": "2025-08-01 18:46:58",
+  "id_cliente": 11112996211
+ },
+ {
+  "id_reference": 43,
+  "nombre": "Abril Cuevas Lopez",
+  "curp": "CULA060403MOCBPBA2",
+  "telefono": "9516492278",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-01 18:59:07",
+  "fecha_actualizacion": "2025-08-01 18:59:07",
+  "id_cliente": 11112931340
+ },
+ {
+  "id_reference": 44,
+  "nombre": "Patrcia Cruz Robles",
+  "curp": "CURP930703MOCRBT03",
+  "telefono": "9512872566",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-01 19:15:46",
+  "fecha_actualizacion": "2025-08-01 19:15:46",
+  "id_cliente": 11113025167
+ },
+ {
+  "id_reference": 45,
+  "nombre": "Pilar Roque Ramirez",
+  "curp": "RORE651010MOCQCM10",
+  "telefono": "9513643004",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-01 19:41:19",
+  "fecha_actualizacion": "2025-08-01 19:41:19",
+  "id_cliente": 11113129161
+ },
+ {
+  "id_reference": 48,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-01 21:13:47",
+  "fecha_actualizacion": "2025-08-01 21:13:47",
+  "id_cliente": 11112977354
+ },
+ {
+  "id_reference": 49,
+  "nombre": "Carol Abigail Jimenez",
+  "curp": "",
+  "telefono": "9516392311",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-01 21:32:47",
+  "fecha_actualizacion": "2025-08-01 21:32:47",
+  "id_cliente": 11112997831
+ },
+ {
+  "id_reference": 50,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-01 21:40:46",
+  "fecha_actualizacion": "2025-08-01 21:40:46",
+  "id_cliente": 11113043290
+ },
+ {
+  "id_reference": 51,
+  "nombre": "Fabian Casas Rodriguez",
+  "curp": "CARF871005HOCSBB08",
+  "telefono": "9514997244",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-01 22:39:28",
+  "fecha_actualizacion": "2025-08-01 22:39:28",
+  "id_cliente": 11112926916
+ },
+ {
+  "id_reference": 52,
+  "nombre": "Luis Angel Robledo Hernandez",
+  "curp": "ROHL990118HOCBRS01",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-01 23:00:56",
+  "fecha_actualizacion": "2025-08-01 23:00:56",
+  "id_cliente": 11112985270
+ },
+ {
+  "id_reference": 53,
+  "nombre": "Jesus Billavicencio Hernandez",
+  "curp": "BIHJ860810HOCLRS06",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 15:31:56",
+  "fecha_actualizacion": "2025-08-05 15:31:56",
+  "id_cliente": 11112765503
+ },
+ {
+  "id_reference": 54,
+  "nombre": "Jose Andres Garcia Cruz",
+  "curp": "GASA980129HOCRRN04",
+  "telefono": "4423529633",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 15:51:18",
+  "fecha_actualizacion": "2025-08-05 15:51:18",
+  "id_cliente": 11112792952
+ },
+ {
+  "id_reference": 55,
+  "nombre": "Mayte Elodia Lopez Gonzalez",
+  "curp": "",
+  "telefono": "9514944126",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 16:42:40",
+  "fecha_actualizacion": "2025-08-05 16:42:40",
+  "id_cliente": 11112973962
+ },
+ {
+  "id_reference": 56,
+  "nombre": "Daniel Espinoza Cruz",
+  "curp": "EICD031118HMCSRNA3",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 17:03:14",
+  "fecha_actualizacion": "2025-08-05 17:03:14",
+  "id_cliente": 11112847319
+ },
+ {
+  "id_reference": 57,
+  "nombre": "Sandra Estefania Lezama Cruz",
+  "curp": "LECS990206MOCZRN04",
+  "telefono": "0000000000",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-05 17:21:44",
+  "fecha_actualizacion": "2025-08-05 17:21:44",
+  "id_cliente": 11113115541
+ },
+ {
+  "id_reference": 58,
+  "nombre": "Miguel Angel Cruz Espinoza",
+  "curp": "CUEM030930HOCRSGA5",
+  "telefono": "0000000000",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-05 17:49:39",
+  "fecha_actualizacion": "2025-08-05 17:49:39",
+  "id_cliente": 11112905319
+ },
+ {
+  "id_reference": 59,
+  "nombre": "Sandra Cano Diaz",
+  "curp": "CADS930221MOCNZN04",
+  "telefono": "0000000000",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-05 17:59:04",
+  "fecha_actualizacion": "2025-08-05 17:59:04",
+  "id_cliente": 11112972021
+ },
+ {
+  "id_reference": 60,
+  "nombre": "Maria Hernandez Perez",
+  "curp": "HEPM480402MOCRRR09",
+  "telefono": "0000000000",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-05 18:14:46",
+  "fecha_actualizacion": "2025-08-05 18:14:46",
+  "id_cliente": 11113176710
+ },
+ {
+  "id_reference": 61,
+  "nombre": "Dalia Garcia Romero",
+  "curp": "GARD930510MOCRML05",
+  "telefono": "0000000000",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-05 18:28:45",
+  "fecha_actualizacion": "2025-08-05 18:28:45",
+  "id_cliente": 11112744466
+ },
+ {
+  "id_reference": 62,
+  "nombre": "Cayetano Garcia Santiago",
+  "curp": "GASC750807HOCRNY04",
+  "telefono": "0000000000",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-05 18:40:43",
+  "fecha_actualizacion": "2025-08-05 18:40:43",
+  "id_cliente": 11112846629
+ },
+ {
+  "id_reference": 63,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-05 18:57:53",
+  "fecha_actualizacion": "2025-08-05 18:57:53",
+  "id_cliente": 11113102023
+ },
+ {
+  "id_reference": 64,
+  "nombre": "Cintia Rosario Ramirez Guendolay ",
+  "curp": "DOGC920820MOCMNNO1",
+  "telefono": "9512002582",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 19:24:25",
+  "fecha_actualizacion": "2025-08-05 19:24:25",
+  "id_cliente": 11112997957
+ },
+ {
+  "id_reference": 65,
+  "nombre": "Adrian Vigilio Sosa Audelo",
+  "curp": "SOAA610315HOCSDD09",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 19:44:46",
+  "fecha_actualizacion": "2025-08-05 19:44:46",
+  "id_cliente": 11113018670
+ },
+ {
+  "id_reference": 66,
+  "nombre": "Maria Guadalupe Sumane Acuca",
+  "curp": "SUAM800522MOCMCT07",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 20:05:19",
+  "fecha_actualizacion": "2025-08-05 20:05:19",
+  "id_cliente": 11112962530
+ },
+ {
+  "id_reference": 67,
+  "nombre": "Elizabeth Garcia Diaz ",
+  "curp": "GADE921121MOCRZL00",
+  "telefono": "0000000000",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-05 20:14:40",
+  "fecha_actualizacion": "2025-08-05 20:14:40",
+  "id_cliente": 11112873397
+ },
+ {
+  "id_reference": 68,
+  "nombre": "Guillermina Luis Rendon",
+  "curp": "LURG850121MOCSNL07",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 20:30:39",
+  "fecha_actualizacion": "2025-08-05 20:30:39",
+  "id_cliente": 11113101807
+ },
+ {
+  "id_reference": 69,
+  "nombre": "Georgina Avendaño Bautista",
+  "curp": "AEVG640308MOCBTR08",
+  "telefono": "0000000000",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-05 20:44:58",
+  "fecha_actualizacion": "2025-08-05 20:44:58",
+  "id_cliente": 11112933824
+ },
+ {
+  "id_reference": 70,
+  "nombre": "Johana Alejandra Mendoza Lopez ",
+  "curp": "",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 20:59:49",
+  "fecha_actualizacion": "2025-08-05 20:59:49",
+  "id_cliente": 11112934778
+ },
+ {
+  "id_reference": 71,
+  "nombre": "Esther Garcia Escobar",
+  "curp": "GAEE501212MOCRSS00",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 23:09:17",
+  "fecha_actualizacion": "2025-08-05 23:09:17",
+  "id_cliente": 11112707655
+ },
+ {
+  "id_reference": 72,
+  "nombre": "Idania Perez Chavez",
+  "curp": "PECI000813MOCRHDA7",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 23:28:17",
+  "fecha_actualizacion": "2025-08-05 23:28:17",
+  "id_cliente": 11112994926
+ },
+ {
+  "id_reference": 73,
+  "nombre": "Flor Elena Gaytan Pinelo",
+  "curp": "GAPF900523MOCYNL00",
+  "telefono": "9513984021",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-05 23:41:37",
+  "fecha_actualizacion": "2025-08-05 23:41:37",
+  "id_cliente": 11112998182
+ },
+ {
+  "id_reference": 74,
+  "nombre": "Silvia Susana Gomez Cruz",
+  "curp": "",
+  "telefono": "9513615753",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-06 17:15:32",
+  "fecha_actualizacion": "2025-08-06 17:15:32",
+  "id_cliente": 11112919022
+ },
+ {
+  "id_reference": 75,
+  "nombre": "Araceli Martinez",
+  "curp": "",
+  "telefono": "9515309401",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-06 18:28:41",
+  "fecha_actualizacion": "2025-08-06 18:28:41",
+  "id_cliente": 11112711848
+ },
+ {
+  "id_reference": 76,
+  "nombre": "Ximena Mitzuru Alonso Santos",
+  "curp": "AOSX030422MOCLNMA4",
+  "telefono": "9515679607",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-06 19:59:05",
+  "fecha_actualizacion": "2025-08-06 19:59:05",
+  "id_cliente": 11112973932
+ },
+ {
+  "id_reference": 77,
+  "nombre": "Dulce Maria Hernandez ",
+  "curp": "",
+  "telefono": "9511014337",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-06 20:21:21",
+  "fecha_actualizacion": "2025-08-06 20:21:21",
+  "id_cliente": 11112775265
+ },
+ {
+  "id_reference": 78,
+  "nombre": "Emilio Muñoz Lopez",
+  "curp": "",
+  "telefono": "9514269235",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-06 21:09:25",
+  "fecha_actualizacion": "2025-08-06 21:09:25",
+  "id_cliente": 11112856037
+ },
+ {
+  "id_reference": 79,
+  "nombre": "Miriam Muñoz Lopez",
+  "curp": "",
+  "telefono": "9516388087",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-08-06 21:54:53",
+  "fecha_actualizacion": "2025-08-06 21:54:53",
+  "id_cliente": 11113008354
+ },
+ {
+  "id_reference": 80,
+  "nombre": "Angel Eduardo Cuevas Muñoz",
+  "curp": "",
+  "telefono": "9516120061",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-06 22:28:15",
+  "fecha_actualizacion": "2025-08-06 22:28:15",
+  "id_cliente": 11112862419
+ },
+ {
+  "id_reference": 82,
+  "nombre": "Lorena Soledad Gaytan Pinelo",
+  "curp": "GAPL941218MOCYNR03",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-07 18:33:53",
+  "fecha_actualizacion": "2025-08-07 18:33:53",
+  "id_cliente": 11112844764
+ },
+ {
+  "id_reference": 83,
+  "nombre": "Josue Echeverria Trejo",
+  "curp": "EETS030718HOCCRHA1",
+  "telefono": "9512247757",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-07 18:48:14",
+  "fecha_actualizacion": "2025-08-07 18:48:14",
+  "id_cliente": 11112934036
+ },
+ {
+  "id_reference": 84,
+  "nombre": "Abel Edgardo Castellanos Martinez",
+  "curp": "CAMA000424HOCSRBA9",
+  "telefono": "9513991679",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-07 19:03:15",
+  "fecha_actualizacion": "2025-08-07 19:03:15",
+  "id_cliente": 11112846982
+ },
+ {
+  "id_reference": 85,
+  "nombre": "Pedro Daniel Cruz Bautista",
+  "curp": "CUBP010611HOCRTDA1",
+  "telefono": "9512300423",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-07 19:28:35",
+  "fecha_actualizacion": "2025-08-07 19:28:35",
+  "id_cliente": 11112836635
+ },
+ {
+  "id_reference": 86,
+  "nombre": "Angeles Paz Martinez",
+  "curp": "",
+  "telefono": "9513236803",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-08-07 19:48:16",
+  "fecha_actualizacion": "2025-08-07 19:48:16",
+  "id_cliente": 11112968070
+ },
+ {
+  "id_reference": 87,
+  "nombre": "Lidia Ramos Ruiz",
+  "curp": "",
+  "telefono": "9541352848",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-08-07 20:02:31",
+  "fecha_actualizacion": "2025-08-07 20:02:31",
+  "id_cliente": 11112779406
+ },
+ {
+  "id_reference": 88,
+  "nombre": "Silvia Cruz Velasquez",
+  "curp": "",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-07 20:29:25",
+  "fecha_actualizacion": "2025-08-07 20:29:25",
+  "id_cliente": 11112852646
+ },
+ {
+  "id_reference": 89,
+  "nombre": "Margarita Lourdes Ignacio Santiago",
+  "curp": "IASM661214MOCGNR01",
+  "telefono": "9516383057",
+  "relacion": "Vecino/a",
+  "fecha_creacion": "2025-08-07 21:11:08",
+  "fecha_actualizacion": "2025-08-07 21:11:08",
+  "id_cliente": 11113136238
+ },
+ {
+  "id_reference": 90,
+  "nombre": "Karla Hernandez Ignacio ",
+  "curp": "HEIK850830MOCRRL03",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-07 21:30:15",
+  "fecha_actualizacion": "2025-08-07 21:30:15",
+  "id_cliente": 11112941544
+ },
+ {
+  "id_reference": 91,
+  "nombre": "Salgado Cruz Jose Luis ",
+  "curp": "SACL880618HOCLRS00",
+  "telefono": "9513017502",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-07 23:36:28",
+  "fecha_actualizacion": "2025-08-07 23:36:28",
+  "id_cliente": 11113182605
+ },
+ {
+  "id_reference": 92,
+  "nombre": "Margarito Roberto Baltazar Lucero",
+  "curp": "BALM510610HOCPLR06",
+  "telefono": "0000000000",
+  "relacion": "Vecino/a",
+  "fecha_creacion": "2025-08-07 23:53:49",
+  "fecha_actualizacion": "2025-08-07 23:53:49",
+  "id_cliente": 11113112747
+ },
+ {
+  "id_reference": 93,
+  "nombre": "Alex Zuriel Martinez Hernandez",
+  "curp": "MAHA991024HOCRRL03",
+  "telefono": "9514248801",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-08 16:11:07",
+  "fecha_actualizacion": "2025-08-08 16:11:07",
+  "id_cliente": 11112993643
+ },
+ {
+  "id_reference": 94,
+  "nombre": "Victoria Lopez Lopez",
+  "curp": "LOOV781223MOCPJC09",
+  "telefono": "9513548124",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-08 16:36:06",
+  "fecha_actualizacion": "2025-08-08 16:36:06",
+  "id_cliente": 11112721007
+ },
+ {
+  "id_reference": 95,
+  "nombre": "Roberto Carlos Doquiz Alto",
+  "curp": "DOAR000828HOCQLDA6",
+  "telefono": "9516146442",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-08 17:10:41",
+  "fecha_actualizacion": "2025-08-08 17:10:41",
+  "id_cliente": 11112863347
+ },
+ {
+  "id_reference": 96,
+  "nombre": "Maria Victoria Lopez Miguel",
+  "curp": "LOMV591007MOCPGC00",
+  "telefono": "9514601364",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-08 17:24:21",
+  "fecha_actualizacion": "2025-08-08 17:24:21",
+  "id_cliente": 11112669629
+ },
+ {
+  "id_reference": 97,
+  "nombre": "Maria Rosa Galvan Ruiz",
+  "curp": "GARR820501MOCLZS03",
+  "telefono": "9514183004",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-08 17:34:44",
+  "fecha_actualizacion": "2025-08-08 17:34:44",
+  "id_cliente": 11112904459
+ },
+ {
+  "id_reference": 98,
+  "nombre": "Emanuel Garcia Diaz",
+  "curp": "GADE050716HOCRZMA5",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-08 17:47:15",
+  "fecha_actualizacion": "2025-08-08 17:47:15",
+  "id_cliente": 11112714868
+ },
+ {
+  "id_reference": 99,
+  "nombre": "Diana Carla Rodriguez Espinoza",
+  "curp": "ROEC960914MOCDSN00",
+  "telefono": "9512114320",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-08 18:05:08",
+  "fecha_actualizacion": "2025-08-08 18:05:08",
+  "id_cliente": 11112954461
+ },
+ {
+  "id_reference": 100,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-08 18:22:40",
+  "fecha_actualizacion": "2025-08-08 18:22:40",
+  "id_cliente": 11112954311
+ },
+ {
+  "id_reference": 101,
+  "nombre": "Anastacio Ceberino Robles Cortes",
+  "curp": "ROCA721221HOCCBR03",
+  "telefono": "9514689185",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-08 18:34:51",
+  "fecha_actualizacion": "2025-08-08 18:34:51",
+  "id_cliente": 11113043010
+ },
+ {
+  "id_reference": 102,
+  "nombre": "Luis Chavez Hernandez",
+  "curp": "",
+  "telefono": "9513411264",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-08 18:49:23",
+  "fecha_actualizacion": "2025-08-08 18:49:23",
+  "id_cliente": 11112726320
+ },
+ {
+  "id_reference": 103,
+  "nombre": "Delfina Guadalupe Chavez Flores",
+  "curp": "CAFD780102MOCHLL03",
+  "telefono": "9513626949",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-08 20:19:00",
+  "fecha_actualizacion": "2025-08-08 20:19:00",
+  "id_cliente": 11113037708
+ },
+ {
+  "id_reference": 104,
+  "nombre": "Jonathan Josue Vasquez Lopez ",
+  "curp": "VALJ041015HOCSPNA3",
+  "telefono": "9514256080",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-08 20:33:22",
+  "fecha_actualizacion": "2025-08-08 20:33:22",
+  "id_cliente": 11113009751
+ },
+ {
+  "id_reference": 105,
+  "nombre": "Zadina Sedora Sarabia Garcia ",
+  "curp": "SAGZ810829MOCRRD05",
+  "telefono": "9516383668",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-08 20:45:07",
+  "fecha_actualizacion": "2025-08-08 20:45:07",
+  "id_cliente": 11113005465
+ },
+ {
+  "id_reference": 106,
+  "nombre": "Jhonantan Enrique Sanchez Zarate ",
+  "curp": "SAZJ070622HOCNRNA7",
+  "telefono": "9516550185",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 16:02:01",
+  "fecha_actualizacion": "2025-08-11 16:02:01",
+  "id_cliente": 11113105293
+ },
+ {
+  "id_reference": 107,
+  "nombre": "Antelma Angel Hernandez ",
+  "curp": "AEHA620626MOCCNR01",
+  "telefono": "9516134826",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 16:14:48",
+  "fecha_actualizacion": "2025-08-11 16:14:48",
+  "id_cliente": 11112811779
+ },
+ {
+  "id_reference": 108,
+  "nombre": "Blanca Sanchez Perez ",
+  "curp": "SAHB850709MOCNRL03",
+  "telefono": "9512515667",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-11 16:33:52",
+  "fecha_actualizacion": "2025-08-11 16:33:52",
+  "id_cliente": 11112826391
+ },
+ {
+  "id_reference": 109,
+  "nombre": "David Martinez Taboada",
+  "curp": "MATD890730HOCRBV00",
+  "telefono": "9514205094",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 16:44:28",
+  "fecha_actualizacion": "2025-08-11 16:44:28",
+  "id_cliente": 11113024141
+ },
+ {
+  "id_reference": 110,
+  "nombre": "Aretzi Guadalupe Gomez Cruz",
+  "curp": "GOCA011212MOCMRRA1",
+  "telefono": "2217441794",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 16:53:04",
+  "fecha_actualizacion": "2025-08-11 16:53:04",
+  "id_cliente": 11112817849
+ },
+ {
+  "id_reference": 111,
+  "nombre": "Yuliana Hernández Santiago",
+  "curp": "HESY840917MOCRNL03",
+  "telefono": "9513108981",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 17:05:26",
+  "fecha_actualizacion": "2025-08-11 17:05:26",
+  "id_cliente": 11112917272
+ },
+ {
+  "id_reference": 112,
+  "nombre": "Palmira Yanin Hernandez Santiago",
+  "curp": "HESP940211MOCRNL05",
+  "telefono": "9516393183",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 17:23:35",
+  "fecha_actualizacion": "2025-08-11 17:23:35",
+  "id_cliente": 11112849831
+ },
+ {
+  "id_reference": 113,
+  "nombre": "Franceli Berenice Lopez Castillo",
+  "curp": "LOCF981004MOCPSR09",
+  "telefono": "9513941300",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-11 17:40:41",
+  "fecha_actualizacion": "2025-08-11 17:40:41",
+  "id_cliente": 11113131595
+ },
+ {
+  "id_reference": 114,
+  "nombre": "Blandina Garcia Lazaro",
+  "curp": "GALV841112MOCRZL06",
+  "telefono": "9513986464",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 17:52:47",
+  "fecha_actualizacion": "2025-08-11 17:52:47",
+  "id_cliente": 11113105160
+ },
+ {
+  "id_reference": 115,
+  "nombre": "Mariela Niñ Niño",
+  "curp": "NINM560313MOCXXR01",
+  "telefono": "9513991790",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-11 18:07:39",
+  "fecha_actualizacion": "2025-08-11 18:07:39",
+  "id_cliente": 11112763680
+ },
+ {
+  "id_reference": 116,
+  "nombre": "Rolando Veredicto Hernandez Vasquez ",
+  "curp": "HEVR790508HOCRSL00",
+  "telefono": "9511191842",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 18:22:45",
+  "fecha_actualizacion": "2025-08-11 18:22:45",
+  "id_cliente": 11112963613
+ },
+ {
+  "id_reference": 117,
+  "nombre": "Adriana Guadalupe Mendez Morales",
+  "curp": "MEMA020909MOCNRTA9",
+  "telefono": "9515618386",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 18:32:50",
+  "fecha_actualizacion": "2025-08-11 18:32:50",
+  "id_cliente": 11112927981
+ },
+ {
+  "id_reference": 118,
+  "nombre": "Sheyla Hernandez Gines",
+  "curp": "HEGS060112MOCRNHA2",
+  "telefono": "9513426538",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 18:44:50",
+  "fecha_actualizacion": "2025-08-11 18:44:50",
+  "id_cliente": 11112924530
+ },
+ {
+  "id_reference": 119,
+  "nombre": "Rosa Ester Archila Toledo",
+  "curp": "AITR930211MOCRLS04",
+  "telefono": "9514265799",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 18:56:00",
+  "fecha_actualizacion": "2025-08-11 18:56:00",
+  "id_cliente": 11113046154
+ },
+ {
+  "id_reference": 120,
+  "nombre": " Francisca Merced Cruz",
+  "curp": "CUXF630901MOCRXR04",
+  "telefono": "9515875165",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-11 19:10:10",
+  "fecha_actualizacion": "2025-08-11 19:10:10",
+  "id_cliente": 11112761450
+ },
+ {
+  "id_reference": 121,
+  "nombre": "Alfredo Rivas Lopez ",
+  "curp": "RILA870524HOCVPL00",
+  "telefono": "9515887560",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-11 19:19:00",
+  "fecha_actualizacion": "2025-08-11 19:19:00",
+  "id_cliente": 11112998003
+ },
+ {
+  "id_reference": 122,
+  "nombre": "Maria Del Rosario Galvan Santiago",
+  "curp": "GASR981004MOCLNS11",
+  "telefono": "9514634616",
+  "relacion": "Vecino/a",
+  "fecha_creacion": "2025-08-11 19:29:20",
+  "fecha_actualizacion": "2025-08-11 19:29:20",
+  "id_cliente": 11112979940
+ },
+ {
+  "id_reference": 123,
+  "nombre": "Ignacio Garcia Ruiz ",
+  "curp": "GARI440811HOCRZG04",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 20:28:26",
+  "fecha_actualizacion": "2025-08-11 20:28:26",
+  "id_cliente": 11112846773
+ },
+ {
+  "id_reference": 125,
+  "nombre": "José Antonio Flores Garcia ",
+  "curp": "FOGA901211HOCLRN01",
+  "telefono": "9512464608",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-11 23:27:54",
+  "fecha_actualizacion": "2025-08-11 23:27:54",
+  "id_cliente": 11112925822
+ },
+ {
+  "id_reference": 126,
+  "nombre": "Yaretzi Gomez Martinez",
+  "curp": "",
+  "telefono": "9516504724",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 18:16:57",
+  "fecha_actualizacion": "2025-08-12 18:16:57",
+  "id_cliente": 11113101701
+ },
+ {
+  "id_reference": 127,
+  "nombre": "Jatzumy Sarai Lopez Ruiz",
+  "curp": "",
+  "telefono": "9511394460",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 18:45:20",
+  "fecha_actualizacion": "2025-08-12 18:45:20",
+  "id_cliente": 11112871513
+ },
+ {
+  "id_reference": 128,
+  "nombre": "Petrona Santiago Flores",
+  "curp": "",
+  "telefono": "9512731478",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 18:58:23",
+  "fecha_actualizacion": "2025-08-12 18:58:23",
+  "id_cliente": 11112984989
+ },
+ {
+  "id_reference": 129,
+  "nombre": "Isaias Peralta Quevedo",
+  "curp": "",
+  "telefono": "9515858539",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 19:21:52",
+  "fecha_actualizacion": "2025-08-12 19:21:52",
+  "id_cliente": 11113022051
+ },
+ {
+  "id_reference": 130,
+  "nombre": "Maria Maza Cruz",
+  "curp": "",
+  "telefono": "9513238451",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 19:36:45",
+  "fecha_actualizacion": "2025-08-12 19:36:45",
+  "id_cliente": 11113119485
+ },
+ {
+  "id_reference": 131,
+  "nombre": "Ariancis Hernandez Delgado",
+  "curp": "",
+  "telefono": "9512404017",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 20:10:23",
+  "fecha_actualizacion": "2025-08-12 20:10:23",
+  "id_cliente": 11112944716
+ },
+ {
+  "id_reference": 132,
+  "nombre": "Anoeli Santiago Cruz",
+  "curp": "",
+  "telefono": "9516505025",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 20:19:53",
+  "fecha_actualizacion": "2025-08-12 20:19:53",
+  "id_cliente": 11112896125
+ },
+ {
+  "id_reference": 133,
+  "nombre": "Marta Laura Cruz Jimenez",
+  "curp": "CUJM010213MOCRMRA6",
+  "telefono": "9515854416",
+  "relacion": "Vecino/a",
+  "fecha_creacion": "2025-08-12 20:33:41",
+  "fecha_actualizacion": "2025-08-12 20:33:41",
+  "id_cliente": 11112903380
+ },
+ {
+  "id_reference": 134,
+  "nombre": "Veronica Angela Sosa Lopez ",
+  "curp": "SOLV740612MOCSPR07",
+  "telefono": "9517457604",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 20:43:57",
+  "fecha_actualizacion": "2025-08-12 20:43:57",
+  "id_cliente": 11113315176
+ },
+ {
+  "id_reference": 135,
+  "nombre": "Nadia Sinai Paz Santiago",
+  "curp": "PASN021229MOCZNDA8",
+  "telefono": "9513090431",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 20:54:50",
+  "fecha_actualizacion": "2025-08-12 20:54:50",
+  "id_cliente": 11113102396
+ },
+ {
+  "id_reference": 136,
+  "nombre": "Azucena Chavez Arango",
+  "curp": "CAAA030421MOCHRZA4",
+  "telefono": "9514613118",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 21:05:50",
+  "fecha_actualizacion": "2025-08-12 21:05:50",
+  "id_cliente": 11112748267
+ },
+ {
+  "id_reference": 137,
+  "nombre": "Diego Eloy Mendoza Cruz ",
+  "curp": "MECD060908HOCNRGA2",
+  "telefono": "9514256952",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 21:25:36",
+  "fecha_actualizacion": "2025-08-12 21:25:36",
+  "id_cliente": 11113134860
+ },
+ {
+  "id_reference": 138,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 21:42:57",
+  "fecha_actualizacion": "2025-08-12 21:42:57",
+  "id_cliente": 11113061406
+ },
+ {
+  "id_reference": 139,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 21:50:56",
+  "fecha_actualizacion": "2025-08-12 21:50:56",
+  "id_cliente": 11113008351
+ },
+ {
+  "id_reference": 140,
+  "nombre": "Maria Del Rosario Ruiz",
+  "curp": "",
+  "telefono": "0000000000",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 23:10:15",
+  "fecha_actualizacion": "2025-08-12 23:10:15",
+  "id_cliente": 11112864353
+ },
+ {
+  "id_reference": 141,
+  "nombre": "María De Lourdes Estrella Tellechea",
+  "curp": "EETL760803MOCSLR08",
+  "telefono": "9511784600",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-12 23:33:13",
+  "fecha_actualizacion": "2025-08-12 23:33:13",
+  "id_cliente": 11112669206
+ },
+ {
+  "id_reference": 142,
+  "nombre": "Adalberto Gonzalez Gandarilla",
+  "curp": "GOGE941028HOCNND00",
+  "telefono": "9511816317",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-12 23:42:39",
+  "fecha_actualizacion": "2025-08-12 23:42:39",
+  "id_cliente": 11112939609
+ },
+ {
+  "id_reference": 143,
+  "nombre": "Jose Luis Chagala Gonzalez",
+  "curp": "CAGL881124HVZHNS08",
+  "telefono": "9511914023",
+  "relacion": "Vecino/a",
+  "fecha_creacion": "2025-08-12 23:53:13",
+  "fecha_actualizacion": "2025-08-12 23:53:13",
+  "id_cliente": 11113049802
+ },
+ {
+  "id_reference": 144,
+  "nombre": "Miriam Gonzalez Lopez",
+  "curp": "GOLM850507MDFNPR06",
+  "telefono": "9514245684",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 16:39:45",
+  "fecha_actualizacion": "2025-08-13 16:39:45",
+  "id_cliente": 11113203887
+ },
+ {
+  "id_reference": 145,
+  "nombre": "Gilberto Godinez Vargas",
+  "curp": "",
+  "telefono": "9516111871",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-13 16:47:34",
+  "fecha_actualizacion": "2025-08-13 16:47:34",
+  "id_cliente": 11112895240
+ },
+ {
+  "id_reference": 146,
+  "nombre": "Karla Daniela Pacheco Morales",
+  "curp": "PAMK931015MOCCLR09",
+  "telefono": "9511026667",
+  "relacion": "Vecino/a",
+  "fecha_creacion": "2025-08-13 16:56:06",
+  "fecha_actualizacion": "2025-08-13 16:56:06",
+  "id_cliente": 11112974117
+ },
+ {
+  "id_reference": 147,
+  "nombre": "Jose Luis Lopez Miguel ",
+  "curp": "LOML900525HOCPGS00",
+  "telefono": "9515945862",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 17:29:48",
+  "fecha_actualizacion": "2025-08-13 17:29:48",
+  "id_cliente": 11112988424
+ },
+ {
+  "id_reference": 148,
+  "nombre": "Isabel Arto Bartolo",
+  "curp": "AOBI750829MOCLRS00",
+  "telefono": "9514124977",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 17:44:52",
+  "fecha_actualizacion": "2025-08-13 17:44:52",
+  "id_cliente": 11113163277
+ },
+ {
+  "id_reference": 149,
+  "nombre": "Alejandro Juan Hernandez Santiago",
+  "curp": "HESA630904HOCRNL06",
+  "telefono": "9515654303",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 18:00:26",
+  "fecha_actualizacion": "2025-08-13 18:00:26",
+  "id_cliente": 11112893766
+ },
+ {
+  "id_reference": 150,
+  "nombre": "Roman Garcia Lopez",
+  "curp": "LOGR811118HOCPRN00",
+  "telefono": "9511979960",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 18:16:33",
+  "fecha_actualizacion": "2025-08-13 18:16:33",
+  "id_cliente": 11112855051
+ },
+ {
+  "id_reference": 151,
+  "nombre": "Denilson Nicolas Vasquez Toledo",
+  "curp": "",
+  "telefono": "9517580897",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 18:26:02",
+  "fecha_actualizacion": "2025-08-13 18:26:02",
+  "id_cliente": 11113068907
+ },
+ {
+  "id_reference": 152,
+  "nombre": "Yasmin Bernardina Rendon Gonzalez",
+  "curp": "REGJ890820MOCNNZ02",
+  "telefono": "9511310168",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 18:40:52",
+  "fecha_actualizacion": "2025-08-13 18:40:52",
+  "id_cliente": 11112864704
+ },
+ {
+  "id_reference": 153,
+  "nombre": "Ma De Lourdes Méndez Garcia",
+  "curp": "MEGL750210MGTNRR01",
+  "telefono": "9512788700",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-13 19:01:05",
+  "fecha_actualizacion": "2025-08-13 19:01:05",
+  "id_cliente": 11112915373
+ },
+ {
+  "id_reference": 154,
+  "nombre": "Francisco Melken Gonzalez",
+  "curp": "MEGF961024HOCLNR09",
+  "telefono": "9516424091",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 19:17:12",
+  "fecha_actualizacion": "2025-08-13 19:17:12",
+  "id_cliente": 11112911592
+ },
+ {
+  "id_reference": 155,
+  "nombre": "Maria Fernanda Luna Gonzalez",
+  "curp": "LUGF980303MOCNNR00",
+  "telefono": "2211780719",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 19:38:08",
+  "fecha_actualizacion": "2025-08-13 19:38:08",
+  "id_cliente": 11112874869
+ },
+ {
+  "id_reference": 156,
+  "nombre": "Liz Antonio Cuevas",
+  "curp": "TOCL790217MOCLVZ04",
+  "telefono": "9514743373",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 19:52:00",
+  "fecha_actualizacion": "2025-08-13 19:52:00",
+  "id_cliente": 11112849049
+ },
+ {
+  "id_reference": 157,
+  "nombre": "Iliana Edith Perez Lopez",
+  "curp": "",
+  "telefono": "9512923981",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 20:07:12",
+  "fecha_actualizacion": "2025-08-13 20:07:12",
+  "id_cliente": 11112804263
+ },
+ {
+  "id_reference": 158,
+  "nombre": "Rosalba Pérez Santiago",
+  "curp": "",
+  "telefono": "9513114020",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 20:20:43",
+  "fecha_actualizacion": "2025-08-13 20:20:43",
+  "id_cliente": 11113266313
+ },
+ {
+  "id_reference": 159,
+  "nombre": "Miguel Ángel Garcia Reyes ",
+  "curp": "",
+  "telefono": "9516853127",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-13 20:38:03",
+  "fecha_actualizacion": "2025-08-13 20:38:03",
+  "id_cliente": 11112979236
+ },
+ {
+  "id_reference": 160,
+  "nombre": "Nancy Pérez Hernández",
+  "curp": "HEPN870509MOCRSPR0",
+  "telefono": "9513402232",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-13 20:45:55",
+  "fecha_actualizacion": "2025-08-13 20:45:55",
+  "id_cliente": 11113062074
+ },
+ {
+  "id_reference": 161,
+  "nombre": "Luis Garcia Lopez ",
+  "curp": "",
+  "telefono": "9516541521",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 21:01:22",
+  "fecha_actualizacion": "2025-08-13 21:01:22",
+  "id_cliente": 11112716131
+ },
+ {
+  "id_reference": 162,
+  "nombre": "Araceli Carmona",
+  "curp": "CALA750705MOCRPL03",
+  "telefono": "9511798516",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-13 22:45:20",
+  "fecha_actualizacion": "2025-08-13 22:45:20",
+  "id_cliente": 11112739966
+ },
+ {
+  "id_reference": 163,
+  "nombre": "Adela Santiago Vargas",
+  "curp": "",
+  "telefono": "9511202864",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-13 22:56:25",
+  "fecha_actualizacion": "2025-08-13 22:56:25",
+  "id_cliente": 11112973790
+ },
+ {
+  "id_reference": 164,
+  "nombre": "Christian Eduardo Santos Cruz",
+  "curp": "SACC020819HOCNRHA0",
+  "telefono": "9516071722",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-14 15:57:05",
+  "fecha_actualizacion": "2025-08-14 15:57:05",
+  "id_cliente": 11113061706
+ },
+ {
+  "id_reference": 165,
+  "nombre": "Eduardo Hernández Jiménez",
+  "curp": "",
+  "telefono": "9515328411",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-14 16:37:12",
+  "fecha_actualizacion": "2025-08-14 16:37:12",
+  "id_cliente": 11112967766
+ },
+ {
+  "id_reference": 166,
+  "nombre": "Brayan De Jesus Molina Lopez",
+  "curp": "",
+  "telefono": "9513197159",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-08-14 16:51:30",
+  "fecha_actualizacion": "2025-08-14 16:51:30",
+  "id_cliente": 11113048867
+ },
+ {
+  "id_reference": 167,
+  "nombre": "Jesus Alejandro Morales Carreño",
+  "curp": "",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-14 17:13:19",
+  "fecha_actualizacion": "2025-08-14 17:13:19",
+  "id_cliente": 11113053110
+ },
+ {
+  "id_reference": 168,
+  "nombre": "Soledad Perez",
+  "curp": "",
+  "telefono": "9511351953",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-14 17:58:28",
+  "fecha_actualizacion": "2025-08-14 17:58:28",
+  "id_cliente": 11112979691
+ },
+ {
+  "id_reference": 169,
+  "nombre": "Angela Villalobos Soto ",
+  "curp": "VISA871001MOCCLTN0",
+  "telefono": "2203525116",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-14 18:30:14",
+  "fecha_actualizacion": "2025-08-14 18:30:14",
+  "id_cliente": 11113205041
+ },
+ {
+  "id_reference": 170,
+  "nombre": "Naomi Torres Vasquez",
+  "curp": "TOVN020829MMCRSMA9",
+  "telefono": "0000000000",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-14 19:11:37",
+  "fecha_actualizacion": "2025-08-14 19:11:37",
+  "id_cliente": 11112907887
+ },
+ {
+  "id_reference": 171,
+  "nombre": "Ariana Lizbeth Echeverria Martinez",
+  "curp": "",
+  "telefono": "9511798494",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-14 21:12:13",
+  "fecha_actualizacion": "2025-08-14 21:12:13",
+  "id_cliente": 11112889700
+ },
+ {
+  "id_reference": 172,
+  "nombre": "Flor Maribel Amador",
+  "curp": "",
+  "telefono": "9511713197",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-14 22:35:25",
+  "fecha_actualizacion": "2025-08-14 22:35:25",
+  "id_cliente": 11113021377
+ },
+ {
+  "id_reference": 173,
+  "nombre": "Dulce Maria Angulo Martinez",
+  "curp": "AUMD970131MOCNRL06",
+  "telefono": "9516504035",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 15:45:24",
+  "fecha_actualizacion": "2025-08-15 15:45:24",
+  "id_cliente": 11113168762
+ },
+ {
+  "id_reference": 174,
+  "nombre": "Carolina Osorio Mateo",
+  "curp": "OOMC800307MOCSTR03",
+  "telefono": "9516099189",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-15 15:59:49",
+  "fecha_actualizacion": "2025-08-15 15:59:49",
+  "id_cliente": 11113237911
+ },
+ {
+  "id_reference": 175,
+  "nombre": "Karina Alejandra Jinez Bautista ",
+  "curp": "JIBK880904MOCNTR03",
+  "telefono": "9516441138",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 16:30:40",
+  "fecha_actualizacion": "2025-08-15 16:30:40",
+  "id_cliente": 11112828133
+ },
+ {
+  "id_reference": 176,
+  "nombre": "Laritza Concepción Paz Sosa",
+  "curp": "",
+  "telefono": "9512558116",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-15 17:07:58",
+  "fecha_actualizacion": "2025-08-15 17:07:58",
+  "id_cliente": 11113018033
+ },
+ {
+  "id_reference": 177,
+  "nombre": "Karen Paola Santiago Cruz",
+  "curp": "SACK980408MOCNRR06",
+  "telefono": "9511890304",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 17:20:41",
+  "fecha_actualizacion": "2025-08-15 17:20:41",
+  "id_cliente": 11113102519
+ },
+ {
+  "id_reference": 178,
+  "nombre": "Celia Yaneth Castellanos Cruz",
+  "curp": "CACC781103MOCSRL03",
+  "telefono": "9514147353",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-15 18:40:16",
+  "fecha_actualizacion": "2025-08-15 18:40:16",
+  "id_cliente": 11113028726
+ },
+ {
+  "id_reference": 179,
+  "nombre": "Adriana Soledad Martinez Vasquez ",
+  "curp": "MAVA730425MOCRSD08",
+  "telefono": "9514983782",
+  "relacion": "Amigo/a",
+  "fecha_creacion": "2025-08-15 18:54:15",
+  "fecha_actualizacion": "2025-08-15 18:54:15",
+  "id_cliente": 11112974293
+ },
+ {
+  "id_reference": 180,
+  "nombre": "Maria Francisca Muñoz Rodriguez",
+  "curp": "MURF660912MOCXDR06",
+  "telefono": "9512087559",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 19:18:12",
+  "fecha_actualizacion": "2025-08-15 19:18:12",
+  "id_cliente": 11112854485
+ },
+ {
+  "id_reference": 181,
+  "nombre": "Maria Lopez Miguel",
+  "curp": "LOMV591007MOCPGC00",
+  "telefono": "9514601364",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 19:39:12",
+  "fecha_actualizacion": "2025-08-15 19:39:12",
+  "id_cliente": 11112937194
+ },
+ {
+  "id_reference": 182,
+  "nombre": "Janeth Martinez Cruz ",
+  "curp": "",
+  "telefono": "9513631944",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 19:52:29",
+  "fecha_actualizacion": "2025-08-15 19:52:29",
+  "id_cliente": 11113202376
+ },
+ {
+  "id_reference": 183,
+  "nombre": "Marlene Victoria Muñoz Lopez ",
+  "curp": "MULM041202MOCXPRA5",
+  "telefono": "9514613342",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 20:15:13",
+  "fecha_actualizacion": "2025-08-15 20:15:13",
+  "id_cliente": 11112935428
+ },
+ {
+  "id_reference": 184,
+  "nombre": "Eleuteria Rosario Antonio Sumano",
+  "curp": "AOSE690418MOCNML05",
+  "telefono": "9511743793",
+  "relacion": "Conocido/a",
+  "fecha_creacion": "2025-08-15 20:53:23",
+  "fecha_actualizacion": "2025-08-15 20:53:23",
+  "id_cliente": 11112993910
+ },
+ {
+  "id_reference": 185,
+  "nombre": "José Antonio Rendon Gonzáles",
+  "curp": "REGA950215HOCNNN05",
+  "telefono": "6647512204",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-15 21:01:41",
+  "fecha_actualizacion": "2025-08-15 21:01:41",
+  "id_cliente": 11112954121
+ },
+ {
+  "id_reference": 186,
+  "nombre": "Alejandro Franco Sibaja",
+  "curp": "FASA790101HOCRBL01",
+  "telefono": "9511315600",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-08-16 15:32:50",
+  "fecha_actualizacion": "2025-08-16 15:32:50",
+  "id_cliente": 11112859053
+ },
+ {
+  "id_reference": 187,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-06 19:01:40",
+  "fecha_actualizacion": "2025-09-06 19:01:40",
+  "id_cliente": 11113042991
+ },
+ {
+  "id_reference": 188,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-06 19:30:11",
+  "fecha_actualizacion": "2025-09-06 19:30:11",
+  "id_cliente": 11113207666
+ },
+ {
+  "id_reference": 189,
+  "nombre": "Rocio Gabriela Ramirez Garcia",
+  "curp": "RAGR910310MOCMRC05",
+  "telefono": "9515255540",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-07 15:41:33",
+  "fecha_actualizacion": "2025-09-07 15:41:33",
+  "id_cliente": 11112981072
+ },
+ {
+  "id_reference": 190,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-07 15:54:19",
+  "fecha_actualizacion": "2025-09-07 15:54:19",
+  "id_cliente": 11112816492
+ },
+ {
+  "id_reference": 191,
+  "nombre": "Minerva Castellanos Lopez",
+  "curp": "CALM731111MOCSPN08",
+  "telefono": "9512228362",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-07 16:33:28",
+  "fecha_actualizacion": "2025-09-07 16:33:28",
+  "id_cliente": 11113099230
+ },
+ {
+  "id_reference": 192,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-07 16:46:58",
+  "fecha_actualizacion": "2025-09-07 16:46:58",
+  "id_cliente": 11112833441
+ },
+ {
+  "id_reference": 193,
+  "nombre": "Miguel Angel Luna Hernqandez",
+  "curp": "LUHM060923HCSNRG40",
+  "telefono": "9513600302",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-07 17:10:10",
+  "fecha_actualizacion": "2025-09-07 17:10:10",
+  "id_cliente": 11113036043
+ },
+ {
+  "id_reference": 194,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-09-07 17:30:05",
+  "fecha_actualizacion": "2025-09-07 17:30:05",
+  "id_cliente": 11112871359
+ },
+ {
+  "id_reference": 195,
+  "nombre": "Miguel Zuñiga Perez",
+  "curp": "ZUPM110202HOCXRGA9",
+  "telefono": "9512239824",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-07 17:51:05",
+  "fecha_actualizacion": "2025-09-07 17:51:05",
+  "id_cliente": 11113091669
+ },
+ {
+  "id_reference": 196,
+  "nombre": "Francisca Mariana Gonzáles Bautista",
+  "curp": "GOBF670104MOCNTR01",
+  "telefono": "9514296930",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-07 18:03:25",
+  "fecha_actualizacion": "2025-09-07 18:03:25",
+  "id_cliente": 11112842889
+ },
+ {
+  "id_reference": 197,
+  "nombre": "Rosaura Hernández Santiago",
+  "curp": "HESR840718MOCRNS07",
+  "telefono": "9511066594",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-07 18:19:43",
+  "fecha_actualizacion": "2025-09-07 18:19:43",
+  "id_cliente": 11112984205
+ },
+ {
+  "id_reference": 198,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-07 19:09:58",
+  "fecha_actualizacion": "2025-09-07 19:09:58",
+  "id_cliente": 11113001966
+ },
+ {
+  "id_reference": 199,
+  "nombre": "Sofia Gomez Robledo",
+  "curp": "GORS650801MOCNBF06",
+  "telefono": "9513295620",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-07 19:50:31",
+  "fecha_actualizacion": "2025-09-07 19:50:31",
+  "id_cliente": 11113101539
+ },
+ {
+  "id_reference": 200,
+  "nombre": "Angela Mireya Guzman Garcia",
+  "curp": "GUGA921012MOCZRN03",
+  "telefono": "9515300418",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-08 20:28:23",
+  "fecha_actualizacion": "2025-09-08 20:28:23",
+  "id_cliente": 11113209269
+ },
+ {
+  "id_reference": 201,
+  "nombre": "Guadalupe Hernández Sosa",
+  "curp": "HESG891212MOCRSD03",
+  "telefono": "9513144963",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-08 20:42:49",
+  "fecha_actualizacion": "2025-09-08 20:42:49",
+  "id_cliente": 11113203334
+ },
+ {
+  "id_reference": 202,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-08 20:52:55",
+  "fecha_actualizacion": "2025-09-08 20:52:55",
+  "id_cliente": 11112879732
+ },
+ {
+  "id_reference": 203,
+  "nombre": "Anai Guadalupe Lopez",
+  "curp": "LOTA901110MOCPRN04",
+  "telefono": "9513206132",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-08 21:10:41",
+  "fecha_actualizacion": "2025-09-08 21:10:41",
+  "id_cliente": 11113289382
+ },
+ {
+  "id_reference": 204,
+  "nombre": "Valentín Godínez Bolaños",
+  "curp": "GOBV090214HOCDLCA6",
+  "telefono": "9514017926",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-08 21:18:56",
+  "fecha_actualizacion": "2025-09-08 21:18:56",
+  "id_cliente": 11112924092
+ },
+ {
+  "id_reference": 205,
+  "nombre": "Adriana Betsai Gomez Jimenez",
+  "curp": "GOJA890415MOCMMD05",
+  "telefono": "0000000000",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-08 21:26:33",
+  "fecha_actualizacion": "2025-09-08 21:26:33",
+  "id_cliente": 11112939687
+ },
+ {
+  "id_reference": 206,
+  "nombre": "Jose Luis Lopez Martinez",
+  "curp": "LOML841203HOCPRS03",
+  "telefono": "9514944631",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-08 21:36:36",
+  "fecha_actualizacion": "2025-09-08 21:36:36",
+  "id_cliente": 11112989633
+ },
+ {
+  "id_reference": 207,
+  "nombre": "Perla Cristal Lopez Velasquez",
+  "curp": "LOVP941111MOCPLR04",
+  "telefono": "9511977971",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-08 21:44:09",
+  "fecha_actualizacion": "2025-09-08 21:44:09",
+  "id_cliente": 11113003674
+ },
+ {
+  "id_reference": 208,
+  "nombre": "Karla Montserrat Sanchez Ruiz",
+  "curp": "SARK021209MOCNZRA3",
+  "telefono": "9511832963",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-08 21:52:50",
+  "fecha_actualizacion": "2025-09-08 21:52:50",
+  "id_cliente": 11113186700
+ },
+ {
+  "id_reference": 209,
+  "nombre": "Betsy Mirasol Sanchez Ruiz",
+  "curp": "SARB090917MOCNZTA4",
+  "telefono": "9513443913",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-08 21:58:15",
+  "fecha_actualizacion": "2025-09-08 21:58:15",
+  "id_cliente": 11112957047
+ },
+ {
+  "id_reference": 210,
+  "nombre": "Defino Hernandez Lopez",
+  "curp": "HELD650330HOCRPL03",
+  "telefono": "9514948887",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-08 22:05:52",
+  "fecha_actualizacion": "2025-09-08 22:05:52",
+  "id_cliente": 11113168554
+ },
+ {
+  "id_reference": 211,
+  "nombre": "Elizabeth Gaspar Hernandez",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9511720502",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-20 15:28:13",
+  "fecha_actualizacion": "2025-09-20 15:28:13",
+  "id_cliente": 11113161382
+ },
+ {
+  "id_reference": 212,
+  "nombre": "Mayra Clemente Perez",
+  "curp": "CEPM941209MOCLRV02",
+  "telefono": "9512215227",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-09-20 15:37:57",
+  "fecha_actualizacion": "2025-09-20 15:37:57",
+  "id_cliente": 11113139475
+ },
+ {
+  "id_reference": 213,
+  "nombre": "Pablo Benjamín Caballero Garcia",
+  "curp": "CAGP780215HOCBRB06",
+  "telefono": "9513092261",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-20 15:48:35",
+  "fecha_actualizacion": "2025-09-20 15:48:35",
+  "id_cliente": 11112837073
+ },
+ {
+  "id_reference": 214,
+  "nombre": "Lopez Núñez Asunción ",
+  "curp": "LONA790815MOCPXS05",
+  "telefono": "9511837066",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-20 16:07:10",
+  "fecha_actualizacion": "2025-09-20 16:07:10",
+  "id_cliente": 11112682329
+ },
+ {
+  "id_reference": 215,
+  "nombre": "Itzel Flores Godinez",
+  "curp": "FOGI950825MOCLDT05",
+  "telefono": "9518769630",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-20 16:20:37",
+  "fecha_actualizacion": "2025-09-20 16:20:37",
+  "id_cliente": 11112842211
+ },
+ {
+  "id_reference": 216,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-09-20 16:29:03",
+  "fecha_actualizacion": "2025-09-20 16:29:03",
+  "id_cliente": 11113028141
+ },
+ {
+  "id_reference": 217,
+  "nombre": "Jenny Cruz Flores",
+  "curp": "CUFJ940918MOCRLN07",
+  "telefono": "9512601462",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-20 16:37:57",
+  "fecha_actualizacion": "2025-09-20 16:37:57",
+  "id_cliente": 11113141758
+ },
+ {
+  "id_reference": 218,
+  "nombre": "Adriana Leticia Santiago Pacheco",
+  "curp": "SAPA660305MOCNCD07",
+  "telefono": "9511103951",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-09-20 16:48:11",
+  "fecha_actualizacion": "2025-09-20 16:48:11",
+  "id_cliente": 11112947469
+ },
+ {
+  "id_reference": 219,
+  "nombre": "Lorena Gomez Reyes",
+  "curp": "GORL871028MOCMYR00",
+  "telefono": "9515859846",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-20 16:56:39",
+  "fecha_actualizacion": "2025-09-20 16:56:39",
+  "id_cliente": 11112937209
+ },
+ {
+  "id_reference": 220,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9514322986",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-09-20 18:29:57",
+  "fecha_actualizacion": "2025-09-20 18:29:57",
+  "id_cliente": 11112788121
+ },
+ {
+  "id_reference": 221,
+  "nombre": "Flor Del Carmen Mendez Gopar",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9512015381",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-20 18:38:13",
+  "fecha_actualizacion": "2025-09-20 18:38:13",
+  "id_cliente": 11112936286
+ },
+ {
+  "id_reference": 222,
+  "nombre": "Diana Lopez Sosa",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "9512880987",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-20 18:52:30",
+  "fecha_actualizacion": "2025-09-20 18:52:30",
+  "id_cliente": 11113172495
+ },
+ {
+  "id_reference": 223,
+  "nombre": "Francisca Alba Méndez Victoria ",
+  "curp": "MEVF621203MOCNCR08",
+  "telefono": "9514176649",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-20 19:09:41",
+  "fecha_actualizacion": "2025-09-20 19:09:41",
+  "id_cliente": 11112764956
+ },
+ {
+  "id_reference": 224,
+  "nombre": "Doris Hernandez Lopez",
+  "curp": "HELD880916MOCRPR05",
+  "telefono": "9511271372",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-09-20 19:21:06",
+  "fecha_actualizacion": "2025-09-20 19:21:06",
+  "id_cliente": 11113188998
+ },
+ {
+  "id_reference": 225,
+  "nombre": "Ana Maria Anaya Gaytan ",
+  "curp": "AAGA890217MOCNYN03",
+  "telefono": "9516452973",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-09-20 19:33:16",
+  "fecha_actualizacion": "2025-09-20 19:33:16",
+  "id_cliente": 11113045113
+ },
+ {
+  "id_reference": 226,
+  "nombre": "Maria Hernández Sanchez",
+  "curp": "HESM720201MOCRNR08",
+  "telefono": "9511984318",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-20 19:43:37",
+  "fecha_actualizacion": "2025-09-20 19:43:37",
+  "id_cliente": 11112889189
+ },
+ {
+  "id_reference": 227,
+  "nombre": "América Sherlyn Mayoral Sánchez ",
+  "curp": "MASA051018MOCYNMA5",
+  "telefono": "9512746547",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-09-20 19:58:47",
+  "fecha_actualizacion": "2025-09-20 19:58:47",
+  "id_cliente": 11112908135
+ },
+ {
+  "id_reference": 228,
+  "nombre": "Eduardo Antonio Cruz Ventura ",
+  "curp": "CUVE870504HOCRND07",
+  "telefono": "9513055679",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-09-20 20:11:49",
+  "fecha_actualizacion": "2025-09-20 20:11:49",
+  "id_cliente": 11112816934
+ },
+ {
+  "id_reference": 229,
+  "nombre": "Primitivo Hernandez Velasco",
+  "curp": "HEVT770610HOCRLR08",
+  "telefono": "9511597007",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-10-14 20:53:59",
+  "fecha_actualizacion": "2025-10-14 20:53:59",
+  "id_cliente": 11112986899
+ },
+ {
+  "id_reference": 230,
+  "nombre": "Rufina Hernandez Castillo",
+  "curp": "HECR760710MOCRFF07",
+  "telefono": "6313021243",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-10-14 21:11:51",
+  "fecha_actualizacion": "2025-10-14 21:11:51",
+  "id_cliente": 11112954434
+ },
+ {
+  "id_reference": 231,
+  "nombre": "Ricardo Abel Diaz Jimenez",
+  "curp": "DIJR890121HOCZMT00",
+  "telefono": "9513565732",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-14 21:29:05",
+  "fecha_actualizacion": "2025-10-14 21:29:05",
+  "id_cliente": 11112971667
+ },
+ {
+  "id_reference": 232,
+  "nombre": "Michelle Soriano Belinda",
+  "curp": "SOBM000314MOCRCLA3",
+  "telefono": "9513506455",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-14 21:45:29",
+  "fecha_actualizacion": "2025-10-14 21:45:29",
+  "id_cliente": 11112708888
+ },
+ {
+  "id_reference": 233,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-10-14 22:01:58",
+  "fecha_actualizacion": "2025-10-14 22:01:58",
+  "id_cliente": 11112953105
+ },
+ {
+  "id_reference": 234,
+  "nombre": "Jonathan Gomez Martinez",
+  "curp": "GOMJ940726HOCMRN07",
+  "telefono": "9516097230",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-10-28 19:30:05",
+  "fecha_actualizacion": "2025-10-28 19:30:05",
+  "id_cliente": 11112886571
+ },
+ {
+  "id_reference": 235,
+  "nombre": "Bella Espinoza Fabiola Karina",
+  "curp": "BEEF640321MOCLSB00",
+  "telefono": "9512761725",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-10-28 19:45:33",
+  "fecha_actualizacion": "2025-10-28 19:45:33",
+  "id_cliente": 11113121732
+ },
+ {
+  "id_reference": 236,
+  "nombre": "Verónica Ángela Sosa López ",
+  "curp": "SOLV740612MOCSPR07",
+  "telefono": "9517457604",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-10-28 19:56:43",
+  "fecha_actualizacion": "2025-10-28 19:56:43",
+  "id_cliente": 11112808669
+ },
+ {
+  "id_reference": 237,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-10-28 20:32:34",
+  "fecha_actualizacion": "2025-10-28 20:32:34",
+  "id_cliente": 11112971322
+ },
+ {
+  "id_reference": 238,
+  "nombre": "Minerva Castellanos Lopez",
+  "curp": "CALM731111MOCSPN08",
+  "telefono": "9512228362",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-28 20:45:02",
+  "fecha_actualizacion": "2025-10-28 20:45:02",
+  "id_cliente": 11112777460
+ },
+ {
+  "id_reference": 239,
+  "nombre": "Angelica Ramirez Bohorquez ",
+  "curp": "RABA741114MOCMHN01",
+  "telefono": "9514260515",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-10-31 19:32:24",
+  "fecha_actualizacion": "2025-10-31 19:32:24",
+  "id_cliente": 11113114310
+ },
+ {
+  "id_reference": 240,
+  "nombre": "Miriam Palacios Ramirez",
+  "curp": "PARM891018MOCLMR01",
+  "telefono": "9513434794",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 19:41:56",
+  "fecha_actualizacion": "2025-10-31 19:41:56",
+  "id_cliente": 11112922496
+ },
+ {
+  "id_reference": 241,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-10-31 19:50:08",
+  "fecha_actualizacion": "2025-10-31 19:50:08",
+  "id_cliente": 11112926863
+ },
+ {
+  "id_reference": 242,
+  "nombre": "Gabriela Montserrat Hernandez Jeronimo",
+  "curp": "HEJG000427MOCRRBA7",
+  "telefono": "9511695283",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 20:02:13",
+  "fecha_actualizacion": "2025-10-31 20:02:13",
+  "id_cliente": 11112828093
+ },
+ {
+  "id_reference": 243,
+  "nombre": "Aracely Ruiz Martinez",
+  "curp": "RUMA711024MOCZRR09",
+  "telefono": "9511311592",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 20:09:47",
+  "fecha_actualizacion": "2025-10-31 20:09:47",
+  "id_cliente": 11113113098
+ },
+ {
+  "id_reference": 244,
+  "nombre": "Adriana Lopez Mendez",
+  "curp": "LOMA910508MOCPND05",
+  "telefono": "9516242695",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 20:24:48",
+  "fecha_actualizacion": "2025-10-31 20:24:48",
+  "id_cliente": 11113066526
+ },
+ {
+  "id_reference": 245,
+  "nombre": "Marcos José Trejo González ",
+  "curp": "TEGM940608HOCRNR01",
+  "telefono": "9516085288",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 20:33:50",
+  "fecha_actualizacion": "2025-10-31 20:33:50",
+  "id_cliente": 11112973194
+ },
+ {
+  "id_reference": 246,
+  "nombre": "Carmen Quiroz Altamirano",
+  "curp": "QUAC860223MOCRLR07",
+  "telefono": "9516498927",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-10-31 20:42:17",
+  "fecha_actualizacion": "2025-10-31 20:42:17",
+  "id_cliente": 11112886913
+ },
+ {
+  "id_reference": 247,
+  "nombre": "Nicasio Aragon Hernandez",
+  "curp": "AAHN830903HOCRRC05",
+  "telefono": "9513261616",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 20:55:06",
+  "fecha_actualizacion": "2025-10-31 20:55:06",
+  "id_cliente": 11112788591
+ },
+ {
+  "id_reference": 248,
+  "nombre": "Nancy Rodriguez Santiago",
+  "curp": "ROSN860408MOCDNN07",
+  "telefono": "9514297510",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-10-31 21:04:02",
+  "fecha_actualizacion": "2025-10-31 21:04:02",
+  "id_cliente": 11112924808
+ },
+ {
+  "id_reference": 249,
+  "nombre": "Ángel Cruz Velasco ",
+  "curp": "CUVA640315HOCRLN05",
+  "telefono": "9514648506",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-10-31 21:13:00",
+  "fecha_actualizacion": "2025-10-31 21:13:00",
+  "id_cliente": 11113042585
+ },
+ {
+  "id_reference": 250,
+  "nombre": "Flor Perez Perez",
+  "curp": "PEPF821005MOCRRL00",
+  "telefono": "9515321840",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-10-31 21:20:06",
+  "fecha_actualizacion": "2025-10-31 21:20:06",
+  "id_cliente": 11112878524
+ },
+ {
+  "id_reference": 251,
+  "nombre": " Pedro Damián Gonzales Hernández",
+  "curp": "GOHP050228HOCNRDA7",
+  "telefono": "9511168059",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 21:27:54",
+  "fecha_actualizacion": "2025-10-31 21:27:54",
+  "id_cliente": 11112887993
+ },
+ {
+  "id_reference": 252,
+  "nombre": "Luis Alberto Velasco Andarza ",
+  "curp": "VEAL800306HDFLNS01",
+  "telefono": "9511872745",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-10-31 21:37:21",
+  "fecha_actualizacion": "2025-10-31 21:37:21",
+  "id_cliente": 11112857142
+ },
+ {
+  "id_reference": 253,
+  "nombre": "Itzel Zuzunaga Sosa",
+  "curp": "ZUSI950816MOCZST09",
+  "telefono": "9516355166",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-10-31 21:43:11",
+  "fecha_actualizacion": "2025-10-31 21:43:11",
+  "id_cliente": 11113242625
+ },
+ {
+  "id_reference": 254,
+  "nombre": "Luis Alberto Jimenez Pinelo",
+  "curp": "JIML910620HOCMRS08",
+  "telefono": "9511973697",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 17:04:31",
+  "fecha_actualizacion": "2025-11-01 17:04:31",
+  "id_cliente": 11112884593
+ },
+ {
+  "id_reference": 255,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-11-01 17:14:59",
+  "fecha_actualizacion": "2025-11-01 17:14:59",
+  "id_cliente": 11112942147
+ },
+ {
+  "id_reference": 256,
+  "nombre": "Lorena Del Carmen Soriano Almeida ",
+  "curp": "SOAL801002MOCRLR05",
+  "telefono": "9512906639",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 17:23:42",
+  "fecha_actualizacion": "2025-11-01 17:23:42",
+  "id_cliente": 11113098282
+ },
+ {
+  "id_reference": 257,
+  "nombre": "Kadir Yoshiky Merlín Domínguez ",
+  "curp": "MEDK900327HOCRMD14",
+  "telefono": "9511576125",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 17:33:50",
+  "fecha_actualizacion": "2025-11-01 17:33:50",
+  "id_cliente": 11113101552
+ },
+ {
+  "id_reference": 258,
+  "nombre": "Carlos Fabricio Santiago Quiroz",
+  "curp": "SAQC031008HOCNRRA9",
+  "telefono": "9514247832",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 17:43:24",
+  "fecha_actualizacion": "2025-11-01 17:43:24",
+  "id_cliente": 11112984818
+ },
+ {
+  "id_reference": 259,
+  "nombre": "Adriana Lopez Mendez",
+  "curp": "LOMA910508MOCPND05",
+  "telefono": "9516242695",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-11-01 17:52:41",
+  "fecha_actualizacion": "2025-11-01 17:52:41",
+  "id_cliente": 11112994997
+ },
+ {
+  "id_reference": 260,
+  "nombre": "Alexa Idali Hernandez Santiago ",
+  "curp": "HESA061022MOCRNLA6",
+  "telefono": "9511290417",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 18:04:52",
+  "fecha_actualizacion": "2025-11-01 18:04:52",
+  "id_cliente": 11112893373
+ },
+ {
+  "id_reference": 261,
+  "nombre": "Jesus Antonio Ramirez Chávez ",
+  "curp": "RACJ960510HOCMHS02",
+  "telefono": "9515660213",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 18:14:25",
+  "fecha_actualizacion": "2025-11-01 18:14:25",
+  "id_cliente": 11113013620
+ },
+ {
+  "id_reference": 262,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-01 18:44:23",
+  "fecha_actualizacion": "2025-11-01 18:44:23",
+  "id_cliente": 11112962910
+ },
+ {
+  "id_reference": 263,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-01 18:53:14",
+  "fecha_actualizacion": "2025-11-01 18:53:14",
+  "id_cliente": 11113076219
+ },
+ {
+  "id_reference": 264,
+  "nombre": "Eutimio Espinoza Cruz ",
+  "curp": "EICE571224HOCSRT09",
+  "telefono": "9513455830",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 19:03:12",
+  "fecha_actualizacion": "2025-11-01 19:03:12",
+  "id_cliente": 11113007142
+ },
+ {
+  "id_reference": 265,
+  "nombre": "Maria  Soriano Almeida",
+  "curp": "SOAR780824MDFRLS09",
+  "telefono": "9511807628",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 19:13:19",
+  "fecha_actualizacion": "2025-11-01 19:13:19",
+  "id_cliente": 11113037690
+ },
+ {
+  "id_reference": 266,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-01 19:22:26",
+  "fecha_actualizacion": "2025-11-01 19:22:26",
+  "id_cliente": 11113022524
+ },
+ {
+  "id_reference": 267,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-01 19:29:21",
+  "fecha_actualizacion": "2025-11-01 19:29:21",
+  "id_cliente": 11112754934
+ },
+ {
+  "id_reference": 268,
+  "nombre": "Mary Carmen Lázaro Hernández ",
+  "curp": "LAHM960120MOCZRR06",
+  "telefono": "9515824796",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 19:38:11",
+  "fecha_actualizacion": "2025-11-01 19:38:11",
+  "id_cliente": 11112893338
+ },
+ {
+  "id_reference": 269,
+  "nombre": "Adriana Cervantes Lopez",
+  "curp": "CELA841026MOCRPD04",
+  "telefono": "9511589743",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 19:48:05",
+  "fecha_actualizacion": "2025-11-01 19:48:05",
+  "id_cliente": 11113101306
+ },
+ {
+  "id_reference": 270,
+  "nombre": "Irma Paola Sánchez Ángulo ",
+  "curp": "AUSI030213MOCNNRA7",
+  "telefono": "9513949278",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-11-01 19:59:25",
+  "fecha_actualizacion": "2025-11-01 19:59:25",
+  "id_cliente": 11112938387
+ },
+ {
+  "id_reference": 271,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-01 20:06:43",
+  "fecha_actualizacion": "2025-11-01 20:06:43",
+  "id_cliente": 11113085560
+ },
+ {
+  "id_reference": 272,
+  "nombre": "Jacqueline Niño Hernández ",
+  "curp": "NIHK061208MOCXRRA5",
+  "telefono": "9516484232",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 20:18:04",
+  "fecha_actualizacion": "2025-11-01 20:18:04",
+  "id_cliente": 11112958983
+ },
+ {
+  "id_reference": 273,
+  "nombre": "Jesus Aquino Santos",
+  "curp": "AUSJ230617HOCQNSA2",
+  "telefono": "2207287045",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 20:29:19",
+  "fecha_actualizacion": "2025-11-01 20:29:19",
+  "id_cliente": 11112928768
+ },
+ {
+  "id_reference": 274,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-01 20:49:41",
+  "fecha_actualizacion": "2025-11-01 20:49:41",
+  "id_cliente": 11113012821
+ },
+ {
+  "id_reference": 275,
+  "nombre": "Sofia Molina Garcia",
+  "curp": "MOGS951026MOCRLN22",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-01 20:57:34",
+  "fecha_actualizacion": "2025-11-01 20:57:34",
+  "id_cliente": 11112846271
+ },
+ {
+  "id_reference": 276,
+  "nombre": "Alma Carmela Avendaño Mendez",
+  "curp": "AEMA850602MOCVNL01",
+  "telefono": "9513674884",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-01 21:21:53",
+  "fecha_actualizacion": "2025-11-01 21:21:53",
+  "id_cliente": 11113081447
+ },
+ {
+  "id_reference": 277,
+  "nombre": "Rubi Suarez Ramirez",
+  "curp": "SUAR781103MOCRMB07",
+  "telefono": "9514032901",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-11-05 18:34:58",
+  "fecha_actualizacion": "2025-11-05 18:34:58",
+  "id_cliente": 11112658700
+ },
+ {
+  "id_reference": 278,
+  "nombre": "Gloria Maricela Tellez Martinez",
+  "curp": "TEMG581102MOCLRL10",
+  "telefono": "9515853413",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-11-05 18:53:51",
+  "fecha_actualizacion": "2025-11-05 18:53:51",
+  "id_cliente": 11112771908
+ },
+ {
+  "id_reference": 279,
+  "nombre": "Juan Pablo Cruz Cruz",
+  "curp": "CUCJ860404HOCRRN06",
+  "telefono": "9511999358",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-05 19:03:27",
+  "fecha_actualizacion": "2025-11-05 19:03:27",
+  "id_cliente": 11112956531
+ },
+ {
+  "id_reference": 280,
+  "nombre": "Erick Mijangos Gonzalez",
+  "curp": "MIGE940212HOCJNR00",
+  "telefono": "5585322195",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-10 23:09:13",
+  "fecha_actualizacion": "2025-11-10 23:09:13",
+  "id_cliente": 11113094138
+ },
+ {
+  "id_reference": 281,
+  "nombre": "Roman Albino Miguel Merlin",
+  "curp": "MEMR760301HOCRGM11",
+  "telefono": "9511609107",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-11-11 18:46:41",
+  "fecha_actualizacion": "2025-11-11 18:46:41",
+  "id_cliente": 11113022877
+ },
+ {
+  "id_reference": 282,
+  "nombre": "Eliezer Abel Garcia Escamilla",
+  "curp": "GAEE871108HOCRSL08",
+  "telefono": "9513086386",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-11 19:04:36",
+  "fecha_actualizacion": "2025-11-11 19:04:36",
+  "id_cliente": 11112728771
+ },
+ {
+  "id_reference": 283,
+  "nombre": "Jeaneth Abisaid Zafra Matias",
+  "curp": "ZAMS020925MOCFTNH8",
+  "telefono": "9512510525",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-11-11 19:44:43",
+  "fecha_actualizacion": "2025-11-11 19:44:43",
+  "id_cliente": 11112924678
+ },
+ {
+  "id_reference": 284,
+  "nombre": "Marrtha Flores Maza",
+  "curp": "FOMM850511MOCLZR06",
+  "telefono": "9514539939",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-11-11 20:08:39",
+  "fecha_actualizacion": "2025-11-11 20:08:39",
+  "id_cliente": 11112856649
+ },
+ {
+  "id_reference": 286,
+  "nombre": "Rigoberto Avimael Pérez Caballero",
+  "curp": "PECR800701HOCRBG09",
+  "telefono": "9516461704",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-14 16:23:43",
+  "fecha_actualizacion": "2025-11-14 16:23:43",
+  "id_cliente": 11113072620
+ },
+ {
+  "id_reference": 287,
+  "nombre": "Antonio Cortes Salvador ",
+  "curp": "COSA870104HOCRLN09",
+  "telefono": "9514746618",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-11-14 16:53:34",
+  "fecha_actualizacion": "2025-11-14 16:53:34",
+  "id_cliente": 11112759993
+ },
+ {
+  "id_reference": 288,
+  "nombre": "Abril Lopez Hernandez",
+  "curp": "LOHA050227MOCPRBA7",
+  "telefono": "9515252514",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-11-14 17:10:17",
+  "fecha_actualizacion": "2025-11-14 17:10:17",
+  "id_cliente": 11112747162
+ },
+ {
+  "id_reference": 289,
+  "nombre": "Julio Cesar Villalobos Espinoza",
+  "curp": "VIEJ860302HOCLSL01",
+  "telefono": "9518822256",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-11-14 17:24:39",
+  "fecha_actualizacion": "2025-11-14 17:24:39",
+  "id_cliente": 11113208007
+ },
+ {
+  "id_reference": 290,
+  "nombre": "Ana Brenda Vazquez Mendez",
+  "curp": "VAMA090711MOCSNNA0",
+  "telefono": "9513447461",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-14 17:33:29",
+  "fecha_actualizacion": "2025-11-14 17:33:29",
+  "id_cliente": 11112967853
+ },
+ {
+  "id_reference": 291,
+  "nombre": "Jaime Garcia Garcia",
+  "curp": "GAGJ901009HOCRRMO1",
+  "telefono": "9515796066",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-14 17:48:41",
+  "fecha_actualizacion": "2025-11-14 17:48:41",
+  "id_cliente": 11113194053
+ },
+ {
+  "id_reference": 292,
+  "nombre": "Abigail Palacios Ramirez",
+  "curp": "PARA870724MOCLMB09",
+  "telefono": "9517006117",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-14 17:55:08",
+  "fecha_actualizacion": "2025-11-14 17:55:08",
+  "id_cliente": 11112795043
+ },
+ {
+  "id_reference": 293,
+  "nombre": "Julio Cruz Ruiz",
+  "curp": "CURJ810412HOCRZL07",
+  "telefono": "9516348554",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-14 18:04:50",
+  "fecha_actualizacion": "2025-11-14 18:04:50",
+  "id_cliente": 11113218407
+ },
+ {
+  "id_reference": 294,
+  "nombre": "Abigail Palacios Ramirez",
+  "curp": "PARA870724MOCLMB09",
+  "telefono": "9934616040",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-14 18:15:15",
+  "fecha_actualizacion": "2025-11-14 18:15:15",
+  "id_cliente": 11113231927
+ },
+ {
+  "id_reference": 295,
+  "nombre": "José Luis Morales Osorio ",
+  "curp": "MOOJ900708HOCRSS03",
+  "telefono": "9513922140",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-15 19:11:08",
+  "fecha_actualizacion": "2025-11-15 19:11:08",
+  "id_cliente": 11112869400
+ },
+ {
+  "id_reference": 296,
+  "nombre": "Benjamín García Martínez",
+  "curp": "GAMB960204HOCRRN09",
+  "telefono": "9513648449",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-15 20:09:06",
+  "fecha_actualizacion": "2025-11-15 20:09:06",
+  "id_cliente": 11113039501
+ },
+ {
+  "id_reference": 297,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9515867249",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 01:37:06",
+  "fecha_actualizacion": "2025-11-21 01:37:06",
+  "id_cliente": 11113042038
+ },
+ {
+  "id_reference": 299,
+  "nombre": "Jesus Alejandro Lopez Cruz",
+  "curp": "LOCJ070226HOCPRSA1",
+  "telefono": "9515946851",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-11-21 01:54:19",
+  "fecha_actualizacion": "2025-11-21 01:54:19",
+  "id_cliente": 11112965092
+ },
+ {
+  "id_reference": 300,
+  "nombre": "Abigail Betzaida Mendez Sanchez",
+  "curp": "MESA000307MOCNNBA3",
+  "telefono": "9515316016",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-21 02:01:26",
+  "fecha_actualizacion": "2025-11-21 02:01:26",
+  "id_cliente": 11113138946
+ },
+ {
+  "id_reference": 301,
+  "nombre": "Francisca Mariana Gonzalez Bautista",
+  "curp": "GOBF670104MPLNTR01",
+  "telefono": "9514296930",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-11-21 02:08:56",
+  "fecha_actualizacion": "2025-11-21 02:08:56",
+  "id_cliente": 11112892478
+ },
+ {
+  "id_reference": 302,
+  "nombre": "Jessica Fernandez Cruz Leon",
+  "curp": "CULJ980111MOCRNS04",
+  "telefono": "2214127431",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-21 02:19:43",
+  "fecha_actualizacion": "2025-11-21 02:19:43",
+  "id_cliente": 11113113052
+ },
+ {
+  "id_reference": 303,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9515867249",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 02:26:23",
+  "fecha_actualizacion": "2025-11-21 02:26:23",
+  "id_cliente": 11113082146
+ },
+ {
+  "id_reference": 304,
+  "nombre": "Alejandra Ramoz Cruz",
+  "curp": "RACA770105MOCMRL01",
+  "telefono": "9513210612",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-21 02:34:31",
+  "fecha_actualizacion": "2025-11-21 02:34:31",
+  "id_cliente": 11112814562
+ },
+ {
+  "id_reference": 305,
+  "nombre": "Karla Daniela Pacheco Morales",
+  "curp": "PAMK931015MOCCRR09",
+  "telefono": "9511026667",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-21 02:41:03",
+  "fecha_actualizacion": "2025-11-21 02:41:03",
+  "id_cliente": 11112907237
+ },
+ {
+  "id_reference": 306,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9514746618",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 02:49:54",
+  "fecha_actualizacion": "2025-11-21 02:49:54",
+  "id_cliente": 11112947405
+ },
+ {
+  "id_reference": 307,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9516560330",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 03:00:29",
+  "fecha_actualizacion": "2025-11-21 03:00:29",
+  "id_cliente": 11112962070
+ },
+ {
+  "id_reference": 308,
+  "nombre": "Maximiliano Hernandez",
+  "curp": "HEMM841012HOCRNX03",
+  "telefono": "9511297014",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-21 03:11:07",
+  "fecha_actualizacion": "2025-11-21 03:11:07",
+  "id_cliente": 11113146282
+ },
+ {
+  "id_reference": 309,
+  "nombre": "Felipe Navor Nolasco Ruiz",
+  "curp": "NORF600526HOCLZL00",
+  "telefono": "9512041161",
+  "relacion": "Vecino",
+  "fecha_creacion": "2025-11-21 03:18:19",
+  "fecha_actualizacion": "2025-11-21 03:18:19",
+  "id_cliente": 11112802275
+ },
+ {
+  "id_reference": 310,
+  "nombre": "Nieves Cortes Mendez",
+  "curp": "COMN780806MOCRNV07",
+  "telefono": "9512388011",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 03:33:42",
+  "fecha_actualizacion": "2025-11-21 03:33:42",
+  "id_cliente": 11112794953
+ },
+ {
+  "id_reference": 311,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9513902817",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 03:39:55",
+  "fecha_actualizacion": "2025-11-21 03:39:55",
+  "id_cliente": 11112917095
+ },
+ {
+  "id_reference": 312,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9516088143",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 03:48:17",
+  "fecha_actualizacion": "2025-11-21 03:48:17",
+  "id_cliente": 11113107492
+ },
+ {
+  "id_reference": 313,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9514357955",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 03:55:23",
+  "fecha_actualizacion": "2025-11-21 03:55:23",
+  "id_cliente": 11112819235
+ },
+ {
+  "id_reference": 314,
+  "nombre": "Guadalupe Villanueva Figueroa",
+  "curp": "VIFG821212MOCLGD07",
+  "telefono": "9512601462",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-21 04:02:07",
+  "fecha_actualizacion": "2025-11-21 04:02:07",
+  "id_cliente": 11113104303
+ },
+ {
+  "id_reference": 315,
+  "nombre": "Alexander Daniel Lopez Lopez",
+  "curp": "LOLA030824HOCPPLA8",
+  "telefono": "9513082323",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-11-21 04:08:59",
+  "fecha_actualizacion": "2025-11-21 04:08:59",
+  "id_cliente": 11113214056
+ },
+ {
+  "id_reference": 316,
+  "nombre": "Agustina Adelina Cruz Reyes ",
+  "curp": "CURA860828MOCRVG08",
+  "telefono": "9512098716",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-22 16:44:05",
+  "fecha_actualizacion": "2025-11-22 16:44:05",
+  "id_cliente": 11112783173
+ },
+ {
+  "id_reference": 317,
+  "nombre": "Rubi Santiago Martinez ",
+  "curp": "SAMR051130MOCNRBA5",
+  "telefono": "9516392927",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-22 17:18:16",
+  "fecha_actualizacion": "2025-11-22 17:18:16",
+  "id_cliente": 11113016455
+ },
+ {
+  "id_reference": 318,
+  "nombre": "Guadalupe Claudia Garcia Garcia",
+  "curp": "GAGG910517MOCRRD05",
+  "telefono": "9512861748",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-11-22 17:50:01",
+  "fecha_actualizacion": "2025-11-22 17:50:01",
+  "id_cliente": 11112781039
+ },
+ {
+  "id_reference": 319,
+  "nombre": "Hernandez Cuevas Yaira Lidia",
+  "curp": "HECY010822MOCRVRA5",
+  "telefono": "9513081233",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-03 15:37:56",
+  "fecha_actualizacion": "2025-12-03 15:37:56",
+  "id_cliente": 11113003608
+ },
+ {
+  "id_reference": 320,
+  "nombre": "Anahy Santiago Lopez",
+  "curp": "SALA870514MOCNPN07",
+  "telefono": "9515788833",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-12-05 19:22:54",
+  "fecha_actualizacion": "2025-12-05 19:22:54",
+  "id_cliente": 11113049905
+ },
+ {
+  "id_reference": 321,
+  "nombre": "Santiago Esteban Lopez Torres",
+  "curp": "LOTS740912HOCPRN01",
+  "telefono": "9512813646",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-16 20:45:21",
+  "fecha_actualizacion": "2025-12-16 20:45:21",
+  "id_cliente": 11113054433
+ },
+ {
+  "id_reference": 322,
+  "nombre": "Sin Nombre",
+  "curp": "",
+  "telefono": "0000000000",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-12-16 21:14:37",
+  "fecha_actualizacion": "2025-12-16 21:14:37",
+  "id_cliente": 11112905722
+ },
+ {
+  "id_reference": 323,
+  "nombre": "Victor Manuel Flores Ramirez",
+  "curp": "FORV810625HOCLMC09",
+  "telefono": "9511567888",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-16 21:25:38",
+  "fecha_actualizacion": "2025-12-16 21:25:38",
+  "id_cliente": 11113007902
+ },
+ {
+  "id_reference": 324,
+  "nombre": "Wilson Joel Cruz Garcia",
+  "curp": "CUGW920320HOCRRL03",
+  "telefono": "9511122550",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-17 17:03:06",
+  "fecha_actualizacion": "2025-12-17 17:03:06",
+  "id_cliente": 11113019580
+ },
+ {
+  "id_reference": 325,
+  "nombre": "Alex Zuriel Martinez Hernandez",
+  "curp": "MAHA991024HOCRRL03",
+  "telefono": "9514248801",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-17 17:59:43",
+  "fecha_actualizacion": "2025-12-17 17:59:43",
+  "id_cliente": 11113009695
+ },
+ {
+  "id_reference": 326,
+  "nombre": "Brisia Itandehui Pinelo Mendoza",
+  "curp": "PIMB120904MOCNNRA0",
+  "telefono": "9512534414",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-17 18:13:14",
+  "fecha_actualizacion": "2025-12-17 18:13:14",
+  "id_cliente": 11112666665
+ },
+ {
+  "id_reference": 327,
+  "nombre": "Cecilia Mendez Hernandez",
+  "curp": "MEHC951122MOCNRC06",
+  "telefono": "9516451940",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-17 18:21:15",
+  "fecha_actualizacion": "2025-12-17 18:21:15",
+  "id_cliente": 11112896316
+ },
+ {
+  "id_reference": 328,
+  "nombre": "Andres Daniel Campos Gomez",
+  "curp": "CXGA061112HOCMMNA1",
+  "telefono": "9518694920",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-17 18:31:33",
+  "fecha_actualizacion": "2025-12-17 18:31:33",
+  "id_cliente": 11112948802
+ },
+ {
+  "id_reference": 329,
+  "nombre": "Alfredo Giovani Mondragon Osorio",
+  "curp": "MOOA970201HOCNSL04",
+  "telefono": "9511020940",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-12-17 18:40:31",
+  "fecha_actualizacion": "2025-12-17 18:40:31",
+  "id_cliente": 11113053778
+ },
+ {
+  "id_reference": 330,
+  "nombre": "Herminia Bautista",
+  "curp": "BAMH810808MOCTTR03",
+  "telefono": "9515793040",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-12-17 18:54:20",
+  "fecha_actualizacion": "2025-12-17 18:54:20",
+  "id_cliente": 11113142034
+ },
+ {
+  "id_reference": 331,
+  "nombre": "Vicenta Alcantara Santiago",
+  "curp": "AASV570122MOCLNC00",
+  "telefono": "9512736804",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-12-17 19:04:32",
+  "fecha_actualizacion": "2025-12-17 19:04:32",
+  "id_cliente": 11112985536
+ },
+ {
+  "id_reference": 332,
+  "nombre": "Alejandro Rodrigo Espinoza Muñoz",
+  "curp": "EIMA880930HOCSXL08",
+  "telefono": "9514179377",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-17 23:03:12",
+  "fecha_actualizacion": "2025-12-17 23:03:12",
+  "id_cliente": 11113189493
+ },
+ {
+  "id_reference": 333,
+  "nombre": "Carlos Alberto Perez Hernandez",
+  "curp": "PEHC980711HOCRRR07",
+  "telefono": "5652724512",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 15:24:51",
+  "fecha_actualizacion": "2025-12-18 15:24:51",
+  "id_cliente": 11112929397
+ },
+ {
+  "id_reference": 334,
+  "nombre": "Monica Edith Perez Hernandez",
+  "curp": "PEHM020106MOCRRNA7",
+  "telefono": "9514264299",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 15:41:10",
+  "fecha_actualizacion": "2025-12-18 15:41:10",
+  "id_cliente": 11112939602
+ },
+ {
+  "id_reference": 335,
+  "nombre": "ROSARIO PEREZ HERNANDEZ",
+  "curp": "PEHR920328MOCRRS03",
+  "telefono": "9515776889",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 15:57:34",
+  "fecha_actualizacion": "2025-12-18 15:57:34",
+  "id_cliente": 11112996848
+ },
+ {
+  "id_reference": 336,
+  "nombre": "Jovita Vianey Jimenez Chavez",
+  "curp": "JICJ030408MOCMHVA3",
+  "telefono": "9516556545",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 16:04:17",
+  "fecha_actualizacion": "2025-12-18 16:04:17",
+  "id_cliente": 11113033563
+ },
+ {
+  "id_reference": 337,
+  "nombre": "Juan Osorio Jinez",
+  "curp": "OOJJ061218HOCSNNA3",
+  "telefono": "9514772346",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 16:34:05",
+  "fecha_actualizacion": "2025-12-18 16:34:05",
+  "id_cliente": 11112858472
+ },
+ {
+  "id_reference": 338,
+  "nombre": "Angeles Jinez De La Luz",
+  "curp": "JILA830127MOCNZN00",
+  "telefono": "9514214143",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 16:46:37",
+  "fecha_actualizacion": "2025-12-18 16:46:37",
+  "id_cliente": 11112665749
+ },
+ {
+  "id_reference": 339,
+  "nombre": "Jairo Iván Méndez González ",
+  "curp": "MEGJ920316HOCNNR02",
+  "telefono": "9513258144",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 16:56:26",
+  "fecha_actualizacion": "2025-12-18 16:56:26",
+  "id_cliente": 11113006375
+ },
+ {
+  "id_reference": 340,
+  "nombre": "Jeremías Santiago Ginez ",
+  "curp": "SAGJ970901HOCNNR08",
+  "telefono": "9515660213",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 17:06:16",
+  "fecha_actualizacion": "2025-12-18 17:06:16",
+  "id_cliente": 11112938595
+ },
+ {
+  "id_reference": 341,
+  "nombre": "Lizbeth Gaspar Ramirez",
+  "curp": "GARL720223MOCSMR02",
+  "telefono": "9511055423",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-12-18 18:21:55",
+  "fecha_actualizacion": "2025-12-18 18:21:55",
+  "id_cliente": 11112942643
+ },
+ {
+  "id_reference": 342,
+  "nombre": "Odilia Elvia Ramirez Garcia",
+  "curp": "RAGO830914MOCMRD05",
+  "telefono": "9515256170",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 18:39:36",
+  "fecha_actualizacion": "2025-12-18 18:39:36",
+  "id_cliente": 11113005731
+ },
+ {
+  "id_reference": 343,
+  "nombre": "Cristina Hernandez Torres",
+  "curp": "HETC911027MOCRRR03",
+  "telefono": "9514189971",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 20:20:03",
+  "fecha_actualizacion": "2025-12-18 20:20:03",
+  "id_cliente": 11112936225
+ },
+ {
+  "id_reference": 344,
+  "nombre": "Margarito Esteban Guadarrama Miguel",
+  "curp": "GUMM980426HOCDGR09",
+  "telefono": "9514752979",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-18 20:31:23",
+  "fecha_actualizacion": "2025-12-18 20:31:23",
+  "id_cliente": 11112969340
+ },
+ {
+  "id_reference": 345,
+  "nombre": "Apolonia Martinez Jimenez",
+  "curp": "MAJA660817MOCRMP08",
+  "telefono": "9514570974",
+  "relacion": "Otro",
+  "fecha_creacion": "2025-12-18 20:40:55",
+  "fecha_actualizacion": "2025-12-18 20:40:55",
+  "id_cliente": 11112828782
+ },
+ {
+  "id_reference": 348,
+  "nombre": "Rene Erik Santiago",
+  "curp": "SARR020512HOCNZN04",
+  "telefono": "9516468821",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-19 20:33:22",
+  "fecha_actualizacion": "2025-12-19 20:33:22",
+  "id_cliente": 11112999671
+ },
+ {
+  "id_reference": 349,
+  "nombre": "Angel Arango Romero",
+  "curp": "AARA991010HOCRMN07",
+  "telefono": "9514669395",
+  "relacion": "Amigo",
+  "fecha_creacion": "2025-12-19 21:46:53",
+  "fecha_actualizacion": "2025-12-19 21:46:53",
+  "id_cliente": 11112712265
+ },
+ {
+  "id_reference": 350,
+  "nombre": "ROSARIO PEREZ HERNANDEZ",
+  "curp": "PEHR920328MOCRRS03",
+  "telefono": "9515776889",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-12-24 18:28:22",
+  "fecha_actualizacion": "2025-12-24 18:28:22",
+  "id_cliente": 11112805044
+ },
+ {
+  "id_reference": 351,
+  "nombre": "Catalina Hernandez Hernandez",
+  "curp": "HEHC830531MOCRRT04",
+  "telefono": "9515779926",
+  "relacion": "Familiar",
+  "fecha_creacion": "2025-12-24 18:41:56",
+  "fecha_actualizacion": "2025-12-24 18:41:56",
+  "id_cliente": 11112802463
+ },
+ {
+  "id_reference": 352,
+  "nombre": "Balentina Jines De La Luz",
+  "curp": "JILB800214MOCNZL06",
+  "telefono": "9515947496",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-12-29 17:26:59",
+  "fecha_actualizacion": "2025-12-29 17:26:59",
+  "id_cliente": 11112933181
+ },
+ {
+  "id_reference": 353,
+  "nombre": "Balentina Jines De La Luz",
+  "curp": "JILB800214MOCNZL06",
+  "telefono": "9515947496",
+  "relacion": "Conocido",
+  "fecha_creacion": "2025-12-29 19:18:18",
+  "fecha_actualizacion": "2025-12-29 19:18:18",
+  "id_cliente": 11112985431
+ },
+ {
+  "id_reference": 354,
+  "nombre": "Omar Raul Santiago Castellanos",
+  "curp": "SACO900217HOCNSM00",
+  "telefono": "9514581059",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-01-02 23:06:43",
+  "fecha_actualizacion": "2026-01-02 23:06:43",
+  "id_cliente": 11112918349
+ },
+ {
+  "id_reference": 355,
+  "nombre": "Alexa Hernandez Santiago",
+  "curp": "SACO900217HOCNSM00",
+  "telefono": "9511290417",
+  "relacion": "Compañero de trabajo",
+  "fecha_creacion": "2026-01-02 23:14:56",
+  "fecha_actualizacion": "2026-01-02 23:14:56",
+  "id_cliente": 11112904439
+ },
+ {
+  "id_reference": 356,
+  "nombre": "Uriel Velasco Carrion",
+  "curp": "SACO900217HOCNSM00",
+  "telefono": "9513123064",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-02 23:22:11",
+  "fecha_actualizacion": "2026-01-02 23:22:11",
+  "id_cliente": 11112739079
+ },
+ {
+  "id_reference": 357,
+  "nombre": "Juan Antonio Perez Sosa",
+  "curp": "PESJ080310HPLRSNA9",
+  "telefono": "9514717002",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-02 23:28:55",
+  "fecha_actualizacion": "2026-01-02 23:28:55",
+  "id_cliente": 11113044045
+ },
+ {
+  "id_reference": 358,
+  "nombre": "Diana Laura Nuñez Garcia",
+  "curp": "NUMD950218MOCXRN03",
+  "telefono": "9511990809",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-02 23:39:11",
+  "fecha_actualizacion": "2026-01-02 23:39:11",
+  "id_cliente": 11112974492
+ },
+ {
+  "id_reference": 359,
+  "nombre": "Lorena Soledad Gaytan Pinelo",
+  "curp": "GAPL941218MOCYNR03",
+  "telefono": "9511609907",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-02 23:45:54",
+  "fecha_actualizacion": "2026-01-02 23:45:54",
+  "id_cliente": 11112863299
+ },
+ {
+  "id_reference": 360,
+  "nombre": "Alexa Hernandez Santiago",
+  "curp": "SACO900217HOCNSM00",
+  "telefono": "9511290417",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-01-03 00:06:19",
+  "fecha_actualizacion": "2026-01-03 00:06:19",
+  "id_cliente": 11113004593
+ },
+ {
+  "id_reference": 361,
+  "nombre": "Apolonia Martinez Jimenez",
+  "curp": "MAJA660817MOCRMP08",
+  "telefono": "9513481768",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-01-03 00:12:12",
+  "fecha_actualizacion": "2026-01-03 00:12:12",
+  "id_cliente": 11112878795
+ },
+ {
+  "id_reference": 362,
+  "nombre": "Josefa Caballero Sanchez",
+  "curp": "CASJ580319MOCBNS00",
+  "telefono": "9516364569",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-03 00:19:19",
+  "fecha_actualizacion": "2026-01-03 00:19:19",
+  "id_cliente": 11112929341
+ },
+ {
+  "id_reference": 363,
+  "nombre": "Elda Flores Echeverria",
+  "curp": "FOEE750702MCSLRL83",
+  "telefono": "9516364631",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-01-03 00:25:39",
+  "fecha_actualizacion": "2026-01-03 00:25:39",
+  "id_cliente": 11112984529
+ },
+ {
+  "id_reference": 364,
+  "nombre": "Evangelina Diaz Pinelo ",
+  "curp": "DIPE770416MOCZNV06",
+  "telefono": "9515897802",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-01-03 00:33:16",
+  "fecha_actualizacion": "2026-01-03 00:33:16",
+  "id_cliente": 11113026843
+ },
+ {
+  "id_reference": 366,
+  "nombre": "Jose Leonardo Vasquez Santana",
+  "curp": "VASL820416HOCSNN00",
+  "telefono": "9514035841",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-03 01:04:30",
+  "fecha_actualizacion": "2026-01-03 01:04:30",
+  "id_cliente": 11113042756
+ },
+ {
+  "id_reference": 367,
+  "nombre": "Rolando Espinoza Cervantes",
+  "curp": "EICR061014HOCSRLA1",
+  "telefono": "9514570974",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-05 17:23:21",
+  "fecha_actualizacion": "2026-01-05 17:23:21",
+  "id_cliente": 11112824835
+ },
+ {
+  "id_reference": 368,
+  "nombre": "Edi Omar Gomez Garcia",
+  "curp": "GOGE000108HOCMRDA4",
+  "telefono": "9513017971",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-05 17:41:28",
+  "fecha_actualizacion": "2026-01-05 17:41:28",
+  "id_cliente": 11112818336
+ },
+ {
+  "id_reference": 369,
+  "nombre": "Esveydi Viana",
+  "curp": "NICE941221MOCXSS02",
+  "telefono": "9514278712",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-06 17:21:15",
+  "fecha_actualizacion": "2026-01-06 17:21:15",
+  "id_cliente": 11112815237
+ },
+ {
+  "id_reference": 370,
+  "nombre": "Esveydi Viviana Niño Castellanos",
+  "curp": "NICE941212MOCXSS02",
+  "telefono": "9514278712",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-06 17:33:41",
+  "fecha_actualizacion": "2026-01-06 17:33:41",
+  "id_cliente": 11112837047
+ },
+ {
+  "id_reference": 371,
+  "nombre": "Samari Monserrat Rodriguez Cruz",
+  "curp": "ROCS990420MOCDRM01",
+  "telefono": "9512294929",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-13 19:16:34",
+  "fecha_actualizacion": "2026-01-13 19:16:34",
+  "id_cliente": 11113051816
+ },
+ {
+  "id_reference": 372,
+  "nombre": "Lizel Hortencia Castellanos Castellanos",
+  "curp": "CACL830722MOCSSZ09",
+  "telefono": "9512308812",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-14 18:45:34",
+  "fecha_actualizacion": "2026-01-14 18:45:34",
+  "id_cliente": 11112763649
+ },
+ {
+  "id_reference": 373,
+  "nombre": "Getsemani Hernandez Castellanos ",
+  "curp": "HECG020529MOCRSTA3",
+  "telefono": "9513912226",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-14 19:40:27",
+  "fecha_actualizacion": "2026-01-14 19:40:27",
+  "id_cliente": 11112866249
+ },
+ {
+  "id_reference": 374,
+  "nombre": "Dominic Ramirez Martinez",
+  "curp": "RAMD210626HOCMRMA7",
+  "telefono": "9514599476",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-14 20:18:02",
+  "fecha_actualizacion": "2026-01-14 20:18:02",
+  "id_cliente": 11112818097
+ },
+ {
+  "id_reference": 375,
+  "nombre": "Sandra Maribel Garcia Santiago",
+  "curp": "GASS930608MOCRNN06",
+  "telefono": "9514993640",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-14 20:29:32",
+  "fecha_actualizacion": "2026-01-14 20:29:32",
+  "id_cliente": 11112975417
+ },
+ {
+  "id_reference": 376,
+  "nombre": "Alba Victoria Santiago Guerrero",
+  "curp": "SAGA990723MOCNRL02",
+  "telefono": "9511152698",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-14 20:50:10",
+  "fecha_actualizacion": "2026-01-14 20:50:10",
+  "id_cliente": 11112792766
+ },
+ {
+  "id_reference": 377,
+  "nombre": "Maria Isabel Muñoz Martinez",
+  "curp": "MUMI900425MOCXRS08",
+  "telefono": "9516992272",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-14 21:15:36",
+  "fecha_actualizacion": "2026-01-14 21:15:36",
+  "id_cliente": 11113106411
+ },
+ {
+  "id_reference": 378,
+  "nombre": "Jesus Alfonso Maldonado",
+  "curp": "MACJ071225HOCLHSA4",
+  "telefono": "9516355144",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-14 21:59:33",
+  "fecha_actualizacion": "2026-01-14 21:59:33",
+  "id_cliente": 11112887138
+ },
+ {
+  "id_reference": 379,
+  "nombre": "Rosa Ester Archila Toledo",
+  "curp": "AITR930211MOCRLS04",
+  "telefono": "9515918085",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-15 19:37:11",
+  "fecha_actualizacion": "2026-01-15 19:37:11",
+  "id_cliente": 11112996430
+ },
+ {
+  "id_reference": 380,
+  "nombre": "Estefania Estrada Silva",
+  "curp": "EASE921229MTCSDL03",
+  "telefono": "9131164582",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-15 19:49:42",
+  "fecha_actualizacion": "2026-01-15 19:49:42",
+  "id_cliente": 11112931322
+ },
+ {
+  "id_reference": 381,
+  "nombre": "Martha Lilia Hernandez Sanchez",
+  "curp": "HESM791225MDFRNR05",
+  "telefono": "9515826807",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-15 20:02:09",
+  "fecha_actualizacion": "2026-01-15 20:02:09",
+  "id_cliente": 11112773739
+ },
+ {
+  "id_reference": 382,
+  "nombre": "Alvaro Mendez Cruz",
+  "curp": "MECA200523HOCZLS04",
+  "telefono": "9514702640",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-15 20:19:31",
+  "fecha_actualizacion": "2026-01-15 20:19:31",
+  "id_cliente": 11112802259
+ },
+ {
+  "id_reference": 383,
+  "nombre": "Catalina Luz Hernandez Maldonado",
+  "curp": "HEMC871017MOCZLS04",
+  "telefono": "9513099292",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-15 20:43:05",
+  "fecha_actualizacion": "2026-01-15 20:43:05",
+  "id_cliente": 11113033618
+ },
+ {
+  "id_reference": 384,
+  "nombre": "Maria Teresa Ruiz",
+  "curp": "RUMT871017MOCZLS04",
+  "telefono": "9513074908",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-15 20:57:43",
+  "fecha_actualizacion": "2026-01-15 20:57:43",
+  "id_cliente": 11112699307
+ },
+ {
+  "id_reference": 385,
+  "nombre": "Daniel Flores Perez",
+  "curp": "FOPD681028MOCLRN03",
+  "telefono": "9511848522",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-01-15 21:07:54",
+  "fecha_actualizacion": "2026-01-15 21:07:54",
+  "id_cliente": 11113116034
+ },
+ {
+  "id_reference": 386,
+  "nombre": "Adan Mendoza Lopez",
+  "curp": "MEAD871017HOCZLS04",
+  "telefono": "9514786963",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-16 19:56:55",
+  "fecha_actualizacion": "2026-01-16 19:56:55",
+  "id_cliente": 11113042732
+ },
+ {
+  "id_reference": 387,
+  "nombre": "Itzel Juana Chavez Lopez",
+  "curp": "CALI010127MOCHPTA9",
+  "telefono": "9515691117",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-16 20:28:01",
+  "fecha_actualizacion": "2026-01-16 20:28:01",
+  "id_cliente": 11113013674
+ },
+ {
+  "id_reference": 388,
+  "nombre": "Yaretzi Gomez Martinez",
+  "curp": "GOMY871017MOCZLS04",
+  "telefono": "9515604724",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-16 20:53:29",
+  "fecha_actualizacion": "2026-01-16 20:53:29",
+  "id_cliente": 11112948100
+ },
+ {
+  "id_reference": 389,
+  "nombre": "Brenda Elizabeth Hernandez",
+  "curp": "HEGB911014MOCRRR09",
+  "telefono": "9585874910",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-16 21:07:03",
+  "fecha_actualizacion": "2026-01-16 21:07:03",
+  "id_cliente": 11112922583
+ },
+ {
+  "id_reference": 390,
+  "nombre": "Alicia Garcia Pedro",
+  "curp": "GAPA920622MOCRDL02",
+  "telefono": "9516114009",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-16 22:03:13",
+  "fecha_actualizacion": "2026-01-16 22:03:13",
+  "id_cliente": 11113002299
+ },
+ {
+  "id_reference": 391,
+  "nombre": "Anaya Garcia Perla G",
+  "curp": "AITM031230MOCRLCA8",
+  "telefono": "0000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-16 22:29:08",
+  "fecha_actualizacion": "2026-01-16 22:29:08",
+  "id_cliente": 11112706693
+ },
+ {
+  "id_reference": 392,
+  "nombre": "Michel Evangelista Diaz",
+  "curp": "AEVG640308MOCBTR08",
+  "telefono": "2382520751",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-16 22:40:31",
+  "fecha_actualizacion": "2026-01-16 22:40:31",
+  "id_cliente": 11112807346
+ },
+ {
+  "id_reference": 393,
+  "nombre": "Yabet Evangelista Martinez",
+  "curp": "EAMC020716MPLVRRA9",
+  "telefono": "9517439274",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-16 22:53:54",
+  "fecha_actualizacion": "2026-01-16 22:53:54",
+  "id_cliente": 11112783089
+ },
+ {
+  "id_reference": 394,
+  "nombre": "Carlos Manuel Martinez Lopez",
+  "curp": "MALC950522HMNRPR06",
+  "telefono": "9515764008",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-23 16:02:01",
+  "fecha_actualizacion": "2026-01-23 16:02:01",
+  "id_cliente": 11112888569
+ },
+ {
+  "id_reference": 395,
+  "nombre": "Flor Lopez",
+  "curp": "LOPF871017HOCZLS04",
+  "telefono": "9511161269",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-23 16:17:58",
+  "fecha_actualizacion": "2026-01-23 16:17:58",
+  "id_cliente": 11112862917
+ },
+ {
+  "id_reference": 396,
+  "nombre": "Estrella Rubi Lopez",
+  "curp": "LOPF871017HOCZLS04",
+  "telefono": "9514956534",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-23 16:41:55",
+  "fecha_actualizacion": "2026-01-23 16:41:55",
+  "id_cliente": 11112908291
+ },
+ {
+  "id_reference": 397,
+  "nombre": "Judith Lopez Cruz",
+  "curp": "LOPF871017HOCZLS04",
+  "telefono": "9514258849",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-23 16:55:10",
+  "fecha_actualizacion": "2026-01-23 16:55:10",
+  "id_cliente": 11112952328
+ },
+ {
+  "id_reference": 398,
+  "nombre": "Rigoberto Daniel Espinoza Perez",
+  "curp": "HESM791225MDFRNR05",
+  "telefono": "9512326660",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-23 17:11:27",
+  "fecha_actualizacion": "2026-01-23 17:11:27",
+  "id_cliente": 11112821419
+ },
+ {
+  "id_reference": 399,
+  "nombre": "Silva Garcia Ramirez",
+  "curp": "GARS871017MOCZLS04",
+  "telefono": "9515823826",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-23 17:36:32",
+  "fecha_actualizacion": "2026-01-23 17:36:32",
+  "id_cliente": 11112716716
+ },
+ {
+  "id_reference": 400,
+  "nombre": "Ulises Garcia Ramirez",
+  "curp": "GARV900520HOCRML04",
+  "telefono": "9517455433",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-23 18:39:03",
+  "fecha_actualizacion": "2026-01-23 18:39:03",
+  "id_cliente": 11112837856
+ },
+ {
+  "id_reference": 401,
+  "nombre": "Carla Monserrat Garcia Garcia",
+  "curp": "GAGC990308MOCRRN09",
+  "telefono": "9516316147",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-23 18:55:11",
+  "fecha_actualizacion": "2026-01-23 18:55:11",
+  "id_cliente": 11112918295
+ },
+ {
+  "id_reference": 402,
+  "nombre": "Virginia Zarate Lopez",
+  "curp": "ZALV871017HOCZLS04",
+  "telefono": "9515885357",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-23 19:18:47",
+  "fecha_actualizacion": "2026-01-23 19:18:47",
+  "id_cliente": 11113093885
+ },
+ {
+  "id_reference": 403,
+  "nombre": "Olga Garcia Ruiz",
+  "curp": "GARO590629MOCRZL05",
+  "telefono": "9516083565",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-23 20:03:01",
+  "fecha_actualizacion": "2026-01-23 20:03:01",
+  "id_cliente": 11112957025
+ },
+ {
+  "id_reference": 404,
+  "nombre": "Fernando Garcia Castellanos",
+  "curp": "GACF900402HOCLSR09",
+  "telefono": "9514022355",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-26 15:59:31",
+  "fecha_actualizacion": "2026-01-26 15:59:31",
+  "id_cliente": 11112892924
+ },
+ {
+  "id_reference": 405,
+  "nombre": "Eric Castellanos Castellanos",
+  "curp": "CACE890915HOCSSR01",
+  "telefono": "9511628196",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-26 16:18:40",
+  "fecha_actualizacion": "2026-01-26 16:18:40",
+  "id_cliente": 11113005775
+ },
+ {
+  "id_reference": 406,
+  "nombre": "Maria Del Socorro Alvarez Jarquin",
+  "curp": "AAJS620919MOCLRC02",
+  "telefono": "9512287999",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-26 17:21:10",
+  "fecha_actualizacion": "2026-01-26 17:21:10",
+  "id_cliente": 11113091556
+ },
+ {
+  "id_reference": 407,
+  "nombre": "Gabriela Lucas Paz",
+  "curp": "LUPG831102MOCZLS04",
+  "telefono": "9513959210",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-26 18:13:16",
+  "fecha_actualizacion": "2026-01-26 18:13:16",
+  "id_cliente": 11112898863
+ },
+ {
+  "id_reference": 408,
+  "nombre": "Lorena Cervantes Lopez ",
+  "curp": "CELL881130MOCRPR05",
+  "telefono": "9513474467",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-26 18:26:36",
+  "fecha_actualizacion": "2026-01-26 18:26:36",
+  "id_cliente": 11112777895
+ },
+ {
+  "id_reference": 409,
+  "nombre": "Sandra Ruiz Lopez",
+  "curp": "RULS781011HOCZLS04",
+  "telefono": "9513087462",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-26 18:55:27",
+  "fecha_actualizacion": "2026-01-26 18:55:27",
+  "id_cliente": 11113011924
+ },
+ {
+  "id_reference": 410,
+  "nombre": "Avendaño Sarabia Guadalupe",
+  "curp": "AESC020826MOCVRR81",
+  "telefono": "9513124216",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-26 19:52:54",
+  "fecha_actualizacion": "2026-01-26 19:52:54",
+  "id_cliente": 11113023238
+ },
+ {
+  "id_reference": 411,
+  "nombre": "Silvia Chavez",
+  "curp": "CACL830722MOCSSZ09",
+  "telefono": "9514665804",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-26 20:07:50",
+  "fecha_actualizacion": "2026-01-26 20:07:50",
+  "id_cliente": 11113188904
+ },
+ {
+  "id_reference": 412,
+  "nombre": "Sadra Santiago",
+  "curp": "SANS871017MOCZLS04",
+  "telefono": "9518839658",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 15:45:18",
+  "fecha_actualizacion": "2026-01-27 15:45:18",
+  "id_cliente": 11112897851
+ },
+ {
+  "id_reference": 413,
+  "nombre": "Gaytan Pinelo Lorena Soledad",
+  "curp": "GAPL941220MOCZLS04",
+  "telefono": "9511843503",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 16:09:41",
+  "fecha_actualizacion": "2026-01-27 16:09:41",
+  "id_cliente": 11112861770
+ },
+ {
+  "id_reference": 414,
+  "nombre": "Santos Monica Sayuri Martinez",
+  "curp": "MASM090505MOCRNNA9",
+  "telefono": "9515887593",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 16:36:10",
+  "fecha_actualizacion": "2026-01-27 16:36:10",
+  "id_cliente": 11112993402
+ },
+ {
+  "id_reference": 415,
+  "nombre": "Mitzi Nicole",
+  "curp": "CURM140126MOCVYTA5",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 16:47:23",
+  "fecha_actualizacion": "2026-01-27 16:47:23",
+  "id_cliente": 11112962972
+ },
+ {
+  "id_reference": 416,
+  "nombre": "Leticia Maribel Martinez Garcia",
+  "curp": "MAGL871017MOCZLS04",
+  "telefono": "9513786103",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 16:57:47",
+  "fecha_actualizacion": "2026-01-27 16:57:47",
+  "id_cliente": 11112789848
+ },
+ {
+  "id_reference": 417,
+  "nombre": "Gustavo De Jesus Castro Godinez",
+  "curp": "CAGG930914HOCSDS01",
+  "telefono": "9515891764",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-27 17:16:11",
+  "fecha_actualizacion": "2026-01-27 17:16:11",
+  "id_cliente": 11112859540
+ },
+ {
+  "id_reference": 418,
+  "nombre": "Dair Morales Gaistardo",
+  "curp": "MOGD810915MOCRSR06",
+  "telefono": "9513246734",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-01-27 17:37:46",
+  "fecha_actualizacion": "2026-01-27 17:37:46",
+  "id_cliente": 11113051729
+ },
+ {
+  "id_reference": 419,
+  "nombre": "Saul Benito Sanchez Del Rio",
+  "curp": "SARS860228HOCNXL04",
+  "telefono": "9517669501",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-01-27 17:49:21",
+  "fecha_actualizacion": "2026-01-27 17:49:21",
+  "id_cliente": 11113038739
+ },
+ {
+  "id_reference": 420,
+  "nombre": "Heydy Garcia Garcia",
+  "curp": "GAGH871017MOCZLS04",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 18:01:42",
+  "fecha_actualizacion": "2026-01-27 18:01:42",
+  "id_cliente": 11112982523
+ },
+ {
+  "id_reference": 421,
+  "nombre": "Ana Ely Santiago Cruz",
+  "curp": "SACA871017MOCZLS04",
+  "telefono": "9516505025",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 18:11:59",
+  "fecha_actualizacion": "2026-01-27 18:11:59",
+  "id_cliente": 11113004040
+ },
+ {
+  "id_reference": 422,
+  "nombre": "Dora Cruz Lucas",
+  "curp": "GAGH871017MOCZLS04",
+  "telefono": "9513076480",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-27 18:24:03",
+  "fecha_actualizacion": "2026-01-27 18:24:03",
+  "id_cliente": 11113046199
+ },
+ {
+  "id_reference": 423,
+  "nombre": "Floriberto Regino Reyna ",
+  "curp": "RERF940315HGRGYL00",
+  "telefono": "9512336689",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-28 17:40:05",
+  "fecha_actualizacion": "2026-01-28 17:40:05",
+  "id_cliente": 11112917978
+ },
+ {
+  "id_reference": 424,
+  "nombre": "Ruiz Santiago Laura",
+  "curp": "RUSL981019MOCZNR08",
+  "telefono": "9514986168",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-01-28 18:03:51",
+  "fecha_actualizacion": "2026-01-28 18:03:51",
+  "id_cliente": 11112859703
+ },
+ {
+  "id_reference": 425,
+  "nombre": "Marcelo Hernández Ramírez ",
+  "curp": "HERM860116HOCRMR08",
+  "telefono": "9514035841",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-28 19:00:15",
+  "fecha_actualizacion": "2026-01-28 19:00:15",
+  "id_cliente": 11113279742
+ },
+ {
+  "id_reference": 426,
+  "nombre": "Manuela Gregoria Cruz Cruz",
+  "curp": "CUCM390525MOCRRN02",
+  "telefono": "9542071087",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-28 19:09:56",
+  "fecha_actualizacion": "2026-01-28 19:09:56",
+  "id_cliente": 11112855162
+ },
+ {
+  "id_reference": 427,
+  "nombre": "García García Jaime ",
+  "curp": "GAGJ901009HOCRRM01",
+  "telefono": "9511981229",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-28 19:35:25",
+  "fecha_actualizacion": "2026-01-28 19:35:25",
+  "id_cliente": 11112919388
+ },
+ {
+  "id_reference": 428,
+  "nombre": "Pinelo Castellanos Maximina Lucila ",
+  "curp": "PICM951029MOCNSX04",
+  "telefono": "9511241558",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-28 20:04:26",
+  "fecha_actualizacion": "2026-01-28 20:04:26",
+  "id_cliente": 11112872200
+ },
+ {
+  "id_reference": 429,
+  "nombre": "Palafox López Luz Areli",
+  "curp": "PALL961210MOCLPZ03",
+  "telefono": "9512591337",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-29 15:50:40",
+  "fecha_actualizacion": "2026-01-29 15:50:40",
+  "id_cliente": 11113058061
+ },
+ {
+  "id_reference": 430,
+  "nombre": "Maria Guadalupe Cuevas Santiago",
+  "curp": "CUSJ640718MOCVNS01",
+  "telefono": "9514410270",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-29 16:30:29",
+  "fecha_actualizacion": "2026-01-29 16:30:29",
+  "id_cliente": 11113184661
+ },
+ {
+  "id_reference": 431,
+  "nombre": "Sadot Hermilo Cruz Cruz",
+  "curp": "CUCS641029HOCRRD07",
+  "telefono": "9511617342",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-29 16:55:48",
+  "fecha_actualizacion": "2026-01-29 16:55:48",
+  "id_cliente": 11113169180
+ },
+ {
+  "id_reference": 432,
+  "nombre": "Yareli Ramirez Mitra",
+  "curp": "RAMY881102MOCMTR05",
+  "telefono": "5576118981",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-29 17:22:32",
+  "fecha_actualizacion": "2026-01-29 17:22:32",
+  "id_cliente": 11112946318
+ },
+ {
+  "id_reference": 433,
+  "nombre": "Celia Martines Cruz",
+  "curp": "AAMV790122MOCPRR05",
+  "telefono": "9518245610",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-29 18:18:20",
+  "fecha_actualizacion": "2026-01-29 18:18:20",
+  "id_cliente": 11112933863
+ },
+ {
+  "id_reference": 434,
+  "nombre": "Daniela Chavez Torres",
+  "curp": "CATD981113MOCHRN00",
+  "telefono": "9513785740",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-29 19:15:00",
+  "fecha_actualizacion": "2026-01-29 19:15:00",
+  "id_cliente": 11112916570
+ },
+ {
+  "id_reference": 435,
+  "nombre": "Teresa De Jesús Ángulo Vasquez",
+  "curp": "AUVT651015MOCNZR09",
+  "telefono": "9514766642",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-29 19:29:10",
+  "fecha_actualizacion": "2026-01-29 19:29:10",
+  "id_cliente": 11113058523
+ },
+ {
+  "id_reference": 436,
+  "nombre": "Octavio Antonio Hernández Ramos",
+  "curp": "HERO510610HOCRMC07",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-29 19:46:39",
+  "fecha_actualizacion": "2026-01-29 19:46:39",
+  "id_cliente": 11112839763
+ },
+ {
+  "id_reference": 437,
+  "nombre": "Edson Pérez Chávez ",
+  "curp": "DISM971017HOCZLS04",
+  "telefono": "9516550378",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-30 16:14:20",
+  "fecha_actualizacion": "2026-01-30 16:14:20",
+  "id_cliente": 11112854697
+ },
+ {
+  "id_reference": 438,
+  "nombre": "Alisson Andrea Morales Ruiz ",
+  "curp": "MORA070922MOCRZLA3",
+  "telefono": "9511018941",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-30 18:06:11",
+  "fecha_actualizacion": "2026-01-30 18:06:11",
+  "id_cliente": 11112863857
+ },
+ {
+  "id_reference": 439,
+  "nombre": "Caballero Garcia Perla ",
+  "curp": "CAGP800609MOCBRR05",
+  "telefono": "9513077439",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-30 18:21:04",
+  "fecha_actualizacion": "2026-01-30 18:21:04",
+  "id_cliente": 11112778298
+ },
+ {
+  "id_reference": 440,
+  "nombre": "Céspedes Acosta Ojilvia",
+  "curp": "PARJ330610MOCCMN02",
+  "telefono": "9515672866",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-30 18:49:13",
+  "fecha_actualizacion": "2026-01-30 18:49:13",
+  "id_cliente": 11112972707
+ },
+ {
+  "id_reference": 441,
+  "nombre": "Pérez Cruz Claudio ",
+  "curp": "PECC940414HOCRRL06",
+  "telefono": "9515618060",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-30 19:18:19",
+  "fecha_actualizacion": "2026-01-30 19:18:19",
+  "id_cliente": 11112815619
+ },
+ {
+  "id_reference": 442,
+  "nombre": "Claudio César Pérez Cruz ",
+  "curp": "PECC940414HOCRRL06",
+  "telefono": "9515618060",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-30 19:36:55",
+  "fecha_actualizacion": "2026-01-30 19:36:55",
+  "id_cliente": 11112831329
+ },
+ {
+  "id_reference": 443,
+  "nombre": "Alex Adrian García Matadamas",
+  "curp": "GAMA050113HOCRTLA1",
+  "telefono": "9513231557",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-01-30 19:49:12",
+  "fecha_actualizacion": "2026-01-30 19:49:12",
+  "id_cliente": 11112731837
+ },
+ {
+  "id_reference": 444,
+  "nombre": "Jonathan Alexis Morales Jiménez ",
+  "curp": "MOJJ040229HOCRMNA5",
+  "telefono": "9516422891",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-30 20:06:08",
+  "fecha_actualizacion": "2026-01-30 20:06:08",
+  "id_cliente": 11113053191
+ },
+ {
+  "id_reference": 445,
+  "nombre": "Emmanuel Karim Hernández Sánchez ",
+  "curp": "DISM971017HOCZLS04",
+  "telefono": "9518764847",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-30 20:26:31",
+  "fecha_actualizacion": "2026-01-30 20:26:31",
+  "id_cliente": 11112981187
+ },
+ {
+  "id_reference": 446,
+  "nombre": "Brenda Elizabeth Hernández García ",
+  "curp": "HEGB910914MOCRRC09",
+  "telefono": "9585874910",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-30 20:48:00",
+  "fecha_actualizacion": "2026-01-30 20:48:00",
+  "id_cliente": 11112958035
+ },
+ {
+  "id_reference": 447,
+  "nombre": "Diana Maria Ruiz Jimenez ",
+  "curp": "RUJD050420MOCZMNA1",
+  "telefono": "9510000000",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-01-31 17:19:20",
+  "fecha_actualizacion": "2026-01-31 17:19:20",
+  "id_cliente": 11113023290
+ },
+ {
+  "id_reference": 448,
+  "nombre": "Luzdivina Velasco Velasquez ",
+  "curp": "VEVL980717MOCLLZ09",
+  "telefono": "9513497897",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-31 18:37:48",
+  "fecha_actualizacion": "2026-01-31 18:37:48",
+  "id_cliente": 11112833520
+ },
+ {
+  "id_reference": 449,
+  "nombre": "Dereck Kaleb Soriano Martinez ",
+  "curp": "SOMD200401HOCRRRA6",
+  "telefono": "9000000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-31 18:53:51",
+  "fecha_actualizacion": "2026-01-31 18:53:51",
+  "id_cliente": 11112992988
+ },
+ {
+  "id_reference": 450,
+  "nombre": "María Margarita González Hernández ",
+  "curp": "GOHM681108MOCNRR00",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-31 19:04:49",
+  "fecha_actualizacion": "2026-01-31 19:04:49",
+  "id_cliente": 11112946341
+ },
+ {
+  "id_reference": 451,
+  "nombre": "Gómez De La Luz Alondra Evelin ",
+  "curp": "GOLA050616MOCMZLA4",
+  "telefono": "9516405721",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-31 19:20:21",
+  "fecha_actualizacion": "2026-01-31 19:20:21",
+  "id_cliente": 11112949092
+ },
+ {
+  "id_reference": 452,
+  "nombre": "Julio Guillermo Cruz Vasquez",
+  "curp": "CUVJ901210HOCRSL08",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-31 19:34:17",
+  "fecha_actualizacion": "2026-01-31 19:34:17",
+  "id_cliente": 11113033057
+ },
+ {
+  "id_reference": 453,
+  "nombre": "Martinez Torres Idalia Mayahuel",
+  "curp": "MATI851011MOCRRD02",
+  "telefono": "9514085750",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-31 19:43:34",
+  "fecha_actualizacion": "2026-01-31 19:43:34",
+  "id_cliente": 11112957246
+ },
+ {
+  "id_reference": 454,
+  "nombre": "Paula Irne De La Luz Cruz ",
+  "curp": "LUCP700322MOCZRL06",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-01-31 19:53:04",
+  "fecha_actualizacion": "2026-01-31 19:53:04",
+  "id_cliente": 11113066416
+ },
+ {
+  "id_reference": 455,
+  "nombre": "Maria Guadalupe Cuevas Santiago",
+  "curp": "CUSG711124MOCVND09",
+  "telefono": "9514410270",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 16:04:40",
+  "fecha_actualizacion": "2026-02-03 16:04:40",
+  "id_cliente": 11113096161
+ },
+ {
+  "id_reference": 456,
+  "nombre": "Osorio De La Luz Diego Guadalupe",
+  "curp": "OOLD871212HOCSZG09",
+  "telefono": "9511697740",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 16:59:02",
+  "fecha_actualizacion": "2026-02-03 16:59:02",
+  "id_cliente": 11113113239
+ },
+ {
+  "id_reference": 457,
+  "nombre": "Nancy Yuliana Cruz López ",
+  "curp": "CULN000903MOCRPNA4",
+  "telefono": "9516856413",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 17:13:11",
+  "fecha_actualizacion": "2026-02-03 17:13:11",
+  "id_cliente": 11113192667
+ },
+ {
+  "id_reference": 458,
+  "nombre": "García Ramirez Elsa ",
+  "curp": "GARE761015MOCRML07",
+  "telefono": "9511065759",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 17:27:55",
+  "fecha_actualizacion": "2026-02-03 17:27:55",
+  "id_cliente": 11113299859
+ },
+ {
+  "id_reference": 459,
+  "nombre": "Claudia Bautista Bautista ",
+  "curp": "BABC761009MDFTTL07",
+  "telefono": "9516670619",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 17:42:50",
+  "fecha_actualizacion": "2026-02-03 17:42:50",
+  "id_cliente": 11112623811
+ },
+ {
+  "id_reference": 460,
+  "nombre": "José Ángel ",
+  "curp": "DOHA110331HOCMRNA6",
+  "telefono": "9516083158",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 18:02:18",
+  "fecha_actualizacion": "2026-02-03 18:02:18",
+  "id_cliente": 11113063797
+ },
+ {
+  "id_reference": 461,
+  "nombre": "Morales Jiménez Yonatan Alexis ",
+  "curp": "MOJJ040229HOCRMNA5",
+  "telefono": "9516422891",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 18:21:38",
+  "fecha_actualizacion": "2026-02-03 18:21:38",
+  "id_cliente": 11113036993
+ },
+ {
+  "id_reference": 462,
+  "nombre": "Zoreili Yoleth Mendoza",
+  "curp": "CUGJ550816MOCRML05",
+  "telefono": "9514193477",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 18:39:51",
+  "fecha_actualizacion": "2026-02-03 18:39:51",
+  "id_cliente": 11112666627
+ },
+ {
+  "id_reference": 463,
+  "nombre": "Rosa Catalina Hernández Cruz ",
+  "curp": "HECR570830MOCRRS03",
+  "telefono": "9512092681",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 19:09:08",
+  "fecha_actualizacion": "2026-02-03 19:09:08",
+  "id_cliente": 11112881178
+ },
+ {
+  "id_reference": 464,
+  "nombre": "Liliana Lopez Luna ",
+  "curp": "LOLL860716MOCPNL07",
+  "telefono": "9511895450",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-03 19:27:20",
+  "fecha_actualizacion": "2026-02-03 19:27:20",
+  "id_cliente": 11112968122
+ },
+ {
+  "id_reference": 465,
+  "nombre": "Flores Godinez Jacob Angel",
+  "curp": "FOGA910131HOCLDC09",
+  "telefono": "9511317987",
+  "relacion": "Compañero de trabajo",
+  "fecha_creacion": "2026-02-03 19:52:03",
+  "fecha_actualizacion": "2026-02-03 19:52:03",
+  "id_cliente": 11112932922
+ },
+ {
+  "id_reference": 466,
+  "nombre": "Germain Lopez García",
+  "curp": "LOGG010406HOCPRRA1",
+  "telefono": "9511357237",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-03 20:08:30",
+  "fecha_actualizacion": "2026-02-03 20:08:30",
+  "id_cliente": 11112971296
+ },
+ {
+  "id_reference": 467,
+  "nombre": "Manuela Plumas López ",
+  "curp": "PULM671224MOCLPN03",
+  "telefono": "4427387983",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-06 15:52:53",
+  "fecha_actualizacion": "2026-02-06 15:52:53",
+  "id_cliente": 11112972833
+ },
+ {
+  "id_reference": 468,
+  "nombre": "Maria De Los Angeles Chavez Trujillo",
+  "curp": "CATA790121MOCHRN00",
+  "telefono": "9516366675",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-06 16:11:41",
+  "fecha_actualizacion": "2026-02-06 16:11:41",
+  "id_cliente": 11112935138
+ },
+ {
+  "id_reference": 469,
+  "nombre": "Duran Garci Pedro",
+  "curp": "DUGP111101HOCRRD08",
+  "telefono": "9511113115",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-06 16:34:09",
+  "fecha_actualizacion": "2026-02-06 16:34:09",
+  "id_cliente": 11112895952
+ },
+ {
+  "id_reference": 470,
+  "nombre": "Doris Hernández López ",
+  "curp": "HELD880916MOCRPR05",
+  "telefono": "9515262431",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-06 16:59:24",
+  "fecha_actualizacion": "2026-02-06 16:59:24",
+  "id_cliente": 11112821422
+ },
+ {
+  "id_reference": 471,
+  "nombre": "Monserrat Morales Martínez ",
+  "curp": "MOMM000321MOCRRNA1",
+  "telefono": "5579970035",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-06 17:25:22",
+  "fecha_actualizacion": "2026-02-06 17:25:22",
+  "id_cliente": 11113097725
+ },
+ {
+  "id_reference": 472,
+  "nombre": "Dolores Michel Cruz Plumas ",
+  "curp": "CUPD960330MOCRLL09",
+  "telefono": "9514966972",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-06 17:44:54",
+  "fecha_actualizacion": "2026-02-06 17:44:54",
+  "id_cliente": 11113036790
+ },
+ {
+  "id_reference": 473,
+  "nombre": "Julio Alberto Gómez Osorio ",
+  "curp": "GOOJ050416HOCMSLA7",
+  "telefono": "9512169579",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-06 18:06:24",
+  "fecha_actualizacion": "2026-02-06 18:06:24",
+  "id_cliente": 11113085031
+ },
+ {
+  "id_reference": 474,
+  "nombre": "Mayte Elodia López González ",
+  "curp": "LOGM070819MOCPNYA1",
+  "telefono": "9514944126",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-02-06 18:29:00",
+  "fecha_actualizacion": "2026-02-06 18:29:00",
+  "id_cliente": 11113117861
+ },
+ {
+  "id_reference": 476,
+  "nombre": "Isabel Lucas Lopez",
+  "curp": "LULI900831MOCCPS02",
+  "telefono": "9511812885",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-06 19:28:24",
+  "fecha_actualizacion": "2026-02-06 19:28:24",
+  "id_cliente": 11112842761
+ },
+ {
+  "id_reference": 477,
+  "nombre": "Guadalupe Hernandez Perez",
+  "curp": "HEPG620531MOCRRD02",
+  "telefono": "9511564262",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-02-06 22:41:16",
+  "fecha_actualizacion": "2026-02-06 22:41:16",
+  "id_cliente": 11112872212
+ },
+ {
+  "id_reference": 478,
+  "nombre": "Maria Guadalupe Rojas Muñoz",
+  "curp": "ROMG960318MOCJXD07",
+  "telefono": "9515262282",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-07 18:01:39",
+  "fecha_actualizacion": "2026-02-07 18:01:39",
+  "id_cliente": 11113232046
+ },
+ {
+  "id_reference": 479,
+  "nombre": "Ruiz Ruiz Nallely Azucena ",
+  "curp": "RURN940212MOCZZL08",
+  "telefono": "4422707121",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-07 18:21:31",
+  "fecha_actualizacion": "2026-02-07 18:21:31",
+  "id_cliente": 11113169116
+ },
+ {
+  "id_reference": 480,
+  "nombre": "Julian Sanchez Ramírez ",
+  "curp": "SARJ990109HOCNML01",
+  "telefono": "9512436575",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-07 18:48:31",
+  "fecha_actualizacion": "2026-02-07 18:48:31",
+  "id_cliente": 11112905127
+ },
+ {
+  "id_reference": 481,
+  "nombre": "Sara Isela Salinas Hernández ",
+  "curp": "SAHS991120MOCLRR01",
+  "telefono": "9512270782",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-07 19:02:41",
+  "fecha_actualizacion": "2026-02-07 19:02:41",
+  "id_cliente": 11113047273
+ },
+ {
+  "id_reference": 482,
+  "nombre": "Ruben Gopar Chavez",
+  "curp": "GOCR700114HOCPHS06",
+  "telefono": "9515899650",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-07 19:19:26",
+  "fecha_actualizacion": "2026-02-07 19:19:26",
+  "id_cliente": 11112998765
+ },
+ {
+  "id_reference": 483,
+  "nombre": "Sara Isela Salinas Hernandez",
+  "curp": "SAHS991112MOCLRR01",
+  "telefono": "9512270782",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-07 19:32:41",
+  "fecha_actualizacion": "2026-02-07 19:32:41",
+  "id_cliente": 11113109760
+ },
+ {
+  "id_reference": 484,
+  "nombre": "Pablo Caballero García ",
+  "curp": "CAGP800609MOCBRR05",
+  "telefono": "9513092261",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-07 20:08:32",
+  "fecha_actualizacion": "2026-02-07 20:08:32",
+  "id_cliente": 11113121146
+ },
+ {
+  "id_reference": 485,
+  "nombre": "Diana Espinoza Jimenez ",
+  "curp": "EIJD040425MOCSMNA7",
+  "telefono": "9513281489",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-07 20:17:47",
+  "fecha_actualizacion": "2026-02-07 20:17:47",
+  "id_cliente": 11112952009
+ },
+ {
+  "id_reference": 486,
+  "nombre": "Ricardo Martinez Aquino",
+  "curp": "MAAR870221HOCRQC03",
+  "telefono": "9513438377",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-09 16:46:15",
+  "fecha_actualizacion": "2026-02-09 16:46:15",
+  "id_cliente": 11112894601
+ },
+ {
+  "id_reference": 487,
+  "nombre": "Citlaly García Díaz ",
+  "curp": "GADC030520MOCRZTA3",
+  "telefono": "9513937098",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-09 17:24:21",
+  "fecha_actualizacion": "2026-02-09 17:24:21",
+  "id_cliente": 11112987118
+ },
+ {
+  "id_reference": 488,
+  "nombre": "Cruz Ojeda Flor Guadalupe ",
+  "curp": "CUOF080521MOCRJLA2",
+  "telefono": "9516146442",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-09 17:34:21",
+  "fecha_actualizacion": "2026-02-09 17:34:21",
+  "id_cliente": 11113035478
+ },
+ {
+  "id_reference": 489,
+  "nombre": "Octavio Hernández Ramos ",
+  "curp": "HERO510610HOCRMC07",
+  "telefono": "9514746263",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-10 15:41:23",
+  "fecha_actualizacion": "2026-02-10 15:41:23",
+  "id_cliente": 11112946258
+ },
+ {
+  "id_reference": 490,
+  "nombre": "Osorio Cruz Rosario Maite ",
+  "curp": "OOCR051002MOCSRSA1",
+  "telefono": "9512165710",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-10 18:25:19",
+  "fecha_actualizacion": "2026-02-10 18:25:19",
+  "id_cliente": 11112988227
+ },
+ {
+  "id_reference": 491,
+  "nombre": "Margarita Lorenza Bautista Cruz ",
+  "curp": "BACM810720MOCTRR09",
+  "telefono": "9513056504",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-10 19:38:14",
+  "fecha_actualizacion": "2026-02-10 19:38:14",
+  "id_cliente": 11112751250
+ },
+ {
+  "id_reference": 492,
+  "nombre": "Héctor Hugo Moreno Lopez",
+  "curp": "MOLH870309HOCRPC08",
+  "telefono": "9511542545",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-02-10 20:04:35",
+  "fecha_actualizacion": "2026-02-10 20:04:35",
+  "id_cliente": 11112908304
+ },
+ {
+  "id_reference": 493,
+  "nombre": "Brytani Garrido Hernandez ",
+  "curp": "GAHB110510MOCRRRA4",
+  "telefono": "9512165747",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-10 20:18:14",
+  "fecha_actualizacion": "2026-02-10 20:18:14",
+  "id_cliente": 11112942297
+ },
+ {
+  "id_reference": 494,
+  "nombre": "Giovanni Ignacio Castillo Velasco ",
+  "curp": "REMM901006MOCYNY09",
+  "telefono": "9512729696",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-10 20:35:04",
+  "fecha_actualizacion": "2026-02-10 20:35:04",
+  "id_cliente": 11112732871
+ },
+ {
+  "id_reference": 495,
+  "nombre": "Mauricio Jose Galicia Castellanos",
+  "curp": "GACM190709HOCLSRA3",
+  "telefono": "9516276809",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-10 20:50:36",
+  "fecha_actualizacion": "2026-02-10 20:50:36",
+  "id_cliente": 11112884857
+ },
+ {
+  "id_reference": 496,
+  "nombre": "Jose Manuel Platas Santiago ",
+  "curp": "PASM930626HOCLNN04",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-10 21:07:01",
+  "fecha_actualizacion": "2026-02-10 21:07:01",
+  "id_cliente": 11112787203
+ },
+ {
+  "id_reference": 497,
+  "nombre": "Cuauhtémoc Enrique Medina Jose ",
+  "curp": "MEJC600715HDFDRH01",
+  "telefono": "9626056222",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-02-12 15:40:23",
+  "fecha_actualizacion": "2026-02-12 15:40:23",
+  "id_cliente": 11113033055
+ },
+ {
+  "id_reference": 498,
+  "nombre": "Horacio Alejandro Castellanos Cruz",
+  "curp": "CACH820501MOCRNL01",
+  "telefono": "9518620942",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-12 16:23:10",
+  "fecha_actualizacion": "2026-02-12 16:23:10",
+  "id_cliente": 11112982584
+ },
+ {
+  "id_reference": 499,
+  "nombre": "Roxana Guadalupe Perez Cruz",
+  "curp": "PECR080206MOCPRXA5",
+  "telefono": "9515632541",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-12 17:30:44",
+  "fecha_actualizacion": "2026-02-12 17:30:44",
+  "id_cliente": 11113066481
+ },
+ {
+  "id_reference": 500,
+  "nombre": "Cruz Apolonio Susana",
+  "curp": "CUAS930716MOCRPS02",
+  "telefono": "9516090996",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-12 18:30:10",
+  "fecha_actualizacion": "2026-02-12 18:30:10",
+  "id_cliente": 11113052056
+ },
+ {
+  "id_reference": 501,
+  "nombre": "Sheyla Yoselin Hernandez Ginez",
+  "curp": "HEGS060112MOCRNHA2",
+  "telefono": "9513426538",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-13 16:45:47",
+  "fecha_actualizacion": "2026-02-13 16:45:47",
+  "id_cliente": 11112902202
+ },
+ {
+  "id_reference": 502,
+  "nombre": "Rosible Achila Toledo",
+  "curp": "AITR730311MCSRLS00",
+  "telefono": "9512377803",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-13 17:12:35",
+  "fecha_actualizacion": "2026-02-13 17:12:35",
+  "id_cliente": 11112801054
+ },
+ {
+  "id_reference": 503,
+  "nombre": "Moises Torres Quiroz",
+  "curp": "TOQM871017HOCZLS04",
+  "telefono": "9514769899",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-13 17:55:06",
+  "fecha_actualizacion": "2026-02-13 17:55:06",
+  "id_cliente": 11112822564
+ },
+ {
+  "id_reference": 504,
+  "nombre": "No Tiene Referencia En Encuesta",
+  "curp": "DISM971017HOCZLS04",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-13 18:15:12",
+  "fecha_actualizacion": "2026-02-13 18:15:12",
+  "id_cliente": 11113137321
+ },
+ {
+  "id_reference": 505,
+  "nombre": "Esperanza Godinez Aguilar ",
+  "curp": "GOAE640801MOCLDT04",
+  "telefono": "9512795897",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-13 18:43:43",
+  "fecha_actualizacion": "2026-02-13 18:43:43",
+  "id_cliente": 11113052405
+ },
+ {
+  "id_reference": 506,
+  "nombre": "Mayra Elizabeth Cruz Leon ",
+  "curp": "CULM931117MOCRNY00",
+  "telefono": "2214127431",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-13 19:07:35",
+  "fecha_actualizacion": "2026-02-13 19:07:35",
+  "id_cliente": 11112939631
+ },
+ {
+  "id_reference": 507,
+  "nombre": "Norma Martha Hernández Ramírez ",
+  "curp": "RAHN670118MOCMRR02",
+  "telefono": "5548269515",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-17 16:39:17",
+  "fecha_actualizacion": "2026-02-17 16:39:17",
+  "id_cliente": 11113093502
+ },
+ {
+  "id_reference": 508,
+  "nombre": "Maria Margarita Lucas",
+  "curp": "LUXM581017MOCCXR09",
+  "telefono": "9512165710",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-02-18 16:32:21",
+  "fecha_actualizacion": "2026-02-18 16:32:21",
+  "id_cliente": 11113112491
+ },
+ {
+  "id_reference": 509,
+  "nombre": "Leslie Nayeli De Jesus Rodríguez  ",
+  "curp": "JERL050220MOCSDSA3",
+  "telefono": "9516388179",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-20 17:02:37",
+  "fecha_actualizacion": "2026-02-20 17:02:37",
+  "id_cliente": 11113089746
+ },
+ {
+  "id_reference": 510,
+  "nombre": "Leticia Edith Maldonado Pinelo",
+  "curp": "MAPL880805MOCLNT04",
+  "telefono": "9514600065",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-02-20 17:23:24",
+  "fecha_actualizacion": "2026-02-20 17:23:24",
+  "id_cliente": 11112874979
+ },
+ {
+  "id_reference": 511,
+  "nombre": "Adriana López Méndez ",
+  "curp": "LOMA910508MOCPND05",
+  "telefono": "9512358897",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-02-20 21:40:21",
+  "fecha_actualizacion": "2026-02-20 21:40:21",
+  "id_cliente": 11112977454
+ },
+ {
+  "id_reference": 512,
+  "nombre": "Reyna Alonso Ruiz",
+  "curp": "AORR710502MOCLZY06",
+  "telefono": "9511478005",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-02 17:05:49",
+  "fecha_actualizacion": "2026-04-02 17:05:49",
+  "id_cliente": 11112948571
+ },
+ {
+  "id_reference": 513,
+  "nombre": "Flores Lustre Gael David",
+  "curp": "FOLD040324HOCLSVA3",
+  "telefono": "9510000000",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-02 17:20:42",
+  "fecha_actualizacion": "2026-04-02 17:20:42",
+  "id_cliente": 11112985466
+ },
+ {
+  "id_reference": 514,
+  "nombre": "Ivon Quiroz",
+  "curp": "QUAC860223MOCRLR07",
+  "telefono": "9511167621",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-02 17:30:09",
+  "fecha_actualizacion": "2026-04-02 17:30:09",
+  "id_cliente": 11112809015
+ },
+ {
+  "id_reference": 515,
+  "nombre": "Beatriz Victoria García Cruz ",
+  "curp": "GACB001116MOCRRTA3",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-07 18:47:26",
+  "fecha_actualizacion": "2026-04-07 18:47:26",
+  "id_cliente": 11112714005
+ },
+ {
+  "id_reference": 516,
+  "nombre": "Itzi Belén Torres Lopez",
+  "curp": "TOCL790217MOCLVZ04",
+  "telefono": "9511649218",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-10 19:40:01",
+  "fecha_actualizacion": "2026-04-10 19:40:01",
+  "id_cliente": 11113125574
+ },
+ {
+  "id_reference": 517,
+  "nombre": "Yadira Hernandez ",
+  "curp": "GAHB110510MOCRRRA4",
+  "telefono": "9512573689",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-10 19:51:38",
+  "fecha_actualizacion": "2026-04-10 19:51:38",
+  "id_cliente": 11112826720
+ },
+ {
+  "id_reference": 518,
+  "nombre": "Virginia Guadalupe Martinez Figueroa ",
+  "curp": "MAFV061209MOCRGRA0",
+  "telefono": "9513585424",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-11 17:49:33",
+  "fecha_actualizacion": "2026-04-11 17:49:33",
+  "id_cliente": 11112786052
+ },
+ {
+  "id_reference": 519,
+  "nombre": "Francisco Javier López ",
+  "curp": "LOMF911030HOCPGR16",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-11 18:24:15",
+  "fecha_actualizacion": "2026-04-11 18:24:15",
+  "id_cliente": 11113005621
+ },
+ {
+  "id_reference": 520,
+  "nombre": "Violeta  Hernandez Castellanos",
+  "curp": "HECV780722MOCRSL05",
+  "telefono": "9514995979",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-16 14:26:52",
+  "fecha_actualizacion": "2026-04-16 14:26:52",
+  "id_cliente": 11112823381
+ },
+ {
+  "id_reference": 521,
+  "nombre": "Flora Karina Castellanos Garcia",
+  "curp": "CAGF960502MOCSRL03",
+  "telefono": "9513427663",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-16 14:43:47",
+  "fecha_actualizacion": "2026-04-16 14:43:47",
+  "id_cliente": 11112888361
+ },
+ {
+  "id_reference": 522,
+  "nombre": "Diana Soledad Ramos Juarez",
+  "curp": "MUCC900828MOCXVN09",
+  "telefono": "9513610693",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-17 19:41:27",
+  "fecha_actualizacion": "2026-04-17 19:41:27",
+  "id_cliente": 11112961004
+ },
+ {
+  "id_reference": 523,
+  "nombre": "Karen Azucena Martinez Bermudez",
+  "curp": "MABK941021MMCRRR01",
+  "telefono": "9513447458",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-04-20 18:31:31",
+  "fecha_actualizacion": "2026-04-20 18:31:31",
+  "id_cliente": 11112941078
+ },
+ {
+  "id_reference": 524,
+  "nombre": "Alejandra Garcia Romero",
+  "curp": "GARA840330MOCRML08",
+  "telefono": "9511077271",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-22 22:05:11",
+  "fecha_actualizacion": "2026-04-22 22:05:11",
+  "id_cliente": 11112823652
+ },
+ {
+  "id_reference": 525,
+  "nombre": "Mireya  Cruz Lopez",
+  "curp": "CULM940905MOCRPR08",
+  "telefono": "9511188739",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-22 22:14:32",
+  "fecha_actualizacion": "2026-04-22 22:14:32",
+  "id_cliente": 11113179172
+ },
+ {
+  "id_reference": 526,
+  "nombre": "Alejandra Elodia Cruz Hernández ",
+  "curp": "CUHA880424MOCRRL01",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-22 22:27:13",
+  "fecha_actualizacion": "2026-04-22 22:27:13",
+  "id_cliente": 11113126104
+ },
+ {
+  "id_reference": 527,
+  "nombre": "Reina Juana Reyes Chavez",
+  "curp": "RECR700610MOCHDN07",
+  "telefono": "9512887103",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-24 21:30:48",
+  "fecha_actualizacion": "2026-04-24 21:30:48",
+  "id_cliente": 11112967143
+ },
+ {
+  "id_reference": 528,
+  "nombre": "Victoria Guadalupe Martinez Muñoz",
+  "curp": "MAMV980418MOCRXC01",
+  "telefono": "9517662980",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-24 21:46:24",
+  "fecha_actualizacion": "2026-04-24 21:46:24",
+  "id_cliente": 11113075182
+ },
+ {
+  "id_reference": 529,
+  "nombre": "Jose Luis Lopez Chavez",
+  "curp": "LOCL950813HOCPHS06",
+  "telefono": "9511240240",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-24 21:59:17",
+  "fecha_actualizacion": "2026-04-24 21:59:17",
+  "id_cliente": 11113121325
+ },
+ {
+  "id_reference": 530,
+  "nombre": "Victoria Guadalupe Reyes Muños",
+  "curp": "REMV041119MOCYXCA0",
+  "telefono": "9511922943",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-24 22:09:23",
+  "fecha_actualizacion": "2026-04-24 22:09:23",
+  "id_cliente": 11113117395
+ },
+ {
+  "id_reference": 531,
+  "nombre": "Guillermo Olavarri Hidalgo",
+  "curp": "OAHG911215HOCLDL07",
+  "telefono": "9512135196",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-04-24 22:20:06",
+  "fecha_actualizacion": "2026-04-24 22:20:06",
+  "id_cliente": 11113055830
+ },
+ {
+  "id_reference": 532,
+  "nombre": "Mesia Vasquez Maria De Jesus",
+  "curp": "MEVJ700312MOCJSS09",
+  "telefono": "9516148584",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-24 22:27:28",
+  "fecha_actualizacion": "2026-04-24 22:27:28",
+  "id_cliente": 11113034520
+ },
+ {
+  "id_reference": 533,
+  "nombre": "Hugo Ivan Cruz Avendaño",
+  "curp": "CUAH960122HOCRVG00",
+  "telefono": "9514588496",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-29 16:02:59",
+  "fecha_actualizacion": "2026-04-29 16:02:59",
+  "id_cliente": 11112971606
+ },
+ {
+  "id_reference": 534,
+  "nombre": "Martínez Martínez Petra Sofia ",
+  "curp": "MAMP730831MOCRRT03",
+  "telefono": "9511607666",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-04-29 19:23:53",
+  "fecha_actualizacion": "2026-04-29 19:23:53",
+  "id_cliente": 11113166323
+ },
+ {
+  "id_reference": 535,
+  "nombre": "Karen Mariana Martinez Jimenez",
+  "curp": "MAJK030301MOCRMRA4",
+  "telefono": "9513038528",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-04-29 19:48:37",
+  "fecha_actualizacion": "2026-04-29 19:48:37",
+  "id_cliente": 11113095058
+ },
+ {
+  "id_reference": 536,
+  "nombre": "Lucas De La Luz Anita Isabel",
+  "curp": "LULA910726MOCZLS00",
+  "telefono": "9515810128",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-05-04 20:26:49",
+  "fecha_actualizacion": "2026-05-04 20:26:49",
+  "id_cliente": 11113006480
+ },
+ {
+  "id_reference": 537,
+  "nombre": "Carlos Daniel Pinelo Chavez",
+  "curp": "PICC030827HOCNHRA4",
+  "telefono": "9511825820",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-05 19:38:33",
+  "fecha_actualizacion": "2026-05-05 19:38:33",
+  "id_cliente": 11112945246
+ },
+ {
+  "id_reference": 538,
+  "nombre": "Nancy Cruz Sosa ",
+  "curp": "CUSN760424MDFRSN00",
+  "telefono": "9512270013",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-05-06 16:45:40",
+  "fecha_actualizacion": "2026-05-06 16:45:40",
+  "id_cliente": 11112813052
+ },
+ {
+  "id_reference": 539,
+  "nombre": "Betzaida Gonzales Caballero",
+  "curp": "GOCB910514MOCNBT08",
+  "telefono": "9513665123",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-05-07 17:08:48",
+  "fecha_actualizacion": "2026-05-07 17:08:48",
+  "id_cliente": 11112944545
+ },
+ {
+  "id_reference": 540,
+  "nombre": "Jesús Arango Reyes",
+  "curp": "AARJ800222HOCRYSO5",
+  "telefono": "2203536139",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-08 20:01:41",
+  "fecha_actualizacion": "2026-05-08 20:01:41",
+  "id_cliente": 11112901756
+ },
+ {
+  "id_reference": 541,
+  "nombre": "Liuba Jennifer Avendaño Castellanos ",
+  "curp": "AECL940524MOCVSV01",
+  "telefono": "9512228362",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-05-09 17:33:28",
+  "fecha_actualizacion": "2026-05-09 17:33:28",
+  "id_cliente": 11112735798
+ },
+ {
+  "id_reference": 542,
+  "nombre": "Martinez Cortez Guadalupe Morelli",
+  "curp": "MACF880709MOCRRD04",
+  "telefono": "9515614275",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-13 17:32:31",
+  "fecha_actualizacion": "2026-05-13 17:32:31",
+  "id_cliente": 11113126158
+ },
+ {
+  "id_reference": 543,
+  "nombre": "Betsaida Claudia Lopez Espinoza",
+  "curp": "LOCL950813HOCPHS06",
+  "telefono": "2204790744",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-14 22:09:52",
+  "fecha_actualizacion": "2026-05-14 22:09:52",
+  "id_cliente": 11112755226
+ },
+ {
+  "id_reference": 544,
+  "nombre": "Ulises Alfredo Muñoz Rojas ",
+  "curp": "MURU980712HOCXJL07",
+  "telefono": "9511949148",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-16 16:25:27",
+  "fecha_actualizacion": "2026-05-16 16:25:27",
+  "id_cliente": 11113125623
+ },
+ {
+  "id_reference": 545,
+  "nombre": "Ingrid Vasquez Santiago",
+  "curp": "VASI060520MOCSNNA8",
+  "telefono": "9515788833",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-16 16:44:25",
+  "fecha_actualizacion": "2026-05-16 16:44:25",
+  "id_cliente": 11112893523
+ },
+ {
+  "id_reference": 546,
+  "nombre": "Arturo García Rojas",
+  "curp": "GARA710925HOCRJR06",
+  "telefono": "9513107874",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-05-20 17:50:47",
+  "fecha_actualizacion": "2026-05-20 17:50:47",
+  "id_cliente": 11112769851
+ },
+ {
+  "id_reference": 547,
+  "nombre": "Gilberta García ",
+  "curp": "GARG640204MOCRML06",
+  "telefono": "9512850295",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-20 18:15:50",
+  "fecha_actualizacion": "2026-05-20 18:15:50",
+  "id_cliente": 11112867599
+ },
+ {
+  "id_reference": 548,
+  "nombre": "Fernanda Miroslava García Del Villar ",
+  "curp": "GAVF951208MOCPLR06",
+  "telefono": "9516576969",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-22 16:40:53",
+  "fecha_actualizacion": "2026-05-22 16:40:53",
+  "id_cliente": 11112625987
+ },
+ {
+  "id_reference": 549,
+  "nombre": "González Hernandez Dinazar Enma ",
+  "curp": "GOHD590416MOCNRN06",
+  "telefono": "9514216354",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-22 16:53:05",
+  "fecha_actualizacion": "2026-05-22 16:53:05",
+  "id_cliente": 11113056638
+ },
+ {
+  "id_reference": 550,
+  "nombre": "Maria Victoria Lopez Miguel",
+  "curp": "LOMV591007MOCPGC00",
+  "telefono": "9514601364",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-26 18:32:50",
+  "fecha_actualizacion": "2026-05-26 18:32:50",
+  "id_cliente": 11112914012
+ },
+ {
+  "id_reference": 551,
+  "nombre": "Reyna Diaz Valle",
+  "curp": "SARJ040529HOCNMNA2",
+  "telefono": "9513115935",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-29 21:08:57",
+  "fecha_actualizacion": "2026-05-29 21:08:57",
+  "id_cliente": 11113023334
+ },
+ {
+  "id_reference": 552,
+  "nombre": "Ramírez Lopez Rosalba Isabel ",
+  "curp": "RALR890101MOCMPS07",
+  "telefono": "9512266742",
+  "relacion": "Compañero de trabajo",
+  "fecha_creacion": "2026-05-30 16:54:26",
+  "fecha_actualizacion": "2026-05-30 16:54:26",
+  "id_cliente": 11112887079
+ },
+ {
+  "id_reference": 553,
+  "nombre": "Evelyn Michell Vasquez Cruz",
+  "curp": "VARM921114MOCSYR03",
+  "telefono": "9512832006",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-30 17:07:36",
+  "fecha_actualizacion": "2026-05-30 17:07:36",
+  "id_cliente": 11113186245
+ },
+ {
+  "id_reference": 554,
+  "nombre": "Concepción Muñoz Cuevas ",
+  "curp": "MUCC900828MOCXVN09",
+  "telefono": "9510000000",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-05-30 17:21:35",
+  "fecha_actualizacion": "2026-05-30 17:21:35",
+  "id_cliente": 11113162874
+ },
+ {
+  "id_reference": 555,
+  "nombre": "Elizabth Espinoza Martinez",
+  "curp": "EIME800804MOCSRL01",
+  "telefono": "9513243508",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-05-30 17:33:23",
+  "fecha_actualizacion": "2026-05-30 17:33:23",
+  "id_cliente": 11112854078
+ },
+ {
+  "id_reference": 556,
+  "nombre": "Yolana Hermelinda Cruz Cruz",
+  "curp": "CUCY821028MOCRRL00",
+  "telefono": "9517001332",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-03 20:36:30",
+  "fecha_actualizacion": "2026-06-03 20:36:30",
+  "id_cliente": 11113181739
+ },
+ {
+  "id_reference": 557,
+  "nombre": "Erika Judith Lopez Ramos",
+  "curp": "LORE750506MOCPMR02",
+  "telefono": "9514588236",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-04 20:11:23",
+  "fecha_actualizacion": "2026-06-04 20:11:23",
+  "id_cliente": 11113029242
+ },
+ {
+  "id_reference": 558,
+  "nombre": "Maria Esther Pinelo Espinoza",
+  "curp": "PIEE881031MOCNSS04",
+  "telefono": "9512832483",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-10 17:59:47",
+  "fecha_actualizacion": "2026-06-10 17:59:47",
+  "id_cliente": 11112914985
+ },
+ {
+  "id_reference": 559,
+  "nombre": "Violeta Yadira Hernadz Castellanos",
+  "curp": "HEGL040228MOCRNLA1",
+  "telefono": "9514995979",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-10 18:19:12",
+  "fecha_actualizacion": "2026-06-10 18:19:12",
+  "id_cliente": 11113004468
+ },
+ {
+  "id_reference": 560,
+  "nombre": "Julio Gabriel Lopez Rios",
+  "curp": "LORJ800717HOCPSL00",
+  "telefono": "9514589181",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-06-10 18:40:40",
+  "fecha_actualizacion": "2026-06-10 18:40:40",
+  "id_cliente": 11113174457
+ },
+ {
+  "id_reference": 561,
+  "nombre": "Javier Zuzunaga Sosa ",
+  "curp": "ZUSJ970729HOCZSV06",
+  "telefono": "9510000000",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-10 18:55:08",
+  "fecha_actualizacion": "2026-06-10 18:55:08",
+  "id_cliente": 11112914791
+ },
+ {
+  "id_reference": 562,
+  "nombre": "Nancy Angeles Garcia Martinez",
+  "curp": "GAMN911101MOCRRN00",
+  "telefono": "9514971197",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-12 17:45:34",
+  "fecha_actualizacion": "2026-06-12 17:45:34",
+  "id_cliente": 11113069896
+ },
+ {
+  "id_reference": 563,
+  "nombre": "Fanny Viridiana Maldonado Gonzalez ",
+  "curp": "MASB840331MOCRNLO1",
+  "telefono": "9516127813",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-06-12 17:57:13",
+  "fecha_actualizacion": "2026-06-12 17:57:13",
+  "id_cliente": 11113186271
+ },
+ {
+  "id_reference": 564,
+  "nombre": "Itzel Zuzunaga Sosa",
+  "curp": "ZUSI950816MOCZST09",
+  "telefono": "9511000000",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-06-16 17:15:14",
+  "fecha_actualizacion": "2026-06-16 17:15:14",
+  "id_cliente": 11113023526
+ },
+ {
+  "id_reference": 565,
+  "nombre": "Gonzales Ruiz Doretlei",
+  "curp": "GORD830502MOCNZR04",
+  "telefono": "9515805726",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-17 18:22:54",
+  "fecha_actualizacion": "2026-06-17 18:22:54",
+  "id_cliente": 11112911821
+ },
+ {
+  "id_reference": 566,
+  "nombre": "Gabina Mendoza Hernandez",
+  "curp": "MEHG740921MDFNRB09",
+  "telefono": "9510000000",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-06-17 18:58:33",
+  "fecha_actualizacion": "2026-06-17 18:58:33",
+  "id_cliente": 11113177745
+ },
+ {
+  "id_reference": 567,
+  "nombre": "Xochilt Anahi Ojeda Hernandez",
+  "curp": "OEHX091008MOCJRCA3",
+  "telefono": "9515678649",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-17 19:09:55",
+  "fecha_actualizacion": "2026-06-17 19:09:55",
+  "id_cliente": 11113062348
+ },
+ {
+  "id_reference": 568,
+  "nombre": "Florencia Morales Perez",
+  "curp": "MOPF040504MOCRRL03",
+  "telefono": "9516519435",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-17 19:30:37",
+  "fecha_actualizacion": "2026-06-17 19:30:37",
+  "id_cliente": 11112866965
+ },
+ {
+  "id_reference": 569,
+  "nombre": "Roberto Carlos Martinez Avendaño",
+  "curp": "MAAR880716HOCRVB03",
+  "telefono": "9519235588",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-17 19:42:54",
+  "fecha_actualizacion": "2026-06-17 19:42:54",
+  "id_cliente": 11112838338
+ },
+ {
+  "id_reference": 570,
+  "nombre": "Minerva Ignacia Garcia",
+  "curp": "DISM871017HOCZLS04",
+  "telefono": "9511348603",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-17 19:51:03",
+  "fecha_actualizacion": "2026-06-17 19:51:03",
+  "id_cliente": 11112987168
+ },
+ {
+  "id_reference": 571,
+  "nombre": "Bautista Lopez Karen Soledad",
+  "curp": "BALK941116MOCTPR00",
+  "telefono": "9513977300",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-17 20:13:43",
+  "fecha_actualizacion": "2026-06-17 20:13:43",
+  "id_cliente": 11113031567
+ },
+ {
+  "id_reference": 572,
+  "nombre": "Santiago García Socorro",
+  "curp": "SAGS720627MOCNRC08",
+  "telefono": "9510000000",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-06-17 20:26:54",
+  "fecha_actualizacion": "2026-06-17 20:26:54",
+  "id_cliente": 11112994198
+ },
+ {
+  "id_reference": 573,
+  "nombre": "Diana García Garcia ",
+  "curp": "GAGD941102MOCRRN08",
+  "telefono": "9516999793",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-18 21:54:32",
+  "fecha_actualizacion": "2026-06-18 21:54:32",
+  "id_cliente": 11112936233
+ },
+ {
+  "id_reference": 574,
+  "nombre": "Rocio Cordero Paz",
+  "curp": "COPY700418MOCRZL04",
+  "telefono": "9515794713",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-18 22:11:32",
+  "fecha_actualizacion": "2026-06-18 22:11:32",
+  "id_cliente": 11112903021
+ },
+ {
+  "id_reference": 575,
+  "nombre": "Mirna Dolifet Hernandez Martinez",
+  "curp": "HEMM970108MCSRPR03",
+  "telefono": "9512830880",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-06-19 17:26:43",
+  "fecha_actualizacion": "2026-06-19 17:26:43",
+  "id_cliente": 11113095404
+ },
+ {
+  "id_reference": 576,
+  "nombre": "Santiago Alonso Carlos Alberto",
+  "curp": "SAAC970502HOCNLR02",
+  "telefono": "9516431341",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-06-19 18:07:55",
+  "fecha_actualizacion": "2026-06-19 18:07:55",
+  "id_cliente": 11113003747
+ },
+ {
+  "id_reference": 577,
+  "nombre": "Marlene Victoria Muñoz Lopez",
+  "curp": "MAHM700610MOCRRR09",
+  "telefono": "9514613342",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-24 17:47:55",
+  "fecha_actualizacion": "2026-06-24 17:47:55",
+  "id_cliente": 11112996352
+ },
+ {
+  "id_reference": 578,
+  "nombre": "Carla Ivana Santos",
+  "curp": "ROUC970908MOCDSR03",
+  "telefono": "9516148095",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-24 18:19:37",
+  "fecha_actualizacion": "2026-06-24 18:19:37",
+  "id_cliente": 11112807935
+ },
+ {
+  "id_reference": 579,
+  "nombre": "Erasmo Armando Ramirez Carreda",
+  "curp": "RAGE881027HOCMRR00",
+  "telefono": "9516695184",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-06-24 18:34:45",
+  "fecha_actualizacion": "2026-06-24 18:34:45",
+  "id_cliente": 11112824518
+ },
+ {
+  "id_reference": 580,
+  "nombre": "Viviana Clemente Perez",
+  "curp": "CEPM941209MOCLRY02",
+  "telefono": "9510000000",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-06-27 18:07:54",
+  "fecha_actualizacion": "2026-06-27 18:07:54",
+  "id_cliente": 11112806809
+ },
+ {
+  "id_reference": 581,
+  "nombre": "Erika Luis Bernal",
+  "curp": "LUBE841201MOCSRR08",
+  "telefono": "9511578078",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-02 21:01:33",
+  "fecha_actualizacion": "2026-07-02 21:01:33",
+  "id_cliente": 11112931059
+ },
+ {
+  "id_reference": 582,
+  "nombre": "Erendira Luis Bermal",
+  "curp": "LUBE971104MOCSRR09",
+  "telefono": "9513190357",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-02 21:16:26",
+  "fecha_actualizacion": "2026-07-02 21:16:26",
+  "id_cliente": 11113014663
+ },
+ {
+  "id_reference": 583,
+  "nombre": "Sofia Aurelia Luis Santiago",
+  "curp": "LUSA730925MOCSNR06",
+  "telefono": "9511345976",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-07-02 23:01:36",
+  "fecha_actualizacion": "2026-07-02 23:01:36",
+  "id_cliente": 11112973732
+ },
+ {
+  "id_reference": 584,
+  "nombre": "Vicencio Vasquez Betzabeth",
+  "curp": "VIVB950511MOCCST07",
+  "telefono": "9516092371",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-07-03 18:15:47",
+  "fecha_actualizacion": "2026-07-03 18:15:47",
+  "id_cliente": 11113222743
+ },
+ {
+  "id_reference": 585,
+  "nombre": "Leilany Hernandez Gines",
+  "curp": "HEGL040228MOCRNLA1",
+  "telefono": "9516424924",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-03 18:53:05",
+  "fecha_actualizacion": "2026-07-03 18:53:05",
+  "id_cliente": 11112917334
+ },
+ {
+  "id_reference": 586,
+  "nombre": "Luna Mendez Belinda",
+  "curp": "LUMB041028MOCNNLA9",
+  "telefono": "9511100375",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-07-03 20:38:16",
+  "fecha_actualizacion": "2026-07-03 20:38:16",
+  "id_cliente": 11113179982
+ },
+ {
+  "id_reference": 587,
+  "nombre": "Manolo Juarez Hernandez",
+  "curp": "JUHM921205HOCRRN04",
+  "telefono": "9515316047",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-03 21:02:04",
+  "fecha_actualizacion": "2026-07-03 21:02:04",
+  "id_cliente": 11112964591
+ },
+ {
+  "id_reference": 588,
+  "nombre": "Merlin Castellanos Hilda ",
+  "curp": "HECH760427MOCRSL04",
+  "telefono": "9513934169",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-03 21:15:59",
+  "fecha_actualizacion": "2026-07-03 21:15:59",
+  "id_cliente": 11113087803
+ },
+ {
+  "id_reference": 589,
+  "nombre": "Alicia Verónica García Pedro",
+  "curp": "GALC931123MOCRRN07",
+  "telefono": "9511047830",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-03 23:46:11",
+  "fecha_actualizacion": "2026-07-03 23:46:11",
+  "id_cliente": 11113046773
+ },
+ {
+  "id_reference": 590,
+  "nombre": "Amarilis Estefani  Xicoténcatl García ",
+  "curp": "XIGA871017MOCZLS04",
+  "telefono": "9515891410",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-07 18:56:28",
+  "fecha_actualizacion": "2026-07-07 18:56:28",
+  "id_cliente": 11112982881
+ },
+ {
+  "id_reference": 591,
+  "nombre": "Lopez Miguel Victoria",
+  "curp": "LOMV591007MOCPGC00",
+  "telefono": "9514601364",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-07-09 20:40:51",
+  "fecha_actualizacion": "2026-07-09 20:40:51",
+  "id_cliente": 11113074398
+ },
+ {
+  "id_reference": 592,
+  "nombre": "Amarilis Estefani  Xicoténcatl García ",
+  "curp": "MOMA940531MOCRRN03",
+  "telefono": "9515891410",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-09 21:21:59",
+  "fecha_actualizacion": "2026-07-09 21:21:59",
+  "id_cliente": 11112983434
+ },
+ {
+  "id_reference": 593,
+  "nombre": "Rubi Esmeralda Lopez Hernandez",
+  "curp": "LOHR970301MOCPRB05",
+  "telefono": "9516449417",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-16 16:12:19",
+  "fecha_actualizacion": "2026-07-16 16:12:19",
+  "id_cliente": 11112867783
+ },
+ {
+  "id_reference": 594,
+  "nombre": "Angeles Ruiz Gonzalez",
+  "curp": "RUGA990816MOCZNN04",
+  "telefono": "9511709194",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-16 17:17:36",
+  "fecha_actualizacion": "2026-07-16 17:17:36",
+  "id_cliente": 11113071228
+ },
+ {
+  "id_reference": 595,
+  "nombre": "Noemi Lopez Lopez",
+  "curp": "LOLN930709MOCPPM00",
+  "telefono": "9514008468",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-16 19:37:33",
+  "fecha_actualizacion": "2026-07-16 19:37:33",
+  "id_cliente": 11113092434
+ },
+ {
+  "id_reference": 596,
+  "nombre": "Andres Chavez Santiago",
+  "curp": "CASA750204HOCHNN00",
+  "telefono": "9513484491",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-16 20:41:37",
+  "fecha_actualizacion": "2026-07-16 20:41:37",
+  "id_cliente": 11112626052
+ },
+ {
+  "id_reference": 597,
+  "nombre": "Jinez Facundo Severiano ",
+  "curp": "JIXF491108HOCNXC05",
+  "telefono": "9516350748",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-16 23:19:47",
+  "fecha_actualizacion": "2026-07-16 23:19:47",
+  "id_cliente": 11113265056
+ },
+ {
+  "id_reference": 598,
+  "nombre": "Victor Garcia Pineda",
+  "curp": "GAPV920306HPLRNC05",
+  "telefono": "9511020212",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-17 16:47:12",
+  "fecha_actualizacion": "2026-07-17 16:47:12",
+  "id_cliente": 11112767272
+ },
+ {
+  "id_reference": 599,
+  "nombre": "Amira Sibaja",
+  "curp": "SIMA711008MOCBRM09",
+  "telefono": "9512108691",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-17 17:04:15",
+  "fecha_actualizacion": "2026-07-17 17:04:15",
+  "id_cliente": 11113004656
+ },
+ {
+  "id_reference": 600,
+  "nombre": "Freddy Jovanny Leon Silva",
+  "curp": "LESF050415HOCNLRA5",
+  "telefono": "9516143691",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-07-17 17:19:39",
+  "fecha_actualizacion": "2026-07-17 17:19:39",
+  "id_cliente": 11112964451
+ },
+ {
+  "id_reference": 601,
+  "nombre": "Saturnina Cruz Reyes",
+  "curp": "CURS461130MOCRYT04",
+  "telefono": "9514765850",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-17 17:41:12",
+  "fecha_actualizacion": "2026-07-17 17:41:12",
+  "id_cliente": 11112951374
+ },
+ {
+  "id_reference": 602,
+  "nombre": "Laura Vera Hernández ",
+  "curp": "VEHL651019MOCRRR08",
+  "telefono": "9518357172",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-17 19:32:12",
+  "fecha_actualizacion": "2026-07-17 19:32:12",
+  "id_cliente": 11112947297
+ },
+ {
+  "id_reference": 603,
+  "nombre": "Laura Vera Hernández ",
+  "curp": "VEHL651019MOCRRR08",
+  "telefono": "9511291072",
+  "relacion": "Vecino",
+  "fecha_creacion": "2026-07-17 20:21:21",
+  "fecha_actualizacion": "2026-07-17 20:21:21",
+  "id_cliente": 11112857174
+ },
+ {
+  "id_reference": 604,
+  "nombre": "Karla Silva",
+  "curp": "SIHK820412MOCLRR06",
+  "telefono": "9513093205",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-17 20:31:07",
+  "fecha_actualizacion": "2026-07-17 20:31:07",
+  "id_cliente": 11112933326
+ },
+ {
+  "id_reference": 605,
+  "nombre": "Alfredo Rodriguez",
+  "curp": "LORP640118MOCPYT07",
+  "telefono": "9515099927",
+  "relacion": "Otro",
+  "fecha_creacion": "2026-07-20 17:20:19",
+  "fecha_actualizacion": "2026-07-20 17:20:19",
+  "id_cliente": 11113179794
+ },
+ {
+  "id_reference": 606,
+  "nombre": "Sayuri Sofia Castillo Rodriguez",
+  "curp": "CARS180827MOCSDYA7",
+  "telefono": "9514591262",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-20 18:53:43",
+  "fecha_actualizacion": "2026-07-20 18:53:43",
+  "id_cliente": 11113145552
+ },
+ {
+  "id_reference": 607,
+  "nombre": "Irving Josue Jimenez Martinez",
+  "curp": "JIMI050422HOCMRRA4",
+  "telefono": "9516525002",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-07-20 20:47:45",
+  "fecha_actualizacion": "2026-07-20 20:47:45",
+  "id_cliente": 11112913625
+ },
+ {
+  "id_reference": 608,
+  "nombre": "Graciela Silvia Sosa Martinez",
+  "curp": "MAGG670625MOCRRR03",
+  "telefono": "9513095820",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-07-20 20:58:02",
+  "fecha_actualizacion": "2026-07-20 20:58:02",
+  "id_cliente": 11113027782
+ },
+ {
+  "id_reference": 609,
+  "nombre": "Irving Cruz Hernandez",
+  "curp": "CUHI090430HOCRRRA5",
+  "telefono": "9516431845",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-20 21:35:14",
+  "fecha_actualizacion": "2026-07-20 21:35:14",
+  "id_cliente": 11112939450
+ },
+ {
+  "id_reference": 610,
+  "nombre": "Mayra Arely Lopez Flores",
+  "curp": "LOFM040304MOCRRLY4",
+  "telefono": "9513544556",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-07-20 22:14:47",
+  "fecha_actualizacion": "2026-07-20 22:14:47",
+  "id_cliente": 11113015330
+ },
+ {
+  "id_reference": 611,
+  "nombre": "Adriana Lopez Mendez",
+  "curp": "LOMA910508MOCPND05",
+  "telefono": "9511901406",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-22 19:00:40",
+  "fecha_actualizacion": "2026-07-22 19:00:40",
+  "id_cliente": 11113004199
+ },
+ {
+  "id_reference": 612,
+  "nombre": "Jose Adolfo Lopez Montaño",
+  "curp": "LOMA030222HOCPNDA2",
+  "telefono": "9514301703",
+  "relacion": "Familiar",
+  "fecha_creacion": "2026-07-23 19:09:11",
+  "fecha_actualizacion": "2026-07-23 19:09:11",
+  "id_cliente": 11113172654
+ },
+ {
+  "id_reference": 613,
+  "nombre": "Ninfa Josefina Castellanos Velasquez",
+  "curp": "CAVN621023MOCSLN07",
+  "telefono": "9515266424",
+  "relacion": "Amigo",
+  "fecha_creacion": "2026-07-24 20:29:36",
+  "fecha_actualizacion": "2026-07-24 20:29:36",
+  "id_cliente": 11112976322
+ },
+ {
+  "id_reference": 614,
+  "nombre": "Deysi Gonzales Torres",
+  "curp": "GOTD890804MOCNRY04",
+  "telefono": "9511788664",
+  "relacion": "Conocido",
+  "fecha_creacion": "2026-07-24 21:38:25",
+  "fecha_actualizacion": "2026-07-24 21:38:25",
+  "id_cliente": 11112991256
+ }
+]

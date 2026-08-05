@@ -1,0 +1,42 @@
+[
+ {
+  "id_config": 1,
+  "parametro": "LIMITE_REDONDEO_EFECTIVO",
+  "valor": "1.00",
+  "descripcion": "Límite máximo de diferencia para redondeo en efectivo",
+  "fecha_actualizacion": "2025-09-29 15:58:18",
+  "id_usuario_actualizacion": null
+ },
+ {
+  "id_config": 2,
+  "parametro": "AUTO_AUTORIZAR_CENTAVOS",
+  "valor": "0.50",
+  "descripcion": "Diferencias menores a este valor se autorizan automáticamente",
+  "fecha_actualizacion": "2025-09-29 15:58:18",
+  "id_usuario_actualizacion": null
+ },
+ {
+  "id_config": 3,
+  "parametro": "DIAS_RETENCION_AUDITORIA",
+  "valor": "365",
+  "descripcion": "Días que se mantienen los registros de auditoría",
+  "fecha_actualizacion": "2025-09-29 15:58:18",
+  "id_usuario_actualizacion": null
+ },
+ {
+  "id_config": 4,
+  "parametro": "NOTIFICAR_DIFERENCIAS_MAYORES",
+  "valor": "5.00",
+  "descripcion": "Notificar diferencias mayores a este monto",
+  "fecha_actualizacion": "2025-09-29 15:58:18",
+  "id_usuario_actualizacion": null
+ },
+ {
+  "id_config": 5,
+  "parametro": "MODULOS_AUDITORIA_ACTIVA",
+  "valor": "PAGOS,PRESTAMOS,AHORROS",
+  "descripcion": "Módulos con auditoría detallada activa",
+  "fecha_actualizacion": "2025-09-29 15:58:18",
+  "id_usuario_actualizacion": null
+ }
+]

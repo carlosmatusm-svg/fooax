@@ -1,0 +1,3410 @@
+[
+ {
+  "id_descarga": 1,
+  "id_archivo": 1,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-01 20:40:37",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 2,
+  "id_archivo": 2,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-01 21:19:44",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 3,
+  "id_archivo": 3,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-01 22:48:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 4,
+  "id_archivo": 4,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 14:53:35",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 5,
+  "id_archivo": 5,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 15:37:41",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 6,
+  "id_archivo": 6,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 15:55:42",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 7,
+  "id_archivo": 7,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 16:06:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 8,
+  "id_archivo": 8,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 16:16:00",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 9,
+  "id_archivo": 9,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 16:23:12",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 10,
+  "id_archivo": 10,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 17:11:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 11,
+  "id_archivo": 11,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 17:58:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 12,
+  "id_archivo": 12,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 18:07:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 13,
+  "id_archivo": 13,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-02 18:08:33",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 14,
+  "id_archivo": 15,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-06 22:04:17",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 15,
+  "id_archivo": 17,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-07 21:58:15",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 16,
+  "id_archivo": 19,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-07 22:04:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 17,
+  "id_archivo": 21,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-07 22:12:08",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 18,
+  "id_archivo": 23,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-08 22:45:11",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 19,
+  "id_archivo": 25,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-08 22:45:51",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 20,
+  "id_archivo": 27,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-09 20:17:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 21,
+  "id_archivo": 29,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-09 20:48:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 22,
+  "id_archivo": 30,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-09 21:13:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 23,
+  "id_archivo": 31,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-09 21:31:27",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 24,
+  "id_archivo": 33,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 18:55:24",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 25,
+  "id_archivo": 34,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 20:16:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 26,
+  "id_archivo": 35,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 20:29:41",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 27,
+  "id_archivo": 36,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 22:10:36",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 28,
+  "id_archivo": 37,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 22:28:21",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 29,
+  "id_archivo": 38,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 22:51:12",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 30,
+  "id_archivo": 39,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 22:55:44",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 31,
+  "id_archivo": 40,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 23:35:14",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 32,
+  "id_archivo": 41,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-10 23:58:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 33,
+  "id_archivo": 42,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-11 16:02:55",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 34,
+  "id_archivo": 43,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-11 16:12:47",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 35,
+  "id_archivo": 44,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-11 16:21:46",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 36,
+  "id_archivo": 45,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-11 18:48:36",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 37,
+  "id_archivo": 46,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-11 18:51:44",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 38,
+  "id_archivo": 58,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-14 20:51:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 39,
+  "id_archivo": 59,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-14 21:37:34",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 40,
+  "id_archivo": 60,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-15 21:24:04",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 41,
+  "id_archivo": 61,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-15 21:26:55",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 42,
+  "id_archivo": 62,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-15 21:35:35",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 43,
+  "id_archivo": 63,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-15 21:47:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 44,
+  "id_archivo": 64,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-16 18:31:09",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 45,
+  "id_archivo": 65,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-16 18:45:21",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 46,
+  "id_archivo": 66,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-16 21:19:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 47,
+  "id_archivo": 67,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-16 21:54:04",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 48,
+  "id_archivo": 68,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 17:43:27",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 49,
+  "id_archivo": 70,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 18:22:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 50,
+  "id_archivo": 72,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 18:55:17",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 51,
+  "id_archivo": 73,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 19:28:19",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 52,
+  "id_archivo": 74,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 19:32:02",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 53,
+  "id_archivo": 75,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 19:41:24",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 54,
+  "id_archivo": 76,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 19:49:15",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 55,
+  "id_archivo": 77,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 20:38:01",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 56,
+  "id_archivo": 78,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 21:41:50",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 57,
+  "id_archivo": 79,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 22:48:11",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 58,
+  "id_archivo": 80,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 22:54:20",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 59,
+  "id_archivo": 81,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 23:04:38",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 60,
+  "id_archivo": 82,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 23:15:21",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 61,
+  "id_archivo": 83,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 23:25:15",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 62,
+  "id_archivo": 84,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-17 23:35:11",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 63,
+  "id_archivo": 94,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-20 19:47:11",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 64,
+  "id_archivo": 97,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-20 21:16:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 65,
+  "id_archivo": 100,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 18:18:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 66,
+  "id_archivo": 102,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 18:19:33",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 67,
+  "id_archivo": 104,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 18:46:33",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 68,
+  "id_archivo": 106,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 18:47:04",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 69,
+  "id_archivo": 108,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 19:00:01",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 70,
+  "id_archivo": 110,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 19:00:18",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 71,
+  "id_archivo": 112,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 19:10:12",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 72,
+  "id_archivo": 113,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 19:36:57",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 73,
+  "id_archivo": 114,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 19:50:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 74,
+  "id_archivo": 115,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 20:37:38",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 75,
+  "id_archivo": 116,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 20:53:45",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 76,
+  "id_archivo": 117,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 21:45:21",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 77,
+  "id_archivo": 118,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-22 22:04:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 78,
+  "id_archivo": 119,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-04-23 16:56:48",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 79,
+  "id_archivo": 120,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-23 18:38:40",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 80,
+  "id_archivo": 121,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-23 18:55:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 81,
+  "id_archivo": 123,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 20:45:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 82,
+  "id_archivo": 124,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 20:54:41",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 83,
+  "id_archivo": 125,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 21:02:07",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 84,
+  "id_archivo": 126,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 21:13:09",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 85,
+  "id_archivo": 127,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 21:20:42",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 86,
+  "id_archivo": 128,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 21:27:27",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 87,
+  "id_archivo": 129,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 22:31:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 88,
+  "id_archivo": 130,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-24 22:51:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 89,
+  "id_archivo": 131,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-25 15:35:47",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 90,
+  "id_archivo": 134,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-25 16:28:46",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 91,
+  "id_archivo": 136,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-25 16:34:34",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 92,
+  "id_archivo": 138,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-25 17:02:04",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 93,
+  "id_archivo": 139,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-25 17:15:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 94,
+  "id_archivo": 141,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-25 17:24:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 95,
+  "id_archivo": 143,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-25 17:35:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 96,
+  "id_archivo": 148,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-04-27 16:33:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 97,
+  "id_archivo": 148,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-04-27 18:11:41",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 98,
+  "id_archivo": 155,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-27 21:58:30",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 99,
+  "id_archivo": 157,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-28 22:53:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 100,
+  "id_archivo": 158,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 14:52:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 101,
+  "id_archivo": 159,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 15:19:52",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 102,
+  "id_archivo": 160,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 15:30:22",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 103,
+  "id_archivo": 161,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 15:40:40",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 104,
+  "id_archivo": 163,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 18:19:25",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 105,
+  "id_archivo": 165,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 18:30:02",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 106,
+  "id_archivo": 166,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 21:34:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 107,
+  "id_archivo": 167,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-29 21:44:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 108,
+  "id_archivo": 169,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 17:57:04",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 109,
+  "id_archivo": 170,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 18:07:27",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 110,
+  "id_archivo": 171,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 18:14:48",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 111,
+  "id_archivo": 172,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 18:20:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 112,
+  "id_archivo": 173,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 18:31:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 113,
+  "id_archivo": 174,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 18:36:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 114,
+  "id_archivo": 175,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 18:43:34",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 115,
+  "id_archivo": 176,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 18:51:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 116,
+  "id_archivo": 177,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 19:03:00",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 117,
+  "id_archivo": 178,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 21:54:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 118,
+  "id_archivo": 179,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-04-30 23:08:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 119,
+  "id_archivo": 147,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-05 21:02:30",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 120,
+  "id_archivo": 149,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-05 21:02:40",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 121,
+  "id_archivo": 149,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-05 21:02:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 122,
+  "id_archivo": 149,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-05 21:03:01",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 123,
+  "id_archivo": 193,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 15:19:50",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 124,
+  "id_archivo": 194,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 16:07:14",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 125,
+  "id_archivo": 195,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 16:47:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 126,
+  "id_archivo": 196,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 16:53:45",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 127,
+  "id_archivo": 197,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 19:50:37",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 128,
+  "id_archivo": 198,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 20:12:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 129,
+  "id_archivo": 200,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 22:00:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 130,
+  "id_archivo": 202,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 22:31:00",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 131,
+  "id_archivo": 204,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-06 22:34:34",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 132,
+  "id_archivo": 205,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 15:34:00",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 133,
+  "id_archivo": 207,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 16:24:40",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 134,
+  "id_archivo": 209,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 16:39:48",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 135,
+  "id_archivo": 211,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 16:49:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 136,
+  "id_archivo": 213,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 17:14:48",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 137,
+  "id_archivo": 214,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 17:32:40",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 138,
+  "id_archivo": 215,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 17:53:24",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 139,
+  "id_archivo": 216,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 17:59:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 140,
+  "id_archivo": 217,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-07 18:04:25",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 141,
+  "id_archivo": 218,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 18:52:25",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 142,
+  "id_archivo": 219,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 19:02:26",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 143,
+  "id_archivo": 220,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 19:28:37",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 144,
+  "id_archivo": 221,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 19:38:09",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 145,
+  "id_archivo": 222,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 19:47:18",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 146,
+  "id_archivo": 223,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 21:54:50",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 147,
+  "id_archivo": 224,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 22:13:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 148,
+  "id_archivo": 225,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 22:21:15",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 149,
+  "id_archivo": 226,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 22:41:51",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 150,
+  "id_archivo": 227,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 23:12:08",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 151,
+  "id_archivo": 229,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 23:42:34",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 152,
+  "id_archivo": 231,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-08 23:43:00",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 153,
+  "id_archivo": 232,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-09 17:37:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 154,
+  "id_archivo": 189,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:30:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 155,
+  "id_archivo": 185,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:30:25",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 156,
+  "id_archivo": 185,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:30:41",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 157,
+  "id_archivo": 186,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:30:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 158,
+  "id_archivo": 186,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:30:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 159,
+  "id_archivo": 188,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:31:12",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 160,
+  "id_archivo": 189,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:31:43",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 161,
+  "id_archivo": 188,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:31:52",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 162,
+  "id_archivo": 186,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:31:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 163,
+  "id_archivo": 192,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:32:20",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 164,
+  "id_archivo": 191,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:32:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 165,
+  "id_archivo": 190,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:32:38",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 166,
+  "id_archivo": 169,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:32:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 167,
+  "id_archivo": 241,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:32:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 168,
+  "id_archivo": 182,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:33:07",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 169,
+  "id_archivo": 183,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-11 19:33:16",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 170,
+  "id_archivo": 247,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-11 22:09:44",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 171,
+  "id_archivo": 249,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-13 22:05:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 172,
+  "id_archivo": 251,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-13 22:14:47",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 173,
+  "id_archivo": 252,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 15:20:07",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 174,
+  "id_archivo": 253,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 15:29:27",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 175,
+  "id_archivo": 254,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 15:45:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 176,
+  "id_archivo": 255,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 15:52:35",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 177,
+  "id_archivo": 256,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 16:22:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 178,
+  "id_archivo": 258,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 16:33:30",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 179,
+  "id_archivo": 259,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 16:45:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 180,
+  "id_archivo": 260,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-14 22:24:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 181,
+  "id_archivo": 261,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-15 21:25:34",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 182,
+  "id_archivo": 262,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-15 21:33:39",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 183,
+  "id_archivo": 263,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-16 17:15:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 184,
+  "id_archivo": 264,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-16 17:20:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 185,
+  "id_archivo": 265,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-16 17:27:07",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 186,
+  "id_archivo": 266,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-16 17:33:16",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 187,
+  "id_archivo": 267,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-16 17:41:20",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 188,
+  "id_archivo": 268,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-16 17:52:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 189,
+  "id_archivo": 279,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-18 20:42:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 190,
+  "id_archivo": 280,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-18 21:38:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 191,
+  "id_archivo": 282,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-20 21:42:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 192,
+  "id_archivo": 283,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-21 21:04:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 193,
+  "id_archivo": 285,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-21 21:59:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 194,
+  "id_archivo": 286,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 15:22:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 195,
+  "id_archivo": 287,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 15:34:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 196,
+  "id_archivo": 288,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 15:45:29",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 197,
+  "id_archivo": 290,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 16:13:55",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 198,
+  "id_archivo": 292,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 16:14:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 199,
+  "id_archivo": 293,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 17:45:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 200,
+  "id_archivo": 294,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 20:34:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 201,
+  "id_archivo": 295,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 21:24:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 202,
+  "id_archivo": 296,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 21:45:16",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 203,
+  "id_archivo": 297,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 22:00:04",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 204,
+  "id_archivo": 298,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-22 23:08:38",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 205,
+  "id_archivo": 311,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-25 22:09:26",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 206,
+  "id_archivo": 91,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:47:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 207,
+  "id_archivo": 92,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:48:02",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 208,
+  "id_archivo": 93,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:48:14",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 209,
+  "id_archivo": 94,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:48:22",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 210,
+  "id_archivo": 95,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:48:30",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 211,
+  "id_archivo": 90,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:48:41",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 212,
+  "id_archivo": 89,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:48:51",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 213,
+  "id_archivo": 91,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:49:24",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 214,
+  "id_archivo": 92,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:49:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 215,
+  "id_archivo": 93,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:49:37",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 216,
+  "id_archivo": 94,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:49:43",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 217,
+  "id_archivo": 95,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:49:50",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 218,
+  "id_archivo": 96,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:50:35",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 219,
+  "id_archivo": 98,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:50:44",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 220,
+  "id_archivo": 240,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:51:33",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 221,
+  "id_archivo": 238,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:51:45",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 222,
+  "id_archivo": 238,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:51:55",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 223,
+  "id_archivo": 237,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:52:02",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 224,
+  "id_archivo": 237,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:52:15",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 225,
+  "id_archivo": 236,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-05-26 16:52:22",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 226,
+  "id_archivo": 317,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-26 21:04:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 227,
+  "id_archivo": 318,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 15:54:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 228,
+  "id_archivo": 319,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 15:59:46",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 229,
+  "id_archivo": 320,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 16:19:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 230,
+  "id_archivo": 322,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 17:45:26",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 231,
+  "id_archivo": 324,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 17:45:48",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 232,
+  "id_archivo": 326,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 18:45:29",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 233,
+  "id_archivo": 327,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 21:08:18",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 234,
+  "id_archivo": 328,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-28 22:21:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 235,
+  "id_archivo": 329,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-29 21:40:46",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 236,
+  "id_archivo": 330,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-29 22:59:07",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 237,
+  "id_archivo": 331,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-29 23:46:15",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 238,
+  "id_archivo": 332,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-30 17:27:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 239,
+  "id_archivo": 333,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-30 17:31:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 240,
+  "id_archivo": 334,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-30 18:09:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 241,
+  "id_archivo": 335,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-05-30 19:39:36",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 242,
+  "id_archivo": 336,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-01 20:55:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 243,
+  "id_archivo": 338,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-02 17:26:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 244,
+  "id_archivo": 340,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-03 21:53:42",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 245,
+  "id_archivo": 341,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 17:39:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 246,
+  "id_archivo": 342,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 17:50:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 247,
+  "id_archivo": 343,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 18:07:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 248,
+  "id_archivo": 344,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 18:33:24",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 249,
+  "id_archivo": 345,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 18:40:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 250,
+  "id_archivo": 347,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 21:19:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 251,
+  "id_archivo": 349,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 21:36:11",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 252,
+  "id_archivo": 350,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 21:56:46",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 253,
+  "id_archivo": 352,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 22:00:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 254,
+  "id_archivo": 354,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 22:22:00",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 255,
+  "id_archivo": 356,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-04 22:26:38",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 256,
+  "id_archivo": 357,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-05 18:17:36",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 257,
+  "id_archivo": 358,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-05 18:44:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 258,
+  "id_archivo": 359,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-05 20:53:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 259,
+  "id_archivo": 360,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-05 22:05:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 260,
+  "id_archivo": 361,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-05 22:51:01",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 261,
+  "id_archivo": 362,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-05 23:02:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 262,
+  "id_archivo": 371,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-06 16:50:50",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 263,
+  "id_archivo": 371,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-06 16:50:55",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 264,
+  "id_archivo": 371,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-06 16:51:02",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 265,
+  "id_archivo": 370,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-06 16:51:04",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 266,
+  "id_archivo": 369,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-06 16:51:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 267,
+  "id_archivo": 372,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-06 17:04:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 268,
+  "id_archivo": 375,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-08 16:26:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 269,
+  "id_archivo": 379,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-09 17:00:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 270,
+  "id_archivo": 381,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-09 17:27:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 271,
+  "id_archivo": 383,
+  "id_usuario": 111113612603105,
+  "fecha_descarga": "2026-06-09 19:18:43",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 272,
+  "id_archivo": 385,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 18:49:14",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 273,
+  "id_archivo": 386,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 19:04:29",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 274,
+  "id_archivo": 387,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 19:04:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 275,
+  "id_archivo": 388,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 19:18:20",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 276,
+  "id_archivo": 389,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 19:29:35",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 277,
+  "id_archivo": 390,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 19:42:26",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 278,
+  "id_archivo": 391,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 20:08:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 279,
+  "id_archivo": 392,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 20:21:18",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 280,
+  "id_archivo": 394,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 22:06:21",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 281,
+  "id_archivo": 396,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 22:08:43",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 282,
+  "id_archivo": 398,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 22:13:37",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 283,
+  "id_archivo": 400,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 22:25:57",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 284,
+  "id_archivo": 401,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-10 22:35:29",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 285,
+  "id_archivo": 402,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-11 13:53:36",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 286,
+  "id_archivo": 403,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-11 14:12:17",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 287,
+  "id_archivo": 404,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-11 17:43:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 288,
+  "id_archivo": 405,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-11 18:22:55",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 289,
+  "id_archivo": 406,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-11 19:06:54",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 290,
+  "id_archivo": 408,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-12 20:04:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 291,
+  "id_archivo": 409,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-12 20:52:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 292,
+  "id_archivo": 410,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-12 21:08:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 293,
+  "id_archivo": 411,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-12 21:30:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 294,
+  "id_archivo": 412,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-12 21:36:21",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 295,
+  "id_archivo": 413,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-13 16:20:48",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 296,
+  "id_archivo": 427,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-16 18:34:20",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 297,
+  "id_archivo": 429,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 15:45:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 298,
+  "id_archivo": 430,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 16:12:26",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 299,
+  "id_archivo": 431,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 16:39:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 300,
+  "id_archivo": 433,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 16:45:34",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 301,
+  "id_archivo": 435,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 16:51:42",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 302,
+  "id_archivo": 436,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 17:06:17",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 303,
+  "id_archivo": 437,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 17:55:19",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 304,
+  "id_archivo": 439,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 18:05:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 305,
+  "id_archivo": 441,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 18:24:56",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 306,
+  "id_archivo": 443,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 20:28:42",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 307,
+  "id_archivo": 444,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-18 22:02:11",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 308,
+  "id_archivo": 445,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-19 22:09:22",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 309,
+  "id_archivo": 446,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-19 22:24:17",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 310,
+  "id_archivo": 447,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-19 22:31:24",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 311,
+  "id_archivo": 448,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-19 23:18:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 312,
+  "id_archivo": 449,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-19 23:26:00",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 313,
+  "id_archivo": 450,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-20 14:52:53",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 314,
+  "id_archivo": 451,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-20 17:29:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 315,
+  "id_archivo": 463,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-23 23:08:48",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 316,
+  "id_archivo": 465,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 17:24:32",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 317,
+  "id_archivo": 466,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 21:58:07",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 318,
+  "id_archivo": 467,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 22:06:46",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 319,
+  "id_archivo": 468,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 22:21:42",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 320,
+  "id_archivo": 469,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 22:29:17",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 321,
+  "id_archivo": 470,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 22:34:22",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 322,
+  "id_archivo": 471,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 22:41:24",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 323,
+  "id_archivo": 472,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-25 22:54:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 324,
+  "id_archivo": 473,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-26 21:38:09",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 325,
+  "id_archivo": 474,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-26 21:46:55",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 326,
+  "id_archivo": 475,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-26 22:12:49",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 327,
+  "id_archivo": 476,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-26 22:36:01",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 328,
+  "id_archivo": 478,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-26 23:20:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 329,
+  "id_archivo": 480,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-26 23:21:40",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 330,
+  "id_archivo": 481,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-27 19:15:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 331,
+  "id_archivo": 482,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-27 19:21:47",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 332,
+  "id_archivo": 486,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-29 21:51:16",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 333,
+  "id_archivo": 487,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-29 21:54:26",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 334,
+  "id_archivo": 488,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-29 22:03:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 335,
+  "id_archivo": 489,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-29 22:21:35",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 336,
+  "id_archivo": 490,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-06-29 22:25:06",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 337,
+  "id_archivo": 497,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 21:48:57",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 338,
+  "id_archivo": 499,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 21:51:38",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 339,
+  "id_archivo": 501,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 21:53:09",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 340,
+  "id_archivo": 503,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 21:56:02",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 341,
+  "id_archivo": 504,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 22:17:25",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 342,
+  "id_archivo": 505,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 22:28:23",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 343,
+  "id_archivo": 506,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 22:42:58",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 344,
+  "id_archivo": 507,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 22:47:39",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 345,
+  "id_archivo": 509,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-02 23:58:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 346,
+  "id_archivo": 510,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 21:57:25",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 347,
+  "id_archivo": 511,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 21:59:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 348,
+  "id_archivo": 512,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 21:59:57",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 349,
+  "id_archivo": 513,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 22:02:27",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 350,
+  "id_archivo": 514,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 22:05:03",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 351,
+  "id_archivo": 515,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 22:06:43",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 352,
+  "id_archivo": 516,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 22:08:13",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 353,
+  "id_archivo": 517,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 22:09:01",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 354,
+  "id_archivo": 518,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 22:12:05",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 355,
+  "id_archivo": 519,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-03 22:12:10",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 356,
+  "id_archivo": 520,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-04 15:40:57",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 357,
+  "id_archivo": 521,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-04 15:41:01",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 358,
+  "id_archivo": 428,
+  "id_usuario": 1111111111111111,
+  "fecha_descarga": "2026-07-07 03:56:18",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 359,
+  "id_archivo": 50,
+  "id_usuario": 1111111111111111,
+  "fecha_descarga": "2026-07-07 03:56:31",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 360,
+  "id_archivo": 532,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-07 20:45:51",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 361,
+  "id_archivo": 533,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-07 20:48:59",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 362,
+  "id_archivo": 534,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-07 20:51:09",
+  "ip": null,
+  "user_agent": null
+ },
+ {
+  "id_descarga": 363,
+  "id_archivo": 536,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-08 23:00:45",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 364,
+  "id_archivo": 537,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 19:17:11",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 365,
+  "id_archivo": 538,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 19:56:16",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 366,
+  "id_archivo": 539,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 20:04:45",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 367,
+  "id_archivo": 540,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 20:04:51",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 368,
+  "id_archivo": 541,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 20:15:27",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 369,
+  "id_archivo": 542,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 20:40:40",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 370,
+  "id_archivo": 543,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 20:48:26",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 371,
+  "id_archivo": 544,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 20:54:39",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 372,
+  "id_archivo": 545,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 21:10:27",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 373,
+  "id_archivo": 546,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 21:10:31",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 374,
+  "id_archivo": 547,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 21:23:59",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 375,
+  "id_archivo": 548,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 22:04:53",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 376,
+  "id_archivo": 549,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 22:14:09",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 377,
+  "id_archivo": 550,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 22:17:06",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 378,
+  "id_archivo": 551,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 23:33:15",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 379,
+  "id_archivo": 552,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-09 23:39:18",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 380,
+  "id_archivo": 554,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 00:17:06",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 381,
+  "id_archivo": 556,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 00:20:19",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 382,
+  "id_archivo": 557,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 19:52:13",
+  "ip": "84.17.44.225",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 383,
+  "id_archivo": 558,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 20:07:47",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 384,
+  "id_archivo": 559,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 20:30:35",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 385,
+  "id_archivo": 560,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 20:34:59",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 386,
+  "id_archivo": 561,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 20:38:55",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 387,
+  "id_archivo": 562,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-10 20:42:34",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 388,
+  "id_archivo": 564,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-14 22:36:24",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 389,
+  "id_archivo": 566,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-14 22:42:31",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 390,
+  "id_archivo": 568,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-14 22:57:57",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 391,
+  "id_archivo": 570,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-14 22:59:21",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 392,
+  "id_archivo": 581,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-16 17:55:05",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 393,
+  "id_archivo": 582,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-16 17:55:15",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 394,
+  "id_archivo": 583,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-16 23:26:13",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 395,
+  "id_archivo": 584,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-16 23:40:21",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 396,
+  "id_archivo": 585,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-16 23:55:40",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 397,
+  "id_archivo": 586,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 19:30:12",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 398,
+  "id_archivo": 587,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 19:42:43",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 399,
+  "id_archivo": 589,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 19:54:37",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 400,
+  "id_archivo": 591,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 20:07:14",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 401,
+  "id_archivo": 592,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 20:20:31",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 402,
+  "id_archivo": 593,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 20:28:51",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 403,
+  "id_archivo": 594,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 20:38:09",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 404,
+  "id_archivo": 595,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 21:23:02",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 405,
+  "id_archivo": 596,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 21:27:49",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 406,
+  "id_archivo": 597,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 21:39:45",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 407,
+  "id_archivo": 598,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 21:51:20",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 408,
+  "id_archivo": 600,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 22:20:25",
+  "ip": "84.17.44.225",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 409,
+  "id_archivo": 602,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 23:04:14",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 410,
+  "id_archivo": 604,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 23:06:21",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 411,
+  "id_archivo": 605,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-17 23:13:22",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 412,
+  "id_archivo": 607,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-20 16:43:19",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 413,
+  "id_archivo": 614,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-21 18:55:55",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 414,
+  "id_archivo": 616,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-22 13:22:19",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 415,
+  "id_archivo": 617,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-22 20:33:19",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 416,
+  "id_archivo": 618,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-22 20:55:15",
+  "ip": "84.17.44.225",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 417,
+  "id_archivo": 619,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-22 21:31:34",
+  "ip": "84.17.44.228",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 418,
+  "id_archivo": 620,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-22 22:18:30",
+  "ip": "84.17.44.226",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 419,
+  "id_archivo": 621,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-23 14:20:48",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 420,
+  "id_archivo": 622,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-23 14:48:14",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 421,
+  "id_archivo": 623,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-23 23:06:56",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 422,
+  "id_archivo": 624,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-23 23:41:14",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 423,
+  "id_archivo": 625,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-24 16:22:13",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 424,
+  "id_archivo": 626,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-24 16:32:06",
+  "ip": "84.17.44.227",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 425,
+  "id_archivo": 627,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-24 16:44:07",
+  "ip": "84.17.44.229",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ },
+ {
+  "id_descarga": 426,
+  "id_archivo": 628,
+  "id_usuario": 111113612004634,
+  "fecha_descarga": "2026-07-24 17:19:38",
+  "ip": "84.17.44.225",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+ }
+]

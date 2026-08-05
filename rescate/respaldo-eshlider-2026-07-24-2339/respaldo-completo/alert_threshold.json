@@ -1,0 +1,16 @@
+[
+ {
+  "id_alert_threshold": 1,
+  "modulo": "CARTERA",
+  "info_days": 7,
+  "warning_days": 30,
+  "critical_days": 90,
+  "porcentaje_mora_maximo": "15.00",
+  "monto_minimo_alerta": "1000.00",
+  "dias_notificacion_anticipada": 3,
+  "estatus": "ACTIVO",
+  "descripcion": "Umbrales iniciales de cartera",
+  "fecha_creacion": "2025-11-10 16:34:47",
+  "fecha_actualizacion": "2025-11-10 16:34:47"
+ }
+]

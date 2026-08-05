@@ -1432,6 +1432,33 @@ function finDelPlazo(c) {
   else f.setDate(f.getDate() + pl * 7);
   return f.toISOString().slice(0, 10);
 }
+// ATRASO EN NÚMERO DE PAGOS. Corrección del 4-ago: el PLAZO NO ES UNA FECHA
+// LÍMITE, es un NÚMERO DE PAGOS. Si una clienta falta tres semanas, su crédito
+// de 24 pagos se recorre a 27 semanas — no «se venció». Lo aclaró la Ing. Monse
+// al cotejar las fechas de desembolso: le coincidían, y tenía razón.
+// Lo que sí mide un atraso real es comparar pagos CONTRA pagos:
+//   restantes = saldo ÷ cuota      (la misma derivación del «pago 13 de 18»)
+//   hechos    = plazo − restantes
+//   debió     = min(plazo, periodos transcurridos desde el desembolso)
+//   ATRASO    = debió − hechos
+// OJO: esto supone que la fecha de desembolso es la del CICLO ACTUAL. Si al
+// renovar se conserva la del crédito original, los periodos salen de más y el
+// atraso se infla. Falta confirmarlo con Monse; por eso se reporta como dato a
+// verificar y no como un veredicto de cartera vencida.
+function atrasoEnPagos(c, info) {
+  const d = String(c.desembolso || "").slice(0, 10);
+  const pl = Number(c.plazo) || 0, q = cuotaDelCredito(c);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || pl <= 0 || q <= 0) return null;
+  if (!info || info.saldoActual <= 0.009) return null;
+  const dias = Math.round((new Date(hoyMX() + "T12:00") - new Date(d + "T12:00")) / 86400000);
+  if (dias < 0) return null;
+  const mensual = /mes/i.test(String(c.unidad || "")) || esCuotaVariable(c.producto);
+  const transcurridos = mensual ? Math.floor(dias / 30.44) : Math.floor(dias / 7);
+  const restantes = Math.round(info.saldoActual / q);
+  const hechos = pl - restantes;
+  const debio = Math.min(pl, transcurridos);
+  return { atraso: debio - hechos, hechos, debio, restantes, transcurridos, plazo: pl };
+}
 function estaTerminado(c, info) {
   if (/termino|liquidad/i.test(String(c.estatus || ""))) return true;
   return !!info && (info.saldoActual || 0) <= 0.009;
@@ -1579,20 +1606,19 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
-    // Créditos cuyo PLAZO YA TERMINÓ y siguen debiendo. Antes se avisaba de los
-    // que debían «exactamente una cuota», pero con la plantilla al día eso es
-    // NORMAL: es una clienta en su último pago. Lo cachó Karina el 4-ago. Con la
-    // fecha de desembolso y el plazo (ahora al 100% en la plantilla) se puede
-    // decir lo que de verdad importa: a esta ya se le acabó el plazo y no cerró.
-    plazoVencido: activos.map((c) => {
+    // Créditos ATRASADOS EN NÚMERO DE PAGOS. Sustituye al aviso de «plazo
+    // vencido» del 4-ago, que estaba mal planteado: trataba el plazo como fecha
+    // límite cuando es un número de pagos. Ver atrasoEnPagos(). Se listan de 4
+    // pagos de atraso en adelante para no marcar a la que trae una o dos
+    // semanas flojas, que es normal y ya la cacha el semáforo.
+    atrasados: activos.map((c) => {
       const info = infoCredito(cv, c);
-      const fin = finDelPlazo(c);
-      if (!fin || info.saldoActual <= 0.009) return null;
-      if (fin >= hoyMX()) return null;                        // todavía dentro de su plazo
-      const dias = Math.round((new Date(hoyMX() + "T12:00") - new Date(fin + "T12:00")) / 86400000);
+      const a = atrasoEnPagos(c, info);
+      if (!a || a.atraso < 4) return null;
       return { socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo,
-        centro: c.centro, saldo: r2(info.saldoActual), terminaba: fin, diasVencido: dias };
-    }).filter(Boolean).sort((a, b) => b.diasVencido - a.diasVencido),
+        centro: c.centro, saldo: r2(info.saldoActual), desembolso: String(c.desembolso).slice(0, 10),
+        atraso: a.atraso, hechos: a.hechos, debio: a.debio, plazo: a.plazo };
+    }).filter(Boolean).sort((a, b) => b.atraso - a.atraso),
     // El dictado de Monse LLEGÓ el 4-ago y ya está programado: mora = cuotas no
     // pagadas · recuperación por estado del crédito, contada una sola vez ·
     // activo recuperable, vigente y activo mora son ACTIVOS. Lo único que sigue

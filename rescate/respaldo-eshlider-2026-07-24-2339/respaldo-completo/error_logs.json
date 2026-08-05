@@ -1,0 +1,200 @@
+[
+ {
+  "id_error": 1,
+  "id_usuario": null,
+  "fecha_error": "2026-06-17 20:03:32",
+  "modulo": null,
+  "tipo_error": "Registro de Cliente",
+  "mensaje": "Request failed with status code 401",
+  "detalles": {
+   "stack": "AxiosError: Request failed with status code 401\n    at WN (https://fooaxclient-production.up.railway.app/assets/index-Dw8bphN6.js:54:10140)\n    at XMLHttpRequest.N (https://fooaxclient-production.up.railway.app/assets/index-Dw8bphN6.js:54:15681)",
+   "formData": {
+    "curp": "BOLE650410HOCLPZ08",
+    "calle": "Francisco I Madero",
+    "ciudad": "Oaxaca",
+    "estado": "Oaxaca",
+    "genero": "Masculino",
+    "colonia": "Secc Primera",
+    "estatus": "Activo",
+    "nombre1": "Ezquiel",
+    "nombre2": "Gildardo",
+    "id_centro": "64",
+    "municipio": "San Pablo Huitzo",
+    "ocupacion": "Cafeteria",
+    "antiguedad": 1,
+    "grupo_info": {
+     "id_grupo": "167",
+     "rol_en_grupo": "Tesorero"
+    },
+    "id_cliente": "11112904704",
+    "id_usuario": "11117142959637",
+    "numero_ext": "SN",
+    "numero_int": "S/N",
+    "estado_civil": "Soltero",
+    "codigo_postal": "68220",
+    "telefono_fijo": "",
+    "telefono_movil": "9516522640",
+    "apellido_materno": "Lopez",
+    "apellido_paterno": "Bolaños",
+    "fecha_de_nacimiento": "1965-04-10",
+    "lugar_de_nacimiento": "Oaxaca"
+   },
+   "errorMessage": "Request failed with status code 401",
+   "responseError": {
+    "message": "No token, acceso denegado"
+   }
+  },
+  "ruta": "SendInformationClient.jsx",
+  "metodo": "POST",
+  "ip": null,
+  "resuelto": 0,
+  "fecha_resolucion": null,
+  "notas_resolucion": null
+ },
+ {
+  "id_error": 2,
+  "id_usuario": null,
+  "fecha_error": "2026-07-17 19:25:16",
+  "modulo": null,
+  "tipo_error": "Registro de Cliente",
+  "mensaje": "Request failed with status code 401",
+  "detalles": {
+   "stack": "AxiosError: Request failed with status code 401\n    at tw (https://client-production-e07a.up.railway.app/assets/index-weTN0k-V.js:54:10140)\n    at XMLHttpRequest.N (https://client-production-e07a.up.railway.app/assets/index-weTN0k-V.js:54:15681)",
+   "formData": {
+    "curp": "CAVL940701MOCNRR09",
+    "calle": "Andador Pelícano ",
+    "ciudad": "Oaxaca",
+    "estado": "Oaxaca",
+    "genero": "Femenino",
+    "colonia": "San Miguel",
+    "estatus": "Activo",
+    "nombre1": "Laura ",
+    "nombre2": "Berenice ",
+    "id_centro": "2",
+    "municipio": "San Juan Bautista Guelache ",
+    "ocupacion": "Maestra De Educacion Media",
+    "antiguedad": 3,
+    "grupo_info": {
+     "id_grupo": "141",
+     "rol_en_grupo": "Miembro"
+    },
+    "id_cliente": "11112943220",
+    "id_usuario": "11119423044721",
+    "numero_ext": "44",
+    "numero_int": "25",
+    "estado_civil": "Soltero",
+    "codigo_postal": "68234",
+    "telefono_fijo": "",
+    "telefono_movil": "9511673357",
+    "apellido_materno": " Vera ",
+    "apellido_paterno": "Cancino",
+    "fecha_de_nacimiento": "1994-07-01",
+    "lugar_de_nacimiento": "Oaxaca"
+   },
+   "errorMessage": "Request failed with status code 401",
+   "responseError": {
+    "message": "No token, acceso denegado"
+   }
+  },
+  "ruta": "SendInformationClient.jsx",
+  "metodo": "POST",
+  "ip": "84.17.44.225",
+  "resuelto": 0,
+  "fecha_resolucion": null,
+  "notas_resolucion": null
+ },
+ {
+  "id_error": 3,
+  "id_usuario": null,
+  "fecha_error": "2026-07-24 21:38:25",
+  "modulo": null,
+  "tipo_error": "Datos Adicionales Cliente",
+  "mensaje": "Error al procesar ingresos",
+  "detalles": {
+   "clientId": "11112991256",
+   "formData": {
+    "income": {
+     "calle": "1ra De Sauces ",
+     "deuda": 5000,
+     "ciudad": "Oaxaca",
+     "estado": "Oaxaca",
+     "colonia": "Col. Calicanto",
+     "conyugue": 1,
+     "municipio": "Santa Lucia Del Camino",
+     "ocupacion": "Empleado",
+     "id_cliente": "11112991256",
+     "numero_ext": "102",
+     "numero_int": "",
+     "gastos_hogar": 1000,
+     "otro_ingreso": 9516400337.99,
+     "codigo_postal": "68100",
+     "tiene_credito": "Si",
+     "credito_precio": 10000,
+     "gastos_negocio": 800,
+     "telefono_movil": "9516400338",
+     "ingreso_semanal": 2000,
+     "nombre_conyugue": "Mateo Santos Romero",
+     "mes_menos_ingreso": "Mayo",
+     "nombre_institucion": "Compartamos",
+     "actividad_ocupacion": "Papeleria"
+    },
+    "housing": {
+     "piso": "Cemento",
+     "techo": "Concreto",
+     "niveles": 1,
+     "paredes": "Concreto",
+     "propiedad": "Propia",
+     "id_cliente": "11112991256",
+     "superficie": 245,
+     "no_habitaciones": 3,
+     "tiempo_residencia": 25
+    },
+    "references": {
+     "curp": "GOTD890804MOCNRY04",
+     "nombre": "Deysi Gonzales Torres",
+     "relacion": "Conocido",
+     "telefono": "9511788664",
+     "id_cliente": "11112991256",
+     "cliente_referencia": null
+    },
+    "beneficiaries": {
+     "calle": "1a Priv De Sauces ",
+     "ciudad": "Oaxaca",
+     "estado": "Oaxaca",
+     "colonia": "Col Calicanto",
+     "nombre1": "Mateo",
+     "nombre2": "Santos",
+     "municipio": "Santa Lucia Del Camino",
+     "id_cliente": "11112991256",
+     "numero_ext": "102",
+     "numero_int": "",
+     "codigo_postal": "68100",
+     "telefono_movil": "9516400338",
+     "apellido_materno": "Reyes",
+     "apellido_paterno": "Romero"
+    },
+    "familyMembers": [
+     {
+      "ocupacion": "Empleado",
+      "parentesco": "Otro",
+      "comentarios": "",
+      "grado_estudo": "Preparatoria incompleta",
+      "nombre_completo": "Martha Laura Cruz Jimenez",
+      "fecha_nacimiento": "2001-02-13"
+     }
+    ]
+   },
+   "errorDetails": {
+    "message": "Error al crear ingresos: Request failed with status code 500",
+    "responseData": {},
+    "lastProcessedEntity": "ingresos"
+   }
+  },
+  "ruta": "SendInformationClient.jsx",
+  "metodo": "POST",
+  "ip": "84.17.44.227",
+  "resuelto": 0,
+  "fecha_resolucion": null,
+  "notas_resolucion": null
+ }
+]

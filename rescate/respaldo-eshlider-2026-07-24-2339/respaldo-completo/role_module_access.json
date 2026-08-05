@@ -1,0 +1,482 @@
+[
+ {
+  "id_role_module_access": 1,
+  "id_rol": 1,
+  "module_key": "myday",
+  "is_default": 1,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 2,
+  "id_rol": 1,
+  "module_key": "clients",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 3,
+  "id_rol": 1,
+  "module_key": "mora",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 4,
+  "id_rol": 1,
+  "module_key": "hoja-cobranza",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 5,
+  "id_rol": 1,
+  "module_key": "estado-cuenta",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 6,
+  "id_rol": 1,
+  "module_key": "expedientes",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 7,
+  "id_rol": 1,
+  "module_key": "renewals",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 8,
+  "id_rol": 1,
+  "module_key": "individual-clients",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 9,
+  "id_rol": 1,
+  "module_key": "chargers",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 10,
+  "id_rol": 1,
+  "module_key": "group-loans",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 11,
+  "id_rol": 1,
+  "module_key": "deposit",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 12,
+  "id_rol": 1,
+  "module_key": "collections",
+  "is_default": 0,
+  "created_at": "2026-04-17 18:29:44",
+  "updated_at": "2026-04-17 18:29:44"
+ },
+ {
+  "id_role_module_access": 38,
+  "id_rol": 3,
+  "module_key": "clients",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 39,
+  "id_rol": 3,
+  "module_key": "expedientes",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 40,
+  "id_rol": 3,
+  "module_key": "renewals",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 41,
+  "id_rol": 3,
+  "module_key": "chargers",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 42,
+  "id_rol": 3,
+  "module_key": "group-loans",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 43,
+  "id_rol": 3,
+  "module_key": "pagares",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 44,
+  "id_rol": 3,
+  "module_key": "collections",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 45,
+  "id_rol": 3,
+  "module_key": "myday",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 46,
+  "id_rol": 3,
+  "module_key": "deposit",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 47,
+  "id_rol": 3,
+  "module_key": "savings",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 48,
+  "id_rol": 3,
+  "module_key": "notifications",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 49,
+  "id_rol": 3,
+  "module_key": "export-excel",
+  "is_default": 0,
+  "created_at": "2026-04-20 18:23:45",
+  "updated_at": "2026-04-20 18:23:45"
+ },
+ {
+  "id_role_module_access": 131,
+  "id_rol": 2,
+  "module_key": "applications",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 132,
+  "id_rol": 2,
+  "module_key": "archivos",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 133,
+  "id_rol": 2,
+  "module_key": "auditoria",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 134,
+  "id_rol": 2,
+  "module_key": "cartera",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 135,
+  "id_rol": 2,
+  "module_key": "centers",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 136,
+  "id_rol": 2,
+  "module_key": "chargers",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 137,
+  "id_rol": 2,
+  "module_key": "clients",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 138,
+  "id_rol": 2,
+  "module_key": "clients-by-executives",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 139,
+  "id_rol": 2,
+  "module_key": "collections",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 140,
+  "id_rol": 2,
+  "module_key": "credito-comadre",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 141,
+  "id_rol": 2,
+  "module_key": "deposit",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 142,
+  "id_rol": 2,
+  "module_key": "estado-cuenta",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 143,
+  "id_rol": 2,
+  "module_key": "expedientes",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 144,
+  "id_rol": 2,
+  "module_key": "export-excel",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 145,
+  "id_rol": 2,
+  "module_key": "group-loans",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 146,
+  "id_rol": 2,
+  "module_key": "hoja-cobranza",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 147,
+  "id_rol": 2,
+  "module_key": "hr",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 148,
+  "id_rol": 2,
+  "module_key": "individual-clients",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 149,
+  "id_rol": 2,
+  "module_key": "mora",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 150,
+  "id_rol": 2,
+  "module_key": "myday",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 151,
+  "id_rol": 2,
+  "module_key": "notifications",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 152,
+  "id_rol": 2,
+  "module_key": "pagares",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 153,
+  "id_rol": 2,
+  "module_key": "renewals",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 154,
+  "id_rol": 2,
+  "module_key": "reports",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 155,
+  "id_rol": 2,
+  "module_key": "savings",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 156,
+  "id_rol": 2,
+  "module_key": "settings",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 157,
+  "id_rol": 2,
+  "module_key": "tickets",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 158,
+  "id_rol": 2,
+  "module_key": "ubicacion",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 159,
+  "id_rol": 2,
+  "module_key": "savings-excel",
+  "is_default": 0,
+  "created_at": "2026-06-29 16:38:40",
+  "updated_at": "2026-06-29 16:38:40"
+ },
+ {
+  "id_role_module_access": 166,
+  "id_rol": 5,
+  "module_key": "clients",
+  "is_default": 1,
+  "created_at": "2026-06-29 20:30:41",
+  "updated_at": "2026-06-29 20:30:41"
+ },
+ {
+  "id_role_module_access": 167,
+  "id_rol": 5,
+  "module_key": "credito-comadre",
+  "is_default": 0,
+  "created_at": "2026-06-29 20:30:41",
+  "updated_at": "2026-06-29 20:30:41"
+ },
+ {
+  "id_role_module_access": 168,
+  "id_rol": 5,
+  "module_key": "centers",
+  "is_default": 0,
+  "created_at": "2026-06-29 20:30:41",
+  "updated_at": "2026-06-29 20:30:41"
+ },
+ {
+  "id_role_module_access": 169,
+  "id_rol": 5,
+  "module_key": "individual-clients",
+  "is_default": 0,
+  "created_at": "2026-06-29 20:30:41",
+  "updated_at": "2026-06-29 20:30:41"
+ },
+ {
+  "id_role_module_access": 170,
+  "id_rol": 5,
+  "module_key": "myday",
+  "is_default": 0,
+  "created_at": "2026-06-29 20:30:41",
+  "updated_at": "2026-06-29 20:30:41"
+ },
+ {
+  "id_role_module_access": 171,
+  "id_rol": 2,
+  "module_key": "credito-magnus",
+  "is_default": 0,
+  "created_at": "2026-07-02 15:32:13",
+  "updated_at": "2026-07-02 15:32:13"
+ },
+ {
+  "id_role_module_access": 172,
+  "id_rol": 1,
+  "module_key": "credito-magnus",
+  "is_default": 0,
+  "created_at": "2026-07-02 15:32:14",
+  "updated_at": "2026-07-02 15:32:14"
+ }
+]

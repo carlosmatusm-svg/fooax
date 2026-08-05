@@ -1,0 +1,12 @@
+﻿codigo_alerta,etiqueta,grupo,modo,activo,id_usuario_actualizo,fecha_actualizacion
+DEPOSITO_PRESTAMO_INACTIVO,Depósito con préstamo inactivo,deposito,bloqueo,1,,2026-06-25 18:58:37
+DEPOSITO_PRESTAMO_NO_VIGENTE,Depósito con préstamo no vigente,deposito,advertencia,1,,2026-06-24 00:18:44
+DEPOSITO_PRESTAMO_TERMINADO,Depósito con préstamo terminado,deposito,advertencia,1,,2026-06-24 00:18:44
+DEPOSITO_SIN_PRESTAMO,Depósito sin préstamo vigente,deposito,advertencia,1,,2026-06-24 00:18:43
+FONDOS_INSUFICIENTES,Fondos insuficientes en garantía,salida,bloqueo,1,,2026-06-24 00:18:37
+LOAN_NOT_RELEASED,Préstamo fuera de ventana de renovación,salida,advertencia,1,,2026-06-24 00:18:37
+SALIDA_DUPLICADA_AHORRO,Salida duplicada en la misma garantía,salida,bloqueo,1,,2026-06-24 00:18:38
+SALIDA_DUPLICADA_PRESTAMO,Salida duplicada por préstamo,salida,bloqueo,1,,2026-06-24 00:18:38
+SALIDA_PRESTAMO_DESALINEADO,Préstamo vinculado desalineado,salida,advertencia,1,,2026-06-24 00:18:42
+SALIDA_PRESTAMO_PREVIO,Salida previa en préstamo anterior,salida,advertencia,1,,2026-06-24 00:18:43
+SALIDA_SIN_PRESTAMO,Salida sin préstamo vigente vinculado,salida,advertencia,1,,2026-06-24 00:18:41

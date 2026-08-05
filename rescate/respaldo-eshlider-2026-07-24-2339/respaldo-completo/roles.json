@@ -1,0 +1,22 @@
+[
+ {
+  "id_rol": 2,
+  "rol": "Administrador"
+ },
+ {
+  "id_rol": 1,
+  "rol": "Ejecutivo"
+ },
+ {
+  "id_rol": 3,
+  "rol": "Gerente"
+ },
+ {
+  "id_rol": 5,
+  "rol": "Gerente CreditoC"
+ },
+ {
+  "id_rol": 4,
+  "rol": "Supervisor"
+ }
+]

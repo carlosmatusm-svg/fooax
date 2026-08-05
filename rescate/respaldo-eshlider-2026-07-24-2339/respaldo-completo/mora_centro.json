@@ -1,0 +1,902 @@
+[
+ {
+  "id_mora_centro": 1,
+  "id_centro": 24,
+  "fecha_mora": "2026-03-29",
+  "dias_mora": 22,
+  "monto_multa_total": "1716.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-03-29 02:00:00",
+  "fecha_actualizacion": "2026-03-29 02:00:00"
+ },
+ {
+  "id_mora_centro": 2,
+  "id_centro": 1,
+  "fecha_mora": "2026-03-30",
+  "dias_mora": 22,
+  "monto_multa_total": "898.26",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-03-30 02:00:00",
+  "fecha_actualizacion": "2026-03-30 02:00:00"
+ },
+ {
+  "id_mora_centro": 3,
+  "id_centro": 14,
+  "fecha_mora": "2026-03-31",
+  "dias_mora": 22,
+  "monto_multa_total": "4373.60",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-03-31 02:00:00",
+  "fecha_actualizacion": "2026-03-31 02:00:00"
+ },
+ {
+  "id_mora_centro": 4,
+  "id_centro": 13,
+  "fecha_mora": "2026-04-01",
+  "dias_mora": 22,
+  "monto_multa_total": "2481.60",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-01 02:00:00",
+  "fecha_actualizacion": "2026-04-01 13:54:49"
+ },
+ {
+  "id_mora_centro": 5,
+  "id_centro": 2,
+  "fecha_mora": "2026-04-02",
+  "dias_mora": 22,
+  "monto_multa_total": "855.58",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-02 02:00:00",
+  "fecha_actualizacion": "2026-04-02 02:00:00"
+ },
+ {
+  "id_mora_centro": 6,
+  "id_centro": 7,
+  "fecha_mora": "2026-04-03",
+  "dias_mora": 22,
+  "monto_multa_total": "5421.90",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-03 02:00:00",
+  "fecha_actualizacion": "2026-04-03 02:00:00"
+ },
+ {
+  "id_mora_centro": 7,
+  "id_centro": 7,
+  "fecha_mora": "2026-04-04",
+  "dias_mora": 22,
+  "monto_multa_total": "1056.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-04 02:00:00",
+  "fecha_actualizacion": "2026-04-04 02:00:00"
+ },
+ {
+  "id_mora_centro": 8,
+  "id_centro": 24,
+  "fecha_mora": "2026-04-05",
+  "dias_mora": 22,
+  "monto_multa_total": "1716.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-05 02:00:00",
+  "fecha_actualizacion": "2026-04-05 02:00:00"
+ },
+ {
+  "id_mora_centro": 9,
+  "id_centro": 1,
+  "fecha_mora": "2026-04-06",
+  "dias_mora": 22,
+  "monto_multa_total": "898.26",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-06 02:00:00",
+  "fecha_actualizacion": "2026-04-06 02:00:00"
+ },
+ {
+  "id_mora_centro": 10,
+  "id_centro": 24,
+  "fecha_mora": "2026-04-06",
+  "dias_mora": 22,
+  "monto_multa_total": "1267.20",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-06 18:40:14",
+  "fecha_actualizacion": "2026-04-06 18:40:14"
+ },
+ {
+  "id_mora_centro": 11,
+  "id_centro": 3,
+  "fecha_mora": "2026-04-07",
+  "dias_mora": 22,
+  "monto_multa_total": "2701.38",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-07 02:00:00",
+  "fecha_actualizacion": "2026-04-07 02:00:00"
+ },
+ {
+  "id_mora_centro": 12,
+  "id_centro": 6,
+  "fecha_mora": "2026-04-08",
+  "dias_mora": 22,
+  "monto_multa_total": "641.74",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-08 02:00:00",
+  "fecha_actualizacion": "2026-04-08 16:33:44"
+ },
+ {
+  "id_mora_centro": 13,
+  "id_centro": 2,
+  "fecha_mora": "2026-04-09",
+  "dias_mora": 22,
+  "monto_multa_total": "855.58",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-09 02:00:00",
+  "fecha_actualizacion": "2026-04-09 02:00:00"
+ },
+ {
+  "id_mora_centro": 14,
+  "id_centro": 7,
+  "fecha_mora": "2026-04-10",
+  "dias_mora": 22,
+  "monto_multa_total": "4761.90",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-10 02:00:01",
+  "fecha_actualizacion": "2026-04-10 02:00:01"
+ },
+ {
+  "id_mora_centro": 15,
+  "id_centro": 33,
+  "fecha_mora": "2026-04-11",
+  "dias_mora": 22,
+  "monto_multa_total": "4369.20",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-11 02:00:00",
+  "fecha_actualizacion": "2026-04-11 02:00:00"
+ },
+ {
+  "id_mora_centro": 16,
+  "id_centro": 1,
+  "fecha_mora": "2026-04-13",
+  "dias_mora": 22,
+  "monto_multa_total": "7656.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-13 02:00:00",
+  "fecha_actualizacion": "2026-04-13 16:43:52"
+ },
+ {
+  "id_mora_centro": 17,
+  "id_centro": 3,
+  "fecha_mora": "2026-04-14",
+  "dias_mora": 22,
+  "monto_multa_total": "3616.58",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-14 02:00:00",
+  "fecha_actualizacion": "2026-04-14 02:00:00"
+ },
+ {
+  "id_mora_centro": 18,
+  "id_centro": 6,
+  "fecha_mora": "2026-04-15",
+  "dias_mora": 22,
+  "monto_multa_total": "879.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-15 02:00:00",
+  "fecha_actualizacion": "2026-04-15 02:00:00"
+ },
+ {
+  "id_mora_centro": 19,
+  "id_centro": 7,
+  "fecha_mora": "2026-04-16",
+  "dias_mora": 22,
+  "monto_multa_total": "8061.90",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-16 02:00:00",
+  "fecha_actualizacion": "2026-04-16 02:00:00"
+ },
+ {
+  "id_mora_centro": 20,
+  "id_centro": 21,
+  "fecha_mora": "2026-04-17",
+  "dias_mora": 22,
+  "monto_multa_total": "3405.38",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-17 02:00:00",
+  "fecha_actualizacion": "2026-04-17 18:55:38"
+ },
+ {
+  "id_mora_centro": 21,
+  "id_centro": 1,
+  "fecha_mora": "2026-04-20",
+  "dias_mora": 22,
+  "monto_multa_total": "7656.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-20 02:00:00",
+  "fecha_actualizacion": "2026-04-20 15:30:11"
+ },
+ {
+  "id_mora_centro": 22,
+  "id_centro": 3,
+  "fecha_mora": "2026-04-21",
+  "dias_mora": 22,
+  "monto_multa_total": "5332.36",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-21 02:00:00",
+  "fecha_actualizacion": "2026-04-21 02:00:00"
+ },
+ {
+  "id_mora_centro": 23,
+  "id_centro": 6,
+  "fecha_mora": "2026-04-22",
+  "dias_mora": 22,
+  "monto_multa_total": "7390.90",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-22 02:00:00",
+  "fecha_actualizacion": "2026-04-22 18:12:41"
+ },
+ {
+  "id_mora_centro": 24,
+  "id_centro": 7,
+  "fecha_mora": "2026-04-23",
+  "dias_mora": 22,
+  "monto_multa_total": "6477.90",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-23 02:00:00",
+  "fecha_actualizacion": "2026-04-23 02:00:00"
+ },
+ {
+  "id_mora_centro": 25,
+  "id_centro": 21,
+  "fecha_mora": "2026-04-24",
+  "dias_mora": 22,
+  "monto_multa_total": "7074.32",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-24 02:00:00",
+  "fecha_actualizacion": "2026-04-24 14:24:48"
+ },
+ {
+  "id_mora_centro": 26,
+  "id_centro": 1,
+  "fecha_mora": "2026-04-27",
+  "dias_mora": 22,
+  "monto_multa_total": "7656.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-27 02:00:00",
+  "fecha_actualizacion": "2026-04-27 16:29:52"
+ },
+ {
+  "id_mora_centro": 27,
+  "id_centro": 3,
+  "fecha_mora": "2026-04-28",
+  "dias_mora": 22,
+  "monto_multa_total": "6256.36",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-28 02:00:00",
+  "fecha_actualizacion": "2026-04-28 02:00:00"
+ },
+ {
+  "id_mora_centro": 28,
+  "id_centro": 2,
+  "fecha_mora": "2026-04-29",
+  "dias_mora": 22,
+  "monto_multa_total": "3104.64",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-29 02:00:00",
+  "fecha_actualizacion": "2026-04-29 02:00:00"
+ },
+ {
+  "id_mora_centro": 29,
+  "id_centro": 7,
+  "fecha_mora": "2026-04-30",
+  "dias_mora": 22,
+  "monto_multa_total": "9443.50",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-04-30 02:00:00",
+  "fecha_actualizacion": "2026-04-30 13:57:26"
+ },
+ {
+  "id_mora_centro": 30,
+  "id_centro": 21,
+  "fecha_mora": "2026-05-01",
+  "dias_mora": 22,
+  "monto_multa_total": "3255.34",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-01 02:00:00",
+  "fecha_actualizacion": "2026-05-01 02:00:00"
+ },
+ {
+  "id_mora_centro": 31,
+  "id_centro": 1,
+  "fecha_mora": "2026-05-04",
+  "dias_mora": 22,
+  "monto_multa_total": "7382.76",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-04 02:00:00",
+  "fecha_actualizacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_mora_centro": 32,
+  "id_centro": 3,
+  "fecha_mora": "2026-05-05",
+  "dias_mora": 22,
+  "monto_multa_total": "7840.14",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-05 02:00:00",
+  "fecha_actualizacion": "2026-05-05 02:00:00"
+ },
+ {
+  "id_mora_centro": 33,
+  "id_centro": 2,
+  "fecha_mora": "2026-05-06",
+  "dias_mora": 22,
+  "monto_multa_total": "879.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-06 02:00:00",
+  "fecha_actualizacion": "2026-05-06 16:54:52"
+ },
+ {
+  "id_mora_centro": 34,
+  "id_centro": 7,
+  "fecha_mora": "2026-05-07",
+  "dias_mora": 22,
+  "monto_multa_total": "6979.94",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-07 02:00:00",
+  "fecha_actualizacion": "2026-05-07 15:14:19"
+ },
+ {
+  "id_mora_centro": 35,
+  "id_centro": 12,
+  "fecha_mora": "2026-05-08",
+  "dias_mora": 22,
+  "monto_multa_total": "1425.60",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-08 02:00:00",
+  "fecha_actualizacion": "2026-05-08 02:00:00"
+ },
+ {
+  "id_mora_centro": 36,
+  "id_centro": 1,
+  "fecha_mora": "2026-05-11",
+  "dias_mora": 22,
+  "monto_multa_total": "8438.76",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-11 02:00:00",
+  "fecha_actualizacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_mora_centro": 37,
+  "id_centro": 3,
+  "fecha_mora": "2026-05-12",
+  "dias_mora": 22,
+  "monto_multa_total": "9555.92",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-12 02:00:00",
+  "fecha_actualizacion": "2026-05-12 02:00:00"
+ },
+ {
+  "id_mora_centro": 38,
+  "id_centro": 2,
+  "fecha_mora": "2026-05-13",
+  "dias_mora": 22,
+  "monto_multa_total": "4204.42",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-13 02:00:00",
+  "fecha_actualizacion": "2026-05-13 02:00:00"
+ },
+ {
+  "id_mora_centro": 39,
+  "id_centro": 7,
+  "fecha_mora": "2026-05-14",
+  "dias_mora": 22,
+  "monto_multa_total": "2640.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-14 02:00:00",
+  "fecha_actualizacion": "2026-05-14 02:00:00"
+ },
+ {
+  "id_mora_centro": 40,
+  "id_centro": 12,
+  "fecha_mora": "2026-05-15",
+  "dias_mora": 22,
+  "monto_multa_total": "1425.60",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-15 02:00:00",
+  "fecha_actualizacion": "2026-05-15 02:00:00"
+ },
+ {
+  "id_mora_centro": 41,
+  "id_centro": 1,
+  "fecha_mora": "2026-05-18",
+  "dias_mora": 22,
+  "monto_multa_total": "5836.16",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-18 02:00:00",
+  "fecha_actualizacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_mora_centro": 42,
+  "id_centro": 3,
+  "fecha_mora": "2026-05-19",
+  "dias_mora": 22,
+  "monto_multa_total": "1056.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-19 02:00:00",
+  "fecha_actualizacion": "2026-05-19 16:55:52"
+ },
+ {
+  "id_mora_centro": 43,
+  "id_centro": 2,
+  "fecha_mora": "2026-05-20",
+  "dias_mora": 22,
+  "monto_multa_total": "3602.50",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-20 02:00:00",
+  "fecha_actualizacion": "2026-05-20 02:00:00"
+ },
+ {
+  "id_mora_centro": 44,
+  "id_centro": 10,
+  "fecha_mora": "2026-05-21",
+  "dias_mora": 22,
+  "monto_multa_total": "8035.94",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-21 02:00:00",
+  "fecha_actualizacion": "2026-05-21 02:00:00"
+ },
+ {
+  "id_mora_centro": 45,
+  "id_centro": 12,
+  "fecha_mora": "2026-05-22",
+  "dias_mora": 22,
+  "monto_multa_total": "1425.60",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-22 02:00:00",
+  "fecha_actualizacion": "2026-05-22 02:00:00"
+ },
+ {
+  "id_mora_centro": 46,
+  "id_centro": 1,
+  "fecha_mora": "2026-05-25",
+  "dias_mora": 22,
+  "monto_multa_total": "5044.16",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-25 02:00:00",
+  "fecha_actualizacion": "2026-05-25 02:00:00"
+ },
+ {
+  "id_mora_centro": 47,
+  "id_centro": 3,
+  "fecha_mora": "2026-05-26",
+  "dias_mora": 22,
+  "monto_multa_total": "3167.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-26 02:00:00",
+  "fecha_actualizacion": "2026-05-26 02:00:00"
+ },
+ {
+  "id_mora_centro": 48,
+  "id_centro": 2,
+  "fecha_mora": "2026-05-27",
+  "dias_mora": 22,
+  "monto_multa_total": "4223.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-27 02:00:00",
+  "fecha_actualizacion": "2026-05-27 14:28:30"
+ },
+ {
+  "id_mora_centro": 49,
+  "id_centro": 10,
+  "fecha_mora": "2026-05-28",
+  "dias_mora": 22,
+  "monto_multa_total": "4355.56",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-28 02:00:02",
+  "fecha_actualizacion": "2026-05-28 02:00:02"
+ },
+ {
+  "id_mora_centro": 50,
+  "id_centro": 12,
+  "fecha_mora": "2026-05-29",
+  "dias_mora": 22,
+  "monto_multa_total": "5411.56",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-05-29 02:00:03",
+  "fecha_actualizacion": "2026-05-29 16:15:35"
+ },
+ {
+  "id_mora_centro": 51,
+  "id_centro": 1,
+  "fecha_mora": "2026-06-01",
+  "dias_mora": 22,
+  "monto_multa_total": "2904.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-01 02:00:04",
+  "fecha_actualizacion": "2026-06-01 02:00:04"
+ },
+ {
+  "id_mora_centro": 52,
+  "id_centro": 3,
+  "fecha_mora": "2026-06-02",
+  "dias_mora": 22,
+  "monto_multa_total": "2904.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-02 02:00:04",
+  "fecha_actualizacion": "2026-06-02 02:00:04"
+ },
+ {
+  "id_mora_centro": 53,
+  "id_centro": 2,
+  "fecha_mora": "2026-06-03",
+  "dias_mora": 22,
+  "monto_multa_total": "2502.72",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-03 02:00:04",
+  "fecha_actualizacion": "2026-06-03 02:00:04"
+ },
+ {
+  "id_mora_centro": 54,
+  "id_centro": 10,
+  "fecha_mora": "2026-06-04",
+  "dias_mora": 22,
+  "monto_multa_total": "792.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-04 02:00:04",
+  "fecha_actualizacion": "2026-06-04 18:36:26"
+ },
+ {
+  "id_mora_centro": 55,
+  "id_centro": 12,
+  "fecha_mora": "2026-06-05",
+  "dias_mora": 22,
+  "monto_multa_total": "4752.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-05 02:00:05",
+  "fecha_actualizacion": "2026-06-05 02:00:05"
+ },
+ {
+  "id_mora_centro": 56,
+  "id_centro": 1,
+  "fecha_mora": "2026-06-08",
+  "dias_mora": 22,
+  "monto_multa_total": "2904.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-08 02:00:02",
+  "fecha_actualizacion": "2026-06-08 02:00:02"
+ },
+ {
+  "id_mora_centro": 57,
+  "id_centro": 3,
+  "fecha_mora": "2026-06-09",
+  "dias_mora": 22,
+  "monto_multa_total": "2904.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-09 02:00:02",
+  "fecha_actualizacion": "2026-06-09 02:00:02"
+ },
+ {
+  "id_mora_centro": 58,
+  "id_centro": 2,
+  "fecha_mora": "2026-06-10",
+  "dias_mora": 22,
+  "monto_multa_total": "2502.72",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-10 02:00:03",
+  "fecha_actualizacion": "2026-06-10 02:00:03"
+ },
+ {
+  "id_mora_centro": 59,
+  "id_centro": 10,
+  "fecha_mora": "2026-06-11",
+  "dias_mora": 22,
+  "monto_multa_total": "8062.12",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-11 02:00:03",
+  "fecha_actualizacion": "2026-06-11 02:00:03"
+ },
+ {
+  "id_mora_centro": 60,
+  "id_centro": 12,
+  "fecha_mora": "2026-06-12",
+  "dias_mora": 22,
+  "monto_multa_total": "2045.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-12 02:00:03",
+  "fecha_actualizacion": "2026-06-12 13:41:14"
+ },
+ {
+  "id_mora_centro": 61,
+  "id_centro": 1,
+  "fecha_mora": "2026-06-15",
+  "dias_mora": 22,
+  "monto_multa_total": "4752.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-15 02:00:05",
+  "fecha_actualizacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_mora_centro": 62,
+  "id_centro": 3,
+  "fecha_mora": "2026-06-16",
+  "dias_mora": 22,
+  "monto_multa_total": "3449.38",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-16 02:44:59",
+  "fecha_actualizacion": "2026-06-16 06:31:27"
+ },
+ {
+  "id_mora_centro": 63,
+  "id_centro": 2,
+  "fecha_mora": "2026-06-17",
+  "dias_mora": 22,
+  "monto_multa_total": "2502.72",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-17 02:00:07",
+  "fecha_actualizacion": "2026-06-17 02:00:07"
+ },
+ {
+  "id_mora_centro": 64,
+  "id_centro": 10,
+  "fecha_mora": "2026-06-18",
+  "dias_mora": 22,
+  "monto_multa_total": "9514.12",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-18 02:00:07",
+  "fecha_actualizacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_mora_centro": 65,
+  "id_centro": 21,
+  "fecha_mora": "2026-06-19",
+  "dias_mora": 22,
+  "monto_multa_total": "3233.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-19 02:00:05",
+  "fecha_actualizacion": "2026-06-19 02:00:05"
+ },
+ {
+  "id_mora_centro": 66,
+  "id_centro": 1,
+  "fecha_mora": "2026-06-22",
+  "dias_mora": 22,
+  "monto_multa_total": "3516.70",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-22 02:00:03",
+  "fecha_actualizacion": "2026-06-22 17:09:28"
+ },
+ {
+  "id_mora_centro": 67,
+  "id_centro": 15,
+  "fecha_mora": "2026-06-23",
+  "dias_mora": 22,
+  "monto_multa_total": "924.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-23 02:00:04",
+  "fecha_actualizacion": "2026-06-23 14:29:05"
+ },
+ {
+  "id_mora_centro": 68,
+  "id_centro": 2,
+  "fecha_mora": "2026-06-24",
+  "dias_mora": 22,
+  "monto_multa_total": "5173.63",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-24 00:48:45",
+  "fecha_actualizacion": "2026-06-24 02:00:02"
+ },
+ {
+  "id_mora_centro": 69,
+  "id_centro": 10,
+  "fecha_mora": "2026-06-25",
+  "dias_mora": 22,
+  "monto_multa_total": "6458.32",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-25 01:28:09",
+  "fecha_actualizacion": "2026-06-25 16:20:31"
+ },
+ {
+  "id_mora_centro": 70,
+  "id_centro": 21,
+  "fecha_mora": "2026-06-26",
+  "dias_mora": 22,
+  "monto_multa_total": "5477.56",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-26 02:00:09",
+  "fecha_actualizacion": "2026-06-26 02:00:09"
+ },
+ {
+  "id_mora_centro": 71,
+  "id_centro": 1,
+  "fecha_mora": "2026-06-29",
+  "dias_mora": 22,
+  "monto_multa_total": "2689.50",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-29 02:00:11",
+  "fecha_actualizacion": "2026-06-29 16:37:38"
+ },
+ {
+  "id_mora_centro": 72,
+  "id_centro": 3,
+  "fecha_mora": "2026-06-30",
+  "dias_mora": 22,
+  "monto_multa_total": "1320.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-06-30 02:00:08",
+  "fecha_actualizacion": "2026-06-30 06:08:38"
+ },
+ {
+  "id_mora_centro": 73,
+  "id_centro": 2,
+  "fecha_mora": "2026-07-01",
+  "dias_mora": 22,
+  "monto_multa_total": "2059.20",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-01 02:00:04",
+  "fecha_actualizacion": "2026-07-01 02:00:04"
+ },
+ {
+  "id_mora_centro": 74,
+  "id_centro": 10,
+  "fecha_mora": "2026-07-02",
+  "dias_mora": 22,
+  "monto_multa_total": "8825.30",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-02 02:00:04",
+  "fecha_actualizacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_mora_centro": 75,
+  "id_centro": 21,
+  "fecha_mora": "2026-07-03",
+  "dias_mora": 22,
+  "monto_multa_total": "14694.02",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-03 02:00:04",
+  "fecha_actualizacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_mora_centro": 76,
+  "id_centro": 1,
+  "fecha_mora": "2026-07-06",
+  "dias_mora": 22,
+  "monto_multa_total": "7623.22",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-06 02:00:09",
+  "fecha_actualizacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_mora_centro": 77,
+  "id_centro": 3,
+  "fecha_mora": "2026-07-07",
+  "dias_mora": 22,
+  "monto_multa_total": "2507.56",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-07 02:00:08",
+  "fecha_actualizacion": "2026-07-07 02:00:08"
+ },
+ {
+  "id_mora_centro": 78,
+  "id_centro": 2,
+  "fecha_mora": "2026-07-08",
+  "dias_mora": 22,
+  "monto_multa_total": "3466.54",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-08 02:00:09",
+  "fecha_actualizacion": "2026-07-08 18:42:08"
+ },
+ {
+  "id_mora_centro": 79,
+  "id_centro": 10,
+  "fecha_mora": "2026-07-09",
+  "dias_mora": 22,
+  "monto_multa_total": "1583.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-09 02:00:05",
+  "fecha_actualizacion": "2026-07-09 02:00:05"
+ },
+ {
+  "id_mora_centro": 80,
+  "id_centro": 21,
+  "fecha_mora": "2026-07-10",
+  "dias_mora": 22,
+  "monto_multa_total": "4677.86",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-10 02:00:05",
+  "fecha_actualizacion": "2026-07-10 02:00:05"
+ },
+ {
+  "id_mora_centro": 81,
+  "id_centro": 1,
+  "fecha_mora": "2026-07-13",
+  "dias_mora": 22,
+  "monto_multa_total": "5185.84",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-13 02:00:07",
+  "fecha_actualizacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_mora_centro": 82,
+  "id_centro": 3,
+  "fecha_mora": "2026-07-14",
+  "dias_mora": 22,
+  "monto_multa_total": "2507.56",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-14 02:00:07",
+  "fecha_actualizacion": "2026-07-14 02:00:07"
+ },
+ {
+  "id_mora_centro": 83,
+  "id_centro": 2,
+  "fecha_mora": "2026-07-15",
+  "dias_mora": 22,
+  "monto_multa_total": "1552.32",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-15 02:00:06",
+  "fecha_actualizacion": "2026-07-15 02:00:06"
+ },
+ {
+  "id_mora_centro": 84,
+  "id_centro": 10,
+  "fecha_mora": "2026-07-16",
+  "dias_mora": 22,
+  "monto_multa_total": "3035.56",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-16 02:00:06",
+  "fecha_actualizacion": "2026-07-16 02:00:06"
+ },
+ {
+  "id_mora_centro": 85,
+  "id_centro": 21,
+  "fecha_mora": "2026-07-17",
+  "dias_mora": 22,
+  "monto_multa_total": "4149.86",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-17 02:00:07",
+  "fecha_actualizacion": "2026-07-17 02:00:07"
+ },
+ {
+  "id_mora_centro": 86,
+  "id_centro": 1,
+  "fecha_mora": "2026-07-20",
+  "dias_mora": 22,
+  "monto_multa_total": "2464.00",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-20 02:00:05",
+  "fecha_actualizacion": "2026-07-20 02:00:05"
+ },
+ {
+  "id_mora_centro": 87,
+  "id_centro": 3,
+  "fecha_mora": "2026-07-21",
+  "dias_mora": 22,
+  "monto_multa_total": "2111.78",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-21 02:00:06",
+  "fecha_actualizacion": "2026-07-21 02:00:06"
+ },
+ {
+  "id_mora_centro": 88,
+  "id_centro": 2,
+  "fecha_mora": "2026-07-22",
+  "dias_mora": 22,
+  "monto_multa_total": "2185.92",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-22 02:00:07",
+  "fecha_actualizacion": "2026-07-22 02:00:07"
+ },
+ {
+  "id_mora_centro": 89,
+  "id_centro": 10,
+  "fecha_mora": "2026-07-23",
+  "dias_mora": 22,
+  "monto_multa_total": "4751.34",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-23 02:00:07",
+  "fecha_actualizacion": "2026-07-23 02:00:07"
+ },
+ {
+  "id_mora_centro": 90,
+  "id_centro": 21,
+  "fecha_mora": "2026-07-24",
+  "dias_mora": 22,
+  "monto_multa_total": "3167.56",
+  "estatus": "PENDIENTE",
+  "fecha_creacion": "2026-07-24 02:00:06",
+  "fecha_actualizacion": "2026-07-24 02:00:06"
+ }
+]

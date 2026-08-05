@@ -1,0 +1,562 @@
+[
+ {
+  "id_ticket": 1,
+  "id_movimiento": 3976,
+  "folio": "TK-2026-3976",
+  "codigo_verificacion": "ZC5Q-WHHQ-P7BA-XFKC",
+  "firma": "Zc5qWhhQP7bAxFKcoa3AGhKComZoj_9wd9DpSV-4d8I",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-25 19:00:34",
+  "comentario": "SE DEPOSITAN LA SIGUIENTE GARANTIA YA QUE EL CLIENTE TIENE UNA LINEA MENSUAL LA CUAL EMPEZO EM MARZO POR CUESTIONES DE LOGISTICA EL DIA DE HOY SE PONE AL CORRIENTE CON LAS GARANTIAS DE LOS MESES MARZO , ABRIL Y MAYO."
+ },
+ {
+  "id_ticket": 2,
+  "id_movimiento": 4205,
+  "folio": "TK-2026-4205",
+  "codigo_verificacion": "2CA6-RCKI-WIYC-NQVM",
+  "firma": "2cA6R_ckIWIycn_qvmbURn4FdtBCUyi7RtP_LIyvFCg",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-29 17:15:15",
+  "comentario": "SE DEPOSITA LA GARANTIA COMPLEMENTARIA $375.00 PESOS"
+ },
+ {
+  "id_ticket": 3,
+  "id_movimiento": 4207,
+  "folio": "TK-2026-4207",
+  "codigo_verificacion": "EUR0-ELA2-K630-QPZN",
+  "firma": "eUR0ELa2k630qpZNRRo2yfmDJq9Qdn0HiCTj26k9SOA",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-29 18:02:21",
+  "comentario": "SE DEPOSITA EL COMPLEMENTO DE LA LINEA DE LA SRA LETICIA QUE ABARCA DEL 17-03-206 AL 23-06-2026 CIERRE AL PAGO 15"
+ },
+ {
+  "id_ticket": 4,
+  "id_movimiento": 4209,
+  "folio": "TK-2026-4209",
+  "codigo_verificacion": "NGJS-IAXP-TLHM-JWTP",
+  "firma": "ngjsIaXPtLhMJwtpO54_OVV8lPDc3CTvj5FLY-pcfjA",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-29 18:14:26",
+  "comentario": "deposito complementario del 31-03-2026 al 23-06-2026"
+ },
+ {
+  "id_ticket": 5,
+  "id_movimiento": 4211,
+  "folio": "TK-2026-4211",
+  "codigo_verificacion": "IIHX-PKY6-SYRE-KTHD",
+  "firma": "I-IHXpKy6SYrEk-ThD5ydnsBP19q0bC7dexOVPCOsQ8",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-29 22:46:49",
+  "comentario": null
+ },
+ {
+  "id_ticket": 6,
+  "id_movimiento": 4213,
+  "folio": "TK-2026-4213",
+  "codigo_verificacion": "IARX-6V2L-CKYV-MW8I",
+  "firma": "iARx6v2lCkyVMW8IYqgiT564GdB42uY83hRRhx7aF7E",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-29 23:10:37",
+  "comentario": null
+ },
+ {
+  "id_ticket": 7,
+  "id_movimiento": 4215,
+  "folio": "TK-2026-4215",
+  "codigo_verificacion": "9JJO-NHKV-HUND-XYNH",
+  "firma": "9JJONhkvhUndxyNhsp-JNjy6Q1wZtR0KEDikcO6ihyk",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-29 23:25:02",
+  "comentario": null
+ },
+ {
+  "id_ticket": 8,
+  "id_movimiento": 4273,
+  "folio": "TK-2026-4273",
+  "codigo_verificacion": "9TL8-5PSD-04NY-QIP3",
+  "firma": "9tL85PSD04NyQIp3dDP_5uIn5BwRiT93IhRfafoHFUI",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-30 15:41:39",
+  "comentario": null
+ },
+ {
+  "id_ticket": 9,
+  "id_movimiento": 4275,
+  "folio": "TK-2026-4275",
+  "codigo_verificacion": "LLNZ-WGC6-QIVY-VVU6",
+  "firma": "LlNzWGc6qi-vyv-vU6gnTFFJJBiiqLC85dwKJpFELvs",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-30 16:37:44",
+  "comentario": null
+ },
+ {
+  "id_ticket": 10,
+  "id_movimiento": 4276,
+  "folio": "TK-2026-4276",
+  "codigo_verificacion": "6Q0M-HVGD-YIRY-XEVA",
+  "firma": "6Q0MHVGdyiRyXEVaLKsZGltpuyo26n37pWwrZM2jU68",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-06-30 16:37:45",
+  "comentario": null
+ },
+ {
+  "id_ticket": 11,
+  "id_movimiento": 4377,
+  "folio": "TK-2026-4377",
+  "codigo_verificacion": "K0JY-SEMC-6W8G-DAOG",
+  "firma": "K0jYSEmc6W8GDAOGSXUP357Ik5ljj5NXzkpFkIwJ-08",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 16:50:04",
+  "comentario": null
+ },
+ {
+  "id_ticket": 12,
+  "id_movimiento": 4378,
+  "folio": "TK-2026-4378",
+  "codigo_verificacion": "QD0V-PMWU-K5U7-VOAJ",
+  "firma": "Qd0vpmwUk5u7VoAJc_ZXQygJJ8pNfNHgAfx8JKVnugo",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 16:50:05",
+  "comentario": null
+ },
+ {
+  "id_ticket": 13,
+  "id_movimiento": 4381,
+  "folio": "TK-2026-4381",
+  "codigo_verificacion": "Z7PD-SSIB-N60P-BDWO",
+  "firma": "Z_7PDsSIbN60PbDWOsr0JaXRvXLFG1FhxXt5H1sZJ6w",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 17:12:43",
+  "comentario": "GARANTIAS QUE ABARCAN DEL 17-03-2026 AL 29-06-2026"
+ },
+ {
+  "id_ticket": 14,
+  "id_movimiento": 4383,
+  "folio": "TK-2026-4383",
+  "codigo_verificacion": "UM7F-R8KI-ZX2C-CPLX",
+  "firma": "UM7fr8kIzX2c_cPLxh57P6iqdWi1ZZrY9YofTViWWnA",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 17:56:28",
+  "comentario": null
+ },
+ {
+  "id_ticket": 15,
+  "id_movimiento": 4384,
+  "folio": "TK-2026-4384",
+  "codigo_verificacion": "XXAY-CDFF-OA08-4JOT",
+  "firma": "xX-AyCDFfoa084jOTn1vHM66Xc0U9qDO1MgElDhX49Q",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 17:56:28",
+  "comentario": null
+ },
+ {
+  "id_ticket": 16,
+  "id_movimiento": 4387,
+  "folio": "TK-2026-4387",
+  "codigo_verificacion": "JTEK-U423-RVTO-B1QJ",
+  "firma": "jteKu423RVtOB1qjLGwHqgF8mLltwhFeAP0OXGPujis",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 18:14:05",
+  "comentario": null
+ },
+ {
+  "id_ticket": 17,
+  "id_movimiento": 4389,
+  "folio": "TK-2026-4389",
+  "codigo_verificacion": "FSMO-13AN-9B48-CXZT",
+  "firma": "fSMo13aN9b48CXzt1faQmPeDv2aMs4e-rdXfg4WJcBQ",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 18:34:24",
+  "comentario": null
+ },
+ {
+  "id_ticket": 18,
+  "id_movimiento": 4392,
+  "folio": "TK-2026-4392",
+  "codigo_verificacion": "VFTO-UTFX-NRJH-EF9A",
+  "firma": "VfToutfxnrJhEf9AONaIidpzIFYAYH3kvfnpWKuKIq8",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 18:49:21",
+  "comentario": null
+ },
+ {
+  "id_ticket": 19,
+  "id_movimiento": 4394,
+  "folio": "TK-2026-4394",
+  "codigo_verificacion": "FBQ9-TJPI-MUJM-5NZR",
+  "firma": "fbQ9tJ-PimuJM5nZrGbbgxujypb-j1MzZ3_ssJicfI0",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 18:59:09",
+  "comentario": null
+ },
+ {
+  "id_ticket": 20,
+  "id_movimiento": 4396,
+  "folio": "TK-2026-4396",
+  "codigo_verificacion": "9UCJ-CMYD-MZ1O-XAWN",
+  "firma": "9UcjCMyDmZ1oxA_WnP7cHwuGl3I7YBKgShWZ396gO9E",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 19:19:13",
+  "comentario": null
+ },
+ {
+  "id_ticket": 21,
+  "id_movimiento": 4398,
+  "folio": "TK-2026-4398",
+  "codigo_verificacion": "NHZL-NOFG-RCDV-SFLN",
+  "firma": "NhZLNoFGRcD_VsFlNODfmqmolaEUjiRt8hXx9GJEd_A",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 19:52:30",
+  "comentario": null
+ },
+ {
+  "id_ticket": 22,
+  "id_movimiento": 4399,
+  "folio": "TK-2026-4399",
+  "codigo_verificacion": "CZIF-HJLT-ANLJ-FNDU",
+  "firma": "czIfhjLtanlJFndub7EfiUK5jrNa_QgVCmc94m012bY",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-06 19:52:31",
+  "comentario": null
+ },
+ {
+  "id_ticket": 23,
+  "id_movimiento": 4403,
+  "folio": "TK-2026-4403",
+  "codigo_verificacion": "AG91-NL31-TPQV-AQV5",
+  "firma": "AG91nL31TpQvAqv5sMzj_8fgPwLjISk_NXWwHfz5EAg",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:12:43",
+  "comentario": null
+ },
+ {
+  "id_ticket": 24,
+  "id_movimiento": 4404,
+  "folio": "TK-2026-4404",
+  "codigo_verificacion": "N1KL-8H1J-4OPO-UMOR",
+  "firma": "N1Kl8h1J4opoumORTubXk3-RNiLPcMmZFrl3csim3wI",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:12:44",
+  "comentario": null
+ },
+ {
+  "id_ticket": 25,
+  "id_movimiento": 4405,
+  "folio": "TK-2026-4405",
+  "codigo_verificacion": "GP2M-H8OF-ASG9-CWIU",
+  "firma": "gp2mH8ofAsG9cWiuHN48xEnzjZgC1GfkWkrkHh5b5sE",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:12:44",
+  "comentario": null
+ },
+ {
+  "id_ticket": 26,
+  "id_movimiento": 4406,
+  "folio": "TK-2026-4406",
+  "codigo_verificacion": "IEEH-A514-KG3K-ZP8L",
+  "firma": "ieeha514Kg3kZp8lQk7AJNg__BspzJ1g_iQMbfzwdDo",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:12:44",
+  "comentario": null
+ },
+ {
+  "id_ticket": 27,
+  "id_movimiento": 4411,
+  "folio": "TK-2026-4411",
+  "codigo_verificacion": "MCVH-4GGK-XN3O-XRKV",
+  "firma": "Mcvh4ggkXN3OxrKvLuYmVs41w9oYjVHnCycJzt-bjP4",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:23:51",
+  "comentario": null
+ },
+ {
+  "id_ticket": 28,
+  "id_movimiento": 4413,
+  "folio": "TK-2026-4413",
+  "codigo_verificacion": "PET6-CVSC-SDY7-GLOR",
+  "firma": "pET6cvsCsdY7GLOR39YDkfuET5lrigrtnFjKsdI-mCE",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:40:52",
+  "comentario": null
+ },
+ {
+  "id_ticket": 29,
+  "id_movimiento": 4414,
+  "folio": "TK-2026-4414",
+  "codigo_verificacion": "AUVD-T9EN-XWXN-XMT7",
+  "firma": "AUVDT9eNXWXnxMT7N6bYgN5nvwXdIzJ1nMRLEBj8utU",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:40:59",
+  "comentario": null
+ },
+ {
+  "id_ticket": 30,
+  "id_movimiento": 4417,
+  "folio": "TK-2026-4417",
+  "codigo_verificacion": "M4MI-MJO0-QNJG-R8QK",
+  "firma": "M4MImjO0QnJGR8QkpCfAmAm4TST55KRsGHHs8Zsp0-o",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 16:59:50",
+  "comentario": null
+ },
+ {
+  "id_ticket": 31,
+  "id_movimiento": 4419,
+  "folio": "TK-2026-4419",
+  "codigo_verificacion": "TZ2I-HO8O-LCSR-QFTU",
+  "firma": "T_z2IhO8OlcSrQ-F_tUynXuv0IM8NZu1K5IHMbR5UXM",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 18:13:47",
+  "comentario": null
+ },
+ {
+  "id_ticket": 32,
+  "id_movimiento": 4420,
+  "folio": "TK-2026-4420",
+  "codigo_verificacion": "Q0ZF-21KN-IB1R-LSCT",
+  "firma": "q0ZF21kNIb1rlsctHm2gbPM8rWukuS3-hphSpLMr3Aw",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 18:13:47",
+  "comentario": null
+ },
+ {
+  "id_ticket": 33,
+  "id_movimiento": 4421,
+  "folio": "TK-2026-4421",
+  "codigo_verificacion": "CS05-US8E-J5EO-VTJV",
+  "firma": "Cs05Us8Ej5eo_VtJv59IhLnoetjgt9zVth31Uu9Kzso",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 18:13:48",
+  "comentario": null
+ },
+ {
+  "id_ticket": 34,
+  "id_movimiento": 4422,
+  "folio": "TK-2026-4422",
+  "codigo_verificacion": "KTXF-19UL-3OEY-VUVY",
+  "firma": "KTxF19Ul-3oEyvUVyPIvhhMI6DQmfd7-kbzHz6yZHh8",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 18:13:49",
+  "comentario": null
+ },
+ {
+  "id_ticket": 35,
+  "id_movimiento": 4423,
+  "folio": "TK-2026-4423",
+  "codigo_verificacion": "YIPI-ZOBO-F7OK-GWNN",
+  "firma": "yiPIzobOF7OKGWnNV11EwuFMmgUq11yIOpgTsu0pMqw",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 18:13:49",
+  "comentario": null
+ },
+ {
+  "id_ticket": 36,
+  "id_movimiento": 4429,
+  "folio": "TK-2026-4429",
+  "codigo_verificacion": "LDDU-IWDX-6FGG-PWR7",
+  "firma": "LddUI-wDX6Fggpwr7KhtPwmXbbbtI5D43bJhhvAGa3M",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 18:31:57",
+  "comentario": null
+ },
+ {
+  "id_ticket": 37,
+  "id_movimiento": 4430,
+  "folio": "TK-2026-4430",
+  "codigo_verificacion": "WRAM-0UCR-UVAL-NUFA",
+  "firma": "wraM0UcRu-vALnUfaqQmrA5WKOVykRLE5lNgft5U1lk",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 18:58:54",
+  "comentario": null
+ },
+ {
+  "id_ticket": 38,
+  "id_movimiento": 4432,
+  "folio": "TK-2026-4432",
+  "codigo_verificacion": "VDQU-NGWR-04IR-LG5C",
+  "firma": "vdqUNGWr04IRlg5cRObl7cpdRaTzARdPGv26_EoEuzM",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 19:25:10",
+  "comentario": null
+ },
+ {
+  "id_ticket": 39,
+  "id_movimiento": 4435,
+  "folio": "TK-2026-4435",
+  "codigo_verificacion": "R6JP-NGBQ-M5JX-SPU1",
+  "firma": "R6jpn_GBQM5Jxspu183-KFj1MSPBBmv3aEUQz8t_GKM",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 19:25:27",
+  "comentario": null
+ },
+ {
+  "id_ticket": 40,
+  "id_movimiento": 4439,
+  "folio": "TK-2026-4439",
+  "codigo_verificacion": "B8DF-2DOI-DCIR-O5QZ",
+  "firma": "B8DF2dOIdCIRO5qZCvkPAt2EOpLf5fVtM_btypyzClo",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 19:34:38",
+  "comentario": null
+ },
+ {
+  "id_ticket": 41,
+  "id_movimiento": 4441,
+  "folio": "TK-2026-4441",
+  "codigo_verificacion": "O1ZA-DNWU-JUQS-SJBU",
+  "firma": "O1ZAdNwUj__uQssJbuUyhIH3U0vtOBFPpN4ittP-zFI",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-15 19:42:52",
+  "comentario": null
+ },
+ {
+  "id_ticket": 42,
+  "id_movimiento": 4445,
+  "folio": "TK-2026-4445",
+  "codigo_verificacion": "MVPI-G463-GHTT-QA9J",
+  "firma": "mVPIg463ghTtqa9jRen6ATLZffdQmTBhEmLH33_pHbs",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 15:36:45",
+  "comentario": null
+ },
+ {
+  "id_ticket": 43,
+  "id_movimiento": 4446,
+  "folio": "TK-2026-4446",
+  "codigo_verificacion": "W8MY-BIEJ-XPKN-XR0N",
+  "firma": "w8Mybiej_xPknxr0N9HCDCpvAReI0X-yf9AunArRg5o",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 15:36:46",
+  "comentario": null
+ },
+ {
+  "id_ticket": 44,
+  "id_movimiento": 4449,
+  "folio": "TK-2026-4449",
+  "codigo_verificacion": "R4JU-BNXH-NGLZ-2PBO",
+  "firma": "r4juBNXHnGLz2pbopWzorQEoUdTZvqfV_1WIkyy6Khc",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:08:02",
+  "comentario": null
+ },
+ {
+  "id_ticket": 45,
+  "id_movimiento": 4450,
+  "folio": "TK-2026-4450",
+  "codigo_verificacion": "XRYR-98VC-K03Z-HUTN",
+  "firma": "xrYr98VCK03zHUTNMtAGaZp_c28tG7en9_7CD-Ll72E",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:08:02",
+  "comentario": null
+ },
+ {
+  "id_ticket": 46,
+  "id_movimiento": 4451,
+  "folio": "TK-2026-4451",
+  "codigo_verificacion": "QGFU-YHEA-Q3UR-IFDO",
+  "firma": "qGFUyhEaq3uRi-fDowY0M3nEruAET3v51UQBeg5Pccw",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:08:03",
+  "comentario": null
+ },
+ {
+  "id_ticket": 47,
+  "id_movimiento": 4455,
+  "folio": "TK-2026-4455",
+  "codigo_verificacion": "B2LH-HA1R-WKTH-ELOO",
+  "firma": "b2LhhA1rWkTHeLOOv1Tsxlw_al_Bj6axb3HMHl9k3uA",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:43:31",
+  "comentario": null
+ },
+ {
+  "id_ticket": 48,
+  "id_movimiento": 4456,
+  "folio": "TK-2026-4456",
+  "codigo_verificacion": "9UCU-D39F-FSCQ-R7XF",
+  "firma": "9ucUD39FFsCQ_R7XfEUKmEC4XjuB9okWK-0zjWlXfao",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:43:31",
+  "comentario": null
+ },
+ {
+  "id_ticket": 49,
+  "id_movimiento": 4457,
+  "folio": "TK-2026-4457",
+  "codigo_verificacion": "Z2MN-LTUT-C3IV-IDRX",
+  "firma": "z2MNLtUTC3IVIdrxEgnFOzqG9M86PX6eJheDyJkTxqg",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:43:31",
+  "comentario": null
+ },
+ {
+  "id_ticket": 50,
+  "id_movimiento": 4458,
+  "folio": "TK-2026-4458",
+  "codigo_verificacion": "YEZM-ESWP-IJCK-MTPO",
+  "firma": "YezMeSwpIJCKmtpoWC4DuMDSvnStLgxrF7VBwghnkSc",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:43:32",
+  "comentario": null
+ },
+ {
+  "id_ticket": 51,
+  "id_movimiento": 4459,
+  "folio": "TK-2026-4459",
+  "codigo_verificacion": "CBE3-OZFE-M4JA-SEHK",
+  "firma": "CBe3OzFeM4jASeHKECRu_HJ_b0RdVSKD_iuVINGzLmo",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:43:33",
+  "comentario": null
+ },
+ {
+  "id_ticket": 52,
+  "id_movimiento": 4460,
+  "folio": "TK-2026-4460",
+  "codigo_verificacion": "LM64-P0D6-NJGB-X4ND",
+  "firma": "lm64p0D6njGbX4nDrlZyGm5bElTYKshEcDjp9n-40GI",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:43:34",
+  "comentario": null
+ },
+ {
+  "id_ticket": 53,
+  "id_movimiento": 4461,
+  "folio": "TK-2026-4461",
+  "codigo_verificacion": "HKDC-1D98-GYJ6-DS6D",
+  "firma": "hkDc_1D98gYJ6DS6dqhWnjS2IA9O-GT9AMte4b5FgOI",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:43:34",
+  "comentario": null
+ },
+ {
+  "id_ticket": 54,
+  "id_movimiento": 4469,
+  "folio": "TK-2026-4469",
+  "codigo_verificacion": "ZP6J-0CVA-VKTO-IAJO",
+  "firma": "zp6j0CVaVKT-OIaJoaasTpLi1NjOHgLYByz0mk4TqcI",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 16:50:15",
+  "comentario": null
+ },
+ {
+  "id_ticket": 55,
+  "id_movimiento": 4471,
+  "folio": "TK-2026-4471",
+  "codigo_verificacion": "0LZT-ISTM-PPX6-LZY1",
+  "firma": "0lZTisTMpPx6l-zy1wkCBm4Kv8oiIOm5uhZe1p6GOug",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 17:05:15",
+  "comentario": null
+ },
+ {
+  "id_ticket": 56,
+  "id_movimiento": 4472,
+  "folio": "TK-2026-4472",
+  "codigo_verificacion": "DXNA-KMTN-ROXE-IGNP",
+  "firma": "DxnakmTnroX-EIgnpiOavtWJOJI9go90MvGrBRgAtAE",
+  "generado_por": 111113612603105,
+  "fecha_generacion": "2026-07-21 17:09:17",
+  "comentario": null
+ }
+]

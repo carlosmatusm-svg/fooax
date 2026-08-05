@@ -1,0 +1,44 @@
+[
+ {
+  "id_scheduler_config": 1,
+  "modulo": "CARTERA",
+  "activo": 1,
+  "hora_ejecucion": "19:00:00",
+  "frecuencia": "DIARIA",
+  "cron_expresion": "0 19 * * *",
+  "dias_semana": [
+   "LUN",
+   "MAR",
+   "MIE",
+   "JUE",
+   "VIE"
+  ],
+  "ultima_ejecucion": null,
+  "estatus": "ACTIVO",
+  "descripcion": "Programación diaria por defecto",
+  "fecha_creacion": "2025-11-10 16:35:40",
+  "fecha_actualizacion": "2025-11-10 16:35:40"
+ },
+ {
+  "id_scheduler_config": 2,
+  "modulo": "MORA",
+  "activo": 1,
+  "hora_ejecucion": "20:00:00",
+  "frecuencia": "DIARIA",
+  "cron_expresion": "0 20 * * *",
+  "dias_semana": [
+   "lunes",
+   "martes",
+   "miercoles",
+   "jueves",
+   "viernes",
+   "sabado",
+   "domingo"
+  ],
+  "ultima_ejecucion": null,
+  "estatus": "ACTIVO",
+  "descripcion": "Procesamiento automático diario de mora a las 8pm México",
+  "fecha_creacion": "2026-05-27 14:28:28",
+  "fecha_actualizacion": "2026-05-27 14:28:28"
+ }
+]

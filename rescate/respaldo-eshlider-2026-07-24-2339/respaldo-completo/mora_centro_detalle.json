@@ -1,0 +1,3342 @@
+[
+ {
+  "id_detalle": 1,
+  "id_mora_centro": 1,
+  "id_cliente": 11112924530,
+  "pago_cliente": "780.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1716.00",
+  "total_a_pagar_cliente": "2496.00",
+  "fecha_creacion": "2026-03-29 02:00:00"
+ },
+ {
+  "id_detalle": 2,
+  "id_mora_centro": 2,
+  "id_cliente": 11112984597,
+  "pago_cliente": "408.30",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "898.26",
+  "total_a_pagar_cliente": "1306.56",
+  "fecha_creacion": "2026-03-30 02:00:00"
+ },
+ {
+  "id_detalle": 3,
+  "id_mora_centro": 3,
+  "id_cliente": 11112707655,
+  "pago_cliente": "706.00",
+  "porcentaje_participacion": "0.3551",
+  "monto_multa_cliente": "1553.20",
+  "total_a_pagar_cliente": "2259.20",
+  "fecha_creacion": "2026-03-31 02:00:00"
+ },
+ {
+  "id_detalle": 4,
+  "id_mora_centro": 3,
+  "id_cliente": 11112907887,
+  "pago_cliente": "576.00",
+  "porcentaje_participacion": "0.2897",
+  "monto_multa_cliente": "1267.20",
+  "total_a_pagar_cliente": "1843.20",
+  "fecha_creacion": "2026-03-31 02:00:00"
+ },
+ {
+  "id_detalle": 5,
+  "id_mora_centro": 3,
+  "id_cliente": 11113205041,
+  "pago_cliente": "706.00",
+  "porcentaje_participacion": "0.3551",
+  "monto_multa_cliente": "1553.20",
+  "total_a_pagar_cliente": "2259.20",
+  "fecha_creacion": "2026-03-31 02:00:00"
+ },
+ {
+  "id_detalle": 30,
+  "id_mora_centro": 4,
+  "id_cliente": 11112887138,
+  "pago_cliente": "888.00",
+  "porcentaje_participacion": "0.7872",
+  "monto_multa_cliente": "1953.60",
+  "total_a_pagar_cliente": "2841.60",
+  "fecha_creacion": "2026-04-01 13:54:49"
+ },
+ {
+  "id_detalle": 31,
+  "id_mora_centro": 4,
+  "id_cliente": 11113168985,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.2128",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-04-01 13:54:49"
+ },
+ {
+  "id_detalle": 33,
+  "id_mora_centro": 5,
+  "id_cliente": 11113057488,
+  "pago_cliente": "388.90",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "855.58",
+  "total_a_pagar_cliente": "1244.48",
+  "fecha_creacion": "2026-04-02 02:00:00"
+ },
+ {
+  "id_detalle": 34,
+  "id_mora_centro": 6,
+  "id_cliente": 11112932017,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1217",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-04-03 02:00:00"
+ },
+ {
+  "id_detalle": 35,
+  "id_mora_centro": 6,
+  "id_cliente": 11113005731,
+  "pago_cliente": "720.00",
+  "porcentaje_participacion": "0.2921",
+  "monto_multa_cliente": "1584.00",
+  "total_a_pagar_cliente": "2304.00",
+  "fecha_creacion": "2026-04-03 02:00:00"
+ },
+ {
+  "id_detalle": 36,
+  "id_mora_centro": 6,
+  "id_cliente": 11113029053,
+  "pago_cliente": "1444.50",
+  "porcentaje_participacion": "0.5861",
+  "monto_multa_cliente": "3177.90",
+  "total_a_pagar_cliente": "4622.40",
+  "fecha_creacion": "2026-04-03 02:00:00"
+ },
+ {
+  "id_detalle": 37,
+  "id_mora_centro": 7,
+  "id_cliente": 11112623811,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-04-04 02:00:00"
+ },
+ {
+  "id_detalle": 38,
+  "id_mora_centro": 8,
+  "id_cliente": 11112924530,
+  "pago_cliente": "780.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1716.00",
+  "total_a_pagar_cliente": "2496.00",
+  "fecha_creacion": "2026-04-05 02:00:00"
+ },
+ {
+  "id_detalle": 39,
+  "id_mora_centro": 9,
+  "id_cliente": 11112984597,
+  "pago_cliente": "408.30",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "898.26",
+  "total_a_pagar_cliente": "1306.56",
+  "fecha_creacion": "2026-04-06 02:00:00"
+ },
+ {
+  "id_detalle": 40,
+  "id_mora_centro": 10,
+  "id_cliente": 11112833441,
+  "pago_cliente": "256.00",
+  "porcentaje_participacion": "0.4444",
+  "monto_multa_cliente": "563.20",
+  "total_a_pagar_cliente": "819.20",
+  "fecha_creacion": "2026-04-06 18:40:14"
+ },
+ {
+  "id_detalle": 41,
+  "id_mora_centro": 10,
+  "id_cliente": 11112956989,
+  "pago_cliente": "320.00",
+  "porcentaje_participacion": "0.5556",
+  "monto_multa_cliente": "704.00",
+  "total_a_pagar_cliente": "1024.00",
+  "fecha_creacion": "2026-04-06 18:40:14"
+ },
+ {
+  "id_detalle": 43,
+  "id_mora_centro": 11,
+  "id_cliente": 11112899272,
+  "pago_cliente": "640.00",
+  "porcentaje_participacion": "0.5212",
+  "monto_multa_cliente": "1408.00",
+  "total_a_pagar_cliente": "2048.00",
+  "fecha_creacion": "2026-04-07 02:00:00"
+ },
+ {
+  "id_detalle": 44,
+  "id_mora_centro": 11,
+  "id_cliente": 11112985973,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.4788",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-07 02:00:00"
+ },
+ {
+  "id_detalle": 50,
+  "id_mora_centro": 12,
+  "id_cliente": 11112917978,
+  "pago_cliente": "291.70",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "641.74",
+  "total_a_pagar_cliente": "933.44",
+  "fecha_creacion": "2026-04-08 16:33:44"
+ },
+ {
+  "id_detalle": 51,
+  "id_mora_centro": 13,
+  "id_cliente": 11113057488,
+  "pago_cliente": "388.90",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "855.58",
+  "total_a_pagar_cliente": "1244.48",
+  "fecha_creacion": "2026-04-09 02:00:00"
+ },
+ {
+  "id_detalle": 52,
+  "id_mora_centro": 14,
+  "id_cliente": 11113005731,
+  "pago_cliente": "720.00",
+  "porcentaje_participacion": "0.3326",
+  "monto_multa_cliente": "1584.00",
+  "total_a_pagar_cliente": "2304.00",
+  "fecha_creacion": "2026-04-10 02:00:01"
+ },
+ {
+  "id_detalle": 53,
+  "id_mora_centro": 14,
+  "id_cliente": 11113029053,
+  "pago_cliente": "1444.50",
+  "porcentaje_participacion": "0.6674",
+  "monto_multa_cliente": "3177.90",
+  "total_a_pagar_cliente": "4622.40",
+  "fecha_creacion": "2026-04-10 02:00:01"
+ },
+ {
+  "id_detalle": 55,
+  "id_mora_centro": 15,
+  "id_cliente": 11112874869,
+  "pago_cliente": "780.00",
+  "porcentaje_participacion": "0.3927",
+  "monto_multa_cliente": "1716.00",
+  "total_a_pagar_cliente": "2496.00",
+  "fecha_creacion": "2026-04-11 02:00:00"
+ },
+ {
+  "id_detalle": 56,
+  "id_mora_centro": 15,
+  "id_cliente": 11112879732,
+  "pago_cliente": "1206.00",
+  "porcentaje_participacion": "0.6073",
+  "monto_multa_cliente": "2653.20",
+  "total_a_pagar_cliente": "3859.20",
+  "fecha_creacion": "2026-04-11 02:00:00"
+ },
+ {
+  "id_detalle": 72,
+  "id_mora_centro": 16,
+  "id_cliente": 11112658700,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-13 16:43:52"
+ },
+ {
+  "id_detalle": 73,
+  "id_mora_centro": 16,
+  "id_cliente": 11112748267,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-13 16:43:52"
+ },
+ {
+  "id_detalle": 74,
+  "id_mora_centro": 16,
+  "id_cliente": 11112754934,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-13 16:43:52"
+ },
+ {
+  "id_detalle": 75,
+  "id_mora_centro": 16,
+  "id_cliente": 11112777895,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.1552",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-04-13 16:43:52"
+ },
+ {
+  "id_detalle": 76,
+  "id_mora_centro": 16,
+  "id_cliente": 11113022524,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-13 16:43:52"
+ },
+ {
+  "id_detalle": 77,
+  "id_mora_centro": 16,
+  "id_cliente": 11113101306,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-13 16:43:52"
+ },
+ {
+  "id_detalle": 79,
+  "id_mora_centro": 17,
+  "id_cliente": 11112899272,
+  "pago_cliente": "640.00",
+  "porcentaje_participacion": "0.3893",
+  "monto_multa_cliente": "1408.00",
+  "total_a_pagar_cliente": "2048.00",
+  "fecha_creacion": "2026-04-14 02:00:00"
+ },
+ {
+  "id_detalle": 80,
+  "id_mora_centro": 17,
+  "id_cliente": 11112922068,
+  "pago_cliente": "416.00",
+  "porcentaje_participacion": "0.2531",
+  "monto_multa_cliente": "915.20",
+  "total_a_pagar_cliente": "1331.20",
+  "fecha_creacion": "2026-04-14 02:00:00"
+ },
+ {
+  "id_detalle": 81,
+  "id_mora_centro": 17,
+  "id_cliente": 11112985973,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.3576",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-14 02:00:00"
+ },
+ {
+  "id_detalle": 82,
+  "id_mora_centro": 18,
+  "id_cliente": 11112931340,
+  "pago_cliente": "399.90",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "879.78",
+  "total_a_pagar_cliente": "1279.68",
+  "fecha_creacion": "2026-04-15 02:00:00"
+ },
+ {
+  "id_detalle": 83,
+  "id_mora_centro": 19,
+  "id_cliente": 11112623811,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1310",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-04-16 02:00:00"
+ },
+ {
+  "id_detalle": 84,
+  "id_mora_centro": 19,
+  "id_cliente": 11112871315,
+  "pago_cliente": "720.00",
+  "porcentaje_participacion": "0.1965",
+  "monto_multa_cliente": "1584.00",
+  "total_a_pagar_cliente": "2304.00",
+  "fecha_creacion": "2026-04-16 02:00:00"
+ },
+ {
+  "id_detalle": 85,
+  "id_mora_centro": 19,
+  "id_cliente": 11112932017,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.0819",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-04-16 02:00:00"
+ },
+ {
+  "id_detalle": 86,
+  "id_mora_centro": 19,
+  "id_cliente": 11113005731,
+  "pago_cliente": "720.00",
+  "porcentaje_participacion": "0.1965",
+  "monto_multa_cliente": "1584.00",
+  "total_a_pagar_cliente": "2304.00",
+  "fecha_creacion": "2026-04-16 02:00:00"
+ },
+ {
+  "id_detalle": 87,
+  "id_mora_centro": 19,
+  "id_cliente": 11113029053,
+  "pago_cliente": "1444.50",
+  "porcentaje_participacion": "0.3942",
+  "monto_multa_cliente": "3177.90",
+  "total_a_pagar_cliente": "4622.40",
+  "fecha_creacion": "2026-04-16 02:00:00"
+ },
+ {
+  "id_detalle": 132,
+  "id_mora_centro": 20,
+  "id_cliente": 11112925822,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.3798",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-17 18:55:38"
+ },
+ {
+  "id_detalle": 133,
+  "id_mora_centro": 20,
+  "id_cliente": 11113005693,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.3101",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-04-17 18:55:38"
+ },
+ {
+  "id_detalle": 134,
+  "id_mora_centro": 20,
+  "id_cliente": 11113139475,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.3101",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-04-17 18:55:38"
+ },
+ {
+  "id_detalle": 149,
+  "id_mora_centro": 21,
+  "id_cliente": 11112658700,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-20 15:30:11"
+ },
+ {
+  "id_detalle": 150,
+  "id_mora_centro": 21,
+  "id_cliente": 11112748267,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-20 15:30:11"
+ },
+ {
+  "id_detalle": 151,
+  "id_mora_centro": 21,
+  "id_cliente": 11112754934,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-20 15:30:11"
+ },
+ {
+  "id_detalle": 152,
+  "id_mora_centro": 21,
+  "id_cliente": 11112777895,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.1552",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-04-20 15:30:11"
+ },
+ {
+  "id_detalle": 153,
+  "id_mora_centro": 21,
+  "id_cliente": 11113022524,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-20 15:30:11"
+ },
+ {
+  "id_detalle": 154,
+  "id_mora_centro": 21,
+  "id_cliente": 11113101306,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-20 15:30:11"
+ },
+ {
+  "id_detalle": 156,
+  "id_mora_centro": 22,
+  "id_cliente": 11112899272,
+  "pago_cliente": "640.00",
+  "porcentaje_participacion": "0.2640",
+  "monto_multa_cliente": "1408.00",
+  "total_a_pagar_cliente": "2048.00",
+  "fecha_creacion": "2026-04-21 02:00:00"
+ },
+ {
+  "id_detalle": 157,
+  "id_mora_centro": 22,
+  "id_cliente": 11112919810,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.3218",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-04-21 02:00:00"
+ },
+ {
+  "id_detalle": 158,
+  "id_mora_centro": 22,
+  "id_cliente": 11112922068,
+  "pago_cliente": "416.00",
+  "porcentaje_participacion": "0.1716",
+  "monto_multa_cliente": "915.20",
+  "total_a_pagar_cliente": "1331.20",
+  "fecha_creacion": "2026-04-21 02:00:00"
+ },
+ {
+  "id_detalle": 159,
+  "id_mora_centro": 22,
+  "id_cliente": 11112985973,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.2426",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-21 02:00:00"
+ },
+ {
+  "id_detalle": 165,
+  "id_mora_centro": 23,
+  "id_cliente": 11112714868,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1750",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-22 18:12:41"
+ },
+ {
+  "id_detalle": 166,
+  "id_mora_centro": 23,
+  "id_cliente": 11112739079,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1250",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-04-22 18:12:41"
+ },
+ {
+  "id_detalle": 167,
+  "id_mora_centro": 23,
+  "id_cliente": 11112816934,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1750",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-22 18:12:41"
+ },
+ {
+  "id_detalle": 168,
+  "id_mora_centro": 23,
+  "id_cliente": 11112937194,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1750",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-22 18:12:41"
+ },
+ {
+  "id_detalle": 169,
+  "id_mora_centro": 23,
+  "id_cliente": 11113112747,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1750",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-22 18:12:41"
+ },
+ {
+  "id_detalle": 170,
+  "id_mora_centro": 23,
+  "id_cliente": 11113182605,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1750",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-22 18:12:41"
+ },
+ {
+  "id_detalle": 172,
+  "id_mora_centro": 24,
+  "id_cliente": 11112623811,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1630",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-04-23 02:00:00"
+ },
+ {
+  "id_detalle": 173,
+  "id_mora_centro": 24,
+  "id_cliente": 11112871315,
+  "pago_cliente": "720.00",
+  "porcentaje_participacion": "0.2445",
+  "monto_multa_cliente": "1584.00",
+  "total_a_pagar_cliente": "2304.00",
+  "fecha_creacion": "2026-04-23 02:00:00"
+ },
+ {
+  "id_detalle": 174,
+  "id_mora_centro": 24,
+  "id_cliente": 11112932017,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1019",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-04-23 02:00:00"
+ },
+ {
+  "id_detalle": 175,
+  "id_mora_centro": 24,
+  "id_cliente": 11113029053,
+  "pago_cliente": "1444.50",
+  "porcentaje_participacion": "0.4906",
+  "monto_multa_cliente": "3177.90",
+  "total_a_pagar_cliente": "4622.40",
+  "fecha_creacion": "2026-04-23 02:00:00"
+ },
+ {
+  "id_detalle": 185,
+  "id_mora_centro": 25,
+  "id_cliente": 11112922583,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1828",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-24 14:24:48"
+ },
+ {
+  "id_detalle": 186,
+  "id_mora_centro": 25,
+  "id_cliente": 11112925822,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1828",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-24 14:24:48"
+ },
+ {
+  "id_detalle": 187,
+  "id_mora_centro": 25,
+  "id_cliente": 11112939687,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2425",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-04-24 14:24:48"
+ },
+ {
+  "id_detalle": 188,
+  "id_mora_centro": 25,
+  "id_cliente": 11113005693,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1493",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-04-24 14:24:48"
+ },
+ {
+  "id_detalle": 189,
+  "id_mora_centro": 25,
+  "id_cliente": 11113139475,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1493",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-04-24 14:24:48"
+ },
+ {
+  "id_detalle": 190,
+  "id_mora_centro": 25,
+  "id_cliente": 11113315176,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.0933",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-04-24 14:24:48"
+ },
+ {
+  "id_detalle": 244,
+  "id_mora_centro": 26,
+  "id_cliente": 11112658700,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-27 16:29:52"
+ },
+ {
+  "id_detalle": 245,
+  "id_mora_centro": 26,
+  "id_cliente": 11112748267,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-27 16:29:52"
+ },
+ {
+  "id_detalle": 246,
+  "id_mora_centro": 26,
+  "id_cliente": 11112754934,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-27 16:29:52"
+ },
+ {
+  "id_detalle": 247,
+  "id_mora_centro": 26,
+  "id_cliente": 11112777895,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.1552",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-04-27 16:29:52"
+ },
+ {
+  "id_detalle": 248,
+  "id_mora_centro": 26,
+  "id_cliente": 11113022524,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-27 16:29:52"
+ },
+ {
+  "id_detalle": 249,
+  "id_mora_centro": 26,
+  "id_cliente": 11113101306,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1690",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-04-27 16:29:52"
+ },
+ {
+  "id_detalle": 251,
+  "id_mora_centro": 27,
+  "id_cliente": 11112899272,
+  "pago_cliente": "640.00",
+  "porcentaje_participacion": "0.2251",
+  "monto_multa_cliente": "1408.00",
+  "total_a_pagar_cliente": "2048.00",
+  "fecha_creacion": "2026-04-28 02:00:00"
+ },
+ {
+  "id_detalle": 252,
+  "id_mora_centro": 27,
+  "id_cliente": 11112919810,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2742",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-04-28 02:00:00"
+ },
+ {
+  "id_detalle": 253,
+  "id_mora_centro": 27,
+  "id_cliente": 11112922068,
+  "pago_cliente": "416.00",
+  "porcentaje_participacion": "0.1463",
+  "monto_multa_cliente": "915.20",
+  "total_a_pagar_cliente": "1331.20",
+  "fecha_creacion": "2026-04-28 02:00:00"
+ },
+ {
+  "id_detalle": 254,
+  "id_mora_centro": 27,
+  "id_cliente": 11112938595,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1477",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-04-28 02:00:00"
+ },
+ {
+  "id_detalle": 255,
+  "id_mora_centro": 27,
+  "id_cliente": 11112985973,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.2067",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-04-28 02:00:00"
+ },
+ {
+  "id_detalle": 258,
+  "id_mora_centro": 28,
+  "id_cliente": 11112805333,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.5000",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-04-29 02:00:00"
+ },
+ {
+  "id_detalle": 259,
+  "id_mora_centro": 28,
+  "id_cliente": 11113098291,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.5000",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-04-29 02:00:00"
+ },
+ {
+  "id_detalle": 267,
+  "id_mora_centro": 29,
+  "id_cliente": 11112918349,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.1817",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-04-30 13:57:26"
+ },
+ {
+  "id_detalle": 268,
+  "id_mora_centro": 29,
+  "id_cliente": 11112973962,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.1817",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-04-30 13:57:26"
+ },
+ {
+  "id_detalle": 269,
+  "id_mora_centro": 29,
+  "id_cliente": 11113053166,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1677",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-04-30 13:57:26"
+ },
+ {
+  "id_detalle": 270,
+  "id_mora_centro": 29,
+  "id_cliente": 11113117861,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1677",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-04-30 13:57:26"
+ },
+ {
+  "id_detalle": 271,
+  "id_mora_centro": 29,
+  "id_cliente": 11113209269,
+  "pago_cliente": "399.90",
+  "porcentaje_participacion": "0.0932",
+  "monto_multa_cliente": "879.78",
+  "total_a_pagar_cliente": "1279.68",
+  "fecha_creacion": "2026-04-30 13:57:26"
+ },
+ {
+  "id_detalle": 272,
+  "id_mora_centro": 29,
+  "id_cliente": 11113299859,
+  "pago_cliente": "893.00",
+  "porcentaje_participacion": "0.2080",
+  "monto_multa_cliente": "1964.60",
+  "total_a_pagar_cliente": "2857.60",
+  "fecha_creacion": "2026-04-30 13:57:26"
+ },
+ {
+  "id_detalle": 274,
+  "id_mora_centro": 30,
+  "id_cliente": 11112918295,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.2027",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-05-01 02:00:00"
+ },
+ {
+  "id_detalle": 275,
+  "id_mora_centro": 30,
+  "id_cliente": 11113058061,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.5271",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-01 02:00:00"
+ },
+ {
+  "id_detalle": 276,
+  "id_mora_centro": 30,
+  "id_cliente": 11113097725,
+  "pago_cliente": "399.90",
+  "porcentaje_participacion": "0.2703",
+  "monto_multa_cliente": "879.78",
+  "total_a_pagar_cliente": "1279.68",
+  "fecha_creacion": "2026-05-01 02:00:00"
+ },
+ {
+  "id_detalle": 277,
+  "id_mora_centro": 31,
+  "id_cliente": 11112839233,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1752",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 278,
+  "id_mora_centro": 31,
+  "id_cliente": 11112903012,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.1609",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 279,
+  "id_mora_centro": 31,
+  "id_cliente": 11112939602,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1073",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 280,
+  "id_mora_centro": 31,
+  "id_cliente": 11112941078,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0536",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 281,
+  "id_mora_centro": 31,
+  "id_cliente": 11112984597,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1752",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 282,
+  "id_mora_centro": 31,
+  "id_cliente": 11113008579,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1073",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 283,
+  "id_mora_centro": 31,
+  "id_cliente": 11113126104,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.0715",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 284,
+  "id_mora_centro": 31,
+  "id_cliente": 11113202376,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.0894",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 285,
+  "id_mora_centro": 31,
+  "id_cliente": 11113232046,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0596",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-05-04 02:00:00"
+ },
+ {
+  "id_detalle": 292,
+  "id_mora_centro": 32,
+  "id_cliente": 11112899272,
+  "pago_cliente": "640.00",
+  "porcentaje_participacion": "0.1796",
+  "monto_multa_cliente": "1408.00",
+  "total_a_pagar_cliente": "2048.00",
+  "fecha_creacion": "2026-05-05 02:00:00"
+ },
+ {
+  "id_detalle": 293,
+  "id_mora_centro": 32,
+  "id_cliente": 11112918184,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.2020",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-05-05 02:00:00"
+ },
+ {
+  "id_detalle": 294,
+  "id_mora_centro": 32,
+  "id_cliente": 11112919810,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2188",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-05 02:00:00"
+ },
+ {
+  "id_detalle": 295,
+  "id_mora_centro": 32,
+  "id_cliente": 11112922068,
+  "pago_cliente": "416.00",
+  "porcentaje_participacion": "0.1167",
+  "monto_multa_cliente": "915.20",
+  "total_a_pagar_cliente": "1331.20",
+  "fecha_creacion": "2026-05-05 02:00:00"
+ },
+ {
+  "id_detalle": 296,
+  "id_mora_centro": 32,
+  "id_cliente": 11112938595,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1179",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-05-05 02:00:00"
+ },
+ {
+  "id_detalle": 297,
+  "id_mora_centro": 32,
+  "id_cliente": 11112985973,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1650",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-05-05 02:00:00"
+ },
+ {
+  "id_detalle": 309,
+  "id_mora_centro": 33,
+  "id_cliente": 11112931340,
+  "pago_cliente": "399.90",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "879.78",
+  "total_a_pagar_cliente": "1279.68",
+  "fecha_creacion": "2026-05-06 16:54:52"
+ },
+ {
+  "id_detalle": 316,
+  "id_mora_centro": 34,
+  "id_cliente": 11112918349,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2458",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-07 15:14:19"
+ },
+ {
+  "id_detalle": 317,
+  "id_mora_centro": 34,
+  "id_cliente": 11112973962,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2458",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-07 15:14:19"
+ },
+ {
+  "id_detalle": 318,
+  "id_mora_centro": 34,
+  "id_cliente": 11113117861,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.2269",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-05-07 15:14:19"
+ },
+ {
+  "id_detalle": 319,
+  "id_mora_centro": 34,
+  "id_cliente": 11113299859,
+  "pago_cliente": "893.00",
+  "porcentaje_participacion": "0.2815",
+  "monto_multa_cliente": "1964.60",
+  "total_a_pagar_cliente": "2857.60",
+  "fecha_creacion": "2026-05-07 15:14:19"
+ },
+ {
+  "id_detalle": 323,
+  "id_mora_centro": 35,
+  "id_cliente": 11113042585,
+  "pago_cliente": "648.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1425.60",
+  "total_a_pagar_cliente": "2073.60",
+  "fecha_creacion": "2026-05-08 02:00:00"
+ },
+ {
+  "id_detalle": 324,
+  "id_mora_centro": 36,
+  "id_cliente": 11112839233,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1533",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 325,
+  "id_mora_centro": 36,
+  "id_cliente": 11112903012,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.1408",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 326,
+  "id_mora_centro": 36,
+  "id_cliente": 11112929397,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.0782",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 327,
+  "id_mora_centro": 36,
+  "id_cliente": 11112939602,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.0939",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 328,
+  "id_mora_centro": 36,
+  "id_cliente": 11112984597,
+  "pago_cliente": "588.00",
+  "porcentaje_participacion": "0.1533",
+  "monto_multa_cliente": "1293.60",
+  "total_a_pagar_cliente": "1881.60",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 329,
+  "id_mora_centro": 36,
+  "id_cliente": 11113008579,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.0939",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 330,
+  "id_mora_centro": 36,
+  "id_cliente": 11113033563,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.0939",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 331,
+  "id_mora_centro": 36,
+  "id_cliente": 11113126104,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.0626",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 332,
+  "id_mora_centro": 36,
+  "id_cliente": 11113202376,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.0782",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 333,
+  "id_mora_centro": 36,
+  "id_cliente": 11113232046,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0521",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-05-11 02:00:00"
+ },
+ {
+  "id_detalle": 339,
+  "id_mora_centro": 37,
+  "id_cliente": 11112899272,
+  "pago_cliente": "1419.90",
+  "porcentaje_participacion": "0.3269",
+  "monto_multa_cliente": "3123.78",
+  "total_a_pagar_cliente": "4543.68",
+  "fecha_creacion": "2026-05-12 02:00:00"
+ },
+ {
+  "id_detalle": 340,
+  "id_mora_centro": 37,
+  "id_cliente": 11112918184,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1657",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-05-12 02:00:00"
+ },
+ {
+  "id_detalle": 341,
+  "id_mora_centro": 37,
+  "id_cliente": 11112919810,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.1796",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-12 02:00:00"
+ },
+ {
+  "id_detalle": 342,
+  "id_mora_centro": 37,
+  "id_cliente": 11112922068,
+  "pago_cliente": "416.00",
+  "porcentaje_participacion": "0.0958",
+  "monto_multa_cliente": "915.20",
+  "total_a_pagar_cliente": "1331.20",
+  "fecha_creacion": "2026-05-12 02:00:00"
+ },
+ {
+  "id_detalle": 343,
+  "id_mora_centro": 37,
+  "id_cliente": 11112938595,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.0967",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-05-12 02:00:00"
+ },
+ {
+  "id_detalle": 344,
+  "id_mora_centro": 37,
+  "id_cliente": 11112985973,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1353",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-05-12 02:00:00"
+ },
+ {
+  "id_detalle": 346,
+  "id_mora_centro": 38,
+  "id_cliente": 11112805333,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.3692",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-05-13 02:00:00"
+ },
+ {
+  "id_detalle": 347,
+  "id_mora_centro": 38,
+  "id_cliente": 11113057488,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.1047",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-05-13 02:00:00"
+ },
+ {
+  "id_detalle": 348,
+  "id_mora_centro": 38,
+  "id_cliente": 11113098291,
+  "pago_cliente": "1005.50",
+  "porcentaje_participacion": "0.5261",
+  "monto_multa_cliente": "2212.10",
+  "total_a_pagar_cliente": "3217.60",
+  "fecha_creacion": "2026-05-13 02:00:00"
+ },
+ {
+  "id_detalle": 349,
+  "id_mora_centro": 39,
+  "id_cliente": 11112623811,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.4000",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-05-14 02:00:00"
+ },
+ {
+  "id_detalle": 350,
+  "id_mora_centro": 39,
+  "id_cliente": 11112871315,
+  "pago_cliente": "720.00",
+  "porcentaje_participacion": "0.6000",
+  "monto_multa_cliente": "1584.00",
+  "total_a_pagar_cliente": "2304.00",
+  "fecha_creacion": "2026-05-14 02:00:00"
+ },
+ {
+  "id_detalle": 352,
+  "id_mora_centro": 40,
+  "id_cliente": 11113042585,
+  "pago_cliente": "648.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1425.60",
+  "total_a_pagar_cliente": "2073.60",
+  "fecha_creacion": "2026-05-15 02:00:00"
+ },
+ {
+  "id_detalle": 353,
+  "id_mora_centro": 41,
+  "id_cliente": 11112839233,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.2216",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_detalle": 354,
+  "id_mora_centro": 41,
+  "id_cliente": 11112929397,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1131",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_detalle": 355,
+  "id_mora_centro": 41,
+  "id_cliente": 11112939602,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1357",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_detalle": 356,
+  "id_mora_centro": 41,
+  "id_cliente": 11112996848,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1583",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_detalle": 357,
+  "id_mora_centro": 41,
+  "id_cliente": 11113033563,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1357",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_detalle": 358,
+  "id_mora_centro": 41,
+  "id_cliente": 11113125623,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0679",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_detalle": 359,
+  "id_mora_centro": 41,
+  "id_cliente": 11113126158,
+  "pago_cliente": "444.90",
+  "porcentaje_participacion": "0.1677",
+  "monto_multa_cliente": "978.78",
+  "total_a_pagar_cliente": "1423.68",
+  "fecha_creacion": "2026-05-18 02:00:00"
+ },
+ {
+  "id_detalle": 366,
+  "id_mora_centro": 42,
+  "id_cliente": 11112739578,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.3750",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-05-19 16:55:52"
+ },
+ {
+  "id_detalle": 367,
+  "id_mora_centro": 42,
+  "id_cliente": 11112976277,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.6250",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-05-19 16:55:52"
+ },
+ {
+  "id_detalle": 369,
+  "id_mora_centro": 43,
+  "id_cliente": 11112835706,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.4309",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-05-20 02:00:00"
+ },
+ {
+  "id_detalle": 370,
+  "id_mora_centro": 43,
+  "id_cliente": 11113033055,
+  "pago_cliente": "432.00",
+  "porcentaje_participacion": "0.2638",
+  "monto_multa_cliente": "950.40",
+  "total_a_pagar_cliente": "1382.40",
+  "fecha_creacion": "2026-05-20 02:00:00"
+ },
+ {
+  "id_detalle": 371,
+  "id_mora_centro": 43,
+  "id_cliente": 11113057488,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.1221",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-05-20 02:00:00"
+ },
+ {
+  "id_detalle": 372,
+  "id_mora_centro": 43,
+  "id_cliente": 11113098291,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.1831",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-05-20 02:00:00"
+ },
+ {
+  "id_detalle": 376,
+  "id_mora_centro": 44,
+  "id_cliente": 11112918349,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2135",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-21 02:00:00"
+ },
+ {
+  "id_detalle": 377,
+  "id_mora_centro": 44,
+  "id_cliente": 11112952934,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1314",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-05-21 02:00:00"
+ },
+ {
+  "id_detalle": 378,
+  "id_mora_centro": 44,
+  "id_cliente": 11112973962,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2135",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-21 02:00:00"
+ },
+ {
+  "id_detalle": 379,
+  "id_mora_centro": 44,
+  "id_cliente": 11113117861,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1971",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-05-21 02:00:00"
+ },
+ {
+  "id_detalle": 380,
+  "id_mora_centro": 44,
+  "id_cliente": 11113299859,
+  "pago_cliente": "893.00",
+  "porcentaje_participacion": "0.2445",
+  "monto_multa_cliente": "1964.60",
+  "total_a_pagar_cliente": "2857.60",
+  "fecha_creacion": "2026-05-21 02:00:00"
+ },
+ {
+  "id_detalle": 383,
+  "id_mora_centro": 45,
+  "id_cliente": 11113042585,
+  "pago_cliente": "648.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1425.60",
+  "total_a_pagar_cliente": "2073.60",
+  "fecha_creacion": "2026-05-22 02:00:00"
+ },
+ {
+  "id_detalle": 384,
+  "id_mora_centro": 46,
+  "id_cliente": 11112839233,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.2564",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-05-25 02:00:00"
+ },
+ {
+  "id_detalle": 385,
+  "id_mora_centro": 46,
+  "id_cliente": 11112929397,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1308",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-05-25 02:00:00"
+ },
+ {
+  "id_detalle": 386,
+  "id_mora_centro": 46,
+  "id_cliente": 11112996848,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1832",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-05-25 02:00:00"
+ },
+ {
+  "id_detalle": 387,
+  "id_mora_centro": 46,
+  "id_cliente": 11113033563,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1570",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-25 02:00:00"
+ },
+ {
+  "id_detalle": 388,
+  "id_mora_centro": 46,
+  "id_cliente": 11113125623,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0785",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-05-25 02:00:00"
+ },
+ {
+  "id_detalle": 389,
+  "id_mora_centro": 46,
+  "id_cliente": 11113126158,
+  "pago_cliente": "444.90",
+  "porcentaje_participacion": "0.1940",
+  "monto_multa_cliente": "978.78",
+  "total_a_pagar_cliente": "1423.68",
+  "fecha_creacion": "2026-05-25 02:00:00"
+ },
+ {
+  "id_detalle": 391,
+  "id_mora_centro": 47,
+  "id_cliente": 11112899272,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.5416",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-26 02:00:00"
+ },
+ {
+  "id_detalle": 392,
+  "id_mora_centro": 47,
+  "id_cliente": 11113056638,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1667",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-05-26 02:00:00"
+ },
+ {
+  "id_detalle": 393,
+  "id_mora_centro": 47,
+  "id_cliente": 11113113239,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.2917",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-05-26 02:00:00"
+ },
+ {
+  "id_detalle": 400,
+  "id_mora_centro": 48,
+  "id_cliente": 11112901756,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.2188",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-05-27 14:28:30"
+ },
+ {
+  "id_detalle": 401,
+  "id_mora_centro": 48,
+  "id_cliente": 11112933824,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1563",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-05-27 14:28:30"
+ },
+ {
+  "id_detalle": 402,
+  "id_mora_centro": 48,
+  "id_cliente": 11112973790,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.3750",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-05-27 14:28:30"
+ },
+ {
+  "id_detalle": 403,
+  "id_mora_centro": 48,
+  "id_cliente": 11113048867,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.2500",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-05-27 14:28:30"
+ },
+ {
+  "id_detalle": 407,
+  "id_mora_centro": 49,
+  "id_cliente": 11112716716,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.3636",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-05-28 02:00:02"
+ },
+ {
+  "id_detalle": 408,
+  "id_mora_centro": 49,
+  "id_cliente": 11112792952,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.3939",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-05-28 02:00:02"
+ },
+ {
+  "id_detalle": 409,
+  "id_mora_centro": 49,
+  "id_cliente": 11112952934,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.2424",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-05-28 02:00:02"
+ },
+ {
+  "id_detalle": 420,
+  "id_mora_centro": 50,
+  "id_cliente": 11112837856,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.2195",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-05-29 16:15:35"
+ },
+ {
+  "id_detalle": 421,
+  "id_mora_centro": 50,
+  "id_cliente": 11112918295,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.2195",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-05-29 16:15:35"
+ },
+ {
+  "id_detalle": 422,
+  "id_mora_centro": 50,
+  "id_cliente": 11113005465,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1464",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-05-29 16:15:35"
+ },
+ {
+  "id_detalle": 423,
+  "id_mora_centro": 50,
+  "id_cliente": 11113023238,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.1219",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-05-29 16:15:35"
+ },
+ {
+  "id_detalle": 424,
+  "id_mora_centro": 50,
+  "id_cliente": 11113042756,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.2927",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-05-29 16:15:35"
+ },
+ {
+  "id_detalle": 427,
+  "id_mora_centro": 51,
+  "id_cliente": 11112996848,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.3182",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-01 02:00:04"
+ },
+ {
+  "id_detalle": 428,
+  "id_mora_centro": 51,
+  "id_cliente": 11113125623,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.1364",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-06-01 02:00:04"
+ },
+ {
+  "id_detalle": 429,
+  "id_mora_centro": 51,
+  "id_cliente": 11113162874,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.1364",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-06-01 02:00:04"
+ },
+ {
+  "id_detalle": 430,
+  "id_mora_centro": 51,
+  "id_cliente": 11113186245,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1818",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-01 02:00:04"
+ },
+ {
+  "id_detalle": 431,
+  "id_mora_centro": 51,
+  "id_cliente": 11113189493,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.2273",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-06-01 02:00:04"
+ },
+ {
+  "id_detalle": 434,
+  "id_mora_centro": 52,
+  "id_cliente": 11112887079,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1818",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-02 02:00:04"
+ },
+ {
+  "id_detalle": 435,
+  "id_mora_centro": 52,
+  "id_cliente": 11113056638,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1818",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-02 02:00:04"
+ },
+ {
+  "id_detalle": 436,
+  "id_mora_centro": 52,
+  "id_cliente": 11113113239,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.3182",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-02 02:00:04"
+ },
+ {
+  "id_detalle": 437,
+  "id_mora_centro": 52,
+  "id_cliente": 11113192667,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.3182",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-02 02:00:04"
+ },
+ {
+  "id_detalle": 441,
+  "id_mora_centro": 53,
+  "id_cliente": 11112835706,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.6203",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-06-03 02:00:04"
+ },
+ {
+  "id_detalle": 442,
+  "id_mora_centro": 53,
+  "id_cliente": 11113033055,
+  "pago_cliente": "432.00",
+  "porcentaje_participacion": "0.3797",
+  "monto_multa_cliente": "950.40",
+  "total_a_pagar_cliente": "1382.40",
+  "fecha_creacion": "2026-06-03 02:00:04"
+ },
+ {
+  "id_detalle": 454,
+  "id_mora_centro": 54,
+  "id_cliente": 11112792766,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-06-04 18:36:26"
+ },
+ {
+  "id_detalle": 455,
+  "id_mora_centro": 55,
+  "id_cliente": 11112873397,
+  "pago_cliente": "288.00",
+  "porcentaje_participacion": "0.1333",
+  "monto_multa_cliente": "633.60",
+  "total_a_pagar_cliente": "921.60",
+  "fecha_creacion": "2026-06-05 02:00:05"
+ },
+ {
+  "id_detalle": 456,
+  "id_mora_centro": 55,
+  "id_cliente": 11112886571,
+  "pago_cliente": "504.00",
+  "porcentaje_participacion": "0.2333",
+  "monto_multa_cliente": "1108.80",
+  "total_a_pagar_cliente": "1612.80",
+  "fecha_creacion": "2026-06-05 02:00:05"
+ },
+ {
+  "id_detalle": 457,
+  "id_mora_centro": 55,
+  "id_cliente": 11112988424,
+  "pago_cliente": "432.00",
+  "porcentaje_participacion": "0.2000",
+  "monto_multa_cliente": "950.40",
+  "total_a_pagar_cliente": "1382.40",
+  "fecha_creacion": "2026-06-05 02:00:05"
+ },
+ {
+  "id_detalle": 458,
+  "id_mora_centro": 55,
+  "id_cliente": 11113018670,
+  "pago_cliente": "288.00",
+  "porcentaje_participacion": "0.1333",
+  "monto_multa_cliente": "633.60",
+  "total_a_pagar_cliente": "921.60",
+  "fecha_creacion": "2026-06-05 02:00:05"
+ },
+ {
+  "id_detalle": 459,
+  "id_mora_centro": 55,
+  "id_cliente": 11113042585,
+  "pago_cliente": "648.00",
+  "porcentaje_participacion": "0.3000",
+  "monto_multa_cliente": "1425.60",
+  "total_a_pagar_cliente": "2073.60",
+  "fecha_creacion": "2026-06-05 02:00:05"
+ },
+ {
+  "id_detalle": 462,
+  "id_mora_centro": 56,
+  "id_cliente": 11112996848,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.3182",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-08 02:00:02"
+ },
+ {
+  "id_detalle": 463,
+  "id_mora_centro": 56,
+  "id_cliente": 11113125623,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.1364",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-06-08 02:00:02"
+ },
+ {
+  "id_detalle": 464,
+  "id_mora_centro": 56,
+  "id_cliente": 11113162874,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.1364",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-06-08 02:00:02"
+ },
+ {
+  "id_detalle": 465,
+  "id_mora_centro": 56,
+  "id_cliente": 11113186245,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1818",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-08 02:00:02"
+ },
+ {
+  "id_detalle": 466,
+  "id_mora_centro": 56,
+  "id_cliente": 11113189493,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.2273",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-06-08 02:00:02"
+ },
+ {
+  "id_detalle": 469,
+  "id_mora_centro": 57,
+  "id_cliente": 11112887079,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1818",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-09 02:00:02"
+ },
+ {
+  "id_detalle": 470,
+  "id_mora_centro": 57,
+  "id_cliente": 11113056638,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1818",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-09 02:00:02"
+ },
+ {
+  "id_detalle": 471,
+  "id_mora_centro": 57,
+  "id_cliente": 11113113239,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.3182",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-09 02:00:02"
+ },
+ {
+  "id_detalle": 472,
+  "id_mora_centro": 57,
+  "id_cliente": 11113192667,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.3182",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-09 02:00:02"
+ },
+ {
+  "id_detalle": 476,
+  "id_mora_centro": 58,
+  "id_cliente": 11112835706,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.6203",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-06-10 02:00:03"
+ },
+ {
+  "id_detalle": 477,
+  "id_mora_centro": 58,
+  "id_cliente": 11113033055,
+  "pago_cliente": "432.00",
+  "porcentaje_participacion": "0.3797",
+  "monto_multa_cliente": "950.40",
+  "total_a_pagar_cliente": "1382.40",
+  "fecha_creacion": "2026-06-10 02:00:03"
+ },
+ {
+  "id_detalle": 479,
+  "id_mora_centro": 59,
+  "id_cliente": 11112716716,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1964",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-06-11 02:00:03"
+ },
+ {
+  "id_detalle": 480,
+  "id_mora_centro": 59,
+  "id_cliente": 11112792952,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2128",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-06-11 02:00:03"
+ },
+ {
+  "id_detalle": 481,
+  "id_mora_centro": 59,
+  "id_cliente": 11112847319,
+  "pago_cliente": "964.90",
+  "porcentaje_participacion": "0.2633",
+  "monto_multa_cliente": "2122.78",
+  "total_a_pagar_cliente": "3087.68",
+  "fecha_creacion": "2026-06-11 02:00:03"
+ },
+ {
+  "id_detalle": 482,
+  "id_mora_centro": 59,
+  "id_cliente": 11113102023,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1964",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-06-11 02:00:03"
+ },
+ {
+  "id_detalle": 483,
+  "id_mora_centro": 59,
+  "id_cliente": 11113115541,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1310",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-06-11 02:00:03"
+ },
+ {
+  "id_detalle": 510,
+  "id_mora_centro": 60,
+  "id_cliente": 11112862917,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.3871",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-06-12 13:41:14"
+ },
+ {
+  "id_detalle": 511,
+  "id_mora_centro": 60,
+  "id_cliente": 11112974293,
+  "pago_cliente": "569.90",
+  "porcentaje_participacion": "0.6129",
+  "monto_multa_cliente": "1253.78",
+  "total_a_pagar_cliente": "1823.68",
+  "fecha_creacion": "2026-06-12 13:41:14"
+ },
+ {
+  "id_detalle": 513,
+  "id_mora_centro": 61,
+  "id_cliente": 11112996848,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1944",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_detalle": 514,
+  "id_mora_centro": 61,
+  "id_cliente": 11113106411,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1667",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_detalle": 515,
+  "id_mora_centro": 61,
+  "id_cliente": 11113125623,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0833",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_detalle": 516,
+  "id_mora_centro": 61,
+  "id_cliente": 11113162874,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0833",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_detalle": 517,
+  "id_mora_centro": 61,
+  "id_cliente": 11113186245,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1111",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_detalle": 518,
+  "id_mora_centro": 61,
+  "id_cliente": 11113189493,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1389",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_detalle": 519,
+  "id_mora_centro": 61,
+  "id_cliente": 11113202376,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.2222",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-06-15 02:00:05"
+ },
+ {
+  "id_detalle": 548,
+  "id_mora_centro": 62,
+  "id_cliente": 11112863299,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.3444",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-06-16 06:31:27"
+ },
+ {
+  "id_detalle": 549,
+  "id_mora_centro": 62,
+  "id_cliente": 11112914985,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.1531",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-16 06:31:27"
+ },
+ {
+  "id_detalle": 550,
+  "id_mora_centro": 62,
+  "id_cliente": 11112998182,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.3750",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-06-16 06:31:27"
+ },
+ {
+  "id_detalle": 551,
+  "id_mora_centro": 62,
+  "id_cliente": 11113168985,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.1276",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-06-16 06:31:27"
+ },
+ {
+  "id_detalle": 555,
+  "id_mora_centro": 63,
+  "id_cliente": 11112835706,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.6203",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-06-17 02:00:07"
+ },
+ {
+  "id_detalle": 556,
+  "id_mora_centro": 63,
+  "id_cliente": 11113033055,
+  "pago_cliente": "432.00",
+  "porcentaje_participacion": "0.3797",
+  "monto_multa_cliente": "950.40",
+  "total_a_pagar_cliente": "1382.40",
+  "fecha_creacion": "2026-06-17 02:00:07"
+ },
+ {
+  "id_detalle": 558,
+  "id_mora_centro": 64,
+  "id_cliente": 11112716716,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1665",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_detalle": 559,
+  "id_mora_centro": 64,
+  "id_cliente": 11112792952,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.1803",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_detalle": 560,
+  "id_mora_centro": 64,
+  "id_cliente": 11112847319,
+  "pago_cliente": "964.90",
+  "porcentaje_participacion": "0.2231",
+  "monto_multa_cliente": "2122.78",
+  "total_a_pagar_cliente": "3087.68",
+  "fecha_creacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_detalle": 561,
+  "id_mora_centro": 64,
+  "id_cliente": 11113053166,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1110",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_detalle": 562,
+  "id_mora_centro": 64,
+  "id_cliente": 11113069896,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0416",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_detalle": 563,
+  "id_mora_centro": 64,
+  "id_cliente": 11113102023,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1665",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_detalle": 564,
+  "id_mora_centro": 64,
+  "id_cliente": 11113115541,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1110",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-06-18 02:00:07"
+ },
+ {
+  "id_detalle": 565,
+  "id_mora_centro": 65,
+  "id_cliente": 11112862917,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.2449",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-06-19 02:00:05"
+ },
+ {
+  "id_detalle": 566,
+  "id_mora_centro": 65,
+  "id_cliente": 11112974293,
+  "pago_cliente": "569.90",
+  "porcentaje_participacion": "0.3877",
+  "monto_multa_cliente": "1253.78",
+  "total_a_pagar_cliente": "1823.68",
+  "fecha_creacion": "2026-06-19 02:00:05"
+ },
+ {
+  "id_detalle": 567,
+  "id_mora_centro": 65,
+  "id_cliente": 11113097725,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.3674",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-06-19 02:00:05"
+ },
+ {
+  "id_detalle": 582,
+  "id_mora_centro": 66,
+  "id_cliente": 11112839763,
+  "pago_cliente": "1022.50",
+  "porcentaje_participacion": "0.6397",
+  "monto_multa_cliente": "2249.50",
+  "total_a_pagar_cliente": "3272.00",
+  "fecha_creacion": "2026-06-22 17:09:28"
+ },
+ {
+  "id_detalle": 583,
+  "id_mora_centro": 66,
+  "id_cliente": 11113004468,
+  "pago_cliente": "288.00",
+  "porcentaje_participacion": "0.1802",
+  "monto_multa_cliente": "633.60",
+  "total_a_pagar_cliente": "921.60",
+  "fecha_creacion": "2026-06-22 17:09:28"
+ },
+ {
+  "id_detalle": 584,
+  "id_mora_centro": 66,
+  "id_cliente": 11113174457,
+  "pago_cliente": "288.00",
+  "porcentaje_participacion": "0.1802",
+  "monto_multa_cliente": "633.60",
+  "total_a_pagar_cliente": "921.60",
+  "fecha_creacion": "2026-06-22 17:09:28"
+ },
+ {
+  "id_detalle": 591,
+  "id_mora_centro": 67,
+  "id_cliente": 11113046199,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-23 14:29:05"
+ },
+ {
+  "id_detalle": 594,
+  "id_mora_centro": 68,
+  "id_cliente": 11112931340,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.2500",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-06-24 02:00:02"
+ },
+ {
+  "id_detalle": 595,
+  "id_mora_centro": 68,
+  "id_cliente": 11112934778,
+  "pago_cliente": "587.95",
+  "porcentaje_participacion": "0.2500",
+  "monto_multa_cliente": "1293.49",
+  "total_a_pagar_cliente": "1881.44",
+  "fecha_creacion": "2026-06-24 02:00:02"
+ },
+ {
+  "id_detalle": 596,
+  "id_mora_centro": 68,
+  "id_cliente": 11112996211,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.2500",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-06-24 02:00:02"
+ },
+ {
+  "id_detalle": 597,
+  "id_mora_centro": 68,
+  "id_cliente": 11113129537,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.2500",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-06-24 02:00:02"
+ },
+ {
+  "id_detalle": 629,
+  "id_mora_centro": 69,
+  "id_cliente": 11112801054,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1431",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-06-25 16:20:31"
+ },
+ {
+  "id_detalle": 630,
+  "id_mora_centro": 69,
+  "id_cliente": 11112882874,
+  "pago_cliente": "416.00",
+  "porcentaje_participacion": "0.1417",
+  "monto_multa_cliente": "915.20",
+  "total_a_pagar_cliente": "1331.20",
+  "fecha_creacion": "2026-06-25 16:20:31"
+ },
+ {
+  "id_detalle": 631,
+  "id_mora_centro": 69,
+  "id_cliente": 11112956989,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.2657",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-06-25 16:20:31"
+ },
+ {
+  "id_detalle": 632,
+  "id_mora_centro": 69,
+  "id_cliente": 11112963613,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.2452",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-06-25 16:20:31"
+ },
+ {
+  "id_detalle": 633,
+  "id_mora_centro": 69,
+  "id_cliente": 11113046154,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.1022",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-06-25 16:20:31"
+ },
+ {
+  "id_detalle": 634,
+  "id_mora_centro": 69,
+  "id_cliente": 11113113052,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.1022",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-06-25 16:20:31"
+ },
+ {
+  "id_detalle": 636,
+  "id_mora_centro": 70,
+  "id_cliente": 11112862917,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1446",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-06-26 02:00:09"
+ },
+ {
+  "id_detalle": 637,
+  "id_mora_centro": 70,
+  "id_cliente": 11112972833,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1205",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-06-26 02:00:09"
+ },
+ {
+  "id_detalle": 638,
+  "id_mora_centro": 70,
+  "id_cliente": 11112974293,
+  "pago_cliente": "569.90",
+  "porcentaje_participacion": "0.2289",
+  "monto_multa_cliente": "1253.78",
+  "total_a_pagar_cliente": "1823.68",
+  "fecha_creacion": "2026-06-26 02:00:09"
+ },
+ {
+  "id_detalle": 639,
+  "id_mora_centro": 70,
+  "id_cliente": 11113023238,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.2891",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-06-26 02:00:09"
+ },
+ {
+  "id_detalle": 640,
+  "id_mora_centro": 70,
+  "id_cliente": 11113097725,
+  "pago_cliente": "540.00",
+  "porcentaje_participacion": "0.2169",
+  "monto_multa_cliente": "1188.00",
+  "total_a_pagar_cliente": "1728.00",
+  "fecha_creacion": "2026-06-26 02:00:09"
+ },
+ {
+  "id_detalle": 673,
+  "id_mora_centro": 71,
+  "id_cliente": 11112839763,
+  "pago_cliente": "446.50",
+  "porcentaje_participacion": "0.3652",
+  "monto_multa_cliente": "982.30",
+  "total_a_pagar_cliente": "1428.80",
+  "fecha_creacion": "2026-06-29 16:37:38"
+ },
+ {
+  "id_detalle": 674,
+  "id_mora_centro": 71,
+  "id_cliente": 11113004468,
+  "pago_cliente": "288.00",
+  "porcentaje_participacion": "0.2356",
+  "monto_multa_cliente": "633.60",
+  "total_a_pagar_cliente": "921.60",
+  "fecha_creacion": "2026-06-29 16:37:38"
+ },
+ {
+  "id_detalle": 675,
+  "id_mora_centro": 71,
+  "id_cliente": 11113006480,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.1636",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-06-29 16:37:38"
+ },
+ {
+  "id_detalle": 676,
+  "id_mora_centro": 71,
+  "id_cliente": 11113174457,
+  "pago_cliente": "288.00",
+  "porcentaje_participacion": "0.2356",
+  "monto_multa_cliente": "633.60",
+  "total_a_pagar_cliente": "921.60",
+  "fecha_creacion": "2026-06-29 16:37:38"
+ },
+ {
+  "id_detalle": 686,
+  "id_mora_centro": 72,
+  "id_cliente": 11112874979,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.6000",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-06-30 06:08:38"
+ },
+ {
+  "id_detalle": 687,
+  "id_mora_centro": 72,
+  "id_cliente": 11112914985,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.4000",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-06-30 06:08:38"
+ },
+ {
+  "id_detalle": 689,
+  "id_mora_centro": 73,
+  "id_cliente": 11112954434,
+  "pago_cliente": "936.00",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "2059.20",
+  "total_a_pagar_cliente": "2995.20",
+  "fecha_creacion": "2026-07-01 02:00:04"
+ },
+ {
+  "id_detalle": 750,
+  "id_mora_centro": 74,
+  "id_cliente": 11112801054,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.1047",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 751,
+  "id_mora_centro": 74,
+  "id_cliente": 11112882874,
+  "pago_cliente": "416.00",
+  "porcentaje_participacion": "0.1037",
+  "monto_multa_cliente": "915.20",
+  "total_a_pagar_cliente": "1331.20",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 752,
+  "id_mora_centro": 74,
+  "id_cliente": 11112924530,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1466",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 753,
+  "id_mora_centro": 74,
+  "id_cliente": 11112956989,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.1944",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 754,
+  "id_mora_centro": 74,
+  "id_cliente": 11112963613,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.1795",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 755,
+  "id_mora_centro": 74,
+  "id_cliente": 11113081447,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0499",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 756,
+  "id_mora_centro": 74,
+  "id_cliente": 11113113052,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.0748",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 757,
+  "id_mora_centro": 74,
+  "id_cliente": 11113184661,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1466",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-07-02 16:23:16"
+ },
+ {
+  "id_detalle": 779,
+  "id_mora_centro": 75,
+  "id_cliente": 11112777460,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.0880",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 780,
+  "id_mora_centro": 75,
+  "id_cliente": 11112806809,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0270",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 781,
+  "id_mora_centro": 75,
+  "id_cliente": 11112893766,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.1168",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 782,
+  "id_mora_centro": 75,
+  "id_cliente": 11112895952,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.0880",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 783,
+  "id_mora_centro": 75,
+  "id_cliente": 11112911821,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0270",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 784,
+  "id_mora_centro": 75,
+  "id_cliente": 11112914791,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0270",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 785,
+  "id_mora_centro": 75,
+  "id_cliente": 11112925822,
+  "pago_cliente": "320.00",
+  "porcentaje_participacion": "0.0479",
+  "monto_multa_cliente": "704.01",
+  "total_a_pagar_cliente": "1024.01",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 786,
+  "id_mora_centro": 75,
+  "id_cliente": 11112994198,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0270",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 787,
+  "id_mora_centro": 75,
+  "id_cliente": 11113007902,
+  "pago_cliente": "357.20",
+  "porcentaje_participacion": "0.0535",
+  "monto_multa_cliente": "785.84",
+  "total_a_pagar_cliente": "1143.04",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 788,
+  "id_mora_centro": 75,
+  "id_cliente": 11113023526,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0270",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 789,
+  "id_mora_centro": 75,
+  "id_cliente": 11113037690,
+  "pago_cliente": "420.00",
+  "porcentaje_participacion": "0.0629",
+  "monto_multa_cliente": "924.00",
+  "total_a_pagar_cliente": "1344.00",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 790,
+  "id_mora_centro": 75,
+  "id_cliente": 11113072620,
+  "pago_cliente": "839.90",
+  "porcentaje_participacion": "0.1258",
+  "monto_multa_cliente": "1847.77",
+  "total_a_pagar_cliente": "2687.67",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 791,
+  "id_mora_centro": 75,
+  "id_cliente": 11113098282,
+  "pago_cliente": "659.90",
+  "porcentaje_participacion": "0.0988",
+  "monto_multa_cliente": "1451.78",
+  "total_a_pagar_cliente": "2111.68",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 792,
+  "id_mora_centro": 75,
+  "id_cliente": 11113242625,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.1168",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 793,
+  "id_mora_centro": 75,
+  "id_cliente": 11113315176,
+  "pago_cliente": "446.50",
+  "porcentaje_participacion": "0.0669",
+  "monto_multa_cliente": "982.30",
+  "total_a_pagar_cliente": "1428.80",
+  "fecha_creacion": "2026-07-03 14:29:22"
+ },
+ {
+  "id_detalle": 794,
+  "id_mora_centro": 76,
+  "id_cliente": 11112807935,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0519",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 795,
+  "id_mora_centro": 76,
+  "id_cliente": 11112839233,
+  "pago_cliente": "357.20",
+  "porcentaje_participacion": "0.1031",
+  "monto_multa_cliente": "785.84",
+  "total_a_pagar_cliente": "1143.04",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 796,
+  "id_mora_centro": 76,
+  "id_cliente": 11112925238,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.1697",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 797,
+  "id_mora_centro": 76,
+  "id_cliente": 11112935428,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.0693",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 798,
+  "id_mora_centro": 76,
+  "id_cliente": 11112996352,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0519",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 799,
+  "id_mora_centro": 76,
+  "id_cliente": 11113034548,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1385",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 800,
+  "id_mora_centro": 76,
+  "id_cliente": 11113052056,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0577",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 801,
+  "id_mora_centro": 76,
+  "id_cliente": 11113102113,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0577",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 802,
+  "id_mora_centro": 76,
+  "id_cliente": 11113106411,
+  "pago_cliente": "560.00",
+  "porcentaje_participacion": "0.1616",
+  "monto_multa_cliente": "1232.00",
+  "total_a_pagar_cliente": "1792.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 803,
+  "id_mora_centro": 76,
+  "id_cliente": 11113202376,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.1385",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-07-06 02:00:09"
+ },
+ {
+  "id_detalle": 809,
+  "id_mora_centro": 77,
+  "id_cliente": 11112938595,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.2631",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-07 02:00:09"
+ },
+ {
+  "id_detalle": 810,
+  "id_mora_centro": 77,
+  "id_cliente": 11112973194,
+  "pago_cliente": "839.90",
+  "porcentaje_participacion": "0.7369",
+  "monto_multa_cliente": "1847.78",
+  "total_a_pagar_cliente": "2687.68",
+  "fecha_creacion": "2026-07-07 02:00:09"
+ },
+ {
+  "id_detalle": 818,
+  "id_mora_centro": 78,
+  "id_cliente": 11112931340,
+  "pago_cliente": "987.80",
+  "porcentaje_participacion": "0.6269",
+  "monto_multa_cliente": "2173.16",
+  "total_a_pagar_cliente": "3160.96",
+  "fecha_creacion": "2026-07-08 18:42:08"
+ },
+ {
+  "id_detalle": 819,
+  "id_mora_centro": 78,
+  "id_cliente": 11112952009,
+  "pago_cliente": "587.90",
+  "porcentaje_participacion": "0.3731",
+  "monto_multa_cliente": "1293.38",
+  "total_a_pagar_cliente": "1881.28",
+  "fecha_creacion": "2026-07-08 18:42:08"
+ },
+ {
+  "id_detalle": 821,
+  "id_mora_centro": 79,
+  "id_cliente": 11112724518,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-07-09 02:00:05"
+ },
+ {
+  "id_detalle": 822,
+  "id_mora_centro": 80,
+  "id_cliente": 11112837856,
+  "pago_cliente": "446.50",
+  "porcentaje_participacion": "0.2100",
+  "monto_multa_cliente": "982.30",
+  "total_a_pagar_cliente": "1428.80",
+  "fecha_creacion": "2026-07-10 02:00:05"
+ },
+ {
+  "id_detalle": 823,
+  "id_mora_centro": 80,
+  "id_cliente": 11112918295,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.1410",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-10 02:00:05"
+ },
+ {
+  "id_detalle": 824,
+  "id_mora_centro": 80,
+  "id_cliente": 11112952328,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1693",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-07-10 02:00:05"
+ },
+ {
+  "id_detalle": 825,
+  "id_mora_centro": 80,
+  "id_cliente": 11112972833,
+  "pago_cliente": "300.00",
+  "porcentaje_participacion": "0.1411",
+  "monto_multa_cliente": "660.00",
+  "total_a_pagar_cliente": "960.00",
+  "fecha_creacion": "2026-07-10 02:00:05"
+ },
+ {
+  "id_detalle": 826,
+  "id_mora_centro": 80,
+  "id_cliente": 11113023238,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.3386",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-07-10 02:00:05"
+ },
+ {
+  "id_detalle": 829,
+  "id_mora_centro": 81,
+  "id_cliente": 11112807935,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0764",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 830,
+  "id_mora_centro": 81,
+  "id_cliente": 11112839233,
+  "pago_cliente": "357.20",
+  "porcentaje_participacion": "0.1515",
+  "monto_multa_cliente": "785.84",
+  "total_a_pagar_cliente": "1143.04",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 831,
+  "id_mora_centro": 81,
+  "id_cliente": 11112941078,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0848",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 832,
+  "id_mora_centro": 81,
+  "id_cliente": 11112996352,
+  "pago_cliente": "180.00",
+  "porcentaje_participacion": "0.0764",
+  "monto_multa_cliente": "396.00",
+  "total_a_pagar_cliente": "576.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 833,
+  "id_mora_centro": 81,
+  "id_cliente": 11113034548,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.2036",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 834,
+  "id_mora_centro": 81,
+  "id_cliente": 11113052056,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0848",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 835,
+  "id_mora_centro": 81,
+  "id_cliente": 11113102113,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0848",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 836,
+  "id_mora_centro": 81,
+  "id_cliente": 11113106411,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.0848",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 837,
+  "id_mora_centro": 81,
+  "id_cliente": 11113232046,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1527",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-07-13 02:00:07"
+ },
+ {
+  "id_detalle": 844,
+  "id_mora_centro": 82,
+  "id_cliente": 11112938595,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.2631",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-14 02:00:07"
+ },
+ {
+  "id_detalle": 845,
+  "id_mora_centro": 82,
+  "id_cliente": 11112973194,
+  "pago_cliente": "839.90",
+  "porcentaje_participacion": "0.7369",
+  "monto_multa_cliente": "1847.78",
+  "total_a_pagar_cliente": "2687.68",
+  "fecha_creacion": "2026-07-14 02:00:07"
+ },
+ {
+  "id_detalle": 847,
+  "id_mora_centro": 83,
+  "id_cliente": 11112979148,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "1.0000",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-07-15 02:00:06"
+ },
+ {
+  "id_detalle": 848,
+  "id_mora_centro": 84,
+  "id_cliente": 11112724518,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.5217",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-07-16 02:00:06"
+ },
+ {
+  "id_detalle": 849,
+  "id_mora_centro": 84,
+  "id_cliente": 11113209269,
+  "pago_cliente": "659.90",
+  "porcentaje_participacion": "0.4783",
+  "monto_multa_cliente": "1451.78",
+  "total_a_pagar_cliente": "2111.68",
+  "fecha_creacion": "2026-07-16 02:00:06"
+ },
+ {
+  "id_detalle": 851,
+  "id_mora_centro": 85,
+  "id_cliente": 11112837856,
+  "pago_cliente": "446.50",
+  "porcentaje_participacion": "0.2367",
+  "monto_multa_cliente": "982.30",
+  "total_a_pagar_cliente": "1428.80",
+  "fecha_creacion": "2026-07-17 02:00:07"
+ },
+ {
+  "id_detalle": 852,
+  "id_mora_centro": 85,
+  "id_cliente": 11112918295,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.1590",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-17 02:00:07"
+ },
+ {
+  "id_detalle": 853,
+  "id_mora_centro": 85,
+  "id_cliente": 11112952328,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.1909",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-07-17 02:00:07"
+ },
+ {
+  "id_detalle": 854,
+  "id_mora_centro": 85,
+  "id_cliente": 11113042756,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.2545",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-07-17 02:00:07"
+ },
+ {
+  "id_detalle": 855,
+  "id_mora_centro": 85,
+  "id_cliente": 11113082146,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.1590",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-17 02:00:07"
+ },
+ {
+  "id_detalle": 858,
+  "id_mora_centro": 86,
+  "id_cliente": 11112941078,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.1786",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-20 02:00:05"
+ },
+ {
+  "id_detalle": 859,
+  "id_mora_centro": 86,
+  "id_cliente": 11113052056,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.3214",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-07-20 02:00:05"
+ },
+ {
+  "id_detalle": 860,
+  "id_mora_centro": 86,
+  "id_cliente": 11113102113,
+  "pago_cliente": "200.00",
+  "porcentaje_participacion": "0.1786",
+  "monto_multa_cliente": "440.00",
+  "total_a_pagar_cliente": "640.00",
+  "fecha_creacion": "2026-07-20 02:00:05"
+ },
+ {
+  "id_detalle": 861,
+  "id_mora_centro": 86,
+  "id_cliente": 11113232046,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.3214",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-07-20 02:00:05"
+ },
+ {
+  "id_detalle": 865,
+  "id_mora_centro": 87,
+  "id_cliente": 11112858472,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.7500",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-07-21 02:00:06"
+ },
+ {
+  "id_detalle": 866,
+  "id_mora_centro": 87,
+  "id_cliente": 11113265056,
+  "pago_cliente": "240.00",
+  "porcentaje_participacion": "0.2500",
+  "monto_multa_cliente": "528.00",
+  "total_a_pagar_cliente": "768.00",
+  "fecha_creacion": "2026-07-21 02:00:06"
+ },
+ {
+  "id_detalle": 868,
+  "id_mora_centro": 88,
+  "id_cliente": 11112947297,
+  "pago_cliente": "288.00",
+  "porcentaje_participacion": "0.2899",
+  "monto_multa_cliente": "633.60",
+  "total_a_pagar_cliente": "921.60",
+  "fecha_creacion": "2026-07-22 02:00:07"
+ },
+ {
+  "id_detalle": 869,
+  "id_mora_centro": 88,
+  "id_cliente": 11112979148,
+  "pago_cliente": "705.60",
+  "porcentaje_participacion": "0.7101",
+  "monto_multa_cliente": "1552.32",
+  "total_a_pagar_cliente": "2257.92",
+  "fecha_creacion": "2026-07-22 02:00:07"
+ },
+ {
+  "id_detalle": 871,
+  "id_mora_centro": 89,
+  "id_cliente": 11113115541,
+  "pago_cliente": "719.90",
+  "porcentaje_participacion": "0.3333",
+  "monto_multa_cliente": "1583.78",
+  "total_a_pagar_cliente": "2303.68",
+  "fecha_creacion": "2026-07-23 02:00:07"
+ },
+ {
+  "id_detalle": 872,
+  "id_mora_centro": 89,
+  "id_cliente": 11113209269,
+  "pago_cliente": "659.90",
+  "porcentaje_participacion": "0.3056",
+  "monto_multa_cliente": "1451.78",
+  "total_a_pagar_cliente": "2111.68",
+  "fecha_creacion": "2026-07-23 02:00:07"
+ },
+ {
+  "id_detalle": 873,
+  "id_mora_centro": 89,
+  "id_cliente": 11113299859,
+  "pago_cliente": "779.90",
+  "porcentaje_participacion": "0.3611",
+  "monto_multa_cliente": "1715.78",
+  "total_a_pagar_cliente": "2495.68",
+  "fecha_creacion": "2026-07-23 02:00:07"
+ },
+ {
+  "id_detalle": 874,
+  "id_mora_centro": 90,
+  "id_cliente": 11112918295,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.2083",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-24 02:00:06"
+ },
+ {
+  "id_detalle": 875,
+  "id_mora_centro": 90,
+  "id_cliente": 11112952328,
+  "pago_cliente": "360.00",
+  "porcentaje_participacion": "0.2500",
+  "monto_multa_cliente": "792.00",
+  "total_a_pagar_cliente": "1152.00",
+  "fecha_creacion": "2026-07-24 02:00:06"
+ },
+ {
+  "id_detalle": 876,
+  "id_mora_centro": 90,
+  "id_cliente": 11113042756,
+  "pago_cliente": "480.00",
+  "porcentaje_participacion": "0.3334",
+  "monto_multa_cliente": "1056.00",
+  "total_a_pagar_cliente": "1536.00",
+  "fecha_creacion": "2026-07-24 02:00:06"
+ },
+ {
+  "id_detalle": 877,
+  "id_mora_centro": 90,
+  "id_cliente": 11113082146,
+  "pago_cliente": "299.90",
+  "porcentaje_participacion": "0.2083",
+  "monto_multa_cliente": "659.78",
+  "total_a_pagar_cliente": "959.68",
+  "fecha_creacion": "2026-07-24 02:00:06"
+ }
+]

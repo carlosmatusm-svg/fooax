@@ -1,0 +1,30 @@
+﻿id_config,id_linea_credito,tipo,monto_minimo,monto_maximo,estatus,incremento_monto,frecuencia,metodo_amortizacion
+4,5,Grupal,3000.00,12000.00,Activo,2000.00,Semanal,uniforme
+5,5,Grupal-Basico,3000.00,15000.00,Activo,100.00,Semanal,uniforme
+6,5,Grupal-Basico 2,3000.00,15000.00,Activo,200.00,Semanal,uniforme
+8,5,Gruapl-Micro 1,8000.00,25000.00,Activo,1000.00,Semanal,uniforme
+9,5,Grupal-Adicional,1000.00,4000.00,Activo,500.00,Semanal,uniforme
+11,5,Grupal-Microcrédito,10000.00,45000.00,Activo,2500.00,Semanal,uniforme
+12,6,INDIVIDUAL 1,4000.00,5000.00,Activo,1000.00,Semanal,uniforme
+14,6,INDIVIDUAL 1-1,4000.00,5000.00,Activo,1000.00,Semanal,uniforme
+15,6,INDIVIDUAL 1-2,4000.00,5000.00,Activo,1000.00,Semanal,uniforme
+16,6,INDIVIDUAL 2,6000.00,7000.00,Activo,1000.00,Semanal,uniforme
+17,6,INDIVIDUAL 2-1,6000.00,7000.00,Activo,1000.00,Semanal,uniforme
+18,6,INDIVIDUAL 2-2,6000.00,7000.00,Activo,1000.00,Semanal,uniforme
+19,6,INDIVIDUAL 3,9000.00,10000.00,Activo,1000.00,Semanal,uniforme
+21,6,INDIVIDUAL 3-1,9000.00,10000.00,Activo,1000.00,Semanal,uniforme
+23,6,INDIVIDUAL 3-2,9000.00,10000.00,Inactivo,1000.00,Semanal,uniforme
+24,6,INDIVIDUAL 4,11000.00,12000.00,Activo,1000.00,Semanal,uniforme
+25,6,INDIVIDUAL 4-1,11000.00,12000.00,Activo,1000.00,Semanal,uniforme
+26,6,INDIVIDUAL 4-2,11000.00,12000.00,Activo,1000.00,Semanal,uniforme
+27,6,INDIVIDUAL 5,13000.00,15000.00,Activo,1000.00,Semanal,uniforme
+28,6,INDIVIDUAL 5-1,13000.00,15000.00,Activo,1000.00,Semanal,uniforme
+29,6,INDIVIDUAL 5-2,13000.00,15000.00,Activo,1000.00,Semanal,uniforme
+33,6,FOXI PLUS-1,15000.00,50000.00,Activo,1000.00,Semanal,uniforme
+34,6,FOXI PLUS-2,15000.00,70000.00,Activo,1000.00,Semanal,uniforme
+36,5,MICRO-ESPECIAL,20000.00,45000.00,Activo,1000.00,Semanal,uniforme
+38,5,Grupal-Micro 2,8000.00,20000.00,Activo,1000.00,Semanal,uniforme
+39,5,PRODUCTO-MOTOTAXI,20000.00,300000.00,Activo,1000.00,Semanal,uniforme
+40,7,Microcrédito-Comunitario,1000.00,40000.00,Activo,500.00,Semanal,uniforme
+41,8,CCF02,10000.00,80000.00,Activo,1000.00,Mensual,uniforme
+42,9,CCF03,20000.00,300000.00,Activo,5000.00,Mensual,saldo_insoluto

@@ -1,0 +1,74 @@
+RESPALDO DEL SISTEMA ESHLIDER
+Fecha del respaldo : 2026-07-25T05:39:39.041Z
+Origen             : hayabusa.proxy.rlwy.net:21166/railway
+Tablas respaldadas : 61
+
+ENTREGA/  contiene lo que pidio la Gerencia de Administracion y Finanzas:
+  - garantias-2026-04-01_a_2026-05-31.csv   (movimientos de garantia del periodo)
+  - garantias-resumen-por-mes.csv        (totales por mes y tipo)
+  - entrevistas-credito/                 (expediente socioeconomico completo)
+
+respaldo-completo/  es la base entera, tabla por tabla, en JSON y CSV.
+
+REGISTROS POR TABLA
+  active_sessions                           6
+  ahorros                                 473
+  ajustes_redondeo                        800
+  alert_threshold                           1
+  archivos                                628
+  auditoria                             12665
+  auditoria_detallada                       0
+  avales                                  162
+  beneficiarios                           597
+  capital                                   1
+  centros                                  62
+  clientes                                659
+  configprestamos                          29
+  configuracion_auditoria                   5
+  configuracion_sistema                     6
+  descargas                               426
+  diferencias_redondeo                    151
+  error_logs                                3
+  estados_transaccion                       5
+  familiares                              592
+  ga_alertas_eventos                      100
+  ga_alertas_politica                      11
+  ga_alertas_politica_historial             0
+  ga_alertas_procedidas                   263
+  ga_config_sistema                         1
+  grupo_clientes                          598
+  grupos                                  155
+  historial_capital                      7765
+  historial_cartera                         0
+  ingresos                                592
+  linea_credito                             5
+  lista_negra                               0
+  loan_assistance_requests                268
+  login_history                           905
+  logs_cartera_proceso                      0
+  mora                                   5800
+  mora_centro                              90
+  mora_centro_detalle                     334
+  moraconfig                                1
+  movimientos                            9768
+  movimientos_ahorros                    4372
+  muebles                                   0
+  notificacion                           5022
+  notificaciones_sistema                 1412
+  pagares                                 323
+  pagos                                 26330
+  pagos_incompletos                        62
+  pagos_mora_detalle                        0
+  plazos                                   28
+  prestamos                              1094
+  prestamos_grupales                      362
+  references                              593
+  renovaciones                              0
+  role_module_access                       60
+  roles                                     5
+  scheduler_config                          2
+  sucursales                                1
+  tickets_deposito                         56
+  tipos_movimiento                         11
+  usuarios                                 14
+  vivendas                                593

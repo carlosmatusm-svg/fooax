@@ -1,0 +1,6 @@
+﻿id_estado,codigo,nombre,descripcion,color,activo,fecha_creacion
+1,PENDIENTE,Pendiente,Movimiento registrado pero pendiente de confirmación,#F59E0B,1,2025-09-20 17:06:27
+2,CONFIRMADO,Confirmado,Movimiento confirmado y aplicado al capital,#10B981,1,2025-09-20 17:06:27
+3,CANCELADO,Cancelado,Movimiento cancelado,#EF4444,1,2025-09-20 17:06:27
+4,REVISION,En Revisión,Movimiento en proceso de revisión,#8B5CF6,1,2025-09-20 17:06:27
+5,AUTORIZADO,Autorizado,Movimiento autorizado pero no aplicado,#3B82F6,1,2025-09-20 17:06:27

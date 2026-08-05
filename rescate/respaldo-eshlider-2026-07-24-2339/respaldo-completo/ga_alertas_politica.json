@@ -1,0 +1,101 @@
+[
+ {
+  "codigo_alerta": "DEPOSITO_PRESTAMO_INACTIVO",
+  "etiqueta": "Depósito con préstamo inactivo",
+  "grupo": "deposito",
+  "modo": "bloqueo",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-25 18:58:37"
+ },
+ {
+  "codigo_alerta": "DEPOSITO_PRESTAMO_NO_VIGENTE",
+  "etiqueta": "Depósito con préstamo no vigente",
+  "grupo": "deposito",
+  "modo": "advertencia",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:44"
+ },
+ {
+  "codigo_alerta": "DEPOSITO_PRESTAMO_TERMINADO",
+  "etiqueta": "Depósito con préstamo terminado",
+  "grupo": "deposito",
+  "modo": "advertencia",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:44"
+ },
+ {
+  "codigo_alerta": "DEPOSITO_SIN_PRESTAMO",
+  "etiqueta": "Depósito sin préstamo vigente",
+  "grupo": "deposito",
+  "modo": "advertencia",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:43"
+ },
+ {
+  "codigo_alerta": "FONDOS_INSUFICIENTES",
+  "etiqueta": "Fondos insuficientes en garantía",
+  "grupo": "salida",
+  "modo": "bloqueo",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:37"
+ },
+ {
+  "codigo_alerta": "LOAN_NOT_RELEASED",
+  "etiqueta": "Préstamo fuera de ventana de renovación",
+  "grupo": "salida",
+  "modo": "advertencia",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:37"
+ },
+ {
+  "codigo_alerta": "SALIDA_DUPLICADA_AHORRO",
+  "etiqueta": "Salida duplicada en la misma garantía",
+  "grupo": "salida",
+  "modo": "bloqueo",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:38"
+ },
+ {
+  "codigo_alerta": "SALIDA_DUPLICADA_PRESTAMO",
+  "etiqueta": "Salida duplicada por préstamo",
+  "grupo": "salida",
+  "modo": "bloqueo",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:38"
+ },
+ {
+  "codigo_alerta": "SALIDA_PRESTAMO_DESALINEADO",
+  "etiqueta": "Préstamo vinculado desalineado",
+  "grupo": "salida",
+  "modo": "advertencia",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:42"
+ },
+ {
+  "codigo_alerta": "SALIDA_PRESTAMO_PREVIO",
+  "etiqueta": "Salida previa en préstamo anterior",
+  "grupo": "salida",
+  "modo": "advertencia",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:43"
+ },
+ {
+  "codigo_alerta": "SALIDA_SIN_PRESTAMO",
+  "etiqueta": "Salida sin préstamo vigente vinculado",
+  "grupo": "salida",
+  "modo": "advertencia",
+  "activo": 1,
+  "id_usuario_actualizo": null,
+  "fecha_actualizacion": "2026-06-24 00:18:41"
+ }
+]

@@ -1,0 +1,598 @@
+﻿id_beneficiarios,nombre1,nombre2,apellido_paterno,apellido_materno,estado,ciudad,calle,numero_ext,numero_int,codigo_postal,municipio,colonia,telefono_movil,fecha_creacion,fecha_actualizacion,id_cliente
+8,Rosario,Cintia,Cruz,Dominguez,Oaxaca De Juarez,Oaxaca,Sin Nombre,SN,S/N,68260,San Felipe Tejalapa,Localidad La Mendoza,9514762371,2025-06-17 23:49:05,2025-06-17 23:49:05,11113025129
+9,Bejamin,Cintia,Pérez,Martinez,Oaxaca,Oaxaca,Morelos,S/N,S/N,69260,San Felipe Tejalapa,Localidad La Mendoza,9514215740,2025-06-25 00:15:07,2025-06-25 00:15:07,11112925238
+10,Norman ,Josue,Reyes,Reyes,Oaxaca,Oaxaca De Juarez,Mina ,2,S/N,68260,San Felipe Tejalapam,Centro,9516502882,2025-06-26 00:35:06,2025-06-26 00:35:06,11112903012
+11,David ,Heliberto,Baltazar ,Mejia,Oaxaca,Oaxaca,Av Independencia,S/N,S/N,68260,San Felipe Tejalapam,Pje. El Chilar,9511154445,2025-06-27 19:48:33,2025-06-27 19:48:33,11113008579
+12,Rosa ,,Muñoz,Lopez,Oaxaca,Oaxaca,Constitución,S/N,S/N,68263,San Lorenzo Cacaotepec,El Zapotal,9516419277,2025-06-27 20:56:34,2025-06-27 20:56:34,11112984597
+13,Cuauhtemoc,Enrique,Medina,Juarez,Oaxaca,Oaxaca,And Garza Cond 7,casa 12,S/N,68234,San Miguel Etla,San Miguel Etla,9626056222,2025-07-01 21:04:56,2025-07-01 21:04:56,11113057488
+16,Julia,,Aragon,San Juan,Oaxaca,Oaxaca,And Pradera,S/N,S/N,68234,San Juan Bautista Guelache,San Miguel Etla,9513558969,2025-07-03 23:55:42,2025-07-03 23:55:42,11113098291
+19,Diego ,Guadalupe,Osorio ,De La Luz,Oaxaca,Mexico,Privada De Abasolo Sn,0,0,68230,Santiago Suchilquitongo,Barrio De La Reforma,9514557861,2025-07-15 20:23:41,2025-07-15 20:23:41,11112919810
+20,Jose ,Alejandro,Echeverria,Osorio,Oaxaca,Mexico,Privada De Abasolo,S/N,S/N,68230,Santiago Suchilquitongo,Santiago Suchilquitongo,9512341972,2025-07-15 20:48:21,2025-07-15 20:48:21,11112861463
+21,Xochil,,De La Luz,Martinez,Oaxaca,Mexico,Avenida Juarez Norte S/n,S/N,S/N,68230,Santiago Suchilquitongo,Barrio De La Santa Cruz,9513110017,2025-07-15 21:49:20,2025-07-15 21:49:20,11112899272
+22,Virginia,,Ramirez,Limeta,Oaxaca,Mexico,Tercer Privada De Reforma,S/N,S/N,68230,Santiago Suchilquitongo,Reforma,9516559925,2025-07-15 22:07:02,2025-07-15 22:07:02,11112985973
+23,Francisca,Ofelia,Gomez,Lucas,Oaxaca,Mexico,Abasolo Sn,S/N,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9513976468,2025-07-15 22:51:40,2025-07-15 22:51:40,11112821963
+24,Raul,,Mendez,Morales,Oaxaca,Mexico,Av. Independencia,13,S/N,68230,Santiago Suchilquitongo,Barrio Agua Buena,9516362815,2025-07-16 15:33:04,2025-07-16 15:33:04,11112918184
+25,Sofia,,Cruz,Lucas,Oaxaca,Mexico,Calle Reforma Sn,S/N,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9512294436,2025-07-16 15:43:27,2025-07-16 15:43:27,11112922068
+26,Reyna,Guadalupe,Gomes,Victoria,Oaxaca,Mexico,Nicolas Bravo Sn,S/N,S/N,68226,Magdalena Apasco,Apasco,9516040208,2025-07-16 16:30:35,2025-07-16 16:30:35,11113129537
+27,Test,,Test,Test,Oaxaca,Test,Test,4,S/N,68258,Test,Test,1999999999,2025-07-22 20:11:26,2025-07-22 20:11:26,11113204127
+28,Test,,Test,Test,Oaxaca,Test,Test,4,S/N,68258,Test,Test,1999999999,2025-07-22 20:31:20,2025-07-22 20:31:20,11113208518
+29,Jose ,Ramon ,Soto ,Elijio,Oaxaca,Mexico,Porfirio Diaz,49,0,68200,Villa De Etla,Peña Chica,9514963551,2025-07-30 18:07:58,2025-07-30 18:07:58,11112791994
+30,Fatima,Yaneli,Carmona,Gallegos,Oaxaca,Mexico,Michoacan,0,102,68030,Oaxaca De Juarez,Colonia Lindavista,9513272584,2025-07-30 18:29:52,2025-07-30 18:29:52,11112971766
+31,Beatriz,,Jose,Vera,Oaxaca,Mexico,Sn,S/N,S/N,68234,San Juan Bautista Guelache,Sn,9512573270,2025-07-30 18:44:45,2025-07-30 18:44:45,11112979148
+32,Angel,Omar,Gonsalez,Bautista,Oaxaca,Mexico,Avenida Juarez Sur,S/N,S/N,68230,Santiago Suchilquitongo,Barrio Agua Buena,9515262809,2025-07-30 19:08:11,2025-07-30 19:08:11,11113029053
+33,Herlinda,Florencia,Lopez,Iglesias,Oaxaca,Mexico,Privada De Rio Blanco,sn,sn,68230,Santiago Suchilquitongo,Barrio De La Santa Cruz,9514998304,2025-07-30 19:25:24,2025-07-30 19:25:24,11113017302
+34,Rosa ,Elia,Miguel,Cruz,Oaxaca,Mexico,Avenida Juarez Sur,S/N,S/N,68230,Santiago Suchilquitongo,Barrio De La Arena,9515768706,2025-07-30 19:42:17,2025-07-30 19:42:17,11112871315
+35,Amadeo,Jose Martin,Santiago,Quevedo,Oaxaca,Mexico,Avenida Juarez,sn,sn,68237,San Miguel,Vergel,9514635497,2025-07-30 20:09:15,2025-07-30 20:09:15,11112966560
+36,Cuahtemoc,Enrique,Medina,Juarez,Oaxaca,Mexico,Andador Garza,12,7,68234,San Juan Bautista Guelache,San Miguel,9626056222,2025-07-30 21:49:35,2025-07-30 21:49:35,11112805333
+38,David,Samir,Hernandez,Garcia,Oaxaca,Mexico,Andador Batora,54,S/N,68234,San Juan Bautista Guelache,Frac. Villas San Miguel,0000000000,2025-07-30 23:09:23,2025-07-30 23:09:23,11112835706
+39,Eleazar,,Contreras,Mendez,Oaxaca,Mexico,Nicolas Bravo,10,S/N,68200,Villa De Etla,Sto Domingo Barrio Bajo,9511956485,2025-07-30 23:21:48,2025-07-30 23:21:48,11112901442
+40,Jose,Manuel,Montes,Guerrero,Oaxaca,Mexico,Paraje El Yuque,S/N,S/N,68226,Magdalena Apasco,Apasco,2218678933,2025-07-30 23:47:47,2025-07-30 23:47:47,11112909806
+41,Isaac,,Garcia,Perez,Oaxaca,Mexico,Venustiano Carranza,S/N,S/N,68240,Nazareno,Barrio De Arriba,9513254584,2025-08-01 16:35:45,2025-08-01 16:35:45,11112949301
+42,Emiliano,,Hernandez,Jesus,Oaxaca,Mexico,Venustiano Carranza,S/N,S/N,68240,Nazareno,Barrio Bajo,9511657930,2025-08-01 17:06:09,2025-08-01 17:06:09,11112913368
+43,Monserrat,Test,Test,Test,Oaxaca,Test,Test,4,S/N,68258,Test,Test,1999999999,2025-08-01 17:50:03,2025-08-01 17:50:03,11113204612
+44,Nicolas,,Cuevas,Arango,Oaxaca,Mexico,Privada De Porfirio Diaz,36,sn,68226,Magdalena Apasco,Colonia Centro,9511542522,2025-08-01 18:46:57,2025-08-01 18:46:57,11112996211
+45,Perla,Isela,Cuevas,Lopez,Oaxaca,Mexico,Privada De Porfirio Diaz,36,S/N,68234,Magdalena Apasco,Colonia Centro,9516504371,2025-08-01 18:59:05,2025-08-01 18:59:05,11112931340
+46,Esther,,Cruz,Leon,Oaxaca,Mexico,Calle Libres,1,1,68226,Magdalena Apasco,Apasco,9511010215,2025-08-01 19:15:31,2025-08-01 19:15:31,11113025167
+47,Samanta,Paola,Gomez,Victoria,Oaxaca,Mexico,Libertad,8,0,68226,Magdalena Apasco,Apasco,9513127884,2025-08-01 19:41:18,2025-08-01 19:41:18,11113129161
+50,Filiberto,,Robledo,Arango,Oaxaca,Mexico,Hidalgo,43,43,68240,Nazareno,Nazareno,9514177826,2025-08-01 21:13:46,2025-08-01 21:13:46,11112977354
+51,Ramel,Armando,Cruz,Robledo,Oaxaca,Mexico,Av Juarez,0,0,68240,Nazareno,Nazareno,9512877782,2025-08-01 21:32:46,2025-08-01 21:32:46,11112997831
+52,Cesareo,,Manuel,Hernandez,Oaxaca,Mexico,Av Juarez,sn,sn,68240,Nazareno,Nazareno,9515825800,2025-08-01 21:40:45,2025-08-01 21:40:45,11113043290
+53,Yitzhak,,Garcia,Perez,Oaxaca,Mexico,Venustiano Carranza,11,11,68240,Nazareno,Barrio De Arriba,9513251024,2025-08-01 22:39:27,2025-08-01 22:39:27,11112926916
+54,Filiberto,,Robledo,Arango,Oaxaca,Mexico,Hidalgo,S/N,80,68240,Nazareno,Barrio De Arriba,9514177826,2025-08-01 23:00:55,2025-08-01 23:00:55,11112985270
+55,Edgar,Rodolfo,Castañon,Olmos,Oaxaca,Mexico,Coral,121,S/N,68274,Oaxaca De Juarez,La Joya,9513302220,2025-08-05 15:31:55,2025-08-05 15:31:55,11112765503
+56,Alfredo ,Fausto,Villanueva,Garcia,Oaxaca,Mexico,Constitucion,1,S/N,68220,San Pablo Huitzo,Tenexpam,9513618730,2025-08-05 15:51:17,2025-08-05 15:51:17,11112792952
+57,Ramon,Pablo,Gonzalez,Miguel,Oaxaca,Mexico,Calzada La Asuncion,S/N,S/N,68220,San Pablo Huitzo,Tenexpam,9511715981,2025-08-05 16:42:39,2025-08-05 16:42:39,11112973962
+58,Donato,Noe,Cruz,Hernandez,Oaxaca,Mexico,Calzada La Asuncion,S/N,S/N,68220,San Pablo Huitzo,Tenexpam,9513993157,2025-08-05 17:03:13,2025-08-05 17:03:13,11112847319
+59,Nancy,Angeles,Garcia,Martinez,Oaxaca,Mexico,Constitucion,22,S/N,68220,San Pablo Huitzo,Tenexpam,9514971197,2025-08-05 17:21:43,2025-08-05 17:21:43,11113115541
+60,Flor,Guadalupe,Juavez ,Chavez,Oaxaca,Mexico,Ampliacion El Progreso,506,S/N,71220,Santa Maria Atzompa,Lazaro Cardenas,9513126206,2025-08-05 17:49:38,2025-08-05 17:49:38,11112905319
+61,Julia,,Hernandez,Mazas,Oaxaca,Mexico,Rio Amazonas,16,S/N,71232,Santa Cruz Xoxocotlan,Villa Los Laureles,9513416325,2025-08-05 17:59:03,2025-08-05 17:59:03,11112972021
+62,Alberto,Isaac,Guzman,Lopez,Oaxaca,Mexico,Esmeralda,104,S/N,68276,Oaxaca De Juarez,La Joya,9511553673,2025-08-05 18:14:45,2025-08-05 18:14:45,11113176710
+63,Maria,,Hernandez,Perez,Oaxaca,Mexico,Circonia,25,S/N,68276,Oaxaca De Juarez,La Joya,9511775910,2025-08-05 18:28:44,2025-08-05 18:28:44,11112744466
+64,Maria,,Hernandez,Perez,Oaxaca,Mexico,Circonia,25,S/N,68276,Oaxaca De Juarez,La Joya,9511775910,2025-08-05 18:40:42,2025-08-05 18:40:42,11112846629
+65,Flor,Natalia,Lopez,Miguel,Oaxaca,Mexico,Posita De La Virgen,sn,sn,68220,San Pablo Huitzo,Tenexpam,9516407155,2025-08-05 18:57:52,2025-08-05 18:57:52,11113102023
+66,Dana,Elizabeth,Ramirez,Guendulay,Oaxaca,Mexico,Jalisco,113,113,68020,Oaxaca De Juarez,Dolores,5581041059,2025-08-05 19:24:24,2025-08-05 19:24:24,11112997957
+67,Jose,Luis,Lopez,Miguel,Oaxaca,Mexico,Camino Nacional,S/N,S/N,68220,San Pablo Huitzo,La Cruz,9515945862,2025-08-05 19:44:45,2025-08-05 19:44:45,11113018670
+68,Mauricio ,Bernabe,Vasquez,Acuca,Oaxaca,Mexico,Emiliano Zapata,421,S/N,68020,Oaxaca De Juarez,Dolores,9512557363,2025-08-05 20:05:18,2025-08-05 20:05:18,11112962530
+69,Adrian,Vigilio,Sosa,Audelo,Oaxaca,Mexico,Camino Nacional,S/N,S/N,68220,San Pablo Huitzo,La Cruz,9514963696,2025-08-05 20:14:39,2025-08-05 20:14:39,11112873397
+70,Helen,Alejandra,Zarate,Luis,Oaxaca,Mexico,Tamaulipas,1002,S/N,68020,Oaxaca De Juarez,Ampliacion Dolores,9512788968,2025-08-05 20:30:38,2025-08-05 20:30:38,11113101807
+71,Angela,,Moreno,Durante,Oaxaca,Mexico,Calle Del Punto,117,5,68000,Oaxaca De Juarez,Colonia Centro,9511921579,2025-08-05 20:44:56,2025-08-05 20:44:56,11112933824
+72,Nicolas ,,Cuevas,Arango,Oaxaca,Mexico,Porfirio Diaz,S/N,S/N,68226,Magdalena Apasco,Apasco,9511542522,2025-08-05 20:59:48,2025-08-05 20:59:48,11112934778
+73,Dina,,Garcia,Escobar,Oaxaca,Mexico,Manzana,8,1,68000,Oaxaca De Juarez,Fraccionamiento Montoya San Martin Mexicapan,9515475126,2025-08-05 23:09:16,2025-08-05 23:09:16,11112707655
+74,Giovanni,,Perez,Perez,Oaxaca,Mexico,Francisco I Madero,SN,SN,68237,Reyes,Barrio De Abajo,9513158616,2025-08-05 23:28:16,2025-08-05 23:28:16,11112994926
+75,Lorena,Soledad,Gaytan,Pinelo,Oaxaca,Mexico,5 De Mayo,16,0,68230,Santiago Suchilquitongo,Barrio Atayuco,9511609907,2025-08-05 23:41:36,2025-08-05 23:41:36,11112998182
+76,Concepcion,,Paz,Garcia,Oaxaca,Mexico,Las Torres,S/N,S/N,68274,Oaxaca De Juarez,Colonia Eucaliptos,9516407286,2025-08-06 17:15:31,2025-08-06 17:15:31,11112919022
+77,Ruben ,,Martinez,Cruz,Oaxaca,Mexico,Privada De Venustiano Carranza,3,S/N,68200,Villa De Etla,Colonia San Jose,9511105488,2025-08-06 18:28:40,2025-08-06 18:28:40,11112711848
+78,Servanda,Jaquelina,Hernandez,Manzano,Oaxaca,Mexico,Avenida 03 De Mayo,34,S/N,68230,Santiago Suchilquitongo,Suchil,9517097217,2025-08-06 19:59:04,2025-08-06 19:59:04,11112973932
+79,Maurilio,,Mendez,Jimenez,Oaxaca,Mexico,Melchor Ocampo ,sn,sn,68258,San Pablo Etla,San Sebastian Etla,9511096312,2025-08-06 20:21:20,2025-08-06 20:21:20,11112775265
+80,Angel,Eduardo,Cuevas,Muñoz,Oaxaca,Mexico,Hidalgo,30,S/N,68260,San Felipe Tejalapam,Copalito,9516120061,2025-08-06 21:09:24,2025-08-06 21:09:24,11112856037
+81,Felipe,Simon,Cuevas,Muñoz,Oaxaca,Mexico,Hidalgo,30,S/N,68260,San Felipe Tejalapam,Copalito,9515321367,2025-08-06 21:54:52,2025-08-06 21:54:52,11113008354
+82,Adrian ,Silverio,Hernandez,Lopez,Oaxaca,Mexico,El Paredon,sn,S/N,68260,San Felipe Tejalapam,El Paredon,9514622347,2025-08-06 22:28:14,2025-08-06 22:28:14,11112862419
+84,Luis,Antonio,Maza,Chavez,Oaxaca,Mexico,Prolongacion Matamoros Sn,0,0,68213,Telixtlahuaca,Barrio Bajo,9512600170,2025-08-07 18:33:52,2025-08-07 18:33:52,11112844764
+85,Paola ,Fernanda,Gines,Castellanos,Oaxaca,Mexico,Privada De Abasolo,S/N,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9192061747,2025-08-07 18:48:13,2025-08-07 18:48:13,11112934036
+86,Virginia,Guadalupe,Martinez,Figueroa,Oaxaca,Mexico,Calvario,S/N,S/N,68230,Santiago Suchilquitongo,Barrio Del Peñasco,9511045432,2025-08-07 19:03:14,2025-08-07 19:03:14,11112846982
+87,Alma,Delia,Bautista,Bautista,Oaxaca,Mexico,Calle Abasolo,SN,SN,68230,Santiago Suchilquitongo,Barrio De La Reforma,9516523527,2025-08-07 19:28:34,2025-08-07 19:28:34,11112836635
+88,Luis,Jesus,Jinez,De La Luz,Oaxaca,Mexico,Privada De Abasolo,SN,SN,68230,Santiago Suchilquitongo,Barrio De La Reforma,9511253138,2025-08-07 19:48:15,2025-08-07 19:48:15,11112968070
+89,Paola ,Fernanda,Gines,Castellanos,Oaxaca,Mexico,Privada De Abasolo,SN,SN,68230,Santiago Suchilquitongo,Barrio De La Reforma,9192061747,2025-08-07 20:02:30,2025-08-07 20:02:30,11112779406
+90,Victor,Hugo,Perez,Santiago,Oaxaca,Mexico,Calle La Gloria ,SN,SN,68230,Santiago Suchilquitongo,Barrio El Peñasco,9515909969,2025-08-07 20:29:24,2025-08-07 20:29:24,11112852646
+91,Julio,Jovani,Plumas,Lopez,Oaxaca,Mexico,Privada Heroes De Nacosari ,S/N,S/N,68220,San Pablo Huitzo,Barrio De La Cantera,9514755196,2025-08-07 21:11:07,2025-08-07 21:11:07,11113136238
+92,Carlos,Jonathan,Hernandez,Ignacio,Oaxaca,Mexico,24 De Febrero,7,0,68220,San Pablo Huitzo,N/a,9516073152,2025-08-07 21:30:14,2025-08-07 21:30:14,11112941544
+93,Marisela,,Diaz,Garcia,Oaxaca,Mexico,Industria,SN,SN,68247,San Agustin Etla,Manuel Gomez Portilla,9515647553,2025-08-07 23:36:27,2025-08-07 23:36:27,11113182605
+94,Gabriel,,Ramos,Garcia,Oaxaca,Mexico,Manuel Gomez Portilla,SN,SN,68247,San Agustin Etla,Manuel Gomez Portilla,9515269326,2025-08-07 23:53:48,2025-08-07 23:53:48,11113112747
+95,Juan,Cirino,Lopez,Mendoza,Oaxaca,Mexico,Camino Al Campo,SN,SN,68244,San Andrés Zautla,Rancho Nuevo,9512601872,2025-08-08 16:11:06,2025-08-08 16:11:06,11112993643
+96,Minerva,,Ramirez,Hernandez,Oaxaca,Mexico,Benito Juarez,SN,SN,68238,Reyes Etla,San Lazaro,9510540991,2025-08-08 16:36:05,2025-08-08 16:36:05,11112721007
+97,Pedro,,Doquiz,Cruz,Oaxaca,Mexico,Sin Nombre,SN,SN,68247,San Agustin Etla,Manuel Gomez Portilla,9514786961,2025-08-08 17:10:36,2025-08-08 17:10:36,11112863347
+98,Luis,Alfredo,Gallardo,Bautista,Oaxaca,Mexico,2da Privada De Francisco I Madero ,SN,SN,68247,San Agustin Etla,03 De Mayo,9515329053,2025-08-08 17:24:20,2025-08-08 17:24:20,11112669629
+99,Maria Del Rosario,,Galvan,Ruiz,Oaxaca,Mexico,Independencia,30,S/N,68247,San Agustin Etla,Vista Hermosa,9514183004,2025-08-08 17:34:43,2025-08-08 17:34:43,11112904459
+100,Jorge,,Garcia,Mercado,Oaxaca,Mexico,Sin Nombre,SN,SN,68247,San Agustin Etla,Manuel Gomez Portilla,9511934282,2025-08-08 17:47:14,2025-08-08 17:47:14,11112714868
+101,Lenin,,Castellanos,Martinez,Oaxaca,Mexico,Calle Constitucion,SN,SN,68237,Reyes Etla,Reyes,9511450397,2025-08-08 18:05:07,2025-08-08 18:05:07,11112954461
+102,Juan,,Santiago,Perez,Oaxaca,Mexico,2da Privada De Constitución,SN,SN,68237,Reyes Etla,N/a,9515255528,2025-08-08 18:22:39,2025-08-08 18:22:39,11112954311
+103,Jose,Enrique,Santiago,Reyes,Oaxaca,Mexico,2da Privada De Constitución,SN,SN,68237,Reyes Etla,N/a,9512304975,2025-08-08 18:34:20,2025-08-08 18:34:20,11113043010
+104,Carlos,Evaristo,Chavez,Hernandez,Oaxaca,Mexico,Pino Suarez,1,0,68237,Reyes Etla,San Lazaro,2219353082,2025-08-08 18:49:22,2025-08-08 18:49:22,11112726320
+105,Azucena,,Ramirez,Domínguez,Oaxaca,Mexico,Calle Lantizco Sn,sn,sn,68220,San Pablo Huitzo,Barrio Cristo Rey,9516439757,2025-08-08 20:18:59,2025-08-08 20:18:59,11113037708
+106,Florentino,Braulio,Osorio ,Hernandez,Oaxaca,Mexico,Vicente Guerrero,sn,sn,68213,San Pablo Huitzo,La Esmeralda,9512369175,2025-08-08 20:33:21,2025-08-08 20:33:21,11113009751
+107,Pablo,Luis,Torres,Gonzalez,Oaxaca,Mexico,Tobala,13,0,68220,San Pablo Huitzo,Paraje El Magellon,9516415887,2025-08-08 20:45:06,2025-08-08 20:45:06,11113005465
+108,Soledad,,Zarate,Vasquez,Oaxaca,Mexico,Sin Nombre,S/N,S/N,68263,San Lorenzo Cacaotepec,Soledad,9515794402,2025-08-11 16:02:00,2025-08-11 16:02:00,11113105293
+109,Lucia ,Mireya,Diaz,Santiago,Oaxaca,Mexico,Nicolas Bravo,SN,sn,68263,San Lorenzo Cacaotepec,San Lorenzo Cacaotepec,9511809752,2025-08-11 16:14:47,2026-05-07 16:38:38,11112811779
+110,Eva,,Ventura,Vasquez,Oaxaca,Mexico,Trabajadores Sociales ,SN,SN,68263,San Lorenzo Cacaotepec,Coloia Centro,9513248604,2025-08-11 16:33:51,2025-08-11 16:33:51,11112826391
+111,Rosa,Maria, Muñoz,Lopez,Oaxaca,Mexico,Constitucion,SN,SN,68263,San Lorenzo Cacaotepec,Colonia Zapotal,9516419277,2025-08-11 16:44:27,2025-08-11 16:44:27,11113024141
+112,Silvia,,Martinez,Santiago,Oaxaca,Mexico,Nicolas Bravo,8,SN,68263,San Lorenzo Cacaotepec,Colonia Centro,9516419277,2025-08-11 16:53:03,2025-08-11 16:53:03,11112817849
+113,Alondra,Gabriela,Torres,Cruz,Oaxaca,Mexico,Sudamerica,SN,SN,68230,Santiago Suchilquitongo,Santo Domingo Tlatinalgo,9514577808,2025-08-11 17:05:25,2025-08-11 17:05:25,11112917272
+114,Maria,Del Carmen,Santiago,Cruz,Oaxaca,Mexico,Av. Juarez Norte,SN,SN,68230,Santiago Suchilquitongo,Barrio El Tetiche,9518424907,2025-08-11 17:23:34,2025-08-11 17:23:34,11112849831
+115,Gabriel,,Ramirez,De La Luz,Oaxaca,Mexico,Luis Donaldo Colosio,SN,SN,68230,Santiago Suchilquitongo,Barrio El Tetiche,9517237893,2025-08-11 17:40:40,2025-08-11 17:40:40,11113131595
+116,Irving,Hetzner,Hernandez,Rojas,Oaxaca,Mexico,Privada De Morelos,1,0,68240,Nazareno Etla,Barrio Bajo,9514948966,2025-08-11 17:52:46,2025-08-11 17:52:46,11113105160
+117,Donaciana,,Bautista,Garcia,Oaxaca,Mexico,Emiliano Zapata,5,sn,68263,San Lorenzo Cacaotepec,El Rancho,9511622691,2025-08-11 18:07:37,2025-08-11 18:07:37,11112763680
+118,Francisco,Vidal,Reyes,Gines,Oaxaca,Mexico,Riveras Del Arenal,4,sn,68263,San Lorenzo Cacaotepec,San Lorenzo Cacaotepec,9512862904,2025-08-11 18:22:44,2025-08-11 18:22:44,11112963613
+119,Edgardo,Francisco,Diaz,Jimenez,Oaxaca,Mexico,San Antonio,SN,SN,68263,San Lorenzo Cacaotepec,San Antonio,9515872763,2025-08-11 18:32:49,2025-08-11 18:32:49,11112927981
+120,Rolando,Venedicto,Hernandez,Vasquez,Oaxaca,Mexico,4ta Priv Av.  El Mogote ,S/N,S/N,68263,San Lorenzo Cacaotepec,El Mogote San Lorenzo Cacaotepec,9511191842,2025-08-11 18:44:49,2025-08-11 18:44:49,11112924530
+121,Juliana,Amanda,Lazaro,Archila,Oaxaca,Mexico,Sin Nombre,SN,SN,68263,San Lorenzo Cacaotepec,Hacienda Vieja,9513099119,2025-08-11 18:55:59,2025-08-11 18:55:59,11113046154
+122,Claudia  ,Leticia,Garcia,Cruz,Oaxaca,Mexico,San Antonio,SN,SN,68263,San Lorenzo Cacaotepec,San Antonio,9514395142,2025-08-11 19:10:09,2025-08-11 19:10:09,11112761450
+123,Juanita,Yasmin,Mendez,Garcia,Oaxaca,Mexico,Primera De San Antonio,SN,SN,68263,San Lorenzo Cacaotepec,Barrio Bajo,9515257241,2025-08-11 19:18:58,2025-08-11 19:18:58,11112998003
+124,Jonathan,Alexis,Diaz,Lozano,Oaxaca,Mexico,4ta Priv. De Nicolas Bravo ,3,A,68263,San Lorenzo Cacaotepec,San Lorenzo Cacaotepec,9514971935,2025-08-11 19:29:19,2025-08-11 19:29:19,11112979940
+125,Salomon,Oscar,Martinez,Garcia,Oaxaca,Mexico,Calle Calvario,SN,SN,68230,Santiago Suchilquitongo,Barrio El Peñasco,9514632380,2025-08-11 20:28:25,2025-08-11 20:28:25,11112846773
+127,Ricardo,,Flores,Garcia,Oaxaca,Mexico,Nicolas Bravo,17,S/N,68220,San Pablo Huitzo,2da Seccion,9516576969,2025-08-11 23:27:53,2025-08-11 23:27:53,11112925822
+128,Monica,,Caballero,Bautista,Oaxaca,Mexico,Calle Abasolo,13,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9515100435,2025-08-12 18:16:55,2025-08-12 18:16:55,11113101701
+129,Marvin,Enrique,Mendoza,Juarez,Oaxaca,Mexico,Callejon Del Nogal,18,0,68240,Nazareno,Colonia Centro ,9512272106,2025-08-12 18:45:17,2025-08-12 18:45:17,11112871513
+130,Miguel,Angel,Reyes,Lopez,Oaxaca,Mexico,Huijazo,10,0,68220,San Pablo Huitzo,San Pablo,9511713668,2025-08-12 18:58:22,2025-08-12 18:58:22,11112984989
+131,Cresencio,Jorge,Alejandrez,Maldonado,Oaxaca,Mexico,Aldama,24,S/N,68230,Santiago Suchilquitongo,Barrio Atayuco,9515905384,2025-08-12 19:21:51,2025-08-12 19:21:51,11113022051
+132,Rosario,Belem,Garcia,Miguel,Oaxaca,Mexico,Carretera Internacional,4,0,68220,San Pablo Huitzo,Primavera 2da Seccion,9515698419,2025-08-12 19:36:44,2025-08-12 19:36:44,11113119485
+133,Laura ,Darina ,Bautista ,Osorio,Oaxaca,Mexico,Primera Cerrada De Reforma,sn,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9511826286,2025-08-12 20:10:22,2025-08-12 20:10:22,11112944716
+134,Ramiro,,Reyes,Santiago,Oaxaca,Mexico,Av. Hidalgo,SN,SN,68237,Santa Maria Colotepec,Colonia Centro ,9513264113,2025-08-12 20:19:52,2025-08-12 20:19:52,11112896125
+135,Deysi,Carolina,Cruz,Jimenez,Oaxaca,Mexico,05 De Mayo,SN,SN,68230,Santiago Suchilquitongo,Barrio Atayuco,9511450330,2025-08-12 20:33:40,2025-08-12 20:33:40,11112903380
+136,Juana,Lucina,Sosa,Lopez,Oaxaca,Mexico,Prolongacion De Benito Juarez ,SN,SN,68220,San Pablo Huitzo,2da Seccion,9515643638,2025-08-12 20:43:56,2025-08-12 20:43:56,11113315176
+137,Joel,,Paz,Jimenez,Oaxaca,Mexico,Corregidor,S/N,S/N,68226,Magdalena Apasco,Apasco,9518351564,2025-08-12 20:54:49,2025-08-12 20:54:49,11113102396
+138,Omar,,Chavez,Perez,Oaxaca,Mexico,Benito Juarez,8,SN,68226,Magdalena Apasco,Apasco,9516394668,2025-08-12 21:05:49,2025-08-12 21:05:49,11112748267
+139,Eloy,Federico,Mendoza,Garcia,Oaxaca,Mexico,Francisco Villa,3,0,68258,San Pablo Etla,Colonia Centro San Sebastián,9511509384,2025-08-12 21:25:35,2025-08-12 21:25:35,11113134860
+140,Alondra,Viridiana,Lopez,Perez,Oaxaca,Mexico,Morelos,216,0,68258,San Pablo Etla,San Sebastián ,9516066243,2025-08-12 21:42:56,2025-08-12 21:42:56,11113061406
+141,Elizabeth,,Montaño,Rodriguez,Oaxaca,Mexico,Porfirio Diaz,SN,SN,68258,San Pablo Etla,San Sebastián ,9512342054,2025-08-12 21:50:55,2025-08-12 21:50:55,11113008351
+142,Beatriz,Adriana,Lopez,Castillo,Oaxaca,Mexico,Calle La Union,40,S/N,68230,Santiago Suchilquitongo,Barrio El Peñasco,9511191693,2025-08-12 23:10:14,2025-08-12 23:10:14,11112864353
+143,Guillermo,Antonio,Lopez,Alvarez,Oaxaca,Mexico,Circuito Monte Alban ,19,S/N,68200,Villa De Etla,Santo Domingo Barrio Bajo,9515443689,2025-08-12 23:33:12,2025-08-12 23:33:12,11112669206
+144,Yael,Ignacio,Rosales,Álvarez,Oaxaca,Mexico,Circuito Monte Alban ,19,S/N,68200,Villa De Etla,Santo Domingo Barrio Bajo,9516450661,2025-08-12 23:42:38,2025-08-12 23:42:38,11112939609
+145,Mariela,,Hernandez,Santiago,Oaxaca,Mexico,Av. Central,19,19,68200,Villa De Etla,Santo Domingo Barrio Bajo,9516439302,2025-08-12 23:53:12,2025-08-12 23:53:12,11113049802
+146,Yesenia,,Ruiz,Guerrero,Oaxaca,Mexico,Prolongación De Juárez,S/N,S/N,68220,San Pablo Huitzo,Segunda Seccion,9511069801,2025-08-13 16:39:44,2025-08-13 16:39:44,11113203887
+147,Karla,Daniela,Pacheco,Morales,Oaxaca,Mexico,Pendiente,S/N,S/N,68220,San Pablo Huitzo,San Francisco,9511026667,2025-08-13 16:47:33,2025-08-13 16:47:33,11112895240
+148,Jesus,Salvador,Garcia,Ruiz,Oaxaca,Mexico,Calle Balbuena,S/N,S/N,68220,San Pablo Huitzo,Barrio Guadalupe,9515301105,2025-08-13 16:56:05,2025-08-13 16:56:05,11112974117
+149,Fabiola,,Vasquez,Sosa,Oaxaca,Mexico,Camino Nacional,S/N,S/N,68220,San Pablo Huitzo,La Cruz,9514651830,2025-08-13 17:29:47,2025-08-13 17:29:47,11112988424
+150,Genova,,Lopez,Ruiz,Oaxaca,Mexico,Las Salinas,SN,SN,68247,San Agustin Etla,Manuel Gomez Portilla,5650171749,2025-08-13 17:44:51,2025-08-13 17:44:51,11113163277
+151,Brenda,Elizabeth,Hernandez,Garcia,Oaxaca,Mexico,Carretera Internacional,S/N,S/N,68220,San Pablo Huitzo,Agua Blanca,9585874910,2025-08-13 18:00:25,2025-08-13 18:00:25,11112893766
+152,Ismael,Zacarias,Acevedo,Garcia,Oaxaca,Mexico,Prolongacion,S/N,S/N,68220,San Pablo Huitzo,Tercera Seccion Loma Bonita ,9511148947,2025-08-13 18:16:32,2025-08-13 18:16:32,11112855051
+153,Doris,,Hernandez,Lopez,Oaxaca,Mexico,05 De Mayo,S/N,S/N,68220,San Pablo Huitzo,Tercera Sección,9515262431,2025-08-13 18:26:01,2025-08-13 18:26:01,11113068907
+154,Rosario,Belem,Garcia,Miguel,Oaxaca,Mexico,05 De Mayo,S/N,S/N,68220,San Pablo Huitzo,Tercera Sección,9511564702,2025-08-13 18:40:51,2025-08-13 18:40:51,11112864704
+155,Felicita,Ninfa,Cruz,Cruz,Oaxaca,Mexico,Loma Bonita,SN,S/N,68220,San Pablo Huitzo,Tercera Sección,9511709828,2025-08-13 19:01:04,2025-08-13 19:01:04,11112915373
+156,Maria,De Lourdes,Gonzalez,Flores,Oaxaca,Mexico,Calle Porfirio Diaz,4,0,68220,San Pablo Huitzo,Primera Seccion Centro,9512728161,2025-08-13 19:17:11,2025-08-13 19:17:11,11112911592
+157,Maria,De Lourdes,Gonzalez,Flores,Oaxaca,Mexico,Porfirio Diaz,4,S/N,68220,San Pablo Huitzo,Primera Seccion San Pablo Huitzo,9512728161,2025-08-13 19:38:07,2025-08-13 19:38:07,11112874869
+158,Denilson,Nicolas,Vasquez,Toledo,Oaxaca,Mexico,Loma Bonita,S/N,S/N,68220,San Pablo Huitzo,Tercera Sección,9517580897,2025-08-13 19:51:59,2025-08-13 19:51:59,11112849049
+159,Amaya,,Lopez,Rodrigo,Oaxaca,Mexico,Niños Heroes,6,S/N,68250,Soledad Etla,Soledad,9515047180,2025-08-13 20:07:11,2025-08-13 20:07:11,11112804263
+160,Alexis,Uriel,Perez,Sosa,Oaxaca,Mexico,Niños Heroes,SN,SN,68250,Soledad Etla,Soledad,9513406227,2025-08-13 20:20:42,2025-08-13 20:20:42,11113266313
+161,Diego,,Zacarias,Soriano,Oaxaca,Mexico,Priv. Niños Heroes,SN,SN,68250,Soledad Etla,Soledad,9515944991,2025-08-13 20:38:02,2025-08-13 20:38:02,11112979236
+162,Diego,,Zacarias,Soriano,Oaxaca,Mexico,Niños Heroes,S/N,S/N,68250,Soledad Etla,Soledad,9515944991,2025-08-13 20:45:54,2025-08-13 20:45:54,11113062074
+163,Abraham,Israel,Santos,Cruz,Oaxaca,Mexico,Rancho El Paredón,S/N,S/N,68260,San Felipe Tejalapam,Rancho El Paredon,9515819811,2025-08-13 21:01:21,2025-08-13 21:01:21,11112716131
+164,Luis,,Jarquin,Aragon,Oaxaca,Mexico,Cda. Felix Diaz,104,S/N,68000,Oaxaca De Juarez,Barrio De Xochimilco,9511851818,2025-08-13 22:45:19,2025-08-13 22:45:19,11112739966
+165,Jesus,,Arango,Reyes,Oaxaca,Mexico,Niño Artillero,113,S/N,68000,Oaxaca De Juarez,Faldas Del Fortin,2203536139,2025-08-13 22:56:24,2025-08-13 22:56:24,11112973790
+166,Luis,,Garcia,Lopez,Oaxaca,Mexico,El Paredon,SN,SN,68260,San Felipe Tejalapam,El Paredon,9516541521,2025-08-14 15:57:04,2025-08-14 15:57:04,11113061706
+167,Concepcion,,Vasquez,Reyes,Oaxaca,Mexico,Panoramica Del Fortin,119,S/N,68000,Oaxaca De Juarez,Colonia Centro ,9512725670,2025-08-14 16:37:11,2025-08-14 16:37:11,11112967766
+168,Jesus,,Arango,Reyes,Oaxaca,Mexico,Niño Artillero,113,S/N,68000,Oaxaca De Juarez,Faldas Del Fortin,2203536139,2025-08-14 16:51:28,2025-08-14 16:51:28,11113048867
+169,Julia,Gloria,Cruz,Martinez,Oaxaca,Mexico,Niño Artillero,106,S/N,68000,Oaxaca De Juarez,Colonia Centro ,9511962857,2025-08-14 17:13:18,2025-08-14 17:13:18,11113053110
+170,Francisco,Nestor,Prieto,Cruz,Oaxaca,Mexico,Sin Nombre,SN,SN,68000,Oaxaca De Juarez,Ex Marquesado,9514181814,2025-08-14 17:58:27,2025-08-14 17:58:27,11112979691
+171,Veronica,,Perez,Ruiz,Oaxaca,Mexico,Av. Constitucion,47,47,68237,San Andrés Zautla,Zautla,9513577409,2025-08-14 18:30:13,2025-08-14 18:30:13,11113205041
+172,Armando,Severiano,Sanchez,Mesinas,Oaxaca,Mexico,Privada De Lázaro Cárdenas,SN,SN,68237,Reyes Etla,N/a,9515047444,2025-08-14 19:11:36,2025-08-14 19:11:36,11112907887
+173,Silvestre,Luia,Gonzalez,Chavez,Oaxaca,Mexico,Av. Independencia,13,S/N,68230,Santiago Suchilquitongo,Barrio Agua Buena,9512913637,2025-08-14 21:12:11,2025-08-14 22:10:00,11112889700
+174,Domitila,,Ramirez,Perez,Oaxaca,Mexico,Privada Porfirio Diaz,S/N,S/N,68257,San Pablo Etla,San Sebastián ,9514619087,2025-08-14 22:35:23,2025-08-14 22:35:23,11113021377
+175,Uziel,,Martinez,Lopez,Oaxaca,Mexico,Av. Juarez Sur,SN,SN,68230,Santiago Suchilquitongo,Agua Buena,9515814104,2025-08-15 15:45:23,2025-08-15 15:45:23,11113168762
+176,Josefina,Gabriela,Cruz,Garcia,Oaxaca,Mexico,Alvaro Obregon,509,509,68000,Oaxaca De Juarez,Donají,9512559031,2025-08-15 15:59:48,2025-08-15 15:59:48,11113237911
+177,Israel,Carlos,Jinez,X,Oaxaca,Mexico,Riveras Del Arenal,5,S/N,68263,San Lorenzo Cacaotepec,Barrio Alto,9512263126,2025-08-15 16:30:39,2025-08-15 16:30:39,11112828133
+178,Luis,Alberto,Velasco,Andarza,Oaxaca,Mexico,Av. Cuahxilotitlan ,42,S/N,68220,San Pablo Huitzo,Primera Seccion,9511872745,2025-08-15 17:07:57,2025-08-15 17:07:57,11113018033
+179,Alma,Delia,Avendaño,Cuevas,Oaxaca,Mexico,Nicolas Bravo,SN,SN,68263,San Lorenzo Cacaotepec,N/a,9516499372,2025-08-15 17:20:40,2025-08-15 17:20:40,11113102519
+180,Mauro,Martin,Sanchez,Diaz,Oaxaca,Mexico,Constitucion,5,S/N,68263,San Lorenzo Cacaotepec,N/a,9513670186,2025-08-15 18:40:15,2025-08-15 18:40:15,11113028726
+181,Paola,,Soriano,Martinez,Oaxaca,Mexico,Priv. Las Ruinas Del Rosario ,S/N,S/N,68220,San Pablo Huitzo,2da Seccion,9511312201,2025-08-15 18:54:14,2025-08-15 18:54:14,11112974293
+182,Jose,Juan,Gutierrez,Gonzáles,Oaxaca,Mexico,Villas De Hacienda Blanca Geo,S/N,S/N,68259,San Pablo Etla,Condominio 1 Aran Juez,9516512580,2025-08-15 19:18:11,2025-08-15 19:18:11,11112854485
+183,Gabriel,Arcangel,Mezeta,Carrillo,Oaxaca,Mexico,Privada Las Salinas ,0,3,68247,San Agustin Etla,Manuel Gomez Portilla,9517733795,2025-08-15 19:39:11,2025-08-15 19:39:11,11112937194
+184,Margarita,,Martinez,Muñoz,Oaxaca,Mexico,Constitucion,S/N,S/N,68263,San Lorenzo Cacaotepec,Paraje El Zapotal,9513480706,2025-08-15 19:52:28,2025-08-15 19:52:28,11113202376
+185,Abimael,,Cortes,Hernández,Oaxaca,Mexico,Morelos,SN,SN,68260,San Felipe Tejalapam,Colonia Centro ,9511003878,2025-08-15 20:15:12,2025-08-15 20:15:12,11112935428
+186,Bertha,,Cano,Mireles,Oaxaca,Mexico,Manuel Gomez Portilla,SN,SN,68247,San Agustin Etla,San Jose,9516526107,2025-08-15 20:53:22,2025-08-15 20:53:22,11112993910
+187,Nelson,,Rendon,Nolasco,Oaxaca,Mexico,05 De Mayo,SN,SN,68220,San Pablo Huitzo,El Botón,9516401041,2025-08-15 21:01:40,2025-08-15 21:01:40,11112954121
+188,Martin,,Gonzalez,Morales,Oaxaca,Mexico,Calle Crespo,319,0,68000,Oaxaca De Juarez,Colonia Centro ,9511048001,2025-08-16 15:32:49,2025-08-16 15:32:49,11112859053
+189,Ariana,Lizbeth,Echeverria,Martinez,Oaxaca,Mexico,Privada De La Paz,7,0,68230,Santiago Suchilquitongo,Suchil,9511798494,2025-09-06 19:01:39,2025-09-06 19:01:39,11113042991
+190,Pablo,,Cortes,Lopez,Oaxaca,Mexico,Av. Juárez Norte,SN,SN,68230,Santiago Suchilquitongo,Barrio El Tetiche,9514718692,2025-09-06 19:30:10,2025-09-06 19:30:10,11113207666
+191,Alejandra ,Lizbeth,Anaya,Garcia,Oaxaca,Mexico,La Asuncion,SN,SN,68220,San Pablo Huitzo,Tenexpam,9514266611,2025-09-06 19:41:38,2025-09-06 19:41:38,11113053166
+192,Socorro,Beatriz,Lopez,Osorio,Oaxaca,Mexico,Revolucion,SN,SN,68230,Santiago Suchilquitongo,Barrio Agua Buena,9515833220,2025-09-07 15:41:28,2025-09-07 15:41:28,11112981072
+193,Flavio,Gerardo,Luis,Ortiz,Oaxaca,Mexico,La Gloria,6,SN,68230,Santiago Suchilquitongo,Barrio El Peñasco,9513487396,2025-09-07 15:54:18,2025-09-07 15:54:18,11112816492
+194,Cristian,Alexis,Cruz,Padilla,Oaxaca,Mexico,Sn,SN,SN,68230,Santiago Suchilquitongo,Agua Buena,9541360604,2025-09-07 16:04:00,2025-09-07 16:04:00,11112772748
+195,Juan,Braulio,Avendaño,Rodriguez,Oaxaca,Mexico,Nicolas Bravo,15,SN,68220,San Pablo Huitzo,2da Seccion,9514638029,2025-09-07 16:33:27,2025-09-07 16:33:27,11113099230
+196,Arturo,Ricardo,Hernandez,Cruz,Oaxaca,Mexico,Calle Zaragoza,7,S/N,68263,San Lorenzo Cacaotepec,Colonia Centro ,9515470744,2025-09-07 16:46:56,2025-09-07 16:46:56,11112833441
+197,Artemio,Andres,Perez,Contreras,Oaxaca,Mexico,Calle Morelos,SN,SN,68200,Villa De Etla,Morelos,9516137601,2025-09-07 17:10:09,2025-09-07 17:10:09,11113036043
+198,Flavio,Carmelo,Luis,Ortiz,Oaxaca,Mexico,La Gloria,6,SN,68230,Santiago Suchilquitongo,La Gloria,9514986728,2025-09-07 17:30:04,2025-09-07 17:30:04,11112871359
+199,Gabriel,,Zuñiga,Perez,Oaxaca,Mexico,Sin Nombre,SN,SN,68200,Villa De Etla,Etlla,9511038642,2025-09-07 17:51:03,2025-09-07 17:51:03,11113091669
+200,Mariam,Victoria,Santiago,Contreras,Oaxaca,Mexico,Xicotecate,25,25,68200,Villa De Etla,N/a,9514848081,2025-09-07 18:03:22,2025-09-07 18:03:22,11112842889
+201,Simon,,Santiago,Santiago,Oaxaca,Mexico,Av. Ferrocarril Secc 1ra,SN,SN,68220,San Pablo Huitzo,La Cantera,9513924564,2025-09-07 18:19:42,2025-09-07 18:19:42,11112984205
+202,Julian,,Chavez,Zarate,Oaxaca,Mexico,Av. Vía Central ,SN,13,68220,San Pablo Huitzo,Barrio La Cantera,9511807788,2025-09-07 19:09:56,2025-09-07 19:09:56,11113001966
+203,Gilberto ,,Leyva,Gomez,Oaxaca,Mexico,Calle Del Pozo,SN,SN,68240,Nazareno,N/a,9516092809,2025-09-07 19:50:29,2025-09-07 19:50:29,11113101539
+204,Jesus,Antonio,Bautista,Flores,Oaxaca,Mexico,Arroyo Seco,SN,SN,68220,San Pablo Huitzo,Tenexpam,9512576262,2025-09-08 20:28:21,2025-09-08 20:28:21,11113209269
+205,Jonathan,Daniel,Romano,Cruz,Oaxaca,Mexico,24 De Febrero,SN,SN,68220,San Pablo Huitzo,Huitzo,9514123381,2025-09-08 20:42:47,2025-09-08 20:42:47,11113203334
+206,Serafin,,Cruz,Vasquez,Oaxaca,Mexico,05 De Mayo,SN,SN,68220,San Pablo Huitzo,Huitzo,9516569025,2025-09-08 20:52:40,2025-09-08 20:52:40,11112879732
+207,Juana,Gloria,Lopez,Torres,Oaxaca,Mexico,Via Central,SN,SN,68220,San Pablo Huitzo,La Cantera,9516124104,2025-09-08 21:10:32,2025-09-08 21:10:32,11113289382
+208,Joana ,Jacqueline,Santiago,Hernandez,Oaxaca,Mexico,Av. Héroes De Nacosari,7,SN,68220,San Pablo Huitzo,2da Seccion,9512039975,2025-09-08 21:18:55,2025-09-08 21:18:55,11112924092
+209,Luis,,Martinez,Aquino,Oaxaca,Mexico,Priv. De La Amistad,SN,SN,68230,San Pablo Huitzo,2da Seccion,9513247582,2025-09-08 21:26:30,2025-09-08 21:26:30,11112939687
+210,Erick,Adrian,Ramirez,San Miguel,Oaxaca,Mexico,Calle Hidalgo,44,sn,68224,San Juan Del Estado ,Colonia Centro ,9514211529,2025-09-08 21:36:34,2025-09-08 21:36:34,11112989633
+211,Teresa,Margarita,Perez,Perez,Oaxaca,Mexico,Calle Hidalgo,10,10,68224,San Juan Del Estado ,Barrio El Llano,9515509214,2025-09-08 21:44:03,2025-09-08 21:44:03,11113003674
+212,Nelly,Ivette,Lopez,Ruiz,Oaxaca,Mexico,Av. Hidalgo,SN,4,68224,San Juan Del Estado ,El Llano,9512370716,2025-09-08 21:52:35,2025-09-08 21:52:35,11113186700
+213,Liliana,Sherlyn,Sanchez,Ruiz,Oaxaca,Mexico,Av. Hidalgo,SN,4,68224,San Juan Del Estado ,Barrio El Llano,9516456019,2025-09-08 21:58:07,2025-09-08 21:58:07,11112957047
+214,Gabriel,Giovanni,Cruz,Perez,Oaxaca,Mexico,Benito Juarez,SN,SN,68224,San Juan Del Estado ,Barrio Del Panteon,9516458368,2025-09-08 22:05:43,2025-09-08 22:05:43,11113168554
+215,Yamilet,,Martinez,Quiroz,Oaxaca,Mexico,Sn,0,0,68230,Santiago Suchilquitongo,Santa Cruz Lachixolana,9514661586,2025-09-20 15:28:12,2025-09-20 15:28:12,11113161382
+216,Socorro,,Santiago,Garcia,Oaxaca,Mexico,C. Arroyo Los Cuajilotes,SN,SN,68220,San Pablo Huitzo,Segunda Seccion,9516366246,2025-09-20 15:37:56,2025-09-20 15:37:56,11113139475
+217,Erick,Domingo,Cruz,Zarate,Oaxaca,Mexico,Arroyo Galeana,SN,SN,68220,San Pablo Huitzo,Sn,9171099151,2025-09-20 15:48:34,2025-09-20 15:48:34,11112837073
+218,Margarita,Tomasa,Garcia,Santiago,Oaxaca,Mexico,20 De Noviembre,8,0,68237,Reyes Etla,Colonia Centro ,9511459291,2025-09-20 16:07:09,2025-09-20 16:07:09,11112682329
+219,Jacob,Angel,Flores,Godínez,Oaxaca,Mexico,Calle Laureles,208,0,68023,Oaxaca De Juarez,Colonia Ampliación Jardín,9511317987,2025-09-20 16:20:36,2025-09-20 16:20:36,11112842211
+220,Ramiro,,Reyes,Santiago,Oaxaca,Mexico,Calle Independencia,18,0,68220,San Pablo Huitzo,Tercera Sección,9513264113,2025-09-20 16:29:02,2025-09-20 16:29:02,11113028141
+221,Alejandra,Denisse,Cruz,Cruz,Oaxaca,Mexico,Arroyo Seco,SN,SN,68220,San Pablo Huitzo,Tenexpam,9511784719,2025-09-20 16:37:56,2025-09-20 16:37:56,11113141758
+222,Amalia,Soledad,Mendoza,Caballero,Oaxaca,Mexico,Sn,0,0,68220,San Pablo Huitzo,Segunda Seccion,9514697919,2025-09-20 16:48:10,2025-09-20 16:48:10,11112947469
+223,Fermin,,Doquiz,Alcantara,Oaxaca,Mexico,Av. La Industria,93,0,68247,San Agustin Etla,N/a,9518820956,2025-09-20 16:56:38,2025-09-20 16:56:38,11112937209
+224,Jose,Luis,Lopez,Martinez,Oaxaca,Mexico,Iturbide,SN,SN,68224,San Juan Del Estado ,N/a,9514944631,2025-09-20 18:29:55,2025-09-20 18:29:55,11112788121
+225,Maria,Luisa,Jarquin,Mendez,Oaxaca,Mexico,Calle Laureles,210,0,68023,Oaxaca De Juarez,Col. Aurora,9511466726,2025-09-20 18:38:12,2025-09-20 18:38:12,11112936286
+226,Felipe,De Jesus,Ramon,Lopez,Oaxaca,Mexico,Independencia,3,0,68220,San Pablo Huitzo,Tercera Sección,9516130010,2025-09-20 18:52:29,2025-09-20 18:52:29,11113172495
+227,Juan,Julian,Lopez,Mendez,Oaxaca,Mexico,Segunda Privada De Constitución,SN,SN,68263,San Lorenzo Cacaotepec,Barrio Bajo,9513081214,2025-09-20 19:09:40,2025-09-20 19:09:40,11112764956
+228,Denilson,Nicolas,Vasquez,Toledo,Oaxaca,Mexico,05 De Mayo,SN,SN,68220,San Pablo Huitzo,Tercera Sección,9517580897,2025-09-20 19:21:05,2025-09-20 19:21:05,11113188998
+229,Clara,,Lopez,Hernandez,Oaxaca,Mexico,Calle Reforma,56,59,68247,San Agustin Etla,Reforma,9515213044,2025-09-20 19:33:15,2025-09-20 19:33:15,11113045113
+230,Cira,Eufrosina,Hernandez,Sanchez,Oaxaca,Mexico,Av. Juárez,51,SN,68263,San Lorenzo Cacaotepec,El Rancho,9515672450,2025-09-20 19:43:36,2025-09-20 19:43:36,11112889189
+231,Victoria,Guadalupe,Miguel,Alcantara,Oaxaca,Mexico,Calle La Factoría ,SN,SN,68247,San Agustin Etla,San Jose,9511609412,2025-09-20 19:58:46,2025-09-20 19:58:46,11112908135
+232,Veronica,,Pedro,Reyes,Oaxaca,Mexico,Manuel Gomez Portilla,SN,SN,68247,San Agustin Etla,Manuel Gomez Portilla,9513455798,2025-09-20 20:11:48,2025-09-20 20:11:48,11112816934
+233,Fernando,Armando,Noriega,Lopez,Oaxaca,Mexico,La Esmeralda,S/N,S/N,68220,San Pablo Huitzo,Arroyo Esmeralda,9512484089,2025-10-14 20:53:58,2025-10-14 20:53:58,11112986899
+234,Armando,,Hernandez,Castillo,Oaxaca,Mexico,Margarita,106,SN,68236,San Juan Bautista Guelache,Elbergel,9511363129,2025-10-14 21:11:50,2025-10-14 21:11:50,11112954434
+235,Ricardo,Monfilio,Diaz,Diaz,Oaxaca,Mexico,San Antonio,SN,SN,68263,San Lorenzo Cacaotepec,San Antonio,9513980503,2025-10-14 21:29:04,2025-10-14 21:29:04,11112971667
+236,Daniela,Ivonne,Vasquez,Garcia,Oaxaca,Mexico,Via Central,1,0,68220,San Pablo Huitzo,La Cantera,4421713801,2025-10-14 21:45:27,2025-10-14 21:45:27,11112708888
+237,Lizbeth ,,Gaspar,Ramirez,Oaxaca,Mexico,Av. Independencia,301,SN,68000,Oaxaca De Juarez,Colonia Centro ,9511055423,2025-10-14 22:01:57,2025-10-14 22:01:57,11112953105
+238,Adrian,Vigilio,Sosa,Audelo,Oaxaca,Mexico,Domicio Conocido,SN,SN,68220,San Pablo Huitzo,N/a,9514963696,2025-10-28 19:30:04,2025-10-28 19:30:04,11112886571
+239,Abraham,,Lopez,Cisneros,Oaxaca,Mexico,Faustino G. Olivera,409,0,68070,Oaxaca De Juarez,Luis Jimenez Figueroa,9514163226,2025-10-28 19:45:32,2025-10-28 19:45:32,11113121732
+240,Mario,Alberto,Davila,Alvarez,Oaxaca,Mexico,Prolongación De Juárez,SN,SN,68220,San Pablo Huitzo,2da Seccion,9513966678,2025-10-28 19:56:42,2025-10-28 19:56:42,11112808669
+241,Sadot,,Morales,Mendez,Oaxaca,Mexico,Cuahtemoc,26,26,68200,Villa De Etla,Santo Domingo Barrio Bajo,9515778909,2025-10-28 20:32:33,2025-10-28 20:32:33,11112971322
+242,Zita,Martina,Avendaño,Rodriguez,Oaxaca,Mexico,Nicolas Bravo,S/N,S/N,68220,San Pablo Huitzo,2da Seccion,9511870753,2025-10-28 20:45:02,2025-10-28 20:45:02,11112777460
+243,Angelica,,Ramirez,Bohorquez,Oaxaca,Mexico,La Nacion,13,S/N,68025,Oaxaca De Juarez,Primera Etapa,9514260515,2025-10-31 19:32:23,2025-10-31 19:32:23,11113114310
+244,Jeremias,,Espina,Espina,Oaxaca,Mexico,Carretera A San Luis Beltran,207,207,68020,Oaxaca De Juarez,Volcanes,9513196025,2025-10-31 19:41:54,2025-10-31 19:41:54,11112922496
+245,Jose,Francisco,Zabria,Bautista,Oaxaca,Mexico,Porfirio Diaz,1405,1405,68040,Oaxaca De Juarez,Heroes De Chapultepec,9514625572,2025-10-31 19:50:06,2025-10-31 19:50:06,11112926863
+246,Manolo,,Juarez,Hernández,Oaxaca,Mexico,Manuel Gomez Portilla,SN,SN,68247,San Agustin Etla,Ferreria,9511308056,2025-10-31 20:02:12,2025-10-31 20:02:12,11112828093
+247,Freddie,,Ruiz,Martinez,Oaxaca,Mexico,Benito Juarez,1,1,68237,Reyes Etla,Reyes,9512093715,2025-10-31 20:09:46,2025-10-31 20:09:46,11113113098
+248,Sadot,,Morales,Mendez,Oaxaca,Mexico,Amapolas,SN,SN,68200,Villa De Etla,Santo Domingo Barrio Bajo,9515778909,2025-10-31 20:24:47,2025-10-31 20:24:47,11113066526
+249,Aracely,,Gonzalez,Petra,Oaxaca,Mexico,Priv. De Reforma,S/N,SN,68230,Santiago Suchilquitongo,Reforma,9513944919,2025-10-31 20:33:48,2025-10-31 20:33:48,11112973194
+250,Yasmin,Guadalupe,Castillo,Osorio,Oaxaca,Mexico,20 De Noviembre,1,S/N,68237,Reyes Etla,Reyes,9515800178,2025-10-31 20:42:15,2025-10-31 20:42:15,11112886913
+251,Veyda,Melina,Aragon,Alejo,Oaxaca,Mexico,Laureles,103,S/N,68023,Oaxaca De Juarez,Jardin,9513220452,2025-10-31 20:55:05,2025-10-31 20:55:05,11112788591
+252,Nancy ,Yaneth,Rodriguez,Santiago,Oaxaca,Mexico,Tuxtepec,S/N,S/N,68023,Oaxaca De Juarez,7 Regiones,9511967325,2025-10-31 21:04:01,2025-10-31 21:04:01,11112924808
+253,Jose,Adrian,Sosa,Garcia,Oaxaca,Mexico,Rio Seco,SN,SN,68213,San Francisco Telixtlahuaca,El Calvario,9514615900,2025-10-31 21:12:59,2025-10-31 21:12:59,11113042585
+254,Fulgencio,,Perez,Perez,Oaxaca,Mexico,Francisco I Madero,S/N,S/N,68237,Reyes Etla,Colonia Centro ,2203339057,2025-10-31 21:20:05,2025-10-31 21:20:05,11112878524
+255,Brayan,Geovanni,Hernandez,Espinoza,Oaxaca,Mexico,Galena,5,5,68237,Reyes Etla,Reyes,9511799145,2025-10-31 21:27:53,2025-10-31 21:27:53,11112887993
+256,Laritza,Concepcion,Sosa,Paz,Oaxaca,Mexico,Prolongacion Vicente Guerrero,34,S/N,68220,San Pablo Huitzo,Primera Seccion,9512558116,2025-10-31 21:37:20,2025-10-31 21:37:20,11112857142
+257,Juana,Lucina,Sosa,Lopez,Oaxaca,Mexico,Prolongacion De Benito Juarez ,S/N,S/N,68220,San Pablo Huitzo,2da Seccion,9515643648,2025-10-31 21:43:10,2025-10-31 21:43:10,11113242625
+258,Luis,Alberto,Jimenez,Martinez,Oaxaca,Mexico,Priv. Buena Vista,13,12,68230,Santiago Suchilquitongo,Arena,9511973697,2025-11-01 17:04:30,2025-11-01 17:04:30,11112884593
+259,Flor,Guadalupe,Juarez,Chavez,Oaxaca,Mexico,Lazaro Cardenas,106,S/N,71220,Santa Maria Atzompa,Ampliacion Progreso,9513126206,2025-11-01 17:14:57,2025-11-01 17:14:57,11112942147
+260,Isabel,Reynaldo,Avendaño,Flores,Oaxaca,Mexico,Prolongación De Juárez,CONOCIDO,CONOCIDO,68220,San Pablo Huitzo,El Llano,9514023964,2025-11-01 17:23:41,2025-11-01 17:23:41,11113098282
+261,Kadir,Yoshiky,Merlin,Dominguez,Oaxaca,Mexico,Centenario,SN,SN,68200,Villa De Etla,Villa De Etla,9516048468,2025-11-01 17:33:48,2025-11-01 17:33:48,11113101552
+262,Jorge,Benjamin,Cruz,Rodriguez,Oaxaca,Mexico,Av. La Reina,SN,SN,68237,Reyes Etla,El Arenal,9511349415,2025-11-01 17:43:23,2025-11-01 17:43:23,11112984818
+263,Itzel,Belem,Torres,Lopez,Oaxaca,Mexico,Guerrero,SN,SN,68200,Villa De Etla,Santo Domingo Barrio Bajo,9511649218,2025-11-01 17:52:40,2025-11-01 17:52:40,11112994997
+264,Irma,,Hernandez,Santiago,Oaxaca,Mexico,Aldama,S/N,S/N,68244,Zautla,Aleman,9511290417,2025-11-01 18:04:50,2025-11-01 18:04:50,11112893373
+265,Nancy,Yuliana,Cruz,Lopez,Oaxaca,Mexico,Revolucion,SN,SN,68230,Santiago Suchilquitongo,Agua Buena,9515856413,2025-11-01 18:14:23,2025-11-01 18:14:23,11113013620
+266,Julia,Esther,Vallarta,Gonzalez,Oaxaca,Mexico,Independencia ,11,11,68230,Santiago Suchilquitongo,Barrio Agua Buena,9512319234,2025-11-01 18:44:22,2025-11-01 18:44:22,11112962910
+267,Victor,Uriel,Garcia,Martinez,Oaxaca,Mexico,Constitucion,SN,SN,68220,San Pablo Huitzo,Tenexpam,9514996471,2025-11-01 18:53:13,2025-11-01 18:53:13,11113076219
+268,Senorina,,Perez,Ramirez,Oaxaca,Mexico,Venustiano Carranza,SN,SN,68244,Zautla,Venustiano Carranza,9514111556,2025-11-01 19:03:11,2025-11-01 19:03:11,11113007142
+269,Daniel,,Gonzalez,Casas,Oaxaca,Mexico,Carretera Internacional,CONOCIDO,CONOCIDO,68220,San Pablo Huitzo,La Cruz,9515324847,2025-11-01 19:13:18,2025-11-01 19:13:18,11113037690
+270,Alejandra,Mayte,Espinoza,Diezo,Oaxaca,Mexico,Emiliano Zapata,6,SN,68226,Magdalena Apasco,Apasco,9512035022,2025-11-01 19:22:24,2025-11-01 19:22:24,11113022524
+271,Orlando,,Espinoza,Cisneros,Oaxaca,Mexico,Emiliano Zapata,6,0,68226,Magdalena Apasco,Apasco,9511705713,2025-11-01 19:29:19,2025-11-01 19:29:19,11112754934
+272,Adonai,,Castellanos,Hernández,Oaxaca,Mexico,Prolongación De Juárez,8,S/N,68240,Nazareno Etla,Nazareno,9512532407,2025-11-01 19:38:10,2025-11-01 19:38:10,11112893338
+273,Roberto,,Cervantes,Perez,Oaxaca,Mexico,Emiliano Zapata,SN,SN,68226,Magdalena Apasco,El Barriecito,9513544812,2025-11-01 19:48:04,2025-11-01 19:48:04,11113101306
+274,Irma,Paola,Angulo,Sanchez,Oaxaca,Mexico,Manuel Gomez Portilla,SN,SN,68247,San Agustin Etla,Manuel Gomez Portilla,9513949278,2025-11-01 19:59:23,2025-11-01 19:59:23,11112938387
+275,Romeo,Nicolas,Rojas,Cruz,Oaxaca,Mexico,Francisco I Madero,6,6,68240,Nazareno Etla,Colonia Centro ,9512549875,2025-11-01 20:06:42,2025-11-01 20:06:42,11113085560
+276,Elmer,Hedder,Niño,Castellanos,Oaxaca,Mexico,Priv. Francisco I Madero,SN,SN,68240,Nazareno Etla,Nazareno,9513446311,2025-11-01 20:18:02,2025-11-01 20:18:02,11112958983
+277,Agustin,,Santos,Mendez,Oaxaca,Mexico,Cerrada De Cardenas,6,S/N,68237,Reyes Etla,Reyes,9511107149,2025-11-01 20:29:18,2025-11-01 20:29:18,11112928768
+278,Catarino,Claudio,Lescas,Mendoza,Oaxaca,Mexico,Na,S/N,S/N,68283,San Lorenzo Cacaotepec,N/a,9515632461,2025-11-01 20:49:40,2025-11-01 20:49:40,11113012821
+279,Andres,,Carranza,Gonzales,Oaxaca,Mexico,Revolucion,2,S/N,68263,San Lorenzo Cacaotepec,Lomachi,2217975531,2025-11-01 20:57:33,2025-11-01 20:57:33,11112846271
+280,Juan,Efren,Lopez,Hernandez,Oaxaca,Mexico,Constitucion,21,S/N,68263,San Lorenzo Cacaotepec,Barrio Bajo,9513675586,2025-11-01 21:14:59,2025-11-01 21:14:59,11112985867
+281,Alejandra,Paula,Ortiz,Mendez,Oaxaca,Mexico,Francisco Villa,10,S/N,68263,San Lorenzo Cacaotepec,Colonia Centro ,9514650426,2025-11-01 21:21:52,2025-11-01 21:21:52,11113081447
+282,Adrian,Sa,Chavez,Arango,Oaxaca,Mexico,Prolongacion Emiliano Zapata,SN,SN,68226,Magdalena Apasco,Centro,9516451033,2025-11-05 18:34:57,2025-11-05 18:34:57,11112658700
+283,Gloria ,Maricela,Tellez,Martinez,Oaxaca,Mexico,Fracc San Miguel Etla,24,S/N,68234,San Juan Bautista Guelache,Centro,9515853413,2025-11-05 18:53:50,2025-11-05 18:53:50,11112771908
+284,Cecilia,,Romualdo,Martinez,Oaxaca,Mexico,C Libertad,11,S/N,68274,Oaxaca De Juarez,Trinidad Viguera,9511999358,2025-11-05 19:03:26,2025-11-05 19:03:26,11112956531
+285,Francisco,Ricardo,Mijangos ,Paz,Oaxaca,Oaxaca,Cuauhxolotitlan,35,S/N,68220,San Pablo Huitzo,Centro,9515866861,2025-11-10 23:09:12,2025-11-10 23:09:12,11113094138
+286,Rosalba,,Valdez,Flores,Oaxaca,Oaxaca,Marcos Perez,SN,SN,68258,San Sebastian Etla,Azucenas,9511183034,2025-11-11 18:46:39,2025-11-11 18:46:39,11113022877
+287,Virginia,Janeth,Aquino,Cruz,Oaxaca,Mexico,Sn,SN,SN,68218,Santiago Tenango,Loma Bonita,9513979551,2025-11-11 19:04:35,2025-11-11 19:04:35,11112728771
+288,Juan,Antonio,Hernandez,Cruz,Oaxaca,Mexico,Arroyo Esmeralda ,34,0,68220,San Pablo Huitzo,Sn,9514173321,2025-11-11 19:44:42,2025-11-11 19:44:42,11112924678
+289,Carmen,Oliva,Mejia,Caballero,Oaxaca,Mexico,1ra Sección ,35,0,68220,San Pablo Huitzo,Av. Huatzolotitlan,9512962554,2025-11-11 20:08:38,2025-11-11 20:08:38,11112856649
+291,Rigoberto,Avimael,Pérez,Caballero,Oaxaca,Oaxaca,Prolongación De Juárez,SN,SN,68220,San Pablo Huitzo,2da Seccion,9516461704,2025-11-14 16:23:42,2025-11-14 16:23:42,11113072620
+292,Antonio,,Cortes,Salvador,Oaxaca,Oaxaca,Camelias,104,S/N,68234,San Juan Bautista Guelache,El Vergel,9514746618,2025-11-14 16:53:33,2025-11-14 16:53:33,11112759993
+293,Edilberto,,Cruz,Lopez,Oaxaca,Oaxaca,Xicotencatl,SN,S/N,68737,San Miguel Aloapam,Centro,9515506801,2025-11-14 17:10:16,2025-11-14 17:10:16,11112747162
+294,Mariela,,Rivas,Rivas,Oaxaca,Oaxaca,Abasolo,SN,S/N,68234,San Juan Bautista Guelache,Santos Degollados,2202679585,2025-11-14 17:24:38,2025-11-14 17:24:38,11113208007
+295,Alberto,,Quitzaman,Vasquez,Oaxaca,Oaxaca,Andador Alcaravan,65,S/N,68234,San Miguel Etla,Etla,9511771889,2025-11-14 17:33:28,2025-11-14 17:33:28,11112967853
+296,Julia,Esther,Vallarta,Gonzalez,Oaxaca,Oaxaca,Av. Independencia,11,S/N,68230,Santiago Suchilquitongo,Agua Buena,9512319234,2025-11-14 17:48:40,2025-11-14 17:48:40,11113194053
+297,Silvestre,Luis,Gonzalez,Chavez,Oaxaca,Oaxaca,Independencia,13,S/N,68230,Santiago Suchilquitongo,Agua Buena,9512913637,2025-11-14 17:55:07,2025-11-14 17:55:07,11112795043
+298,Alberto,Gregorio,Cruz,Ruiz,Oaxaca,Oaxaca,Sin Nombre,SN,SN,68257,San Agustin Etla,Cristo Rey,9512434325,2025-11-14 18:04:49,2025-11-14 18:04:49,11113218407
+299,Juan,Fernando,Vazquez,Martinez,Oaxaca,Oaxaca,Rodolfo Brena Torres,201,S/N,68258,Oaxaca De Juarez,Benito Juarez,9511695606,2025-11-14 18:15:14,2025-11-14 18:15:14,11113231927
+300,Luis ,José,Osorio,Morales,Oaxaca,Oaxaca,Calle Pípila S/n,S,sn,68237,Reyes Etla,Reyes Etla,9514642506,2025-11-15 19:11:07,2025-11-15 19:11:07,11112869400
+301,Nazaria ,De La Luz,Sanchez,Martínez ,Oaxaca,Oaxaca,Álvaro Obregón ,S/n,s/n,68200,Villa De Etla,Asunción Etla ,9513648749,2025-11-15 20:09:04,2025-11-15 20:09:04,11113039501
+302,Augusto,,Dominguez,Dominguez,Oaxaca,Oaxaca De Juarez,Rayon,SN,SN,68224,San Juan Del Estado,Barrio De San Isidro,9516468582,2025-11-21 01:37:05,2025-11-21 01:37:05,11113042038
+304,Claudio,De Jesus,Martinez,Lopez,Oaxaca,Oaxaca De Juarez,Diamante,SN,SN,68220,San Pablo Huitzo,Esmeralda,9515946851,2025-11-21 01:54:18,2025-11-21 01:54:18,11112965092
+305,Luis,Angel,Mendez,Sanchez,Oaxaca,Oaxaca De Juarez,Vicente Guerrero,14,SN,68220,San Pablo Huitzo,La Cantera,9512854615,2025-11-21 02:01:25,2025-11-21 02:01:25,11113138946
+306,Edgar,Francisco,Gopar,Garcia,Oaxaca,Oaxaca De Juarez,Privada Cipres,SN,SN,68200,Reyes Etla,Fraccionamiento Fresnos,9514704176,2025-11-21 02:08:54,2025-11-21 02:08:54,11112892478
+307,Mayra,Elizabeth,Cruz,Leon,Oaxaca,Oaxaca De Juarez,Emiliano Zapata,SN,15,68263,San Lorenzo Cacaotepec ,San Lorenzo,9511467654,2025-11-21 02:19:42,2025-11-21 02:19:42,11113113052
+308,Alexander,Daniel,Lopez ,Lopez,Oaxaca,Oaxaca De Juarez,Arrollo Galeana,SN,SN,68220,San Pablo Huitzo,Cañada,9515867249,2025-11-21 02:26:22,2025-11-21 02:26:22,11113082146
+309,Alejandra,,Ramos,Cruz,Oaxaca,Oaxaca De Juarez,Reforma,104,SN,68247,San Agustin Etla,Barrio San Jose Etla,9513210612,2025-11-21 02:34:30,2025-11-21 02:34:30,11112814562
+310,Mayela,,Sanchez,Alvarez,Oaxaca,Oaxaca De Juarez,Privada De Jacarandas,2,SN,68220,San Pablo Huitzo,Agua Blanca,9518424115,2025-11-21 02:41:02,2025-11-21 02:41:02,11112907237
+311,Antonio,,Cortes,Salvador,Oaxaca,Oaxaca De Juarez,Alamos,21,SN,68220,Magdalena Apasco,Fraccionamiento San Isidro Catano,9514746618,2025-11-21 02:49:53,2025-11-21 02:49:53,11112947405
+312,Sara,,Lopez,Cruz,Oaxaca,Oaxaca De Juarez,Arroyo Yutetiaca,92,SN,68220,San Pablo Huitzo,Na,4421067111,2025-11-21 03:00:28,2025-11-21 03:00:28,11112962070
+313,Maria,De Los Angeles,Lopez,Nuñes,Oaxaca,Oaxaca De Juarez,Venustiano Carranza,21,SN,68237,Reyes Etla,Centro,9515889345,2025-11-21 03:11:06,2025-11-21 03:11:06,11113146282
+314,Asuncion,Cruz,Hernandez,Aguilar,Oaxaca,Oaxaca De Juarez,24 De Febrero,7,SN,68220,San Pablo Huitzo,Na,9514012181,2025-11-21 03:18:18,2025-11-21 03:18:18,11112802275
+315,Minerva,,Ramirez,Hernandez,Oaxaca,Oaxaca De Juarez,Benito Juarez,20,SN,68237,Reyes Etla,San Lazaro,9516546991,2025-11-21 03:33:41,2025-11-21 03:33:41,11112794953
+316,Edwin,Miguel,Zarate,Pinelo,Oaxaca,Oaxaca De Juarez,5 De Mayo,SN,SN,68230,Santiago Suchilquitongo,Barrio Atayuco,9515836342,2025-11-21 03:39:54,2025-11-21 03:39:54,11112917095
+317,Paula,Elvira,Lopez,Cruz,Oaxaca,Oaxaca De Juarez,Hidalgo,SN,SN,68260,San Felipe Tejalapam,Copalito,9512403713,2025-11-21 03:48:16,2025-11-21 03:48:16,11113107492
+318,Jesus,,Hernandez,De La Luz,Oaxaca,Oaxaca De Juarez,Emiliano Zapata,18,SN,68230,Santiago Suchilquitongo,Lazaro Cardenas,9514357955,2025-11-21 03:55:22,2025-11-21 03:55:22,11112819235
+319,Ricarda,,Torres,Santiago,Oaxaca,Oaxaca De Juarez,Via Central,SN,SN,68220,San Pablo Huitzo,La Cantera,4423322402,2025-11-21 04:02:06,2025-11-21 04:02:06,11113104303
+320,Jaime,Abisaid,Rivera,Cortes,Oaxaca,Oaxaca De Juarez,Santo Domingo,19,SN,68200,Villa De Etla,Na,9514943714,2025-11-21 04:08:57,2025-11-21 04:08:57,11113214056
+321,Adolfo,Agustín ,Muñoz,Chavez,Oaxaca,Oaxaca,Lomas Del Roble,SN,SN,68260,San Felipe Tejalapam,El Chilar,9511997486,2025-11-22 16:44:04,2025-11-22 16:44:04,11112783173
+322,Selena,Yajaira,Lopez,Flores,Oaxaca,Oaxaca,Ferrocarril Y Griega,11,SN,68213,San Francisco Telixtlahuaca,Rancho Nuevo,9519499424,2025-11-22 17:18:15,2025-11-22 17:18:15,11113016455
+323,Juana ,,Garcia,Muñoz,Oaxaca,Oaxaca,La Cruz ,SN,SN,68260,San Felipe Tejalapam,El Chilar,9511191934,2025-11-22 17:50:00,2025-11-22 17:50:00,11112781039
+324,Emanuel,Jesus,Gopar,Garcia,Oaxaca,Oaxaca,Aleli,SN,SN,68234,San Juan Bautista Gelache,El Bergel ,9513039197,2025-12-03 15:37:55,2025-12-03 15:37:55,11113003608
+325,Anahy,,Santiago,Lopez,Oaxaca,Oaxaca,Prolongacion De Juarez,SN,SN,68220,San Pablo Huitzo,2da Seccion,9511568405,2025-12-05 19:22:54,2025-12-05 19:22:54,11113049905
+326,Elmer,Hedder,Castellanos ,Niño,Oaxaca,Oaxaca,Francisco I Madero ,sn,sn,68240,Nazareno Etla,Barrio Bajo,9513446311,2025-12-16 20:45:21,2025-12-16 20:45:21,11113054433
+327,Cristian,Emmanuel,Leyva,Flores,Oaxaca,Oaxaca,Hacienda Blanca,1,25,68259,San Pablo Etla,Fracc Villas Hacienda Blanca,9515708054,2025-12-16 21:14:36,2025-12-16 21:14:36,11112905722
+328,Martin ,,Flores,Arango,Oaxaca,Oaxaca,Vicente Guerrero ,1,13,68220,San Pablo Huitzo ,Primera Sección ,9511117454,2025-12-16 21:25:37,2025-12-16 21:25:37,11113007902
+329,Rossy,Edith,Cruz,Garcia,Oaxaca,Oaxaca,Privada Manuel Negrete ,sn,sn,68260,San Felipe Tejalapam,Paraje El Chillar,9515819259,2025-12-17 17:03:05,2025-12-17 17:03:05,11113019580
+330,Magali ,Deyce,Galindo,Hernandez,Oaxaca,Oaxaca,5 De Mayo,5,SN,68254,Santo Tomas Mazaltepec,Santo Tomas Mazaltepec,9516387569,2025-12-17 17:59:42,2025-12-17 17:59:42,11113009695
+331,Oscar,Cristian,Pinelo,Moreno,Oaxaca,Oaxaca,Guerrero,24,S/N,68237,Reyes,San Lazaro,9514947606,2025-12-17 18:13:13,2025-12-17 18:13:13,11112666665
+332,Irma,,Hernandez,Santiago,Oaxaca,Oaxaca,Aldama,48,SN,68244,San Andres Zautla,Aleman,9512196402,2025-12-17 18:21:14,2025-12-17 18:21:14,11112896316
+333,Elvia,Sandra,Gomez,Espinoza,Oaxaca,Oaxaca,Allende,SN,SN,68254,Santo Tomas Mazaltepec,Santo Tomas Mazaltepec,5573485446,2025-12-17 18:31:32,2025-12-17 18:31:32,11112948802
+334,Maria,Filiberta,Lopez,Pablo,Oaxaca,Oaxaca,5 De Mayo,SN,SN,68230,Santiago Suchilquitongo,Atayuco,9512351288,2025-12-17 18:40:30,2025-12-17 18:40:30,11113053778
+335,Margarito,Sa,Ruiz ,Santiago,Oaxaca,Oaxaca,Manuel Sabino Crespo,7,SN,68263,San Lorenzo Cacaotepec,El Arenal,9514214372,2025-12-17 18:54:19,2025-12-17 18:54:19,11113142034
+336,Julio ,Cesar,Rivera,Velasco,Oaxaca,Oaxaca,Priv Del Pabilo,SN,SN,68247,San Agustin Etla,La Ferreria,2219256702,2025-12-17 19:04:31,2025-12-17 19:04:31,11112985536
+337,Porfiria,Paula,Santos ,Espinoza,Oaxaca,Oaxaca,Avenida Hidalgo,sn,sn,68260,San Felipe Tejalapam,Copalito,9511633862,2025-12-17 23:03:11,2025-12-17 23:03:11,11113189493
+338,Jose,Miguel,Pérez ,Cruz,Oaxaca,Oaxaca,Arroyo Central ,SN,SN,68260,San Felipe Tejalapam,Arroyo Central,8141540693,2025-12-18 15:24:51,2025-12-18 15:24:51,11112929397
+339,Ana ,Maria,Perez,Cruz,Oaxaca,Oaxaca,Arroyo Central,SN,SN,68260,San Felipe Tejalapam,Pje Arroyo Central,9512396137,2025-12-18 15:41:08,2025-12-18 15:41:08,11112939602
+340,Carlos,Alberto,Perez ,Hernandez,Oaxaca,Oaxaca,Lo El Cucharal,SN,SN,68260,San Felipe Tejalapam,Loc El Cucharal,5662724512,2025-12-18 15:57:33,2025-12-18 15:57:33,11112996848
+341,Josefina,Juana,Chavez,Hernandez,Oaxaca,Oaxaca,Nicolas Bravo,SN,SN,68260,San Felipe Tejalapam,Centro,9514745491,2025-12-18 16:04:16,2025-12-18 16:04:16,11113033563
+342,Leylani,,Hernandez,Ginez,Oaxaca,Oaxaca,Av Norte,7,SN,68230,Santiago Suchilquitongo,Barrio De La Santa Cruz,9516424924,2025-12-18 16:34:04,2025-12-18 16:34:04,11112858472
+343,Juan,Diego,Osorio,Jinez,Oaxaca,Oaxaca,Abasolo,SN,SN,68230,Santiago Suchilquitongo,Barrio Reforma,9514557861,2025-12-18 16:46:36,2025-12-18 16:46:36,11112665749
+344,Raul,,Mendez,Morales,Oaxaca,Oaxaca,Independencia,13,13,68230,Santiago Suchilquitongo,Agua Buena,9516362815,2025-12-18 16:56:24,2025-12-18 16:56:24,11113006375
+345,Sirenita,Socorro,Cruz,Soriano,Oaxaca,Oaxaca,Segunda De Revolucion,SN,SN,68230,Santiago Suchilquitongo,Barrio Agua Buena,9516472134,2025-12-18 17:06:15,2025-12-18 17:06:15,11112938595
+346,Osmara,Cecilia,Cortes,Esteva,Oaxaca,Oaxaca,Fracc Secuabajo,sn,SN,68258,San Pablo Etla,Almendros,9514637974,2025-12-18 18:21:54,2025-12-18 18:21:54,11112942643
+347,Flor ,Yalina,Mendez,Santos,Oaxaca,Oaxaca,Av Juarez Norte,67,sn,68230,Santiago Suchilquitongo,Barrio De La Santa Cruz,9513226892,2025-12-18 18:39:35,2025-12-18 18:39:35,11113005731
+348,Felipe,Arnulfo,Guadarrama,Miguel,Oaxaca,Oaxaca De Juarez,Pozito De La Virgen,na,na,68220,Santa Maria Tenexpam,Santa Maria Tenexpam,9514745076,2025-12-18 20:20:02,2025-12-18 20:20:02,11112936225
+349,Antonio,,Gutierrez,Minerva,Oaxaca,Oaxaca De Juarez,Rio Nube,NA,NA,68220,San Lorenzo Texmelucan,Rio Nube,9516358729,2025-12-18 20:31:22,2025-12-18 20:31:22,11112969340
+350,Genaro,,Espinoza,Garcia,Oaxaca,Oaxaca De Juarez,Porfirio Diaz,5,S/N,68226,Magdalena Apasco,Centro,9516345094,2025-12-18 20:40:54,2025-12-18 20:40:54,11112828782
+353,Ramon ,Guadalupe,Alavez,Bautista,Oaxaca,Oaxaca,Rayon,SN,S/N,68224,San Jun Del Estado,San Juan Del Estado,9512217864,2025-12-19 20:33:21,2025-12-19 20:33:21,11112999671
+354,Paola,,Vargas,Perez,Oaxaca,Oaxaca,Francisco Villa ,12,S/N,68257,San Pablo Etla,San Sebastian Etla,9512395813,2025-12-19 21:46:52,2025-12-19 21:46:52,11112712265
+355,Melquiadez,Senen,Hernandez,Cuevas,Oaxaca,Oaxaca,El Chillar,sn,sn,68260,San Felipe Tejalapam,El Chillar,9516347160,2025-12-24 18:28:21,2025-12-24 18:28:21,11112805044
+356,Julian,Emanuel,Juarez,Garcia,Oaxaca,Oaxaca,Paraje La Cruz Miguel Negrete,sn,sn,68260,San Felipe Tejalapam,La Cruz,9514631982,2025-12-24 18:41:55,2025-12-24 18:41:55,11112802463
+357,Gabriel,Ivette,De La Luz,Garcia,Oaxaca,Oaxaca,Reforma,10,sn,68230,Santiago Suchilquitongo,Barrio Reforma,9531078608,2025-12-29 17:26:58,2025-12-29 17:26:58,11112933181
+358,Laura,Lucero,Gonzalez,Garcia,Oaxaca,Oaxaca,Tercera Privada De Reforma,sn,sn,68230,Santiago Suchilquitongo,Barrio La Reforma,9516422846,2025-12-29 19:18:17,2025-12-29 19:18:17,11112985431
+359,Geovanni,,Espinoza,Cruz,Oaxaca,Oaxaca De Juarez,Asuncion,sn,S/N,68220,San Pablo Huitzo,Tenexpam,9512921811,2026-01-02 23:06:42,2026-01-02 23:06:42,11112918349
+360,Pedro,,Doquiz,Cruz,Oaxaca,Oaxaca De Juarez,Manuel Gomez Portilla,23,S/N,68247,San Agustin Etla,Manuel Gomez Portilla,9514786961,2026-01-02 23:14:55,2026-01-02 23:14:55,11112904439
+361,Juan,Pablo,Velasco,Carrion,Oaxaca,Oaxaca De Juarez,Manuel Gomez Portilla,NA,S/N,68247,San Agustin Etla,Reforma,9513078128,2026-01-02 23:22:10,2026-01-02 23:22:10,11112739079
+362,Jesica,,Sosa,Cruz,Oaxaca,Oaxaca De Juarez,Huijazoo,NA,S/N,68220,San Pablo Etla,Cristo Rey,4271856749,2026-01-02 23:28:54,2026-01-02 23:28:54,11113044045
+363,Mayela,,Sanchez,Alvarez,Oaxaca ,Oaxaca De Juarez,Seccion 1ra,2,S/N,68080,San Pablo Huitzo,Jacarandas,9518424115,2026-01-02 23:39:10,2026-01-02 23:39:10,11112974492
+364,Pablo,,Gaytan ,Gaytan,Oaxaca,Oaxaca De Juarez,5 De Mayo ,16,S/N,68230,Santiago Suchilquitongo,Atayuca,9519020045,2026-01-02 23:45:53,2026-01-02 23:45:53,11112863299
+365,Rodolfo,,Gonzalez,Perez,Oaxaca,Oaxaca De Juarez,Victoria ,NA,515,68274,Pueblo Nuevo,Victoria,9513615753,2026-01-03 00:06:18,2026-01-03 00:06:18,11113004593
+366,Socorro,,Muños,Muños,Oaxaca,Oaxaca De Juarez,Las Torres,NA,S/N,68278,Pueblo Nuevo,Eucaliptos,9511248651,2026-01-03 00:12:11,2026-01-03 00:12:11,11112878795
+367,Cristia ,Yuriel,Carrera,Martinez,Oaxaca,Oaxaca De Juarez,Callejon,NA,S/N,68276,Trinidad De Viguera,Viguera,2225673174,2026-01-03 00:19:18,2026-01-03 00:19:18,11112929341
+368,Perla,Paola,Gonzalez,Perez,Oaxaca,Oaxaca De Juarez,Las Torres,NA,S/N,68050,Pueblo Nuevo,Eucaliptos,9515040736,2026-01-03 00:25:38,2026-01-03 00:25:38,11112984529
+369,Abril,,Hernandez,Altamirano,Oaxaca,Oaxaca De Juarez,Las Torres,na,na,68274,Pueblo Nuevo,Eucaliptos,9511128909,2026-01-03 00:33:15,2026-01-03 00:33:15,11113026843
+371,Enedina,Lucina,Lopez,Lopez,Oaxaca,Oaxaca De Juarez,Carretera Internacional,NA,S/N,68220,San Pablo Huitzo,Ojo De Agua,9514773948,2026-01-03 01:04:28,2026-01-03 01:04:28,11113042756
+372,Espinoza,,Garcia,Ramiro,Oaxaca,Magdalena Apasco,Priv. Porfirio Diaz,5,S/N,68226,Magdalena Apasco,Colonia Centro,9516345094,2026-01-05 17:23:19,2026-01-05 17:23:19,11112824835
+373,Edi,Omar,Gomez,Garcia,Oaxaca,Oaxaca,Porfirio Diaz,S/N,S/N,68226,Magdalena Apasco,Calvario,9513017971,2026-01-05 17:41:27,2026-01-05 17:41:27,11112818336
+374,Jesus ,Agustin,Niño,Moreno,Oaxaca,Oaxaca,Callejon Del Nogal,5,S/N,68240,Oaxaca De Juarez,Nazareno,9511477081,2026-01-06 17:21:14,2026-01-06 17:21:14,11112815237
+375,Brisa,Belmaris,Niño,Castellanos,Oaxaca,Oaxaca,Callejon Del Nogal,5,S/N,68240,Nazareno,Nazareno,9513948733,2026-01-06 17:33:39,2026-01-06 17:33:39,11112837047
+376,Alma,Yazmin,Cruz,Leon,Oaxaca,San Lorenzo,Av Juarez,41,0,68263,San Lorenzo,Paraje El Conejo,9514722277,2026-01-13 19:16:33,2026-01-13 19:16:33,11113051816
+377,Monserrat,,Castellano,Castellanos,Oaxaca,Oaxaca,Priv De Reforma,s/n,S/N,68237,Reyes Etla,Reyes Etla,9515786726,2026-01-14 18:45:33,2026-01-14 18:45:33,11112763649
+378,Diego,Emmanuel ,Mendez ,Solis,Oaxaca,Oaxaca,C Herores De Chapultepec,10,10,68237,Reyes Etla,Reyes Etla,9513210178,2026-01-14 19:40:26,2026-01-14 19:40:26,11112866249
+379,Jose ,Armando,Ramirez,Reyes,Oaxaca,Oaxaca,13 De Junio,1,S/N,68260,San Felipe Tejalapam,Tierra Colorada Centro,9513641789,2026-01-14 20:18:01,2026-01-14 20:18:01,11112818097
+380,Oreste,Joni,Csatellanos,Castellanos,Oaxaca,Oaxaca,Reforma,sn,sn,68237,Oaxaca,Reyes Etla,9515786726,2026-01-14 20:29:31,2026-01-14 20:29:31,11112975417
+381,Blanca ,Xochil,Lopez ,Castellanos,Oaxaca,Oaxaca,Callejon Cuahutemoc,14,S/N,68237,Reyes Etla,Centro,9516089298,2026-01-14 20:50:09,2026-01-14 20:50:09,11112792766
+382,Naomi ,Janney,Hernandez,Muñoz,Oaxaca,Oaxaca,Camino Al Tecolotes,S/N,S/N,68260,San Felipe Tejalapam,San Felipe Tejalapam,9515046573,2026-01-14 21:15:35,2026-01-14 21:15:35,11113106411
+383,Benjamin,Adolgo,Maldonado ,Ruiz,Oaxaca,Oaxaca,Priv De Aldama,22,S/N,66600,Santiago Suchilquitongo,Barrio Atayuco,9516355144,2026-01-14 21:59:32,2026-01-14 21:59:32,11112887138
+384,Michel,Romina,Archila,Toledo,Oaxaca,Oaxaca,Paraje Hacienda Vieja,sn,S/N,68263,San Lorenzo Cacaotepec,San Lorenzo,9513099119,2026-01-15 19:37:10,2026-01-15 19:37:10,11112996430
+385,Epifania,,Garcia,Morales,Oaxaca,Oaxaca,Porfirio Diaz,141,S/N,68023,Oaxaca De Juarez,Dolores,9515136970,2026-01-15 19:49:41,2026-01-15 19:49:41,11112931322
+386,Aide,Lourdez,Mendoza,Lazaro,Oaxaca,Oaxaca,Priv Guadalupe Victoria ,sn,S/N,68263,San Lorenzo Cacaotepec,San Lorenzo,9516447099,2026-01-15 20:02:08,2026-01-15 20:02:08,11112773739
+387,Miranda,,Cruz,Nicolas,Oaxaca,Oaxaca,Eliseo Jimenez Ruiz,4,S/N,68263,San Lorenzo Cacaotepec,Barrio Alto,9512913473,2026-01-15 20:19:30,2026-01-15 20:19:30,11112802259
+388,David,,Maldonado,Hernandez,Oaxaca,Oaxaca,Aldama,SN,SN,68230,Santiago Suchilquitongo,Barrio Atayuco,9513079908,2026-01-15 20:43:04,2026-01-15 20:43:04,11113033618
+389,Gerardo,,Ruiz,Santiago,Oaxaca,Oaxaca,Av Ferrocarril,SN,SN,68230,Santiago Suchilquitongo,Barrio Atayuco,9514254570,2026-01-15 20:57:41,2026-01-15 20:57:41,11112699307
+390,Daniel,,Flores,Perez,Oaxaca,Oaxaca,Colonia Primavera,SN,S/N,68220,San Pablo Huitzo,Primavera,9511848522,2026-01-15 21:07:53,2026-01-15 21:07:53,11113116034
+391,Consuelo,,Alvarado ,Perez,Oaxaca,Oaxaca,Carretera A Jayacatlan,0,0,68220,San Pablo Huitzo,Guadalupe,9513965370,2026-01-16 19:56:54,2026-01-16 19:56:54,11113042732
+392,Lizbth,,Hernandez,Godinez,Oaxaca,Oaxaca,Arroyo Galeana,SN,SN,68220,San Pablo Huitzo,Primera Seccion,9513813849,2026-01-16 20:28:00,2026-01-16 20:28:00,11113013674
+393,Juan,Ernesto,Luis ,Lopez,Oaxaca,Oaxaca,Carretera Internacional,SN,SN,68230,Santiago Suchilquitongo,B Peñasco,9512167092,2026-01-16 20:53:28,2026-01-16 20:53:28,11112948100
+394,Jose ,Antonio,Flores ,Garcia,Oaxaca,Oaxaca,Prolongacion De Juarez,SN,SN,68220,San Pablo Huitzo,El Llano,9512464608,2026-01-16 21:07:02,2026-01-16 21:07:02,11112922583
+395,Margarita,,Hernandez,Galvan,Oaxaca,Oaxaca,Independencia,30,S/N,68247,San Agustin Etla,Barrio Vistahermosa,9514799750,2026-01-16 22:03:12,2026-01-16 22:03:12,11113002299
+396,Perla,Guadalupe,Anaya ,Garcia,Oaxaca,Oaxaca,Asuncion,sn,sn,68220,San Pablo Huitzo,Tenexpam,9513469557,2026-01-16 22:29:07,2026-01-16 22:29:07,11112706693
+397,Nadia,Valeria,Martinez ,Martinez,Oaxaca,Oaxaca,Camino Nacional,sn,sn,68230,Santiago Suchilquitongo,Peñasco,9511607666,2026-01-16 22:40:30,2026-01-16 22:40:30,11112807346
+398,Bassilisa,Gudelia,Lopez ,Vasquez,Oaxaca,Oaxaca,Segunda De La Gloria,sn,S/N,68230,Santiago Suchilquitongo,La Gloria,9515780058,2026-01-16 22:53:53,2026-01-16 22:53:53,11112783089
+399,Miriam,,Martinez,Lopez ,Oaxaca,Oaxaca,Diamante,sn,sn,68220,San Pablo Huitzo,Esmeralda,9513022582,2026-01-23 16:02:00,2026-01-23 16:02:00,11112888569
+400,Manuel,Alfredo,Martinez,Caballero,Oaxaca,Oaxaca,Porfirio Diaz,SN,SN,68220,San Pablo Huitzo,Centro,9514745509,2026-01-23 16:17:57,2026-01-23 16:17:57,11112862917
+401,Alejandro,,Hernandez,Chavez,Oaxaca,Oaxaca,Emiliano Zapata,SN,SN,68230,Oaxaca De Juarez,Lazaro Cardenas,9514769366,2026-01-23 16:41:54,2026-01-23 16:41:54,11112908291
+402,Alberto,,Paz ,Martinez,Oaxaca,Oaxaca,Prolongacion De Vicente Guerrero,SN,SN,68220,San Pablo Huitzo,Esmeralda,9511076728,2026-01-23 16:55:09,2026-01-23 16:55:09,11112952328
+403,Daniel,,Espinoza,Cruz,Oaxaca,Oaxaca,Calzada La Asuncion,SN,SN,68220,San Pablo Huitzo,Santa Maria Tenexpam,9513648698,2026-01-23 17:11:26,2026-01-23 17:11:26,11112821419
+404,Angeles ,Andrea,Garcia ,Garcia,Oaxaca,Oaxaca,Arroyo Seco,SN,SN,68220,San Pablo Huitzo,San Pablo Huitzo,6633274360,2026-01-23 17:36:31,2026-01-23 17:36:31,11112716716
+405,Manuel ,Angel,Garcia ,Ramos,Oaxaca,Oaxaca,Progreso,51 B,S/N,68213,Santiago Suchilquitongo,Barrio Del Arenal,9511894574,2026-01-23 18:39:02,2026-01-23 18:39:02,11112837856
+406,Manuel ,Angel,Vasquez ,Martinez,Oaxaca,Oaxaca,Calle Segunda De Buena Vista,1,1,68230,Santiago Suchilquitongo,Barrio Del Arenal,9511894574,2026-01-23 18:55:10,2026-01-23 18:55:10,11112918295
+407,Gabriela,,Gonzalez ,Lopez,Oaxaca,Oaxaca,Carretera A Jayacatlan,SN,SN,68220,San Pablo Huitzo,Barrio Guadalupe,9516385864,2026-01-23 19:18:45,2026-01-23 19:18:45,11113093885
+408,Karla,Daniela,Pacheco,Morales,Oaxaca,Oaxaca,El Calvario,SN,SN,68220,San Francisco Telixtlahuaca,Centro,9511026667,2026-01-23 20:03:00,2026-01-23 20:03:00,11112957025
+409,Jose ,Guadalupe,Galicia ,Castellanos,Oaxaca,Oaxaca,Priv De Reforma,sn,sn,68237,Reyes Etla,Oaxaca,9511253074,2026-01-26 15:59:30,2026-01-26 15:59:30,11112892924
+410,Agustin,Luis,Castellanos,Castellanos,Oaxaca,Oaxaca,Reforma,SN,SN,68237,Reyes Elta,Reyes Etla,9512105233,2026-01-26 16:18:38,2026-01-26 16:18:38,11113005775
+411,Jaime,Abisaid,Rivera ,Cortes,Oaxaca,Mexico,4ta Sur,204,0,68285,San Jacinto Amilpas,Col Cuahutemoc,9514943714,2026-01-26 17:21:09,2026-01-26 17:21:09,11113091556
+412,Brenda,,Cruz,Lopez,Oaxaca,Oaxaca,Juarez,sn,sn,68230,Santiago Suchilquitongo,Barrio Tetiche,9516460365,2026-01-26 18:13:15,2026-01-26 18:13:15,11112898863
+413,Silvain,,Gonzalez ,Zarate,Oaxaca,Oaxaca,Emiliano Zapata,sn,S/N,68226,Magdalena Apasco,Apasco,9512525106,2026-01-26 18:26:35,2026-01-26 18:26:35,11112777895
+414,Lesslie,Golorrela,Santiago,Mendez,Oaxaca,Oaxaca,Priv De Reforma,sn,sn,68237,Reyes Etla,Oaxaca,9512728866,2026-01-26 18:55:26,2026-01-26 18:55:26,11113011924
+415,Carol,Guadalupe,Avendaño,Sarabia,Oaxaca,Oaxaca,Av Cuahutitlan,sn,sn,68220,San Pablo Huitzo,Esmeralda,9513124216,2026-01-26 19:52:52,2026-01-26 19:52:52,11113023238
+416,Alejandras,,Cruz,Plumas,Oaxaca,Oaxaca,Vicente Guerrero,SN,SN,68220,San Pablo Huitzo,Esmeralda,9514254733,2026-01-26 20:07:49,2026-01-26 20:07:49,11113188904
+417,Consuelo,Beatriz,Nolasco,Cruz,Oaxaca,Oaxaca,5 De Mayo Esquiba Con Loma Bonita,sn,sn,68220,San Pablo Huitzo,Tercera Seccion,9518839658,2026-01-27 15:45:17,2026-01-27 15:45:17,11112897851
+418,Maria,Esther,Pinelo,Espinoza,Oaxaca,Oaxaca,5 De Mayo,sn,sn,68230,Santiago Suchilquitongo,Barrio Atayuco,9512832483,2026-01-27 16:09:39,2026-01-27 16:09:39,11112861770
+419,Baltazar,Filiberto,Santos,Hernandez,Oaxaca,Oaxaca,Miguel Negrete,sn,sn,68260,San Felipe Tejalapam,Paraje El Chilar,9513652965,2026-01-27 16:36:09,2026-01-27 16:36:09,11112993402
+420,Fermin,Cesar,Martinez ,Garcia,Oaxaca,Oaxaca,Ayuntamiento,sn,sn,68260,San Felipe Tejalapam,San Felipe,9514261828,2026-01-27 16:47:22,2026-01-27 16:47:22,11112962972
+421,Aurea,Gloria,Garcia ,Marquez,Oaxaca,Oaxaca,Mendoza,sn,sn,68260,San Felipe Tejalapam,Paraje Mendoza,9515614553,2026-01-27 16:57:46,2026-01-27 16:57:46,11112789848
+422,Agustin,Luis,Castellanos,Castellanos,Oaxaca,Oaxaca,Reforma,sn,sn,68237,Reyes Etla,Reyes Etla,9512105233,2026-01-27 17:16:10,2026-01-27 17:16:10,11112859540
+423,Luis,Javier,Lopez,Garcia,Oaxaca,Oaxaca,Av Libertad,56,sn,68213,San Francisco Telixtlahuaca,Centro,9514095392,2026-01-27 17:37:45,2026-01-27 17:37:45,11113051729
+424,Celia ,Febe ,Montes ,Morales,Oaxaca,Oaxaca,Andador Cenzontle,con 10,casa 74,68236,San Miguel Etla,Villas San Miguel,9512869291,2026-01-27 17:49:20,2026-01-27 17:49:20,11113038739
+425,Juan ,Jose ,Garcia,Jimenez,Oaxaca,Oaxaca,Lazaro Cardenas,SN,SN,68237,Reyes Etla,Reyes Etla,9513651705,2026-01-27 18:01:41,2026-01-27 18:01:41,11112982523
+426,Jesset,Martin,Garcia ,Lopez,Oaxaca,Oaxaca,Progreso,02,S/N,68213,San Francisco Telixtlahuaca,Centro,9581561384,2026-01-27 18:11:58,2026-01-27 18:11:58,11113004040
+427,Deysi ,Jacqueline,Lopez,Lucas,Oaxaca,Oaxaca,Priv De Reforma,SN,SN,68230,Santiago Suchilquitongo,Reforma,9511234033,2026-01-27 18:24:02,2026-01-27 18:24:02,11113046199
+428,Floriberto,,Regino ,Reyna,Oaxaca,Oaxaca,El Punto,117,4,68090,Oaxaca De Juarez,Barrio La Soledad,9512336689,2026-01-28 17:40:04,2026-01-28 17:40:04,11112917978
+429, Juan ,Braulio,Avendaño,Rodriguez ,Oaxaca,Oaxaca,Nicolás Bravo ,15,S/N,68220,Huitzo ,Segunda Sección ,9511870753,2026-01-28 18:03:50,2026-01-28 18:03:50,11112859703
+430,Jose,Leonardo,Vasquez,Santana,Oaxaca,Oaxaca,Cd.azucebas ,SN,S/N,68220,Huitzo ,Barrio Yuteyito,9514035841,2026-01-28 19:00:14,2026-01-28 19:00:14,11113279742
+431,Alfonso,Antonio,Garcia,Cruz,Oaxaca,Oaxaca,Paraje La Mendoza,SN,S/N,68260,San Felipe Tejalapam,La Mendoza,9541381279,2026-01-28 19:09:55,2026-01-28 19:09:55,11112855162
+432,Maria,Guadalupe,Lopez,Pantoja,Oaxaca,Oaxaca,Calle De La Gloria ,SN,SN,68230,Barrio Peñasco ,Barrio Peñasco ,5536549827,2026-01-28 19:35:24,2026-01-28 19:35:24,11112919388
+433,Cristina,Lidia,Ramirez,Gaytan,Oaxaca,Oaxaca ,Calle Del Pescador ,S/N,S/N,68230,Santiago Suchilquitongo ,Barrio De La Reforma ,9511688275,2026-01-28 20:04:25,2026-01-28 20:04:25,11112872200
+434,Enedina,Lucina,Lopez,Lopez,Oaxaca,Oaxaca,Arrollo Galeana,sn,S/N,68220,San Pablo Huitzo ,1seccion,9514773948,2026-01-29 15:50:39,2026-01-29 15:50:39,11113058061
+435,Edgardo,Francisco,Diaz,Jimenez,Oaxaca,Oaxaca,Indepencia,1,1,68263,San Lorenzo Cacaotepec,Arenal,9515872763,2026-01-29 16:30:28,2026-01-29 16:30:28,11113184661
+436,Raul,Fortino,Martinez,Cruz,Puebla,Puebla,Chalanco,56,sn,73681,Zacapoaxtla,Lomas,5532480536,2026-01-29 16:55:47,2026-01-29 16:55:47,11113169180
+437,Hector ,,Gutierres,Cruz,Oaxaca,Oaxaca,Av Libertad,106,S/N,71220,Santa Maria Atzompa,Fraccionamiento Los Cataros,9516099422,2026-01-29 17:22:31,2026-01-29 17:22:31,11112946318
+438,Olga,,Caballero,Hernandez,Oaxaca,Oaxaca,Calzada San Lorenzo ,3,S/N,68213,Telixtlahuaca,Telixtlahuaca,9514482546,2026-01-29 18:18:19,2026-01-29 18:18:19,11112933863
+439,Jazmin,,Lopez,Bautista,Oaxaca,Oaxaca,Ignacio Zaragoza ,12,S/N,68244,San Andrés Zautla,Ignacio Zaragoza ,9513574166,2026-01-29 19:14:59,2026-01-29 19:14:59,11112916570
+440,Aurora ,Elizabeth,Castellanos ,Cruz,Oaxaca,Oaxaca,Zaragoza,11,S/N,68230,Santiago Suchilquitongo,Las Limas ,9511124811,2026-01-29 19:29:09,2026-01-29 19:29:09,11113058523
+441,Idali ,,Castellanos,Gonzalez,Oaxaca,Oaxaca,Av Juarez,SN,S/N,68230,Suchilquitongo,De La Sta Cruz,9511451862,2026-01-29 19:46:37,2026-01-29 19:46:37,11112839763
+442,Xenia,,Perez,Chavez,Oaxaca,Oaxaca,C Francisco L Madero ,sn,S/N,68273,Reyes Etla,Reyes Etla,9511994077,2026-01-30 16:14:19,2026-01-30 16:14:19,11112854697
+443,Leonel,,Morales,Garcia,Oaxaca,Oaxaca,8 De Marzo ,SN,S/N,68263,San Lorenzo Cacaotepec,Hacienda Vieja ,9514783527,2026-01-30 18:06:10,2026-01-30 18:06:10,11112863857
+444,Manuel,Alvarado,Morales,,Oaxaca,Oaxaca,Carretera A Jayacatlan ,SN,S/N,68220,San Pablo Huitzo ,Guadalupe ,9514786963,2026-01-30 18:21:03,2026-01-30 18:21:03,11112778298
+445,Catalina,,Lopez,Caballero,Oaxaca,Oaxaca,Prolongación De Juarez ,SN,S/N,68220,San Pablo Huitzo ,Segunda Sección ,9512905658,2026-01-30 18:49:12,2026-01-30 18:49:12,11112972707
+446,Edgar,,Flores,Perez,Oaxaca,Oaxaca,Carretera Internacional ,SN,S/N,68220,San Pablo Huitzo ,Primavera,9513252595,2026-01-30 19:18:18,2026-01-30 19:18:18,11112815619
+447,Jesús ,,Paz,Sosa,Oaxaca,Oaxaca,Prolongación De Vicente Guerrero ,S/N,S/N,68220,San Pablo Huitzo ,Primera Sección ,9514776940,2026-01-30 19:36:54,2026-01-30 19:36:54,11112831329
+448,Alex,Adrian,Garcia ,Matadamas,Oaxaca,Oaxaca,Vicente Guerrero ,SN,S/N,68200,San Pablo Huitzo,Barrio Cantarranas,9513231557,2026-01-30 19:49:11,2026-01-30 19:49:11,11112731837
+449,Fernando,Ulises,Ramirez,Ortiz,Oaxaca,Oaxaca,8 De Marzo,SN,SN,68263,San Lorenzo Cacaotepec ,Paraje Hacienda Vieja ,9512488122,2026-01-30 20:06:06,2026-01-30 20:06:06,11113053191
+450,Pablo,,Almaraz,Ramirez,Oaxaca,Oaxaca,Privada De Tuxtepec ,105,S/N,68023,Oaxaca De Juarez,Siete Regiones,9515878130,2026-01-30 20:26:30,2026-01-30 20:26:30,11112981187
+451,Alejandro,Juan,Hernandez,Santiago,Oaxaca,Oaxaca,Prolongación De Juárez ,SN,S/N,68220,San Pablo Huitzo ,El Llano ,9516412585,2026-01-30 20:47:59,2026-01-30 20:47:59,11112958035
+452,Erick ,Yosue,Santiago,Cruz,Oaxaca,Oaxaca,Calle Huijazo,sn,S/N,68220,San Pablo Huitzo,C Arroyo Esmeralda,9512935345,2026-01-31 17:19:18,2026-01-31 17:19:18,11113023290
+453,Jorge,,Diaz,Velazco,Oaxaca,Oaxaca,Industria ,108,S/N,68247,San Agustín Etla ,Barrio San José ,7772351035,2026-01-31 18:37:47,2026-01-31 18:37:47,11112833520
+454,Kennedy ,Daniel,Soriano,Jimenez,Oaxaca,Oaxaca,Rayon,35,S/N,68230,Santiago Suchilquitongo ,Barrio Agua Buena ,9515643185,2026-01-31 18:53:49,2026-01-31 18:53:49,11112992988
+455,Marisol,,Lopez,Perez,Oaxaca,Oaxaca,Reforma ,sn,S/N,68230,Santiago Suchilquitongo,De La Reforma ,9515638559,2026-01-31 19:04:47,2026-01-31 19:04:47,11112946341
+456,Cecilia,Sandra,De La Luz,,Oaxaca,Oaxaca,Abasolo,sn,S/N,68230,Santiago Suchilquitongo ,Barrio De La Reforma ,9516560212,2026-01-31 19:20:20,2026-01-31 19:20:20,11112949092
+457,Julio,Guillermo,Cruz,Vasquez,Oaxaca,Oaxaca,Avenida Juarez Norte,sn,S/N,68230,Santiago Suchilquitongo,De La Santa Cruz,9512093356,2026-01-31 19:34:15,2026-01-31 19:34:15,11113033057
+458,Idalia,Mayahuel,Martinez,Torres,Oaxaca,Oaxaca,Rayon,35,S/N,68230,Santiago Suchilquitongo,Barrio Agua Buena,9514085750,2026-01-31 19:43:33,2026-01-31 19:43:33,11112957246
+459,Paula,Irene,De La Luz,,Oaxaca,Oaxaca,Reforma ,6,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma ,9512858465,2026-01-31 19:53:03,2026-01-31 19:53:03,11113066416
+460,Oscar ,Omar ,Hernandez ,Mora,Oaxaca,Oaxaca,Sabino Crespo,S/N,S/N,68263,San Lorenzo Cacaotepec,San Lorenzo,9514649035,2026-02-03 16:04:38,2026-02-03 16:04:38,11113096161
+461,Silverio,Miguel,Osorio,Santos,Oaxaca,Oaxaca,Reforma,6,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9514266867,2026-02-03 16:59:01,2026-02-03 16:59:01,11113113239
+462,Jeremías ,,Santiago,Gines ,Oaxaca,Oaxaca,Abasolo,sn ,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9515660213,2026-02-03 17:13:10,2026-02-03 17:13:10,11113192667
+463,Silvia ,,Garcia ,Ramirez ,Oaxaca,Oaxaca,Arrollo Seco,sn,sn,68220,San Pablo Huitzo,Santa Maria Tenexpam,9515823826,2026-02-03 17:27:54,2026-02-03 17:27:54,11113299859
+464,Arleth,,Cruz,Bautista,Oaxaca,Oaxaca,Abasolo,0,0,68230,Santiago Suchilquitongo,Barrio De La Reforma,9515836022,2026-02-03 17:42:49,2026-02-03 17:42:49,11112623811
+465,José ,Juan,Domigues ,Flores ,Oaxaca ,Oaxaca,Callejón Cuauhtemoc ,SN,S/N,68237,Reyes Etla ,Reyes Etla ,9515268804,2026-02-03 18:02:16,2026-02-03 18:02:16,11113063797
+466,Norma ,Angelica,Ruiz ,Diaz,Oaxaca,Oaxaca,18 De Marzo ,SN,S/N,68263,San Lorenzo Cacaotepec,Paraje Hacienda Vieja ,9515677612,2026-02-03 18:21:37,2026-02-03 18:21:37,11113036993
+467,Saul ,Israel,Cruz ,Castellanos,Oaxaca,Oaxaca,Prolog De Constitucion,1,S/N,68263,San Lorenzo Cacaotepec,Zapotal,9512485792,2026-02-03 18:39:50,2026-02-03 18:39:50,11112666627
+468,Arturo,Ricardo,Hernandez ,Cruz,Oaxaca,Oaxaca,Zaragoza,26,S/N,68263,San Lorenzo Cacaotepec,Barrio Bajo,9515470744,2026-02-03 19:09:06,2026-02-03 19:09:06,11112881178
+469,Margarita ,,Ruiz,Dolores,Oaxaca,Oaxaca,Privada Heroe De Nacozari,SN,S/N,68220,San Pablo Huitzo,Barrio La Cantera ,9514640427,2026-02-03 19:27:18,2026-02-03 19:27:18,11112968122
+470,Diana ,Jesusita ,Martinez ,Lopez,Oaxaca ,Oaxaca,Cerrada De Totontepec ,104,S/N,68230,Santiago Suchilquitongo,Siete Regiones,9514723354,2026-02-03 19:52:02,2026-02-03 19:52:02,11112932922
+471,Germain ,,Lopez ,Garcia,Oaxaca,Oaxaca,Etla,SN,S/N,68220,Etla,Reyes Etla,9516113569,2026-02-03 20:08:29,2026-02-03 20:08:29,11112971296
+472,Francisco,,Corona,Ruiz,Oaxaca,Oaxaca,Vicente Guerrero S/n,sn,S/N,68220,San Pablo Huitzo,La Esmeralda,9513654452,2026-02-06 15:52:52,2026-02-06 15:52:52,11112972833
+473,Roque,Lepoldo,De La Luz,Velazco,Oaxaca,Oaxaca,Calle Abasolo,sn,S/N,68230,Santiago Suchilquitongo,Barrio La Reforma ,9601708676,2026-02-06 16:11:39,2026-02-06 16:11:39,11112935138
+474,Concepcion,,Diaz,Delgado,Oaxaca,Oaxaca,Segunda De Galeana ,4,S/N,68220,San Pablo Huitzo,Segunda Seccion,9516412925,2026-02-06 16:34:07,2026-02-06 16:34:07,11112895952
+475,Juana,,Lopez,Hernandez,Oaxaca,Oaxaca,5 De Mayo,SN,S/N,68220,San Pablo Huitzo,Tercera Sección De San Pablo Huitzo,9513949494,2026-02-06 16:59:23,2026-02-06 16:59:23,11112821422
+476,Monserrat,,Morales,Martinez,Oaxaca,Oaxaca,Cristal,SN,S/N,68220,San Pablo Huitzo,Esmeralda,9515694544,2026-02-06 17:25:20,2026-02-06 17:25:20,11113097725
+477,Yuridia,Columba,Sosa,Lopez,Oaxaca,Oaxaca,Cristal,SN,S/N,68220,San Pablo Huitzo,Colonia Esmeralda Primera Sección ,9513031886,2026-02-06 17:44:53,2026-02-06 17:44:53,11113036790
+478,Concepcion,Maribel,Osorio,Santos,Oaxaca,Oaxaca,Priv De Reforma,6,S/N,68230,Santiago Suchilquitongo,Reforma,9515102954,2026-02-06 18:06:23,2026-02-06 18:06:23,11113085031
+479,Edgar ,Pedro,Cruz,Cruz,Oaxaca,Oaxaca,Arroyo Seco,23,S/N,68220,San Pablo Huitzo,Santa Maria Tenexpam,9514691520,2026-02-06 18:28:58,2026-02-06 18:28:58,11113117861
+481,Juan,,Garrido ,Fuentes,Oaxaca,Oaxaca,Prolongación De Hidalgo,sn,S/N,68230,Santiago Suchilquitongo,Paraje El Pozo,9516520741,2026-02-06 19:28:23,2026-02-06 19:28:23,11112842761
+482,Silvia,Maribel,Hernandez,Aguilar,Oaxaca,Oaxaca,Zaragoza,9,S/N,68263,San Lorenzo Cacaotepec,Centro,9512983358,2026-02-06 22:41:15,2026-02-06 22:41:15,11112872212
+483,Rosario,Concepcio,Muñoz,Muñoz,Oaxaca,Oaxaca,Arroyo Central ,sn,S/N,68260,San Felipe Tejalapam,San Felipe Tejalapam,9515661989,2026-02-07 18:01:38,2026-02-07 18:01:38,11113232046
+484,Valeria,,Ruiz,,Oaxaca,Oaxaca,Carretera A Jayacatlan,sn,sn,68220,San Pablo Huitzo ,Barrio Guadalupe,9511309379,2026-02-07 18:21:29,2026-02-07 18:21:29,11113169116
+485,Justo,,Sanchez,Sanchez,Oaxaca,Oaxaca,Guerrero,9,1,68200,Villa De Etla,Centro,9513933978,2026-02-07 18:48:30,2026-02-07 18:48:30,11112905127
+486,Daniel ,,Garcia,Lopez,Oaxaca,Oaxaca,5 De Mayo ,sn,S/N,68234,Villa De Etla,Col Morelos,9515919485,2026-02-07 19:02:40,2026-02-07 19:02:40,11113047273
+487,Cristian,Ariel,Gopar ,Martinez,Oaxaca,Oaxaca,Diaz Ordaz,2,S/N,68200,Villa De Etla,Villa De Etla,2223389062,2026-02-07 19:19:25,2026-02-07 19:19:25,11112998765
+488,Daniel,,Garcia,Lopez,Oaxaca,Oaxaca,Hidalgo,sn,S/N,68200,Villa De Etla,Moctezuma,9516674143,2026-02-07 19:32:39,2026-02-07 19:32:39,11113109760
+489,Esmeralda,,Carrasco,Garcia,Oaxaca,Oaxaca,Huaxolotitlan ,13,15,68220,San Pablo Huitzo,Primera Sección,9512317921,2026-02-07 20:08:31,2026-02-07 20:08:31,11113121146
+490,Juan,Luis,Espinoza,Santiago,Oaxaca,Oaxaca,Del Panteón ,sn,S/N,68226,Magdalena Apazco ,Magdalena Apazco ,9511649363,2026-02-07 20:17:45,2026-02-07 20:17:45,11112952009
+491,Rosa,Maria,Caballero,Hernandez,Oaxaca,Oaxaca,C Arroyo Esmeralda ,SN,S/N,68220,San Pablo Huitzo,Primera Sección,9513048092,2026-02-09 16:46:13,2026-02-09 16:46:13,11112894601
+492,Jorge,,Garcia,Mercado,Oaxaca,Oaxaca,Manuel Gómez Portillo,SN,S/N,68247,San Agustín Etla,La Ferreria,9513917186,2026-02-09 17:24:19,2026-02-09 17:24:19,11112987118
+493,Roberto,Carlos,Doquiz,Alto,Oaxaca,Oaxaca,Manuel Gómez Portillo ,SN,S/N,68247,San Agustín Etla,La Ferreria,9516146442,2026-02-09 17:34:20,2026-02-09 17:34:20,11113035478
+494,Graciela,,Hernandez,Ramos,Oaxaca,Oaxaca,Independencia,sn,S/N,68230,Santiago Suchilquitongo,Lazaro Cardenas,9514746263,2026-02-10 15:41:22,2026-02-10 15:41:22,11112946258
+495,Maria,Margarita,Lucas,,Oaxaca,Oaxaca,C Reforma,sn,S/N,68230,Santiago Suchilquitongo,Reforma,9512165710,2026-02-10 18:25:18,2026-02-10 18:25:18,11112988227
+496,Jeret ,Isai,Godinez,Bautista,Oaxaca,Oaxaca,San Pablo Etla,65,52,68220,San Pablo Etla,Morelos ,9513076504,2026-02-10 19:38:12,2026-02-10 19:38:12,11112751250
+497,Hector,Hugo,Moreno,Lopez,Oaxaca,Oaxaca,Mirador,SN,S/N,68000,Xoxocotlán ,Mirador,9511542545,2026-02-10 20:04:34,2026-02-10 20:04:34,11112908304
+498,Sonia ,Elizabeth,Dominguez ,Cruz,Oaxaca,Oaxaca,Prolongacion De Juarez ,SN,S/N,68220,San Pablo Huitzo,2da De San Pablo Huitzo,9514694759,2026-02-10 20:18:13,2026-02-10 20:18:13,11112942297
+499,Mayra,Karina,Reyes ,Mendez,Oaxaca ,Oaxaca ,Andador Cerro De La Virgen,109,2,68039,Oaxaca ,Lomas De Santa Rosa,9511320238,2026-02-10 20:35:03,2026-02-10 20:35:03,11112732871
+500,Fernando,,Galicia,Castellanos,Oaxaca ,Oaxaca ,Priv De Reforma,0,0,68237,Reyes Etla,Reyes Etla,5222187538,2026-02-10 20:50:35,2026-02-10 20:50:35,11112884857
+501,Jose ,Manuel,Platas ,Santiago,Oaxaca ,Oaxaca,Porfirio Diaz ,119,sn,68258,San Pablo Etla,San Sebastian Etla,9510000000,2026-02-10 21:06:59,2026-02-10 21:06:59,11112787203
+502,Sad Benito ,,Sanchez ,Del Rio ,Oaxaca,Oaxaca,Andador Buho,9,17,68234,San Juan Bautista Guelache ,Fraccionamiento Villas San Miguel ,9517669501,2026-02-12 15:40:22,2026-02-12 15:40:22,11113033055
+503,Soledad,,Lopez,Carvajal,Oaxaca,Oaxaca,Avenida Juarez Norte,SN,SN,68230,Santiago Suchilquitongo,Barrio De La Santa Cruz,9512278983,2026-02-12 16:23:09,2026-02-12 16:23:09,11112982584
+504,Gil,Marcelino,Ignacio,Flores,Oaxaca,Oaxaca,Arroyo Nicolas Bravo ,SN,SN,68220,San Pablo Huitzo,San Pablo Huitzo,9513201571,2026-02-12 17:30:43,2026-02-12 17:30:43,11113066481
+505,Ana,Bertha,Hernandez,Garcia,Oaxaca,Oaxaca,Benito Juarez ,6,SN,68260,San Felipe Tejalapam,San Felipe Tejalapam,9515655301,2026-02-12 18:30:09,2026-02-12 18:30:09,11113052056
+506,Angel,Rolando,Hernandez,Ginez,Oaxaca,Oaxaca,Prolongacion De Nicolas Bravo,14,S/N,68263,San Lorenzo,Oaxaca,9516350719,2026-02-13 16:45:46,2026-02-13 16:45:46,11112902202
+507,Irving,,Hernandez,Garcia,Oaxaca,Oaxaca,Paraje Hacienda Vieja,SN,S/N,68263,San Lorenzo Cacaotepec,San Lorenzo,9511149067,2026-02-13 17:12:34,2026-02-13 17:12:34,11112801054
+508,Moises ,,Torres ,Quiroz,Oaxaca,Oaxaca,Lazaro Cardenas,12,12,68200,Etla,Benito Juarez,9514769899,2026-02-13 17:55:04,2026-02-13 17:55:04,11112822564
+509,Andrea,,Aguliar ,Mendoza,Oaxaca ,Oaxaca ,Priv Del Calvario,108,S/N,68258,San Pablo,San Sebastian Etla,9511516915,2026-02-13 18:15:11,2026-02-13 18:15:11,11113137321
+510,Fatima,Monserrat,Dominguez,Ventura,Oaxaca,Oaxaca,Carretera A San Luis Beltrán ,110,S/N,68020,Oaxaca De Juarez,Jardin,9514693574,2026-02-13 18:43:42,2026-02-13 18:43:42,11113052405
+511,Jessica ,Fernanda,Cruz,Leon,Oaxaca,Oaxaca,San Antonio,SN,S/N,68263,San Lorenzo Cacaotepec,San Antonio,2214127431,2026-02-13 19:07:33,2026-02-13 19:07:33,11112939631
+512,Jose ,Antonio,Pacheco,Vasquez,Oaxaca ,Oaxaca,Carretera A Jayacatlan,sn,sn,68220,San Pablo Huitzo,San Pablo Huitzo,9515806847,2026-02-17 16:39:16,2026-02-17 16:39:16,11113093502
+513,Ureil,Oldair,Osorio,Cruz,Oaxaca ,Oaxaca, 1ra Priv De Abasolo ,sn,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma,9514706298,2026-02-18 16:32:19,2026-02-18 16:32:19,11113112491
+514,German,Antonio,De Jesus ,Contreras,Oaxaca,Oaxaca ,Mezquite,sn,S/N,68200,Villa De Etla,Centro,9513187590,2026-02-20 17:02:36,2026-02-20 17:02:36,11113089746
+515,Tatiana,Leitza,Lopez ,Maldonado,Oaxaca,Oaxaca,Hidalgo,9,S/N,68230,Santiago Suchilquitongo,Barrio Atayuco,9512679294,2026-02-20 17:23:23,2026-02-20 17:23:23,11112874979
+516,Leticia,,Ruiz,Hernandez,Oaxaca,Oaxaca,Independencia,19,S/N,68237,Reyes Etla,Loc. Barrio De San Juan,9512358897,2026-02-20 21:40:19,2026-02-20 21:40:19,11112977454
+517,Juliana,,Hernandez,Hernandez,Oaxaca,Oaxaca,Las Torres,13,S/N,68276,Oaxaca De Juarez,Eucaliptos,9517079348,2026-04-02 17:05:48,2026-04-02 17:05:48,11112948571
+518,Marcelo,Braulio,Lopez,Ignacio,Oaxaca,Oaxaca,24 De Febrero|,12,0,68220,San Pablo Huitzo,3ra Seccion,9511361610,2026-04-02 17:20:42,2026-04-02 17:20:42,11112985466
+519,Carolina,Sarai,Santiago,Vasquez,Oaxaca,Oaxaa,Prolongación De Matamoros,S/N,S/N,68213,San Francisco Telixtlahuaca,Independencia Parte Alta,9511342028,2026-04-02 17:30:08,2026-04-02 17:30:08,11112809015
+520,Rufina,Lidia,Garcia,Cruz,Oaxaca,Oaxaca,El Zauz,sn,S/N,68260,San Felipe Tejalapam,El Zauz,9512715427,2026-04-07 18:47:25,2026-04-07 18:47:25,11112714005
+521,Pablo,,Mendez,Juarez,Oaxaca,Oaxaca,Cuahtemoc,28,S/N,68200,Villa De Etla,Santo Domingo Barrio Bajo,9515044075,2026-04-10 19:40:00,2026-04-10 19:40:00,11113125574
+522,Crespo,Pinelo,Tita,Minerva,Oaxaca,Oaxaca,Av Independencia,3,4,68230,Santiago Suchilquitongo,El Peñasco,9512174621,2026-04-10 19:51:37,2026-04-10 19:51:37,11112826720
+523,Petra,Inocencia,Martinez,Martinez,Oaxaca,Oaxaca,Calvario Número ,3,S/N,68230,Santiago Suchilquitongo,Peñasco,9514759119,2026-04-11 17:49:32,2026-04-11 17:49:32,11112786052
+524,Adan,Patricio,Lopez,Aragon,Oaxaca,Oaxaca,Santo Domingo Barrio Bajo ,sn,S/N,68200,Villa De Etla,Santo Domingo,9513564122,2026-04-11 18:24:15,2026-04-11 18:24:15,11113005621
+525,Octavio ,Antonio,Hernandez,Ramos,Oaxaca,Oaxaca,Independencia,3,S/N,68230,Santiago Suchilquitongo,Col Lazaro Cardenas,9512573689,2026-04-16 14:26:51,2026-04-16 14:26:51,11112823381
+526,Flora,Karina ,Castellanos ,Garcia,Oaxaca,Oaxaca,Av Juarez,14,S/N,68230,Santiago Suchilquitongo,Barr De La Santa Cruz,9513427663,2026-04-16 14:43:46,2026-04-16 14:43:46,11112888361
+527,Selena,Gabriela,Martinez,Ramirez,Oaxaca,Oaxaca,Arroyo Central,sn,S/N,68260,San Felipe Tejalapam,Paraje El Gavilan,5664603947,2026-04-17 19:41:26,2026-04-17 19:41:26,11112961004
+528,Martha ,Artemia,Ruiz,Garcia,Oaxaca,Oaxaca,Independencia,15,S/N,68260,San Felipe Tejalapam,El Chilar,5571815088,2026-04-20 18:31:30,2026-04-20 18:31:30,11112941078
+529,Elizabeth,,Gonzalez,Santos,Oaxaca,Oaxaca,Carretera Internacional,7,7,68230,Santiago Suchilquitongo,San Lorenzo Etla,9514531055,2026-04-22 22:05:10,2026-04-22 22:05:10,11112823652
+530,Anita ,Minerva,Figueroa,Paz,Oaxaca,Oaxaca,Sagrario,3,S/N,68230,Santiago Suchilquitongo,Peñasco,9512515694,2026-04-22 22:14:31,2026-04-22 22:14:31,11113179172
+531,Alejandra,Elodia,Cruz,Hernandez,Oaxaca,Oaxaca,San Felipe Tejalapam,sn,S/N,68260,San Felipe Tejalapam,San Felipe Tejalapam,9512752616,2026-04-22 22:27:13,2026-04-22 22:27:13,11113126104
+532,Miguel,,Reyes,Muñoz,Oaxaca,Oaxaca,2 De Abril,sn,S/N,68260,San Felipe Tejalapam,La Union,9516143537,2026-04-24 21:30:47,2026-04-24 21:30:47,11112967143
+533,Felipe,Luis,Martinez,Reyes,Oaxaca,Oaxaca,2 De A Bril,SN,S/N,68260,San Felipe Tejalapam,La Union,9516476735,2026-04-24 21:46:23,2026-04-24 21:46:23,11113075182
+534,Luis,,Garcia,Lopez,Oaxaca,Oaxaca,Arroyo Central,SN,SN,68260,San Felipe Tejalapam,C Arroyo Central,9515866604,2026-04-24 21:59:16,2026-04-24 21:59:16,11113121325
+535,Jose ,Luis,Lopez,Chavez,Oaxaca,Oaxaca,La Union,sn,S/N,68260,San Felipe Tejalapam,San Felipe Tejalapam,9511240240,2026-04-24 22:09:20,2026-04-24 22:09:20,11113117395
+536,Victoria,Guadalupe,Reyes ,Muñoz,Oaxaca,Oaxaca,San Felipe Tejalapam,sn,S/N,68260,San Felipe Tejalapam,San Felipe Tejalapam,9515451637,2026-04-24 22:20:05,2026-04-24 22:20:05,11113055830
+537,Jose,Manuel,Santiago,Mejia,Oaxaca,Oaxaca,La Cera,sn,S/N,68260,San Felipe Tejalapam,La Union,9511816704,2026-04-24 22:27:28,2026-04-24 22:27:28,11113034520
+538,Cecilia,,Antonio,Ruiz,Oaxaca,Oaxaca,Libertad Esq Con Abasolo ,sn ,S/N,68263,San Lorenzo Cacaotepec,Centro,9515877758,2026-04-29 16:02:58,2026-04-29 16:02:58,11112971606
+539,Nadia,Valeria,Martinez,Martinez,Oaxaca,Oaxaca,Cam Nacional,12,S/N,68230,Santiago Suchilquitongo,Peñasco,9511607666,2026-04-29 19:23:52,2026-04-29 19:23:52,11113166323
+540,Galilea,Esmeralda,Villanueva ,Rodriguez,Oaxaca,Oaxaca,El Calvario ,sn,S/N,68230,Santiago Suchilquitongo,Peñasco,9511101870,2026-04-29 19:48:37,2026-04-29 19:48:37,11113095058
+541,Juana,,Gonzalez ,Luengas,Oaxaca,Oaxaca,Francisco I Madero,103,S/N,71243,Santa Lucia Del Camino,Fernando Gomez Sandoval,9519390226,2026-05-04 20:26:49,2026-05-04 20:26:49,11113006480
+542,Maria,De Jesus,Pinelo,Chavez,Oaxaca,Oaxaca,Cabecera San Miguel ,001,01,68230,Santiago Suchilquitongo,Lazaro Cardenas ,9512346429,2026-05-05 19:38:32,2026-05-05 19:38:32,11112945246
+543,Piedad,Shomee,Diaz ,Cruz,Oaxaca,Oaxaca,Carretera A San Agustín S/n,S/N,S/N,68258,San Sebastian Etla,San Sebastián ,9512270013,2026-05-06 16:45:40,2026-05-06 16:45:40,11112813052
+544,Oswvaldo ,Hugo,Pinelo,Moreno,Oaxaca,Oaxaca,Guerrero,24,S/N,68237,Reyes Etla,San Lazaro,9514947606,2026-05-07 17:08:47,2026-05-07 17:08:47,11112944545
+545,Elias,Miriam,Lopez,Arango,Oaxaca,Oaxaca,Av Rio Chiquito,1,S/N,71220,Santa Maria Atzompa,Jardines Yahuiche,9511190062,2026-05-08 20:01:41,2026-05-08 20:01:41,11112901756
+546,Martin,Jesus,Flores,Ramirez,Oaxaca,Mexico,Francisco I. Madero ,5,0,68220,San Pablo Huitzo,Primera Sección ,9513993412,2026-05-09 17:33:27,2026-05-09 17:33:27,11112735798
+547,Hugo,Juan,Cruz,Lopez,Oaxaca,Oaxaca,El Ejido Sn,2,S/N,68260,San Felipe Tejalapam,Barrio El Bajio,9511921865,2026-05-13 17:32:31,2026-05-13 17:32:31,11113126158
+548,Luis,Enrique,Gomez,Chavez,Oaxaca,Mexico,1ra De Independencia,0,0,68226,Magdalena Apasco,Magdalena,9512736369,2026-05-14 22:09:51,2026-05-14 22:09:51,11112755226
+549,Maria,Cristina,Ortega ,Abelino,Oaxaca,Oaxaca,Ayuntamiento,122,S/N,68260,San Felipe Tejalapam,Centro,9516545868,2026-05-16 16:25:26,2026-05-16 16:25:26,11113125623
+550,Alondra ,,Flores ,Hernandez,Oaxaca,Oaxaca,5 De Mayo ,sn ,S/N,68220,San Pablo Huitzo,3ra Seccion,9513637186,2026-05-16 16:44:24,2026-05-16 16:44:24,11112893523
+551,Leticia,Nieves,Cosmes,Sanchez,Oaxaca,Oaxaca,Emiliano Zapata ,28,S/N,71230,Santa Cruz Xoxocotlan ,Santa Cruz Xoxocotlan ,9511701568,2026-05-20 17:50:46,2026-05-20 17:50:46,11112769851
+552,Alexis,Guadalupe,Jimenez,Garcia,Oaxaca,Oaxaca,Tierra Blanca,1,S/N,68230,Santiago Suchilquitongo,Peñasco,9512820295,2026-05-20 18:15:49,2026-05-20 18:15:49,11112867599
+553,Alonso,,Sostre,Pulido,Oaxaca,Oaxaca,Cinco De Mayo ,sn,S/N,68220,San Pablo Huitzo ,Centro De La Tercera Sección ,9516576969,2026-05-22 16:40:52,2026-05-22 16:40:52,11112625987
+554,Silvia,,De La Luz,Cruz,Oaxaca,Oaxaca,1ra Priv De Reforma ,6,S/N,68230,Santiago Suchilquitongo Etla Oax ,Barrio De La Reforma ,9514935645,2026-05-22 16:53:04,2026-05-22 16:53:04,11113056638
+555,Josefina,,Morales ,Ruiz,Oaxaca,Oaxaca,20 De Noviembre,109,S/N,71230,Santa Cruz Xoxocotlan,Benemerito De Las Americas,9511345802,2026-05-26 18:32:49,2026-05-26 18:32:49,11112914012
+556,Juan,Pablo,Sanchez,Ramirez,Oaxaca,Mexico,C Guerrero,9,0,68234,San Juan Bautista Guelache,La Asuncion Etla,9516546279,2026-05-29 21:08:56,2026-05-29 21:08:56,11113023334
+557,Alfredo,Javier,Ramirez,Lopez,Oaxaca,Oaxaca,Calle 25 De Julio ,sn,S/N,68230,Santiago Suchilquitongo Etla Oax ,Barrio El Arena ,9512170075,2026-05-30 16:54:25,2026-05-30 16:54:25,11112887079
+558,Nedy,Anahi,Cruz,Diaz,Oaxaca,Oaxaca,Benito Juarez,sn,S/N,68260,Centro,Benito Juarez,9512832006,2026-05-30 17:07:35,2026-05-30 17:07:35,11113186245
+559,Fernando,Lorenzo,Hernandez ,Hernandez,Oaxaca,Oaxaca,Libertad,sn,S/N,68260,San Felipe Tejalapam,El Chilar,9513596138,2026-05-30 17:21:34,2026-05-30 17:21:34,11113162874
+560,Nancy,Susana,Morales ,Garzon,Oaxaca,Oaxaca,Independencia,19 a,S/N,68230,Santiago Suchilquitongo Etla Oax ,Barrio Agua Buena,9512841924,2026-05-30 17:33:22,2026-05-30 17:33:22,11112854078
+561,Justa,,Santiago,Barrios,Oaxaca,Oaxaca,Loma Bonita Sn,sn,sn,68220,San Pablo Huitzo ,3ra Seccion,9512820302,2026-06-03 20:36:29,2026-06-03 20:36:29,11113181739
+562,Edwin,Dante,Castellanos ,Lopez,Oaxaca ,Oaxaca,Hidalgo ,5,na,68230,Santiago Suchilquitongo,Lazaro Cardenas,9511815258,2026-06-04 20:11:23,2026-06-04 20:11:23,11113029242
+563,Paola,Doremi,Diaz,Pinelo,Oaxaca,Oaxaca,5 De Mayo,8,S/N,68230,Santiago Suchilquitongo,Barrio Atayuco,9516541654,2026-06-10 17:59:46,2026-06-10 17:59:46,11112914985
+564,Anita,Isabel,Lucas,De La Luz,Oaxaca,Oaxaca,Priv De Abasolo Sn,sn,S/N,68230,Santiago Suchilquitongo,Barrio De La Reforma ,9515810128,2026-06-10 18:19:11,2026-06-10 18:19:11,11113004468
+565,Julio,Gabriel,Lopez,Rios,Oaxaca,Oaxaca,Tierra Blanca,sn,S/N,68230,Santiago Sulchiquitongo,Barrio Del Peñasco,9514589181,2026-06-10 18:40:39,2026-06-10 18:40:39,11113174457
+566,Angeles,Arabia,Paz,Ramos,Oaxaca,Oaxaca,Cuauhxolotitlan ,sn,S/N,68220,San Pablo Huitzo ,Primera Seccion,9514209212,2026-06-10 18:55:08,2026-06-10 18:55:08,11112914791
+567,Jose,Maria,Garcia ,Martinez,Oaxaca,Oaxaca,Prolongacion De Asuncion,SN,S/N,68220,Santa Maria Tenexpam,Santa Maria Tenexpam,9516088780,2026-06-12 17:45:34,2026-06-12 17:45:34,11113069896
+568,Salvador,Aberto,Maldonado,Ruiz,Oaxaca,Oaxaca,Privada De Aldama ,30,S/N,68230,Santiago Suchilquitongo Etla Oax ,Barrio De Atayuco ,9512181704,2026-06-12 17:57:12,2026-06-12 17:57:12,11113186271
+569,Felix,,Bautista,Bautista,Oaxaca,Oaxaca,Porfirio Diaz ,1,S/N,68220,San Pablo Huitzo,Secc Primera,9511693293,2026-06-16 17:15:13,2026-06-16 17:15:13,11113023526
+570,Victor,Manuel,Flores,Ramirez,Oaxaca,Oaxaca,Poniente,SN,S/N,68220,Villa De Etla,Barrio Nativitas,9511567888,2026-06-17 18:22:53,2026-06-17 18:22:53,11112911821
+571,Manuel,,Garcia ,Garcia,Oaxaca,Oaxaca,Calvario ,sn,S/N,68230,Santiago Suchilquitongo,Calvario,9512231939,2026-06-17 18:58:32,2026-06-17 18:58:32,11113177745
+572,Cristian ,Damian,Ortiz,Lopez,Oaxaca,Oaxaca,El Calvario,sn,S/N,68230,Santiago Suchilquitongo,Peñasco,9516463005,2026-06-17 19:09:54,2026-06-17 19:09:54,11113062348
+573,Gloria,Gabriela,Noriega,Caballero,Oaxaca,Oaxaca,Porfirio Diaz 13,13,SN,68220,San Pablo Huitzo ,Esmeralda,9515320803,2026-06-17 19:30:35,2026-06-17 19:30:35,11112866965
+574,Gloria,Gabriela,Noriega,Caballero,Oaxaca,Oaxaca,Prolongacion Vicene Guerrero,SN,S/N,68220,San Pablo Huitzo,Primera Seccion,9515320803,2026-06-17 19:42:53,2026-06-17 19:42:53,11112838338
+575,Carlos,Uriel,Bolaños,Lopez,Oaxaca,Oaxaca,Francisco I Madero,SN,S/N,68220,San Pablo Huitzo,Primera Seccion,9512797216,2026-06-17 19:51:02,2026-06-17 19:51:02,11112987168
+576,Dalia ,Anay,Jimenez,Hernandez,Oaxaca,Oaxaca,Porfirio Diaz ,26,S/N,68220,San Pablo Huitzo,Oaxaca,9513113116,2026-06-17 20:13:42,2026-06-17 20:13:42,11113031567
+577,Yuliana,,Mejia ,Santiago,Oaxaca,Oaxaca,Cuaxolotitlan,70,S/N,68220,San Pablo Huitzo,Secc Segunda,9519516524,2026-06-17 20:26:53,2026-06-17 20:26:53,11112994198
+578,Samuel,Patricia,Cruz,Davila,Oaxaca,Mexico,Sin Nombre,0,0,68247,San Agustin Etla,Cristo Rey,9512308186,2026-06-18 21:54:32,2026-06-18 21:54:32,11112936233
+579,Carlos,Uriel,Bolaños,Lopez,Oaxaca,Mexico,C Francisco I Madero,0,0,68220,San Pablo Huitzo,Secc Primera,9512747216,2026-06-18 22:11:31,2026-06-18 22:11:31,11112903021
+580,Laura,Darina,Bautista,Osorio,Oaxaca,Oaxaca,1ra Cerrada De Reforma,7,S/N,68230,Santiago Suchilquitongo,Reforma,9511826286,2026-06-19 17:26:42,2026-06-19 17:26:42,11113095404
+581,Karla,Yazmin,Garcia ,De La Luz,Oaxaca,Oa,Abasolo,sn,S/N,68230,Santiago Suchilquitongo,Reforma,9511906219,2026-06-19 18:07:54,2026-06-19 18:07:54,11113003747
+582,Kevin,Alexis,Lopez,Pacheco,Oaxaca,Oaxaca,Av Independencia,0,S/N,68260,San Felipe Tejalapam,Paraje El Chilar,9511881101,2026-06-24 17:47:53,2026-06-24 17:47:53,11112996352
+583,Javier,Alfonso,Rodriguez,Vasquez,Oaxaca,Oaxaca,16 De Septiembre,sn,S/N,68260,San Felipe Tejalapam,Centro,9512230809,2026-06-24 18:19:36,2026-06-24 18:19:36,11112807935
+584,Fabiola,Esperanza,Santiago ,Sanchez,Oaxaca,Oaxaca,Av Panoramica,13,S/N,68010,San Jacinto Amilpas,Lomas De San Jacinto,9513610853,2026-06-24 18:34:44,2026-06-24 18:34:44,11112824518
+585,Marisol,,Matias,Nolasco,Oaxaca,Oaxaca,Carretera Internacional,sn,S/N,68080,San Pablo Huitzo,Secc Segunda,9515327279,2026-06-27 18:07:53,2026-06-27 18:07:53,11112806809
+586,Niceforo ,,Bautista ,Ramirez,Oaxaca,San Pablo Etla,Av Juarez,na,na,68258,San Pablo Etla,Secc Tercera,9513802001,2026-07-02 21:01:32,2026-07-02 21:01:32,11112931059
+587,Blanca,Christopher,Luis,Bernal,Oaxaca,San Pablo Etla,Av Juarez,na,na,68258,San Pablo Etla,Secc Tercera,9513910902,2026-07-02 21:16:25,2026-07-02 21:16:25,11113014663
+588,Luis,Enrique,Santiago,Garcia,Oaxaca,Mexico,El Sagrario,0,0,68220,Santiago Suchiquitongo ,El Peñasco,9511070569,2026-07-02 23:01:35,2026-07-02 23:01:35,11112973732
+589,Emilia,,Aragon ,Hernandez,Oaxaca,Oaxaca,Macedonio Alcala ,SN,S/N,71270,San Pablo Huixtepec,San Pablo Huixtepec,9511836914,2026-07-03 18:15:45,2026-07-03 18:15:45,11113222743
+590,Flavio,Carmelo,Luis,Ortiz,Oaxaca,Oaxaca,Av Juarez Norte ,8,S/N,68230,Santiago Suchilquitongo,Barrio Del Peñasco,9514986728,2026-07-03 18:53:04,2026-07-03 18:53:04,11112917334
+591,Emnuel,,Reyes,Velasquez ,Oaxaca,Oaxaca,2 De Marzo,sn,S/N,68258,San Pablo Etla,San Sebastian Etla,9514222168,2026-07-03 20:38:14,2026-07-03 20:38:14,11113179982
+592,Juan,Alberto,Reyes,Salvador,Oaxaca,Oaxaca,Porfirio Diaz ,0,105,68258,San Pablo Etla,San Sebastian Etla,9515214386,2026-07-03 21:02:03,2026-07-03 21:02:03,11112964591
+593,Juan ,Alberto,Reyes,Salvador,Oaxaca,Oaxaca,Porfirio Diaz ,0,105,68258,San Pablo Etla,San Sebastian Etla,9515214386,2026-07-03 21:15:58,2026-07-03 21:15:58,11113087803
+594,Cinthia,,Garcia,Lara,Oaxaca,Mexico,Privada Manuel Gomez Portilla ,sn,0,68247,San Agustin Etla,Cristo Rey,9511047830,2026-07-03 23:46:10,2026-07-03 23:46:10,11113046773
+595,Petra  ,Sofia,Martinez,Martinez,Oaxaca,Oaxaca,Camino Nacional ,8,sn,68230,Santiago Suchilquitongo,Barrio Del Peñasco,9515891410,2026-07-07 18:56:27,2026-07-07 18:56:27,11112982881
+596,Mayra,Yoselin,Chavarria,Martinez,Oaxaca,Oaxaca,Rio Balsas 209,209,S/N,41030,Atenango Del Rio,Benito Juarez,9512223676,2026-07-09 20:40:50,2026-07-09 20:40:50,11113074398
+597,Petra,Sofia,Martinez,Martinez,Oaxaca,Mexico,Camino Nacional ,0,0,68230,Santiago Suchilquitongo,Barrio Peñasco ,9515891410,2026-07-09 21:21:59,2026-07-09 21:21:59,11112983434
+598,Franco,Ulises,Alberto,Antonio,Oaxac,Oaxaca,Revolucion,13,0,68230,Santiago Suchilquitongo,Barrio Del Agua Buena ,9511954110,2026-07-16 16:12:18,2026-07-16 16:12:18,11112867783
+599,Josue,Santiago,Bautista,Osorio,Oaxaca,Oaxaca,1ra Cerrada De Reforma,7,0,68230,Santiago Suchilquitongo,Santiago Suchilquitongo,9512747783,2026-07-16 17:17:35,2026-07-16 17:17:35,11113071228
+600,Antonia,,Arango,Flores,Casada,Oaxaca,Cam A Las Minas,S/N,S/N,68226,Santiago Suchilquitongo,Col. Centro,9514032901,2026-07-16 19:37:32,2026-07-16 19:37:32,11113092434
+601,Antonia,,Arango ,Flores,Oaxaca,Oaxaca,Camino A Las Minas,s/n,S/N,68226,Magdalena Apasco,Centro,9514032901,2026-07-16 20:41:36,2026-07-16 20:41:36,11112626052
+602,  Elena, Yasmín ,De La Luz,Soriano,Oaxaca,Oaxaca,Barrio De La Reforma,S/N,S/N,68220,Santiago Suchilquitongo,C Reforma2 ,9516350748,2026-07-16 23:19:46,2026-07-16 23:19:46,11113265056
+603,  Fernando,,Ramirez,Rodriguez,Oaxaca,Oaxaca,Circuito Colibri Condominio 12,casa 21,S/N,68234,Etla,Villas De San Miguel,9512238428,2026-07-17 16:47:12,2026-07-17 16:47:12,11112767272
+604,Alfredo, Ramses,Ruiz,Montes,Oaxaca,Oaxaca,Condominio 10 Andador Alcaravan ,10,S/N,68234,San Juan Bautista Guelache ,Alcaravan ,9511748204,2026-07-17 17:04:14,2026-07-17 17:04:14,11113004656
+605,Julieta,,Perez,Flores,Oaxaca,Oaxaca,Adolfo Lopez Mateo,S/N,S/N,68250,Soledad Etla,Soledad Etla,9512533685,2026-07-17 17:19:38,2026-07-17 17:19:38,11112964451
+606,Dionicio,,Aquino,Ramirez,Oaxaca,Oaxaca,Aleli,S/N,S/N,68234,San Juan Bautista Guelache ,El Vergel,5654069505,2026-07-17 17:41:11,2026-07-17 17:41:11,11112951374
+607, Estefanía , Jovanny,Sánchez ,Ballesteros,Oaxaca,Oaxaca,Andador Aura ,23,S/N,68234,San Juan Bautista Guelache ,San Miguel,9518357172,2026-07-17 19:32:12,2026-07-17 19:32:12,11112947297
+608,Alfredo, Ramses,Ruiz,Montes,Oaxaca,Oaxaca,Condominio 10 Andador Alcadaran,10,31,68234,San Juan Bautista Guelache ,Villas De San Miguel,9511748204,2026-07-17 20:21:20,2026-07-17 20:21:20,11112857174
+609,Freddy, Jovanny,Leon ,Silva,Oaxaca,Oaxaca,Andador Gorrion,16,25,68234,San Juan Bautista Guelache ,Alcaravan ,9516143691,2026-07-17 20:31:06,2026-07-17 20:31:06,11112933326
+610,Fernando,Hugo,Torres,Gonzalez,Oaxaca,Oaxaca,Sagrario,21,S/N,68230,Santiago Suchilquitongo,Barrio Peñasco,9513629546,2026-07-20 17:20:18,2026-07-20 17:20:18,11113179794
+611,Juana ,Alejandra,Vasquez,Camacho,Oaxaca,Oaxaca,Calvario,S/N,S/N,68230,Santiago Suchilquitongo,Barrio Peñasco,9511309616,2026-07-20 18:53:42,2026-07-20 18:53:42,11113145552
+612,Miguel ,Ramiro,Jimenez,Crespo,Oaxaca,Oaxaca,Victoria,12,S/N,68230,Santiago Suchilquitongo,Barrio Peñasco,9512039707,2026-07-20 20:47:44,2026-07-20 20:47:44,11112913625
+613,Ricardo,Alberto,Sosa,Martinez,Oaxaca,Oaxaca,Sagrario,125,S/N,68230,Santiago Suchilquitongo,Barrio El Peñasco,9511623211,2026-07-20 20:58:01,2026-07-20 20:58:01,11113027782
+614,Juana ,Alejandra,Vasquez,Camacho,Oaxaca,Oaxaca,Calvario,S/N,S/N,68230,Santiago Suchilquitongo,Barrio Peñasco,9511309616,2026-07-20 21:35:13,2026-07-20 21:35:13,11112939450
+615,Maria ,Guadalupe, Lopez, Pantoja,Oaxaca,Oaxaca,De La Gloria,S/N,S/N,68230,Santiago Suchilquitongo,Barrio El Peñasco,5536649827,2026-07-20 22:14:47,2026-07-20 22:14:47,11113015330
+616,  Eduardo ,Antonio,López,Méndez,Oaxaca,Oaxaca,Cuahutemoc,28,S/N,68220,Villa De Etla,Santo Domingo Barrio Bajo,9511901406,2026-07-22 19:00:40,2026-07-22 19:00:40,11113004199
+617,Mayra ,,Luna,Luna,Oaxaca,Oaxaca,Alamos,136,S/N,68276,Oaxaca De Juarez,Eucaliptos,9514962649,2026-07-23 19:09:10,2026-07-23 19:09:10,11113172654
+618,Adrian,Antonio,Lopez,Hernandez,Oaxaca,Oaxaca,Av Juarez Norte,S/N,15,68230,Santiago Suchiquitongo ,Barrio Tetiche,9512294483,2026-07-24 20:29:36,2026-07-24 20:29:36,11112976322
+619,Mateo,Santos,Romero,Reyes,Oaxaca,Oaxaca,1a Priv De Sauces ,102,S/N,68100,Santa Lucia Del Camino,Col Calicanto,9516400338,2026-07-24 21:38:24,2026-07-24 21:38:24,11112991256

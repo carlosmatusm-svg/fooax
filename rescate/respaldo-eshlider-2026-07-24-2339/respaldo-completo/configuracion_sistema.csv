@@ -1,0 +1,7 @@
+﻿id,parametro,valor,descripcion,fecha_creacion,fecha_actualizacion,activo
+1,PERIODO_GRACIA_DIAS,8,Número de días de gracia antes de que un pago se considere vencido y comience a contar la mora,2025-11-03 16:25:13,2025-11-03 16:25:13,1
+2,HORA_PROCESO_CARTERA,06:00,Hora diaria de ejecución del proceso automático de cartera,2025-11-03 16:25:13,2025-11-03 16:25:13,1
+3,UMBRAL_CRITICO_DIAS,90,Días de mora para considerar un caso como crítico,2025-11-03 16:25:13,2025-11-03 16:25:13,1
+4,UMBRAL_ADVERTENCIA_DIAS,30,Días de mora para considerar un caso como advertencia,2025-11-03 16:25:13,2025-11-03 16:25:13,1
+5,NOTIFICACIONES_ACTIVAS,true,Indica si el sistema de notificaciones está activo,2025-11-03 16:25:13,2025-11-03 16:25:13,1
+6,IVA_INTERES_PCT,16,IVA % aplicado sobre el interés de cada cuota,2026-07-02 15:23:33,2026-07-02 15:23:33,1

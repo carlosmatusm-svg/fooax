@@ -1,0 +1,2 @@
+﻿id_mora_config,porcentaje_multa,dias_mora,estatus,periodo_gracia,descripcion,fecha_creacion,fecha_actualizacion,pagos_vencidos_cartera
+1,10.00,30,ACTIVO,8,Configuración por defecto del sistema,2025-11-03 16:46:19,2025-11-03 18:44:48,3

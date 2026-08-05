@@ -1,0 +1,12 @@
+﻿id_tipo_movimiento,codigo,nombre,categoria,descripcion,activo,fecha_creacion,fecha_actualizacion
+1,PAGO_PRESTAMO,Pago de Préstamo,INGRESO,Pagos recibidos de préstamos otorgados,1,2025-09-20 17:06:26,2025-09-20 17:06:26
+2,PAGO_INTERES,Pago de Intereses,INGRESO,Intereses cobrados por préstamos,1,2025-09-20 17:06:26,2025-09-20 17:06:26
+3,PAGO_IVA,Pago de IVA,INGRESO,IVA cobrado sobre intereses,1,2025-09-20 17:06:26,2025-09-20 17:06:26
+4,DEPOSITO_AHORRO,Depósito a Garantía,INGRESO,Depósito realizado a la cuenta de ahorro/garantía,1,2025-09-20 17:06:26,2025-12-15 23:28:52
+5,APORTE_CAPITAL,Aporte de Capital,INGRESO,Aportes adicionales de capital,1,2025-09-20 17:06:26,2025-09-20 17:06:26
+6,OTROS_INGRESOS,Otros Ingresos,INGRESO,Otros ingresos diversos,1,2025-09-20 17:06:26,2025-12-15 23:28:52
+7,PRESTAMO_OTORGADO,Préstamo Otorgado,EGRESO,Dinero prestado a clientes,1,2025-09-20 17:06:26,2025-09-20 17:06:26
+8,RETIRO_AHORRO,Retiro de Garantía,EGRESO,Retiro de fondos de la cuenta de ahorro/garantía,1,2025-09-20 17:06:26,2025-12-15 23:28:52
+9,GASTOS_OPERATIVOS,Gastos Operativos,EGRESO,Gastos de operación del negocio,1,2025-09-20 17:06:26,2025-09-20 17:06:26
+10,GASTOS_ADMINISTRATIVOS,Gastos Administrativos,EGRESO,Gastos administrativos,1,2025-09-20 17:06:26,2025-09-20 17:06:26
+11,OTROS_EGRESOS,Otros Egresos,EGRESO,Egresos diversos no categorizados,1,2025-09-20 17:06:26,2025-09-20 17:06:26

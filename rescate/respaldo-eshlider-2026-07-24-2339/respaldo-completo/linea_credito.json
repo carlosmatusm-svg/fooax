@@ -1,0 +1,47 @@
+[
+ {
+  "id_linea_credito": 5,
+  "nombre_linea": "Eshlider",
+  "id_sucursal": "1111",
+  "id_creador": 1111111111111111,
+  "fecha_creacion": "2025-09-19 23:00:03",
+  "fecha_actualizacion": "2025-09-19 23:00:03",
+  "estatus": "Activo"
+ },
+ {
+  "id_linea_credito": 6,
+  "nombre_linea": "Foxi",
+  "id_sucursal": "1111",
+  "id_creador": 1111111111111111,
+  "fecha_creacion": "2025-09-19 23:01:25",
+  "fecha_actualizacion": "2025-09-19 23:01:25",
+  "estatus": "Activo"
+ },
+ {
+  "id_linea_credito": 7,
+  "nombre_linea": "Comadre FOOAX",
+  "id_sucursal": "1111",
+  "id_creador": 111113612004634,
+  "fecha_creacion": "2026-03-26 16:56:28",
+  "fecha_actualizacion": "2026-03-26 16:56:28",
+  "estatus": "Activo"
+ },
+ {
+  "id_linea_credito": 8,
+  "nombre_linea": "FOOAX VELOCITY",
+  "id_sucursal": "1111",
+  "id_creador": 111113612004634,
+  "fecha_creacion": "2026-05-29 15:29:54",
+  "fecha_actualizacion": "2026-05-29 16:06:48",
+  "estatus": "Activo"
+ },
+ {
+  "id_linea_credito": 9,
+  "nombre_linea": "FOOAX MAGNUS",
+  "id_sucursal": "1111",
+  "id_creador": 111113612004634,
+  "fecha_creacion": "2026-05-29 15:29:55",
+  "fecha_actualizacion": "2026-05-29 16:06:49",
+  "estatus": "Activo"
+ }
+]

@@ -1,0 +1,56 @@
+[
+ {
+  "id": 1,
+  "parametro": "PERIODO_GRACIA_DIAS",
+  "valor": "8",
+  "descripcion": "Número de días de gracia antes de que un pago se considere vencido y comience a contar la mora",
+  "fecha_creacion": "2025-11-03 16:25:13",
+  "fecha_actualizacion": "2025-11-03 16:25:13",
+  "activo": 1
+ },
+ {
+  "id": 2,
+  "parametro": "HORA_PROCESO_CARTERA",
+  "valor": "06:00",
+  "descripcion": "Hora diaria de ejecución del proceso automático de cartera",
+  "fecha_creacion": "2025-11-03 16:25:13",
+  "fecha_actualizacion": "2025-11-03 16:25:13",
+  "activo": 1
+ },
+ {
+  "id": 3,
+  "parametro": "UMBRAL_CRITICO_DIAS",
+  "valor": "90",
+  "descripcion": "Días de mora para considerar un caso como crítico",
+  "fecha_creacion": "2025-11-03 16:25:13",
+  "fecha_actualizacion": "2025-11-03 16:25:13",
+  "activo": 1
+ },
+ {
+  "id": 4,
+  "parametro": "UMBRAL_ADVERTENCIA_DIAS",
+  "valor": "30",
+  "descripcion": "Días de mora para considerar un caso como advertencia",
+  "fecha_creacion": "2025-11-03 16:25:13",
+  "fecha_actualizacion": "2025-11-03 16:25:13",
+  "activo": 1
+ },
+ {
+  "id": 5,
+  "parametro": "NOTIFICACIONES_ACTIVAS",
+  "valor": "true",
+  "descripcion": "Indica si el sistema de notificaciones está activo",
+  "fecha_creacion": "2025-11-03 16:25:13",
+  "fecha_actualizacion": "2025-11-03 16:25:13",
+  "activo": 1
+ },
+ {
+  "id": 6,
+  "parametro": "IVA_INTERES_PCT",
+  "valor": "16",
+  "descripcion": "IVA % aplicado sobre el interés de cada cuota",
+  "fecha_creacion": "2026-07-02 15:23:33",
+  "fecha_actualizacion": "2026-07-02 15:23:33",
+  "activo": 1
+ }
+]

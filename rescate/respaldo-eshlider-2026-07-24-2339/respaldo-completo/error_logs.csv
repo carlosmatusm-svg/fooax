@@ -1,0 +1,4 @@
+﻿id_error,id_usuario,fecha_error,modulo,tipo_error,mensaje,detalles,ruta,metodo,ip,resuelto,fecha_resolucion,notas_resolucion
+1,,2026-06-17 20:03:32,,Registro de Cliente,Request failed with status code 401,[object Object],SendInformationClient.jsx,POST,,0,,
+2,,2026-07-17 19:25:16,,Registro de Cliente,Request failed with status code 401,[object Object],SendInformationClient.jsx,POST,84.17.44.225,0,,
+3,,2026-07-24 21:38:25,,Datos Adicionales Cliente,Error al procesar ingresos,[object Object],SendInformationClient.jsx,POST,84.17.44.227,0,,

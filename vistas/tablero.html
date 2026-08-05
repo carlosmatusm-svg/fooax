@@ -1022,15 +1022,15 @@ async function cargarCartera() {
   // PLAZO YA VENCIDO. Antes se avisaba de las que debían "exactamente una cuota",
   // pero con la plantilla al día eso es NORMAL: es su último pago. Lo que sí
   // importa es a quién ya se le acabó el plazo y no cerró.
-  if ((d.plazoVencido || []).length) {
-    const tot = d.plazoVencido.reduce((a, b) => a + (b.saldo || 0), 0);
-    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">⚠ ' + d.plazoVencido.length
-      + " créditos con el PLAZO YA VENCIDO y saldo pendiente (" + dinero(tot) + ").</b> "
-      + "A estas ya se les acabó su plazo y no terminaron de pagar. No es que falte capturar: es cartera que se pasó de su fecha.<br>"
-      + d.plazoVencido.slice(0, 12).map((x) => "• " + hesc(x.ejecutivo || "—") + " · " + hesc(x.nombre)
-          + " (" + hesc(x.producto) + "): " + dinero(x.saldo) + " · terminaba el " + hesc(x.terminaba)
-          + ", hace " + x.diasVencido + " días").join("<br>")
-      + (d.plazoVencido.length > 12 ? "<br>… y " + (d.plazoVencido.length - 12) + " más" : "")
+  if ((d.atrasados || []).length) {
+    const tot = d.atrasados.reduce((a, b) => a + (b.saldo || 0), 0);
+    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">⚠ ' + d.atrasados.length
+      + " créditos atrasados 4 pagos o más (" + dinero(tot) + ").</b> "
+      + "El plazo no es una fecha límite sino un número de pagos: esto compara los pagos que lleva contra los que debería llevar.<br>"
+      + d.atrasados.slice(0, 12).map((x) => "• " + hesc(x.ejecutivo || "—") + " · " + hesc(x.nombre)
+          + " (" + hesc(x.producto) + "): " + dinero(x.saldo) + " · lleva " + x.hechos
+          + " de " + x.plazo + " pagos, debería llevar " + x.debio + " — atraso de " + x.atraso).join("<br>")
+      + (d.atrasados.length > 12 ? "<br>… y " + (d.atrasados.length - 12) + " más" : "")
       + "</div>";
   }
   // Liquidaciones que entraron a caja pero no le bajaron el saldo a nadie.

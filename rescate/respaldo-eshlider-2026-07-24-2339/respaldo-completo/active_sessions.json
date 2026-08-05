@@ -1,0 +1,38 @@
+[
+ {
+  "user_id": 11119423044721,
+  "session_token": "818f1c6ae812349350dede3c9be518dab3c4a3e799aa2d9fbcc171423931898a",
+  "status": "active",
+  "ga_alertas_ui_unlocked_at": null
+ },
+ {
+  "user_id": 111113612004634,
+  "session_token": "e9efc4a00f4d918f9aec59f5ff668feed036884ac92b36399373f408b984a2b3",
+  "status": "active",
+  "ga_alertas_ui_unlocked_at": null
+ },
+ {
+  "user_id": 111113612603105,
+  "session_token": "e0130d5fba07cd124f9a8be52d72a399c4701c1b382ec83e2735c1bb06c58a94",
+  "status": "active",
+  "ga_alertas_ui_unlocked_at": null
+ },
+ {
+  "user_id": 111113612607048,
+  "session_token": "9b27d4e1cb56d0554bbc0491d20fc0694bcc8b0baa28fe21e488f7aaf3729da5",
+  "status": "active",
+  "ga_alertas_ui_unlocked_at": null
+ },
+ {
+  "user_id": 111113613004387,
+  "session_token": "01d154653e663187511867f99640b9dc89eb850827a159d92f497bf03bd4d9a9",
+  "status": "inactive",
+  "ga_alertas_ui_unlocked_at": null
+ },
+ {
+  "user_id": 1111111111111111,
+  "session_token": "ff28f7c783454ca29487ec68cbefcd8319a64fc6ce11b67c64dc387a1d9faef6",
+  "status": "inactive",
+  "ga_alertas_ui_unlocked_at": null
+ }
+]

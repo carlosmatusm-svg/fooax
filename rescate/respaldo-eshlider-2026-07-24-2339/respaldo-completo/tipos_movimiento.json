@@ -1,0 +1,112 @@
+[
+ {
+  "id_tipo_movimiento": 1,
+  "codigo": "PAGO_PRESTAMO",
+  "nombre": "Pago de Préstamo",
+  "categoria": "INGRESO",
+  "descripcion": "Pagos recibidos de préstamos otorgados",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ },
+ {
+  "id_tipo_movimiento": 2,
+  "codigo": "PAGO_INTERES",
+  "nombre": "Pago de Intereses",
+  "categoria": "INGRESO",
+  "descripcion": "Intereses cobrados por préstamos",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ },
+ {
+  "id_tipo_movimiento": 3,
+  "codigo": "PAGO_IVA",
+  "nombre": "Pago de IVA",
+  "categoria": "INGRESO",
+  "descripcion": "IVA cobrado sobre intereses",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ },
+ {
+  "id_tipo_movimiento": 4,
+  "codigo": "DEPOSITO_AHORRO",
+  "nombre": "Depósito a Garantía",
+  "categoria": "INGRESO",
+  "descripcion": "Depósito realizado a la cuenta de ahorro/garantía",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-12-15 23:28:52"
+ },
+ {
+  "id_tipo_movimiento": 5,
+  "codigo": "APORTE_CAPITAL",
+  "nombre": "Aporte de Capital",
+  "categoria": "INGRESO",
+  "descripcion": "Aportes adicionales de capital",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ },
+ {
+  "id_tipo_movimiento": 6,
+  "codigo": "OTROS_INGRESOS",
+  "nombre": "Otros Ingresos",
+  "categoria": "INGRESO",
+  "descripcion": "Otros ingresos diversos",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-12-15 23:28:52"
+ },
+ {
+  "id_tipo_movimiento": 7,
+  "codigo": "PRESTAMO_OTORGADO",
+  "nombre": "Préstamo Otorgado",
+  "categoria": "EGRESO",
+  "descripcion": "Dinero prestado a clientes",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ },
+ {
+  "id_tipo_movimiento": 8,
+  "codigo": "RETIRO_AHORRO",
+  "nombre": "Retiro de Garantía",
+  "categoria": "EGRESO",
+  "descripcion": "Retiro de fondos de la cuenta de ahorro/garantía",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-12-15 23:28:52"
+ },
+ {
+  "id_tipo_movimiento": 9,
+  "codigo": "GASTOS_OPERATIVOS",
+  "nombre": "Gastos Operativos",
+  "categoria": "EGRESO",
+  "descripcion": "Gastos de operación del negocio",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ },
+ {
+  "id_tipo_movimiento": 10,
+  "codigo": "GASTOS_ADMINISTRATIVOS",
+  "nombre": "Gastos Administrativos",
+  "categoria": "EGRESO",
+  "descripcion": "Gastos administrativos",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ },
+ {
+  "id_tipo_movimiento": 11,
+  "codigo": "OTROS_EGRESOS",
+  "nombre": "Otros Egresos",
+  "categoria": "EGRESO",
+  "descripcion": "Egresos diversos no categorizados",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:26",
+  "fecha_actualizacion": "2025-09-20 17:06:26"
+ }
+]

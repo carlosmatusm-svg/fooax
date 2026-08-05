@@ -1,0 +1,6 @@
+﻿id_config,parametro,valor,descripcion,fecha_actualizacion,id_usuario_actualizacion
+1,LIMITE_REDONDEO_EFECTIVO,1.00,Límite máximo de diferencia para redondeo en efectivo,2025-09-29 15:58:18,
+2,AUTO_AUTORIZAR_CENTAVOS,0.50,Diferencias menores a este valor se autorizan automáticamente,2025-09-29 15:58:18,
+3,DIAS_RETENCION_AUDITORIA,365,Días que se mantienen los registros de auditoría,2025-09-29 15:58:18,
+4,NOTIFICAR_DIFERENCIAS_MAYORES,5.00,Notificar diferencias mayores a este monto,2025-09-29 15:58:18,
+5,MODULOS_AUDITORIA_ACTIVA,"PAGOS,PRESTAMOS,AHORROS",Módulos con auditoría detallada activa,2025-09-29 15:58:18,

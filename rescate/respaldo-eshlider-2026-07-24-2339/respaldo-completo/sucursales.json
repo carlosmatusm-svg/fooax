@@ -1,0 +1,12 @@
+[
+ {
+  "id_sucursal": "1111",
+  "nombre_sucursal": "San Lorenzo, 68263 San Lorenzo Cacaotepec, Oax.",
+  "codigo_postal": "68263",
+  "id_gerente": 11117142959637,
+  "id_supervisor": null,
+  "direccion": "",
+  "telefono": null,
+  "estatus": "Activo"
+ }
+]

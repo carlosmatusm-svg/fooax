@@ -1,0 +1,2 @@
+﻿id_alert_threshold,modulo,info_days,warning_days,critical_days,porcentaje_mora_maximo,monto_minimo_alerta,dias_notificacion_anticipada,estatus,descripcion,fecha_creacion,fecha_actualizacion
+1,CARTERA,7,30,90,15.00,1000.00,3,ACTIVO,Umbrales iniciales de cartera,2025-11-10 16:34:47,2025-11-10 16:34:47

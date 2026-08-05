@@ -1,0 +1,13 @@
+[
+ {
+  "id_mora_config": 1,
+  "porcentaje_multa": "10.00",
+  "dias_mora": 30,
+  "estatus": "ACTIVO",
+  "periodo_gracia": 8,
+  "descripcion": "Configuración por defecto del sistema",
+  "fecha_creacion": "2025-11-03 16:46:19",
+  "fecha_actualizacion": "2025-11-03 18:44:48",
+  "pagos_vencidos_cartera": 3
+ }
+]

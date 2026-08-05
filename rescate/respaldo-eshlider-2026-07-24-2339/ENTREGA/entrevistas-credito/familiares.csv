@@ -1,0 +1,593 @@
+﻿cliente,curp,id_familiares,nombre_completo,fecha_nacimiento,parentesco,grado_estudo,ocupacion,comentarios,fecha_creacion,fecha_actualizacion,id_cliente
+Zenaida Rosario Dominguez Amos,DOAZ581011MOCMMN06,7,Alejandro Pedro Cruz,1900-09-09,Esposo,Se Desconoce,Empleado,,2025-06-17 23:49:05,2025-06-17 23:49:05,11113025129
+Alma Rosa López Hernandez,LOHA950424MOCPRL06,8,Bejamin Pérez Martinez,1900-09-09,Esposo,Primaria,Albañil,,2025-06-25 00:15:07,2025-06-25 00:15:07,11112925238
+Gabriela Karina Martinez Muñoz,MAMG930421MOCRXB02,9,Norman Josué Reyes Reyes,1994-05-20,Esposo,Se Desconoce,Empleado De Taqueria,,2025-06-26 00:35:07,2025-06-26 00:35:07,11112903012
+Aide  Andrea Lopez Pacheco,LOPA891128MOCPCD07,10,David Heriberto Baltazar Heriberto,1900-09-09,Esposo,Se Desconoce,Taxista,,2025-06-27 19:48:34,2025-06-27 19:48:34,11113008579
+Carmelina  Elvira Lopez Lopez,LOLC630217MOCPPR02,11,Rosa Maria Muñoz Lopez,1980-03-01,Hija,Primaria,Se Desconoce,,2025-06-27 20:56:35,2025-06-27 20:56:35,11112984597
+Irma Guzman Pérez,GUPI721224MOCZRR06,14,Julian Aragon Sanjuan,1973-02-20,Esposo,Secundaria,Chofer ,9513558969,2025-07-03 23:55:43,2025-07-03 23:55:43,11113098291
+Damaris Getsamani Jinez De La Luz,JILD020920MOCNZMA8,17,Isaac Lopez Martinez,2002-12-27,Primo,Secundaria,Albañil,,2025-07-15 20:23:41,2025-07-15 20:23:41,11112919810
+Cruz Delia Ortega Gomez,OEGC960503MOCRMR05,18,Maria Lucas Gomez,1964-03-06,Mama,Primaria,Estilista,,2025-07-15 20:48:22,2025-07-15 20:48:22,11112861463
+Balentina Jines De La Luz,JILB800214MOCNZL06,19,Diego Guadalupe Osorio De La Luz,1983-12-12,Esposo,Primaria,Albañil,,2025-07-15 21:49:20,2025-07-15 21:49:20,11112899272
+Cirila Limeta Ramirez,LIRC770627MOCMMR05,20,Pedro Jinez De La Luz,1961-06-29,Pareja,Primaria,Albañil,,2025-07-15 22:07:02,2025-07-15 22:07:02,11112985973
+Margarita Echeverria Chavez,EECM000222MOCCHRA3,21,Guillermina Echeverria Chavez,1998-12-15,Hermana,Secundaria,Tienda De Abarrotes,,2025-07-15 22:51:41,2025-07-15 22:51:41,11112821963
+Juana Caritina Gonzalez Chavez,GOCJ590127M00NHN04,22,Maria Isabel Gonzales Chavez,1968-05-02,Hermana,Bachillerato ,Secretaria,,2025-07-16 15:33:04,2025-07-16 15:33:04,11112918184
+Diana Monserrat Trejo Gonzalez,TEGD970609MOCRNN03,23,Cristina Jaqueline Lopez Cruz,2004-06-10,Prima,Primaria,Maquiladora,,2025-07-16 15:43:28,2025-07-16 15:43:28,11112922068
+Julia Victoria  Ojeda,VIOJ630109MOCCJL06,24,Maria De Lourdes Gomes Victoria,1975-02-11,Sobrina,Primaria,Costurera,,2025-07-16 16:30:35,2025-07-16 16:30:35,11113129537
+Test Test Test,TEST123456TESTTE14,25,Test,2023-01-01,Padre,Sin estudios,Elaboración De Tortillas,,2025-07-22 20:11:26,2025-07-22 20:11:26,11113204127
+Test Test Test,TEST123456TESTTE15,26,Test,2024-01-01,Padre,Primaria completa,Test,,2025-07-22 20:31:21,2025-07-22 20:31:21,11113208518
+Ana Luisa Perez Apaneca,PEAA861227MOCRPN01,27,No Puso,2025-07-30,Otro,Otro,No,,2025-07-30 18:07:58,2025-07-30 18:07:58,11112791994
+Rosa Maria Gallegos Otero,GAOR741018MOCLTS03,28,Mauricio Ramirez Santos,2007-04-04,Sobrino/a,Otro,Estudiante,,2025-07-30 18:29:52,2025-07-30 18:29:52,11112971766
+Mariam Medina Jose,MEJM060307MCSBSRA9,29,Cuahtemoc Enrique Medina Juarez,1960-07-15,Padre,Preparatoria completa,Ceramica Tonatiuh,,2025-07-30 18:44:46,2025-07-30 18:44:46,11112979148
+Deysi Gonzales Torres,GOTD890804MOCNRY04,30,Eva Aurelia Torres Santos,1962-10-19,Madre,Carrera técnica,Vende Comida,,2025-07-30 19:08:11,2025-07-30 19:08:11,11113029053
+Rocio Juana Espinoza Martinez,EIMR700524MOCSRC05,31,Eunice Liliana Gomez Espinoza,2001-07-24,Hijo/a,Preparatoria completa,Ama De Casa,,2025-07-30 19:25:24,2025-07-30 19:25:24,11113017302
+Noemi Melissa Espinoza Cruz,EICN020709MOCSRMA5,32,Marco Tulio Espinoza Cruz,2003-08-30,Hermano/a,Preparatoria completa,Estudiante,,2025-07-30 19:42:17,2025-07-30 19:42:17,11112871315
+Omelia Gonsalez Cruz,GOCO830512MOCNRM00,33,Abigail Mendez Gonsalez,2003-09-27,Hijo/a,Preparatoria completa,Ama De Casa,,2025-07-30 20:09:15,2025-07-30 20:09:15,11112966560
+Cecilia Janett Mendez Cruz,MECC830102MOCNRC08,34,Leonardo U. Chavez,2003-04-22,Hijo/a,Preparatoria completa,Estudiante,,2025-07-30 21:49:35,2025-07-30 21:49:35,11112805333
+Guadalupe Soledad Hernandez Garcia,HEGG791119MOCRRD07,36,Andrea Garcia Hernandez,2007-08-07,Hijo/a,Preparatoria incompleta,Comerciante,,2025-07-30 23:09:24,2025-07-30 23:09:24,11112835706
+Cira Contreras Mendez,COMC760803MOCNNR02,37,Ana Yamileth Contreras Mendez,2006-06-04,Hijo/a,Otro,Estudia Y Trabaja,,2025-07-30 23:21:49,2025-07-30 23:21:49,11112901442
+Maria De Los Angeles Espinoza Santiago,EISA841031MOCSNN04,38,Pedro Alexis Espinoza Santiago,2007-07-31,Hijo/a,Secundaria completa,Albañil,,2025-07-30 23:47:47,2025-07-30 23:47:47,11112909806
+Noemi Garcia Perez,GAPN851101MOCRRM01,39,Marisela Garcia Zuñiga,1965-12-18,Tío/a,Preparatoria completa,Renta De Trajes,,2025-08-01 16:35:45,2025-08-01 16:35:45,11112949301
+Sylvia Florencia Hernandez Casas,HECS640216MOCRSY03,40,Rafaela Casas Lopez,1944-10-24,Madre,Secundaria completa,Ama De Casa,,2025-08-01 17:06:13,2025-08-01 17:06:13,11112913368
+Test Test Test,TEST123456TESTTE16,41,Test,2025-12-31,Padre,Primaria incompleta,Elaboración De Tortillas,,2025-08-01 17:50:03,2025-08-01 17:50:03,11113204612
+Margarita Lopez Cruz,LOCM730417MOCPRR02,42,Maria Oncepcion Lujan Lopez,1998-05-04,Sobrino/a,Secundaria completa,Abarrotera,,2025-08-01 18:46:57,2025-08-01 18:46:57,11112996211
+Laura Cuevas Arango,CUAL661019M0CBRR08,43,Yasmin Chavez Cuevas,2001-10-06,Sobrino/a,Secundaria completa,Vende Verduras,,2025-08-01 18:59:06,2025-08-01 18:59:06,11112931340
+Cirina Robles Juarez,ROJC640612MOCBRR03,44,Francisco Cruz Robles,1992-07-13,Hijo/a,Secundaria completa,Albañil,,2025-08-01 19:15:33,2025-08-01 19:15:33,11113025167
+Josefa Victoria Ojeda,VIOJ531207MOCCJS01,45,Neri Juvenal Gomez,1951-10-22,Cónyuge,Primaria completa,Obrero,,2025-08-01 19:41:18,2025-08-01 19:41:18,11113129161
+Teresa Hernandez Hernandez,HEHT710117MOCRRR00,48,Luis Angel Robledo Hernandez,1993-08-07,Hijo/a,Licenciatura completa,Maestro,,2025-08-01 21:13:46,2025-08-01 21:13:46,11112977354
+Aidee Yuliceli Cruz Robledo,CURA030704MOCRBDA1,49,Cesareo Hernandez Manuel,1968-02-26,Padre,Secundaria completa,Empleado,,2025-08-01 21:32:46,2025-08-01 21:32:46,11112997831
+Fabiola Cruz Robledo,CURF840120MOCRBB09,50,Aidee Yuliceli Cruz Robledo,2003-07-04,Hijo/a,Otro,Estudia Y Trabaja,,2025-08-01 21:40:46,2025-08-01 21:40:46,11113043290
+Heralia Perez Guzman,PEGH571017MOCRZR06,51,Josabeth Garcia Lopez,1954-01-08,Cónyuge,Preparatoria completa,Herrero,,2025-08-01 22:39:27,2025-08-01 22:39:27,11112926916
+Amairani Robledo Hernandez,ROHA960104MOCBBM02,52,Teresa Hernandez,1971-01-17,Madre,Secundaria completa,Vende Comida,,2025-08-01 23:00:55,2025-08-01 23:00:55,11112985270
+Erika Jovita Blas Lopez,BALE960712MOCLPR01,53,Zaira Araceli Blas Lopez,2000-06-23,Hermano/a,Secundaria completa,Empleada,,2025-08-05 15:31:55,2025-08-05 15:31:55,11112765503
+Concepcion Odilia Garcia Lopez,GALC511208MOCRRL01,54,Arturo Ruben Villanueva Garcia,1984-10-27,Hijo/a,Secundaria completa,Purificadora De Agua,,2025-08-05 15:51:17,2025-08-05 15:51:17,11112792952
+Maria Del Socorro Gonzalez Miguel,GOMF880808MOCNGC06,55,Pablo Juan Gonzalez,1967-07-10,Padre,Primaria incompleta,Albañil,,2025-08-05 16:42:39,2025-08-05 16:42:39,11112973962
+Socorro Glafira Avendaño Chavez,AECS590601MOCVHC06,56,Yanira Cruz Avendaño,1986-08-02,Hijo/a,Licenciatura incompleta,Taller De Costura,,2025-08-05 17:03:13,2025-08-05 17:03:13,11112847319
+Evila Martinez Miguel,MXME670701MOCRGV00,57,Jose Maria Garcia Martinez,1997-08-15,Hijo/a,Primaria incompleta,Panadero,,2025-08-05 17:21:43,2025-08-05 17:21:43,11113115541
+Sandra Nayeli Blas Lopez,BALS880327MOCLPN08,58,Jovita Lopez,1967-02-23,Madre,Primaria completa,Comerciante,,2025-08-05 17:49:38,2025-08-05 17:49:38,11112905319
+Zaira Araceli Blas Lopez,BALZ000623MOCLPRA7,59,Sandra Nayeli Blas Lopez,1988-03-27,Hermano/a,Secundaria completa,Comerciante,,2025-08-05 17:59:04,2025-08-05 17:59:04,11112972021
+Jovita Lopez,LOXJ670223MOCPXV09,60,Sandra Nayeli Blas Lopez,2000-06-23,Hijo/a,Secundaria completa,Comerciante,,2025-08-05 18:14:45,2025-08-05 18:14:45,11113176710
+Consuelo Lizbeth Blas Lopez,BALC940408MOCLPN01,61,Alberto Isaac Lopez Guzman,1973-09-14,Cónyuge,Secundaria incompleta,Chofer,,2025-08-05 18:28:44,2025-08-05 18:28:44,11112744466
+Citlali Lazaro Lazaro,LALC051101MOCZZTA2,62,Leonel Lazaro Bautista,1984-08-08,Padre,Sin estudios,Velador,,2025-08-05 18:40:43,2025-08-05 18:40:43,11112846629
+Socorro Miguel Miguel,MIMS670610MOCGGC07,63,Pablo Lopez Gonzalez,1960-05-08,Tío/a,Primaria incompleta,Albañil,,2025-08-05 18:57:53,2025-08-05 18:57:53,11113102023
+Cecilia Francisca Guendulay Lopez,GULC681004MOCNPL08,64,Eli Ramirez Ramirez,1967-07-07,Cónyuge,Preparatoria completa,Fabrica De Muebles,,2025-08-05 19:24:24,2025-08-05 19:24:24,11112997957
+Dulce Maria Sosa Garcia,SOGD010519MOCSRLA0,65,Jose Adrian Sosa Garcia,2003-04-17,Hermano/a,Secundaria incompleta,Albañil,,2025-08-05 19:44:46,2025-08-05 19:44:46,11113018670
+Carmen Acuca  Martinez,CUMC600716MOCCRR07,66,Luis Alfonso Vasquez Acuca,1980-09-27,Hijo/a,Primaria completa,Empleado ,,2025-08-05 20:05:18,2025-08-05 20:05:18,11112962530
+Elvia Garcia Ruiz,GARE690208MOMCRZL0,67,Elvia Garcia Cruz,1969-02-08,Otro,Primaria completa,Venta De Pan,,2025-08-05 20:14:40,2025-08-05 20:14:40,11112873397
+Cristina Luis  Rendon,LURC821002MOCSNR05,68,Alan Said Zarate Luis,2010-01-09,Hijo/a,Otro,Estudiante,,2025-08-05 20:30:39,2025-08-05 20:30:39,11113101807
+Elizabeth Veronica Martinez Rueda,MARE550203MOCRDL12,69,Fabiola Unda Martinez,1985-07-03,Hijo/a,Licenciatura incompleta,Secretaria,,2025-08-05 20:44:57,2025-08-05 20:44:57,11112933824
+Gloria Lopez Cruz,LOCG750302MOCPRLL0,70,Alejandra Johana Mendoza Lopez,2007-02-21,Hijo/a,Otro,Estudiante,,2025-08-05 20:59:48,2025-08-05 20:59:48,11112934778
+Ariela Garcia Escobar,GAEA600907MOCRSR09,71,Aurea Garcia Escobar,1965-06-07,Hermano/a,Licenciatura completa,Odontologa,,2025-08-05 23:09:16,2025-08-05 23:09:16,11112707655
+Flor Perez Perez,PEPF821005MOCRRL00,72,Gaudencio Perez Perez,1989-06-19,Hermano/a,Primaria completa,Albañil,,2025-08-05 23:28:17,2025-08-05 23:28:17,11112994926
+Minga Maria Pinelo Espinoza,PIEM740804MOCNSN05,73,Pablo Gaytan Gaytan,1971-02-14,Cónyuge,Secundaria completa,Empleado,,2025-08-05 23:41:36,2025-08-05 23:41:36,11112998182
+Julia Hernandez Lopez,HELJ960619MOCRPL04,74,Victoria Hernandez Lopez,1984-03-29,Hermano/a,Secundaria completa,Cocinera,,2025-08-06 17:15:32,2025-08-06 17:15:32,11112919022
+Maria Isabel Ayala Decideiro,AADI880717MOCYCS03,75,Isabel Desideiro Felipe,1965-11-06,Madre,Primaria completa,Comedor,,2025-08-06 18:28:40,2025-08-06 18:28:40,11112711848
+Yadira Monica Garcia Hernandez,GAHY911029MOCRRD09,76,Jose Gerardo Garcia Aquino,1969-10-29,Padre,Primaria completa,Taxista,,2025-08-06 19:59:04,2025-08-06 19:59:04,11112973932
+Brigida Contreras Antonio,COAB780324MOCNNR09,77,Maurilio Mendez Jimenez,1977-08-13,Cónyuge,Otro,Empleado,,2025-08-06 20:21:21,2025-08-06 20:21:21,11112775265
+Daniela Michelle Hernandez Lopez,HELD041222MOCRPNA5,78,Angel Eduardo Cuevas Muñoz,2005-12-15,Cónyuge,Secundaria incompleta,Albañil,,2025-08-06 21:09:24,2025-08-06 21:09:24,11112856037
+Leticia Luisa Cuevas Hernandez,CUHL730528MOCVRT01,79,Agustina Hernandez Martinez,1956-05-07,Madre,Sin estudios,No Dijo,,2025-08-06 21:54:52,2025-08-06 21:54:52,11113008354
+Eulalia Julia Hernandez Lopez,HELE761210MOCRPL00,80,Gabriela Hernandez Lopez,1999-09-05,Hijo/a,Secundaria completa,Trabaja,,2025-08-06 22:28:14,2025-08-06 22:28:14,11112862419
+Diana Griselda Gaytan Pinelo,GAPD990328MOCYNN04,82,Pablo Gaytan Gaytan,1974-02-14,Padre,Primaria completa,Guardia,,2025-08-07 18:33:52,2025-08-07 18:33:52,11112844764
+Maria Del Rosario Gines Castellanos,GICR960809MOCNSS00,83,Berenice Vanessa Gines Castellanos,1999-02-14,Hermano/a,Secundaria completa,Obrera,,2025-08-07 18:48:13,2025-08-07 18:48:13,11112934036
+Florencia Silvia Figueroa Garcia,FIFG660325MOCGRL05,84,Reynaldo Martinez Martinez,1969-07-06,Cónyuge,Primaria incompleta,Obrero,,2025-08-07 19:03:14,2025-08-07 19:03:14,11112846982
+Arleth Cruz Bautista,CUBA031031MOCRTRA4,85,Esther Bautista Torres,1949-07-01,Abuelo/a,Primaria incompleta,No Trabaja,,2025-08-07 19:28:34,2025-08-07 19:28:34,11112836635
+Nicolasa Maria Magdalena Castellanos Velasquez,CAVN790910MOGFLC05,86,Tania Jinez Castellanos,2006-03-16,Hijo/a,Secundaria incompleta,Vende Antojitos,,2025-08-07 19:48:16,2025-08-07 19:48:16,11112968070
+Berenice Vanessa Gines Castellanos,GICB990214MOCNSR00,87,Paula San Juan Trejo,1996-02-04,Tío/a,Primaria completa,Vende Tostadas Y Tortillas,,2025-08-07 20:02:30,2025-08-07 20:02:30,11112779406
+Rebecca Garcia Cruz,GACR971120MOCRRB02,88,Guadalupe Garcia Cruz,1971-12-12,Madre,Primaria completa,Pensionada,,2025-08-07 20:29:25,2025-08-07 20:29:25,11112852646
+Rosalba Ibeth Lopez Lopez,LOLR910605MOCPPS07,89,Alejandra Cruz Plumas,1990-05-18,Primo/a,Secundaria completa,Estilista,,2025-08-07 21:11:07,2025-08-07 21:11:07,11113136238
+Irma Eugenia Ignacio Santiago,IASI641118MOCGNR02,90,Alfredo Hernández Ignacio,1985-08-30,Hijo/a,Secundaria completa,Estilista,,2025-08-07 21:30:14,2025-08-07 21:30:14,11112941544
+Maria Victoria Lopez Miguel,LOMV591007MOCPGC00,91,Gabriel Arcángel Mezeta Carrillo,1956-07-10,Cónyuge,Licenciatura completa,Pensionado Y Venta De Articulos De Limpieza ,,2025-08-07 23:36:27,2025-08-07 23:36:27,11113182605
+Olivia Maribel Lopez Miguel,LOMO730603MOCPTL00,92,Maria Victoria Cruz Lopez,2010-07-26,Hijo/a,Otro,Estudiante,,2025-08-07 23:53:48,2025-08-07 23:53:48,11113112747
+Minerva Enedina Galindo Victoria,GAVM760516MOCLCN00,93,Jolibeth Minerva Lopez Galindo,1998-06-20,Hijo/a,Otro,Enfermera,,2025-08-08 16:11:06,2025-08-08 16:11:06,11112993643
+Edith Chavez Gonzalez,CAGE860807MOCHND08,94,Feliciano Guzman Gomez,1973-06-09,Cónyuge,Primaria completa,Obrero,,2025-08-08 16:36:05,2025-08-08 16:36:05,11112721007
+Jennifer Cecilia Doquiz Alto,DOAJ971206MOCQLN00,95,Pedro Doquiz Cruz,1971-08-01,Padre,Secundaria completa,"Ayudante De Albañil, Carpintero ",,2025-08-08 17:10:37,2025-08-08 17:10:37,11112863347
+Ana Maria Anaya Gaytan,AAGA890217MOCNYN03,96,Camila Gallardo Ayala,2008-07-14,Hijo/a,Otro,Estudiante,,2025-08-08 17:24:20,2025-08-08 17:24:20,11112669629
+Nancy Hernandez Galvan,HEGN060831MOCRLNA4,97,Margarita Galvan Hernandez,2004-12-11,Hermano/a,Otro,Estudiante,,2025-08-08 17:34:44,2025-08-08 17:34:44,11112904459
+Citlaly Garcia Diaz,GADC030520MOCRZTA3,98,Jorge Garcia Mercado,1975-07-06,Padre,Primaria completa,Empleado,,2025-08-08 17:47:14,2025-08-08 17:47:14,11112714868
+Guadalupe Martinez Reyes,MARG700221MMCRYD06,99,Manuel Ramirez Castellanos,1966-01-01,Cónyuge,Preparatoria completa,Empleado ,,2025-08-08 18:05:08,2025-08-08 18:05:08,11112954461
+Adriana Guadalupe Santiago Reyes,SARA920903M0CNYD05,100,Jorge Daniel Sanchez Bautista,2002-07-05,Cónyuge,Preparatoria completa,Chofer,,2025-08-08 18:22:39,2025-08-08 18:22:39,11112954311
+Liliana Edith Robles Cortez,ROCL970502MOCBRL01,101,Jonathan Robles Garcia,2012-07-25,Hijo/a,Otro,Estudiante,,2025-08-08 18:34:32,2025-08-08 18:34:32,11113043010
+Dolores Chavez Hernandez,CAHD880112MSRHRL05,102,Gudelia Hernández Gonzáles,1957-09-01,Madre,Primaria completa,Ama De Casa,,2025-08-08 18:49:23,2025-08-08 18:49:23,11112726320
+Abundia Solis Lopez,SOLA670711MTCLPB06,103,Sarai Chavez Lopez,2000-07-11,Sobrino/a,Secundaria completa,Tienda De Abarrotes,,2025-08-08 20:18:59,2025-08-08 20:18:59,11113037708
+Lucia Ramirez Martinez,RAML850315MOCMRC03,104,Ariatna Atziri Osorio Ramirez ,2003-07-26,Hijo/a,Otro,Estudiante,,2025-08-08 20:33:21,2025-08-08 20:33:21,11113009751
+Luiza Garcia X,GAXL560621MOCRXZ03,105,Soledad Sarabia Garcia,1991-12-15,Hijo/a,Secundaria completa,Cerradero,,2025-08-08 20:45:07,2025-08-08 20:45:07,11113005465
+Elisa Vasquez Zarate,VAZE710222MOCCZR09,106,Hendic Carrasco Zarate,2015-08-03,Otro,Otro,Estudiante,,2025-08-11 16:02:01,2025-08-11 16:02:01,11113105293
+Adriana Denise Vasquez Angel,VAAA860128MOCSND02,107,Veronica Angel Vasquez,1984-05-31,Hermano/a,Licenciatura completa,Contadora,,2025-08-11 16:14:47,2025-08-11 16:14:47,11112811779
+Ariadna Medina Garcia,MEGA851115MOCDRR01,108,Oscar Ivan Garcia Gonzalez,1983-01-26,Cónyuge,Preparatoria completa,Empleado,,2025-08-11 16:33:52,2025-08-11 16:33:52,11112826391
+Teresita De Jesus Hernandez Matus,HEMT831121MOCRTR04,109,David Martinez Taboada,1989-07-30,Cónyuge,Secundaria completa,Mecanico,,2025-08-11 16:44:27,2025-08-11 16:44:27,11113024141
+Antonia Perez Cortes,PECA700217MOCRRN05,110,Josabeth Garcia Perez,2000-09-20,Hijo/a,Secundaria completa,Comerciante,,2025-08-11 16:53:03,2025-08-11 16:53:03,11112817849
+Cinthya Arleth Cruz Hernandez,CUHC011116MOCRRNA1,111,Hiromi Maireli Martinez Cruz,2008-07-07,Hijo/a,Otro,Estudiante,,2025-08-11 17:05:26,2025-08-11 17:05:26,11112917272
+Areli Ramos Hernandez,RAHA890328MOCMRR01,112,Yosgar Amauri Hernandez Ramos,2008-03-26,Hijo/a,Otro,Estudiante,,2025-08-11 17:23:34,2025-08-11 17:23:34,11112849831
+Yuliana Hernandez Santiago,HESY840917MOCRNL03,113,Barbara Nicol Ramírez Hernández,2003-08-18,Hijo/a,Otro,Estudiante,,2025-08-11 17:40:41,2025-08-11 17:40:41,11113131595
+Elideth Abril Lopez Velasquez,LOVE991024MOCPLL04,114,Santiago Esteban Lopez Torres,1979-09-11,Padre,Secundaria incompleta,Albañil,,2025-08-11 17:52:46,2025-08-11 17:52:46,11113105160
+Johana Bautista Garcia,BAGJ850204MOCTRH00,115,Rebeca Aurora Sanchez Bautista,2008-12-11,Hijo/a,Doctorado,Estudiante,,2025-08-11 18:07:38,2025-08-11 18:07:38,11112763680
+Erika Gines Sanchez,GISE840108MOCNNR01,116,Usiel Jose Reyes Gines,2007-03-28,Hijo/a,Otro,Estudiante,,2025-08-11 18:22:44,2025-08-11 18:22:44,11112963613
+Maricela Irene Diaz Jimenez,DIJM900822MOCZMR09,117,Rocio Leticia Diaz Jimenez,1987-09-22,Hermano/a,Primaria completa,Ama De Casa,,2025-08-11 18:32:49,2025-08-11 18:32:49,11112927981
+Alma Delia Gines Sanchez,GISA850201MOCNNL01,118,America Yesenia Hernandez Gines,2007-08-13,Hijo/a,Otro,Estudiante,,2025-08-11 18:44:50,2025-08-11 18:44:50,11112924530
+Rosibel Archila Robledo,AITR730311MCSSRLS0,119,Joselin Archila Toledo,0011-01-24,Hijo/a,Otro,Estudiante,,2025-08-11 18:55:59,2025-08-11 18:55:59,11113046154
+Inocente Eufrosina Garcia Cruz,GACI571228MOCRRN17,120,Rosario Méndez Garcia ,1988-10-06,Hijo/a,Licenciatura completa,Empleada,,2025-08-11 19:10:09,2025-08-11 19:10:09,11112761450
+Rosario Mendez Garcia,MEGR881006MOCNRS01,121,Luis Ángel Méndez Garcia,2009-10-26,Hijo/a,Otro,Estudiante,,2025-08-11 19:18:59,2025-08-11 19:18:59,11112998003
+Elena Paula Santiago Perez,SAPE660306MOCNRL00,122,Silvio Alfonso Diaz Santiago,1961-04-21,Cónyuge,Secundaria completa,Empleado,,2025-08-11 19:29:19,2025-08-11 19:29:19,11112979940
+Migdalia Garcia Garcia,GAGM840530MOCRRG04,123,Joselyn Arleth Martinez Rocio ,2003-09-11,Hijo/a,Preparatoria completa,Empleada En Farmacia,,2025-08-11 20:28:25,2025-08-11 20:28:25,11112846773
+Fernanda Miroslava Garcia Del Villar,GAVF951208MOCLRL06,125,Ricardo Flores Garcia,1996-10-26,Cónyuge,Carrera técnica,Empleado,,2025-08-11 23:27:53,2025-08-11 23:27:53,11112925822
+Isabel Lucas Lopez,LULI900831MOCCPS02,126,Otoniel Martinez Jimenez,1992-07-02,Cónyuge,Secundaria completa,Albañil,,2025-08-12 18:16:56,2025-08-12 18:16:56,11113101701
+Gary Garcia Perez,GAPG811218MOCRRR06,127,Yitzhak Garcia Perez,1996-09-12,Hermano/a,Preparatoria completa,Musico,,2025-08-12 18:45:19,2025-08-12 18:45:19,11112871513
+Concepcion Eustolia Zarate Lopez,ZALC811208MOCRPN09,128,Getzenami Lopez Zarate,2010-01-09,Hijo/a,Preparatoria completa,Estudiante,,2025-08-12 18:58:23,2025-08-12 18:58:23,11112984989
+Marisela Leticia Pinelo Hernandez,PIHM770112MOCNRR02,129,Alan Aldair Alejandrez Pinelo,2000-01-08,Hijo/a,Preparatoria completa,Ejercito,,2025-08-12 19:21:51,2025-08-12 19:21:51,11113022051
+Silvia Imelda Ventura Ignacio,VEIS660504MOCNGL05,130,Deysi Victoria Ignacio,1981-02-09,Hermano/a,Preparatoria completa,Empleada,,2025-08-12 19:36:44,2025-08-12 19:36:44,11113119485
+Laura Hernandez Maldonado,HEML890517MOCRLR01,131,Isabel Camacho Gutierrez,1966-06-08,Tío/a,Carrera técnica,Jubilada,,2025-08-12 20:10:22,2025-08-12 20:10:22,11112944716
+Juana Leonor Santiago Cruz,SACJ710327MOCNRN05,132,Diana Elena Mendez Santiago,2001-08-04,Hijo/a,Licenciatura completa,Empleada,,2025-08-12 20:19:53,2025-08-12 20:19:53,11112896125
+Dinazar Emma Gonzalez Hernandez,GOHD590416MOCNRN06,133,Claudio Flores Gonzalez,1996-08-11,Hijo/a,Preparatoria completa,Empleado,,2025-08-12 20:33:40,2025-08-12 20:33:40,11112903380
+Itzel Zuzunaga Sosa,ZUSI950816MOCZST09,134,Fernanda Yulotzin Cruz Zuzunaga,2016-02-25,Hijo/a,Otro,Estudiante,,2025-08-12 20:43:56,2025-08-12 20:43:56,11113315176
+Rocio Santiago Paz,SAPR790110MOCNZC08,135,Valeria Paz Santiago,2006-05-22,Hijo/a,Otro,Estudiante,,2025-08-12 20:54:49,2025-08-12 20:54:49,11113102396
+Juana Arango Flores,AAFJ731112MOCRLN01,136,Ali Osmar Chavez Arango,1999-01-15,Hijo/a,Carrera técnica,Chef,,2025-08-12 21:05:49,2025-08-12 21:05:49,11112748267
+Nancy Elizabeth Cruz Sosa,CUSN760424MDFRSN00,137,Margarita Sosa Moreno,1953-02-24,Madre,Primaria incompleta,Tienda De Uniformes,,2025-08-12 21:25:35,2025-08-12 21:25:35,11113134860
+Maria De Guadalupe Lopez Perez,LOPG791001MOCPRD01,138,O,1111-11-11,Otro,Otro,Y,,2025-08-12 21:42:57,2025-08-12 21:42:57,11113061406
+Irma Nora Rodriguez Brous,ROBI730609MDFDRR03,139,Cirilo Rodriguez Caballero,1950-10-31,Padre,Primaria incompleta,Campesino,,2025-08-12 21:50:56,2025-08-12 21:50:56,11113008351
+Gaudencia Castillo Sanchez,CASG730830MPLSND05,140,Yadira Camila Lopez Castillo,2002-07-14,Hijo/a,Preparatoria completa,Zapateria,,2025-08-12 23:10:14,2025-08-12 23:10:14,11112864353
+Alejandra Alvarez Garcia,AAGA820208MOCLRL09,141,Yael Ignacio Rosales Alvarez,2006-04-28,Hijo/a,Secundaria completa,Lava Autos,,2025-08-12 23:33:13,2025-08-12 23:33:13,11112669206
+Hermelinda Felipe Ramirez,FERH660310MOCLMR04,142,Antonio Pacheco Felipe,1997-11-17,Hijo/a,Secundaria completa,Empleado,,2025-08-12 23:42:38,2025-08-12 23:42:38,11112939609
+Magda Elvira Muñoz Arellanes,MUAM901116MOCXRG01,143,Fernanda Chagala Muñoz,2013-05-17,Hijo/a,Otro,Estudiante,,2025-08-12 23:53:12,2025-08-12 23:53:12,11113049802
+Mayra Valeria Ruiz Lopez,RULM940614MOCZPY01,144,Raymundo Gonzalez Lopez,1989-07-15,Cónyuge,Preparatoria completa,Empleado Federal,,2025-08-13 16:39:45,2025-08-13 16:39:45,11113203887
+Gloria Hernandez Mejia,HEMG650429MOCRJL08,145,David Hernández Curiel,2002-05-24,Otro,Otro,Estudiante,,2025-08-13 16:47:34,2025-08-13 16:47:34,11112895240
+Olga Garcia Ruiz,GARO590629MOCRZL05,146,Miguel Garcia Ruiz,1978-10-12,Hermano/a,Primaria completa,Maestro Albañil,,2025-08-13 16:56:05,2025-08-13 16:56:05,11112974117
+Amarandy Zuleyka Sosa Garcia,SOGA060909MOCSRMA3,147,Miguel Angel Lopez Cruz,2004-09-29,Cónyuge,Primaria completa,Albañil,,2025-08-13 17:29:47,2025-08-13 17:29:47,11112988424
+Noemi Monterrey Ramos,MORN841221MOCNMN07,148,Julio Alejandro Reyes Monterrey,2007-04-24,Hijo/a,Primaria completa,Albañil,,2025-08-13 17:44:51,2025-08-13 17:44:51,11113163277
+Michelle Montserrat Hernandez Garcia,HEGM990820MOCRRC06,149,Sofia Lopez Garcia,1969-09-18,Madre,Preparatoria completa,Comerciante,,2025-08-13 18:00:25,2025-08-13 18:00:25,11112893766
+Epifanía Garcia Perez,GAPE590502MOCRRPO3,150,Román Garcia Lopez,1981-11-18,Hijo/a,Primaria completa,Chofer,,2025-08-13 18:16:32,2025-08-13 18:16:32,11112855051
+Liz Antonia Toledo Cuevas,TOCL790217MOCLVZ04,151,Sheyla Hortencia Vasquez Toledo,2001-05-23,Hijo/a,Licenciatura completa,Empleada Ciudad Judicial,,2025-08-13 18:26:01,2025-08-13 18:26:01,11113068907
+Elvira Florencia Gonzalez Cruz,GOCE670125MOCNRL01,152,Enrique Rendon Velasco,1986-07-06,Cónyuge,Secundaria completa,Policia,,2025-08-13 18:40:51,2025-08-13 18:40:51,11112864704
+Consuelo Beatriz Nolasco Cruz,NOCC890324MOCLRN02,153,Sergio Rene Nolasco Cruz,1987-09-15,Hermano/a,Preparatoria completa,Panadero,,2025-08-13 19:01:05,2025-08-13 19:01:05,11112915373
+Jennie Denisse Melken Gonzalez,MEGJ840131MOCLNN02,154,José Miguel Luna Gonzáles,1995-05-11,Primo/a,Preparatoria completa,Empleado Del Imss,,2025-08-13 19:17:12,2025-08-13 19:17:12,11112911592
+Fatima Del Rosario Melken Gonzalez,MEGF000929MOCLNTA5,155,Jennie Denisse Melken Gonzalez,1984-01-31,Hijo/a,Licenciatura completa,Empleada De Gobierno,,2025-08-13 19:38:08,2025-08-13 19:38:08,11112874869
+Anel Cruz Cuevas,CUCA860404MOCRVN02,156, Antonio Cortez Arquimidez ,1984-11-04,Cónyuge,Carrera técnica,Docente,,2025-08-13 19:52:00,2025-08-13 19:52:00,11112849049
+Liliana Monica Perez Lopez,BELE920227MOCRPL01,157,José Pablo Amaya Pérez,1991-09-17,Hijo/a,Carrera técnica,Empleado,,2025-08-13 20:07:11,2025-08-13 20:07:11,11112804263
+Rocio Isaura Sosa Robledo,SORR860130MOCSBC06,158,Alexis Uriel Perez Sosa,2002-08-24,Hijo/a,Secundaria completa,Empleado,,2025-08-13 20:20:42,2025-08-13 20:20:42,11113266313
+Arleth Lizandhy Perez Sosa,PESA050921MOCRSRA4,159,Javier Pérez Pérez ,1986-10-22,Padre,Secundaria completa,Empleado,,2025-08-13 20:38:03,2025-08-13 20:38:03,11112979236
+Joselin Guadalupe Perez Sosa,PESJ030727MOCRSSA0,160,Edwin Jesús Zacarias Pérez,2021-04-20,Hijo/a,Otro,No,,2025-08-13 20:45:54,2025-08-13 20:45:54,11113062074
+Fabiola Lizbeth Avendaño Cruz,AECF950613MOCVRB03,161,Aldair Santos Avendaño,2013-01-29,Hijo/a,Otro,Estudiante,,2025-08-13 21:01:22,2025-08-13 21:01:22,11112716131
+Alma Josefina Carmona Lopez,CALA790112MOCRPL04,162,Emiliano Jarquin,2002-03-23,Hijo/a,Preparatoria completa,Marino,,2025-08-13 22:45:19,2025-08-13 22:45:19,11112739966
+Linda Jeanett Paz Lopez,PALL851217MOCZPN01,163,Jesus Arango Reyes,1980-02-22,Cónyuge,Primaria completa,Artesano,,2025-08-13 22:56:24,2025-08-13 22:56:24,11112973790
+Rosa Elia Cruz Hernandez,CUHR770722MOCRRS09,164,Luis Garcia Lopez,1978-04-11,Cónyuge,Primaria completa,Taxista,,2025-08-14 15:57:04,2025-08-14 15:57:04,11113061706
+Cirila Jimenez Ruiz,JIRC480318MOCMZR08,165,Carmen Hernández Jiménez,1969-08-17,Hijo/a,Licenciatura incompleta,Secretaria,,2025-08-14 16:37:11,2025-08-14 16:37:11,11112967766
+Reyna Lopez Cruz,LOCR600815MOCPRY08,166,Yoali Mayrin,2008-03-11,Otro,Otro,Estudiante,,2025-08-14 16:51:29,2025-08-14 16:51:29,11113048867
+Maria Del Rosario Morales Carreño,MOCR930927MOCRRS08,167,Ricardo Ivan Cruz Martinez,1990-12-16,Cónyuge,Secundaria completa,Encargado De Cafetería,,2025-08-14 17:13:18,2025-08-14 17:13:18,11113053110
+Maria De Los Angeles Cruz Pacheco,CUPA690505MOCRCN00,168,O,1111-11-11,Otro,Otro,N,,2025-08-14 17:58:28,2025-08-14 17:58:28,11112979691
+Leonarda Ruiz Martinez,RUML581126MOCZRN07,169,Alejandra Pérez Ruiz,1991-04-24,Hijo/a,Primaria completa,Venta De Tortillas,,2025-08-14 18:30:13,2025-08-14 18:30:13,11113205041
+Lucia Castro Ruiz,CARL920303MOCSZC01,170,Dulce Itzel Sanchez Castro ,2016-05-02,Hijo/a,Otro,Estudiante,,2025-08-14 19:11:36,2025-08-14 19:11:36,11112907887
+Ariadna Cecilia Martinez Quiroz,MAQA941122MOCRRR04,171,Arleth Yamileth Martinez Quiroz,2001-08-21,Hermano/a,Licenciatura completa,Ama De Casa,,2025-08-14 21:12:12,2025-08-14 21:12:12,11112889700
+Aracely Lopez Ramirez,LORA890208MOCPMR01,172,Juan Fernando Vásquez Martínez,1991-06-15,Cónyuge,Secundaria completa,Vinos Y Licores,,2025-08-14 22:35:24,2025-08-14 22:35:24,11113021377
+Yareli Nazaria Angulo Martinez,AUMY900612MOCNRR02,173,Uziel Martínez Lopez,1989-02-12,Cónyuge,Secundaria completa,Chofer,,2025-08-15 15:45:24,2025-08-15 15:45:24,11113168762
+Yuricia Dolores Cruz Rosete,CURY881013MOCRSR06,174,Jennifer Samanta Cruz Cruz,2008-11-01,Hijo/a,Otro,Estudiante,,2025-08-15 15:59:49,2025-08-15 15:59:49,11113237911
+Esther Bautista Rivera,BARE610702MOCTVS04,175,Mariana Lucero  Jinez Bautista,1990-05-12,Hijo/a,Primaria completa,Empleada,,2025-08-15 16:30:39,2025-08-15 16:30:39,11112828133
+Maribel Hernandez Santiago,HESM670623MOCRNR05,176,Roberto Sagarnaga Hernandez,1991-07-22,Hijo/a,Carrera técnica,Ing. Civil,,2025-08-15 17:07:58,2025-08-15 17:07:58,11113018033
+Veronica  Cristina Cuevas Hernandez,CUHV790501MOCVRR07,177,Juan Pablo Avendaño Rivas,1978-01-02,Cónyuge,Secundaria completa,Empleado,,2025-08-15 17:20:40,2025-08-15 17:20:40,11113102519
+Luz Areli Palafox Lopez,PALL961210MOCLPZ03,179,Valente Hernández Palafox,2017-08-02,Hijo/a,Otro,Estudiante,,2025-08-15 18:54:14,2025-08-15 18:54:14,11112974293
+Cinthya Ivette Diaz Muñoz,DIMC910102MOCZXN02,180,Dulce Maria Gutiérrez Gonzáles,1995-08-29,Cuñado/a,Secundaria incompleta,Empleada,,2025-08-15 19:18:11,2025-08-15 19:18:11,11112854485
+Gabriela Mezeta Lopez,MELG870619MOPCZPB0,181,Frida Ivanna Santiago Mezeta,2009-10-06,Hijo/a,Otro,Estudiante,,2025-08-15 19:39:11,2025-08-15 19:39:11,11112937194
+Rosa Maria Muñoz Lopez,MULR800301MOCXPS03,182,Justino Martínez Cruz,1973-07-18,Cónyuge,Primaria completa,Taqueria,,2025-08-15 19:52:28,2025-08-15 19:52:28,11113202376
+Beatriz Merced Lopez Hernández,LOHB930924MOCPRT05,183,P,1111-11-11,Otro,Otro,P,,2025-08-15 20:15:12,2025-08-15 20:15:12,11112935428
+Vicenta Alcantara Santiago,AASV570122MOCLNC00,184,Roman Abel Rodriguez Alcantara,1111-01-13,Hijo/a,Licenciatura completa,Empleado,,2025-08-15 20:53:22,2025-08-15 20:53:22,11112993910
+Rosario Belem Garcia Miguel,GAMR820820MOCRGS00,185,Pablo Armando Garcia Miguel,2008-11-23,Hijo/a,Otro,Estudiante,,2025-08-15 21:01:40,2025-08-15 21:01:40,11112954121
+Claudia   Andrea Franco Sibaja,FASC850925MOCRBL05,186,Maria Concepción Reyes F.,2008-11-01,Hijo,Otro,Estudiante,,2025-08-16 15:32:50,2025-08-16 15:32:50,11112859053
+Dafne  Sinai Pinelo Soriano,PISD041112MOCNRFA9,187,Raquel Soriano,1980-09-12,Madre,Secundaria completa,Venta De Ropa,,2025-09-06 19:01:39,2025-09-06 19:01:39,11113042991
+Ruth Martha Lopez Santos,LOSR660828MOCPNT06,188,Pablo Cortes Lopez,1966-09-07,Otro,Otro,Chofer,,2025-09-06 19:30:10,2025-09-06 19:30:10,11113207666
+Petronila Yolanda Garcia Ruiz,GARP640531MOCR2T07,189,Telesforo Gabriel Ramirez Lopez,1963-01-05,Otro,Preparatoria completa,Operador,,2025-09-07 15:41:29,2025-09-07 15:41:29,11112981072
+Maria Estela Padilla Cruz,PACE770623MOCDRS01,190,Iván Yuri Hernández Lopez,1975-12-22,Otro,Primaria incompleta,Albañil,,2025-09-07 15:54:19,2025-09-07 15:54:19,11112816492
+Patricia Elisol Mejia Santiago,MESP711009MOCJNT08,191,No Puso,1111-11-11,Otro,Otro,Sn,,2025-09-07 16:33:28,2025-09-07 16:33:28,11113099230
+Griselda Pilar Hernandez Galvan,HEGG891012MOCRLR00,192,Ingrid Guadalupe Hernandez,2009-07-23,Hija,Otro,Estudiante,,2025-09-07 16:46:56,2025-09-07 16:46:56,11112833441
+Florayda Luna Hernandez,LUHF770903MCSNRL09,193,Ricardo De Jesus Luna Hernandez,2003-09-01,Hijo,Primaria completa,Albañil,,2025-09-07 17:10:09,2025-09-07 17:10:09,11113036043
+Betzy Hernandez Padilla,HEPB990618MOCDRT09,194,Carlos Daniel Torres Gonzalez,1997-10-04,Otro,Secundaria completa,Albañil,,2025-09-07 17:30:04,2025-09-07 17:30:04,11112871359
+Pilar Perez Perez,PEPP751019MOCRRL04,195,Francisco Garcia Miguel,1980-12-22,Otro,Secundaria completa,Madera,,2025-09-07 17:51:03,2025-09-07 17:51:03,11113091669
+Carmen Leticia Contreras Gonzáles,COGC910920MOCNNR01,196,Maria De Lourdes Ambrocio Gonzalez,1985-02-12,Hermana,Secundaria completa,Comerciante,,2025-09-07 18:03:23,2025-09-07 18:03:23,11112842889
+Margarita Lourdes Ignacio Santiago,IASM661214MOCGNR01,197,Abril Sanchez Ignacio,2000-08-30,Hija,Secundaria completa,Empleada,,2025-09-07 18:19:42,2025-09-07 18:19:42,11112984205
+Odeette Areli Sanchez Ignacio,SAIO941226MOCH6D08,198,Julián Chavez Zarate,2000-04-04,Otro,Preparatoria completa,Albañil,,2025-09-07 19:09:56,2025-09-07 19:09:56,11113001966
+Elvia Virginia Lopez Venegas,LOVE650131MOCPNL08,199,Gilberto Leyva Gomez,1968-02-04,Otro,Secundaria completa,Empleado,,2025-09-07 19:50:30,2025-09-07 19:50:30,11113101539
+Perla Francisca Gonzalez Zarate,GOZP921003MOCNRR06,200,Jesus Antonio Flores,1111-11-11,Otro,Primaria incompleta,Taxista,,2025-09-08 20:28:23,2025-09-08 20:28:23,11113209269
+Reyna Socorro Cruz Vasquez,CUVR690902MOCRSY03,201,Guadalupe Bautista Cruz,2009-12-10,Hija,Otro,Estudiante,,2025-09-08 20:42:48,2025-09-08 20:42:48,11113203334
+Maria Del Carmen Tapia Gonzalez,TAGC630920MPLPNR02,202,Benjamín Cruz Tapia,1990-10-13,Otro,Primaria completa,Panaderia,,2025-09-08 20:52:46,2025-09-08 20:52:46,11112879732
+Yireh Lopez Torres,LOTY980822MOCPRR15,203,Uriel Carrasco Mejía,1986-05-15,Otro,Universidad completa,Maestro,,2025-09-08 21:10:36,2025-09-08 21:10:36,11113289382
+Abril Magali Lopez Hernandez,LOHA050227MOCPRBA7,204,Elizabeth Hernandez Tapia,1953-06-22,Abuela,Primaria incompleta,Ama De Casa,,2025-09-08 21:18:56,2025-09-08 21:18:56,11112924092
+Mayra Viviana Clemente Perez,CEPM941209MOCLRV02,205,Lizbeth Martinez Perez,2005-12-30,Hermana,Otro,Estudiante,,2025-09-08 21:26:31,2025-09-08 21:26:31,11112939687
+Yarumi Cecilia Martinez Cruz,MACY950614MOCRRR05,206,Cecilia Cruz,1937-02-02,Abuela,Primaria incompleta,Ama De Casa,,2025-09-08 21:36:34,2025-09-08 21:36:34,11112989633
+Ariadna Paola Lopez Perez,LOPA940917MOCPRR02,207,Jaime Sibaja Ruiz,1993-10-04,Otro,Secundaria incompleta,Albañil,,2025-09-08 21:44:06,2025-09-08 21:44:06,11113003674
+Reyna Ruiz Espinoza,RUER770907MOCZSN06,208,Liliana Sherlyn Sanchez Ruiz,2007-04-13,Hija,Preparatoria completa,Empleada,,2025-09-08 21:52:46,2025-09-08 21:52:46,11113186700
+Andrea Joselyn Sanchez Ruiz,SARA040709MOCNZNA9,209,Reina Ruiz Espinoza,1977-07-09,Madre,Secundaria completa,Empleada Domestica,,2025-09-08 21:58:10,2025-09-08 21:58:10,11112957047
+Teresa Cruz Perez,CUPT820523MOCRRR02,210,Melinda M. Cruz,2009-02-09,Hija,Otro,Estudiante,,2025-09-08 22:05:46,2025-09-08 22:05:46,11113168554
+Maria Del Carmen Quiroz Saucedo,QUSC700209MOCRCR07,211,Yamilet Quiroz,2001-08-24,Hija,Universidad completa,Trabajo Social,,2025-09-20 15:28:12,2025-09-20 15:28:12,11113161382
+Teresa Naida Flores Paz,FOPT710617MOCLZR03,212,Edilson Cruz Flores ,2000-04-25,Hijo,Universidad completa,Empleado,,2025-09-20 15:37:56,2025-09-20 15:37:56,11113139475
+Perla Judith Caballero Garcia,CAGP800609MOCBRR05,213,Erick Víctor Cruz Caballero,1999-10-13,Hijo,Universidad completa,Ing. Industrial,,2025-09-20 15:48:34,2025-09-20 15:48:34,11112837073
+Emily Castellanos Cruz,CACE000522MOCSRMA3,214,No Puso Familiares,1111-11-11,Otro,Otro,No Puso,,2025-09-20 16:07:09,2025-09-20 16:07:09,11112682329
+Esperanza Godinez Aguilar,GOAE640801MOCDGS05,215,Celso Flores Godínez,1111-11-11,Otro,Otro,Otro,,2025-09-20 16:20:36,2025-09-20 16:20:36,11112842211
+Digna Elena Reyes Santiago,RESD010804MOCYNGM0,216,Ivana Santiago Cruz,1971-03-23,Madre,Universidad completa,Docente,,2025-09-20 16:29:02,2025-09-20 16:29:02,11113028141
+Katia Karina Lopez Torres,LOTK950301MOCPRT09,217,Gabriela Lopez Torres,1973-11-01,Madre,Secundaria incompleta,Ama De Casa,,2025-09-20 16:37:56,2025-09-20 16:37:56,11113141758
+Ana Soledad Nolasco Hernandez,NOHA941025MMCLRN06,218,Carolina Yolanda Hernández Hernández,1959-06-12,Madre,Primaria completa,Comerciante,,2025-09-20 16:48:11,2025-09-20 16:48:11,11112947469
+Evelina Doquiz Martinez,DOME900502MOCQRV04,219,Fermin Doquiz Alcantara,1111-11-11,Padre,Otro,Otro,,2025-09-20 16:56:38,2025-09-20 16:56:38,11112937209
+Esperanza Elizabeth Martinez Cruz,MACE730731MOCRRS07,220,Cecilia Guzman,1937-02-02,Madre,Primaria completa,Ama De Casa,,2025-09-20 18:29:56,2025-09-20 18:29:56,11112788121
+Maria Luisa Mendez Gopar,MEGL620516MOCNPS07,221,No Puso,1111-11-11,Otro,Otro,No Puso,,2025-09-20 18:38:12,2025-09-20 18:38:12,11112936286
+Yolanda Vargas Martinez,VAMY760217MOCRRL08,222,Susana Ramon Vargas,1994-04-10,Hija,Secundaria completa,Empleada,,2025-09-20 18:52:30,2025-09-20 18:52:30,11113172495
+Danelly Hernandez Cuevas,HECD940523MOCRVN09,223,Maria Guadalupe Cuevas Santiago,1971-11-24,Madre,Secundaria incompleta,Comerciante,,2025-09-20 19:09:40,2025-09-20 19:09:40,11112764956
+Sheila Hortensia Vasquez Toledo,VATS010523MOCZLHA6,224,Liz Toledo Cuevas Antonio,1979-02-17,Madre,Universidad completa,Docente,,2025-09-20 19:21:05,2025-09-20 19:21:05,11113188998
+Liliana Cruz Lopez,CULL890112MOCRPL08,225,Rosa Maria Ramirez Cruz,2007-08-23,Hija,Otro,Estudiante,,2025-09-20 19:33:16,2025-09-20 19:33:16,11113045113
+Judith Esther Matadamas Hernández,MAHJ940609MOCTRD08,226,Luis Alfredo Mayoral Dominguez,1991-10-20,Otro,Secundaria completa,Herrero,,2025-09-20 19:43:37,2025-09-20 19:43:37,11112889189
+Elizabeth Cecilia Enríquez Ojeda,EIOE881023MOCNJL00,227,Raúl Ericel Antonio Domínguez ,1995-09-10,Otro,Secundaria completa,Albañil,,2025-09-20 19:58:46,2025-09-20 19:58:46,11112908135
+Alicia Veronica Garcia Pedro,GAPA920622MOCRDL02,228,Felipe De Jesús Galván Ruiz ,1988-05-04,Otro,Preparatoria completa,Empleado,,2025-09-20 20:11:48,2025-09-20 20:11:48,11112816934
+Carolina Alicia Lopez Lopez,LOLC710527MOCPPR01,229,Julián Cruz Caballero,1946-02-10,Otro,Primaria incompleta,Campesino,,2025-10-14 20:53:58,2025-10-14 20:53:58,11112986899
+Maria Isabel Contreras Lopez,COLI920313MOCNPS02,230,Onofre Hernandez,1947-07-12,Otro,Sin estudios,Albañil,,2025-10-14 21:11:50,2025-10-14 21:11:50,11112954434
+Rocio Leticia Diaz Jimenez,DIJR870926MOCZMC03,231,Ricardo Utilio Diaz Diaz,1956-02-06,Padre,Primaria incompleta,Empleado,,2025-10-14 21:29:04,2025-10-14 21:29:04,11112971667
+Abril Sanchez Ignacio,CAIA000830MOCNGBA7,232,Rubén Sanchez Ignacio,1996-08-16,Hermano,Preparatoria incompleta,Musico,,2025-10-14 21:45:28,2025-10-14 21:45:28,11112708888
+Dulce Maria Gutierrez Gonzalez,GUGD970829MOCTNL00,233,Alexa Daniela Gutiérrez Gonzáles,2015-06-21,Hija,Otro,Estudiante,,2025-10-14 22:01:57,2025-10-14 22:01:57,11112953105
+Fatima Ivonne Garcia Ruiz,GARF921125MOCRLT02,234,Alan Emiliano Garcia Ruiz,2017-05-10,Hijo,Otro,Estudiante,,2025-10-28 19:30:04,2025-10-28 19:30:04,11112886571
+Petra Fuentes Mondragon,FUMP490629MOCNNT01,235,Nancy Lopez Fuentes,1972-02-01,Hija,Universidad completa,Desempleada,,2025-10-28 19:45:32,2025-10-28 19:45:32,11113121732
+Concepcion Alvarez Soriano,AASC770115MOOLRN02,236,Efren Davila Avendaño,1979-01-15,Otro,Secundaria completa,Electricista,,2025-10-28 19:56:42,2025-10-28 19:56:42,11112808669
+Adriana Lopez Mendez,LOMA910508MOCPND05,237,Jose Angel Anaya Lopez,2010-07-05,Hijo,Otro,Empleado,,2025-10-28 20:32:33,2025-10-28 20:32:33,11112971322
+Liuva Jennifer Avendaño Castellanos,AECL940524MOCVSV01,238,Juan Braulio Avendaño Rodriguez,1972-06-12,Padre,Secundaria incompleta,Campesino,,2025-10-28 20:45:02,2025-10-28 20:45:02,11112777460
+Rosalia Ventura Jose,VEJR950713MOCNSS06,239,Jesus Palos Nille,1980-06-02,Otro,Universidad completa,Medico,,2025-10-31 19:32:23,2025-10-31 19:32:23,11113114310
+Abigail Palacios Ramirez,PARA870724MOCLMB09,240,Jeremias Espina Espina,1984-10-10,Otro,Secundaria completa,Taxista,,2025-10-31 19:41:55,2025-10-31 19:41:55,11112922496
+Azalia Gomez Mendez,GOMA961227MOCMNZ01,241,Aaron Santiago,2025-05-30,Hijo,Otro,No,,2025-10-31 19:50:07,2025-10-31 19:50:07,11112926863
+Catalina Hipolita Hernandez Jeronimo,HEJC680929MOCRRT09,242,Gabriela Montserrat Hernandez Jeronimo,2000-04-27,Sobrina,Universidad completa,Arquitecta,,2025-10-31 20:02:12,2025-10-31 20:02:12,11112828093
+Claudia   Ruiz Martinez,RUMC760215MOCZRL06,243,Gerardo Ruiz Nuñez,1940-10-04,Padre,Primaria completa,Albañil,,2025-10-31 20:09:46,2025-10-31 20:09:46,11113113098
+Jessica Lopez Mendez,LOMJ930502MOCPNS00,244,Sadot Morales Mendez,1977-09-14,Otro,Secundaria incompleta,Comerciante,,2025-10-31 20:24:47,2025-10-31 20:24:47,11113066526
+Idalia Santiago Lopez,SALI940526MOCNPD04,245,Marcos Jose Trejo Gonzalez,1994-06-08,Otro,Secundaria completa,Obrero,,2025-10-31 20:33:48,2025-10-31 20:33:48,11112973194
+Griselda Cruz Avendaño,CUAG770113MOCRVR05,246,Fernando Castellanos Cruz,2012-08-28,Hijo,Secundaria incompleta,Estudiante,,2025-10-31 20:42:16,2025-10-31 20:42:16,11112886913
+Mirna Esperanza Alejo Contreras,AECM760129MOCLNR08,247,Nicasio Aragon Hernandez,1983-09-03,Otro,Preparatoria incompleta,Albañil,,2025-10-31 20:55:06,2025-10-31 20:55:06,11112788591
+Patricia Garcia Luis,GALP830310MOCRST03,248,Sofia Arleth Cruz Garcia,2013-04-06,Hija,Otro,Estudiante,,2025-10-31 21:04:01,2025-10-31 21:04:01,11112924808
+Miriam Lopez Hernández,LOHM990916MOCPRR00,249,Jose Adrian Sosa Garcia,1999-09-10,Otro,Primaria incompleta,Panaderia,,2025-10-31 21:12:59,2025-10-31 21:12:59,11113042585
+Eva Chavez Vasquez,CAVE670827MOCHZV08,250,Edson Perez Chavez,1997-03-29,Hijo,Preparatoria completa,Trabajador De Municipio,,2025-10-31 21:20:05,2025-10-31 21:20:05,11112878524
+Araceli Hernandez Ruiz,HERA961227MOCRZR06,251,Luis Hernandez Ruiz,1985-09-21,Hermano,Preparatoria completa,Empleado,,2025-10-31 21:27:53,2025-10-31 21:27:53,11112887993
+Ariadna Concepcion Sagarnaga Hernandez,SAHA891207MPLGRR00,252,Luis Alberto Velasco Andarza,1980-03-06,Otro,Universidad completa,Docente,,2025-10-31 21:37:20,2025-10-31 21:37:20,11112857142
+Veronica Angela Sosa Lopez,SOLV740612MOCSPR07,253,Juana Luciana Sosa Lopez,1961-05-12,Hermana,Primaria incompleta,Ama De Casa,,2025-10-31 21:43:10,2025-10-31 21:43:10,11113242625
+Monica Bautista Pinelo,BAPM881221MDFTNN09,254,Ximena Yamilet Jimenez Bautista,2013-12-22,Hija,Otro,Estudiante,,2025-11-01 17:04:30,2025-11-01 17:04:30,11112884593
+Hilaria Arelia Reyes Guerrero,REGH740117MOCYRL00,255,Juan Jose Garcia Reyes,1999-09-19,Hijo,Secundaria completa,Albañil,,2025-11-01 17:14:58,2025-11-01 17:14:58,11112942147
+Maria  Del Rosario Soriano Almeida,SOAR780824MDFRLS09,256,Reyna Guadalupe Reyes Soriano,2002-11-11,Hija,Otro,Estudiante,,2025-11-01 17:23:42,2025-11-01 17:23:42,11113098282
+Soledad Margarita Ramirez Pensamiento,RAPS811118MOCMNL07,257,Moisés Hernández Zarate,1964-01-03,Primo,Secundaria completa,Electricista,,2025-11-01 17:33:49,2025-11-01 17:33:49,11113101552
+Carmen Quiroz Altamirano,QUAC860223MOCRLR07,258,Carlos Fabricio Santiago Quiroz,2003-10-08,Hijo,Secundaria completa,Trabajador,,2025-11-01 17:43:24,2025-11-01 17:43:24,11112984818
+Olga Lidia Lopez Arango,LOAO730605MOCPRL06,259,Teresa Arango Bedolla ,1955-10-05,Madre,Primaria incompleta,Ama De Casa,,2025-11-01 17:52:41,2025-11-01 17:52:41,11112994997
+Alma Paola Ortiz Hernández,OIHA030705MOCRRLA3,260,Concepción Hernandez Santiago ,1982-12-08,Madre,Secundaria completa,Vendedora De Avon,,2025-11-01 18:04:51,2025-11-01 18:04:51,11112893373
+Izbeth Rubiceli Cruz Lopez,CULI980906MOCRPZ03,261,Jesus Antonio Chavez Ramirez,1999-09-10,Otro,Secundaria completa,Albañil,,2025-11-01 18:14:24,2025-11-01 18:14:24,11113013620
+Katheryn Sthefany Gonzalez Gaspar,GOGK991012MOCNST04,262,Silvestre Luis Gonzalez Chavez,1975-12-31,Padre,Universidad completa,Docente,,2025-11-01 18:44:23,2025-11-01 18:44:23,11112962910
+Yazmin Jahaira Martinez Lopez,MALY930607MOCRPZ04,263,Jonathan Alfredo Villanueva Martinez,2009-02-28,Hijo,Otro,Estudiante,,2025-11-01 18:53:14,2025-11-01 18:53:14,11113076219
+Nubia Espinoza Perez,EIPN941124MOCSRB01,264,Yuritzi Donaji Garcia Espinoza,2011-07-24,Hija,Otro,Estudiante,,2025-11-01 19:03:12,2025-11-01 19:03:12,11113007142
+Lorena Del Carmen Soriano Almeida,SOAL801002MOCRLR05,265,Emmanuel Luis López ,1983-02-28,Otro,Secundaria completa,Chofer,,2025-11-01 19:13:18,2025-11-01 19:13:18,11113037690
+Maria Teresa Diezo Moreno,DIMT801117MOCZRR01,266,Orlando Espinoza Cisneros,1981-05-21,Otro,Preparatoria completa,Tecnico Automotriz,,2025-11-01 19:22:25,2025-11-01 19:22:25,11113022524
+Alejandra Mayte Espinoza Diezo,EIDA051020MOCSZLA2,267,Maria Teresa Diezo Moreno,1980-11-17,Madre,Preparatoria completa,Comerciante,,2025-11-01 19:29:20,2025-11-01 19:29:20,11112754934
+Leonor Cristina Lazaro Hernández,LAHL911025MOCZRN05,268,Elia Hernandez Hernandez,1975-06-20,Madre,Secundaria completa,Ama De Casa,,2025-11-01 19:38:11,2025-11-01 19:38:11,11112893338
+Sofia Lopez Hernández,LOHS610909MOCPRF03,269,Adriana Cervantes Lopez,1984-10-26,Hija,Preparatoria completa,Ama De Casa,,2025-11-01 19:48:04,2025-11-01 19:48:04,11113101306
+Abril Yazmin Reyes Monterrey,REMA050313MOCYNBA8,270,Noemi Monterrey Ramos,1984-12-21,Madre,Secundaria completa,Comerciante,,2025-11-01 19:59:24,2025-11-01 19:59:24,11112938387
+Flor Maria Rojas Mendez,ROMF791020MOCJNL04,271,Diego Nicolás Lázaro Rojas ,2003-03-05,Hijo,Otro,Estudiante,,2025-11-01 20:06:43,2025-11-01 20:06:43,11113085560
+Herminda Lizbeth Hernandez Rojas,HERH880610MOCRJR08,272,Jacqueline Niño Hernández ,2006-12-08,Hija,Preparatoria completa,Empleada,,2025-11-01 20:18:03,2025-11-01 20:18:03,11112958983
+Cecilia Santos Mendez,SAMC900407MOCNNC07,273,Carmen Mendez Victoria,1973-07-16,Madre,Primaria completa,Empleada,,2025-11-01 20:29:18,2025-11-01 20:29:18,11112928768
+Maria Asuncion Morales Perez,MOPA640815MOCRRS02,274,Eduardo Lescas Morales,1995-01-06,Hijo,Universidad completa,Empleado,,2025-11-01 20:49:41,2025-11-01 20:49:41,11113012821
+Maria Del Carmen Aquino Conde,AUCC940806MOCQNR07,275,Lucero Del Carmen Aquino,2014-01-07,Hija,Otro,Estudiante,,2025-11-01 20:57:33,2025-11-01 20:57:33,11112846271
+Sandra Santos Marquez,SAMS730701MDFNRN05,276,No Puso,1111-11-11,Otro,Otro,No Puso,,2025-11-01 21:21:53,2025-11-01 21:21:53,11113081447
+Angela Arango Flores,AAFA780127MOCRLN08,277,Adrian Chavez Santiago,1975-02-04,Padre,Primaria completa,Cantero,Esposo De La Clienta,2025-11-05 18:34:57,2025-11-05 18:34:57,11112658700
+Laura Carrasco Espinoza,CAEL630628MOCRSR01,278,Marla Carrasco Espinoza,1984-08-15,Hija,Universidad completa,Profesora,,2025-11-05 18:53:50,2025-11-05 18:53:50,11112771908
+Leticia  Martha Cruz Campos,CUCL630602MOCRMT02,279,Juan Pablo Cruz Cruz,1986-04-04,Hijo,Universidad completa,Gerente De Sucursal ,,2025-11-05 19:03:26,2025-11-05 19:03:26,11112956531
+Tania Esmeralda Sanchez Martinez,SAMT900914MOCNRN06,280,Erik Mijangos Gonzales,1994-02-12,Otro,Universidad incompleta,Licenciado,Esposo De La Clienta,2025-11-10 23:09:12,2025-11-10 23:09:12,11113094138
+Arely Jasmin Vasquez Valdez,VAVA05092MOCSLRA00,281,Roque Gonzales Mendoza,1991-01-01,Padre,Primaria completa,Empleado,,2025-11-11 18:46:40,2025-11-11 18:46:40,11113022877
+Celina Garcia Escamilla,GAEC671031MOCRSL00,282,	eliezer Abel Garcia Escamilla,1987-11-08,Hijo,Universidad completa,Em De Gobierno,,2025-11-11 19:04:35,2025-11-11 19:04:35,11112728771
+Maria Teresa Hernandez Cruz,HECT691015MOCRRR07,283,Christian Hernandez Cruz,1993-01-04,Hijo,Secundaria completa,Empleado,,2025-11-11 19:44:42,2025-11-11 19:44:42,11112924678
+Lorena Carrasco  Mejia,CAML780622MOCRJR08,284,Alexander Cruz Carrasco,2020-11-26,Hijo,Universidad completa,Rediologo,,2025-11-11 20:08:38,2025-11-11 20:08:38,11112856649
+Paula Griselda López Hernández,LOHP790626MOCPRL02,286,Na,0001-01-01,Otro,Otro,Na,Na,2025-11-14 16:23:42,2025-11-14 16:23:42,11113072620
+Brenda Montserrat Jarquin Franco,JAFB010103MOCRRRA3,287,Lorenzo Antonio Vargas,2022-03-07,Hijo,Sin estudios,N/a,N/a,2025-11-14 16:53:33,2025-11-14 16:53:33,11112759993
+Brenda Rufina Espinoza Bernal,EIBB101084MMNSRR06,288,Diana Betzaida Jimenez Espinoza,2010-01-08,Hija,Secundaria incompleta,Estudiante,N/a,2025-11-14 17:10:16,2025-11-14 17:10:16,11112747162
+Mariela Rivas Rivas,RIXM901214MOCVXR07,289,Ingrid Rivas,0015-12-08,Hermana,Otro,N/a,N/a,2025-11-14 17:24:38,2025-11-14 17:24:38,11113208007
+Diana Edith Vasquez Mendez,VAMD891116MOCSNN02,290,Mayte Katalella Quitzaman,2016-06-18,Hija,Primaria incompleta,Estudiante,N/a,2025-11-14 17:33:28,2025-11-14 17:33:28,11112967853
+Victoria Maria Luz Gonzalez Sanchez,GOSV571030MOCNNC04,291,Valente Gerardo Camacho Ojeda,1953-05-25,Otro,Primaria completa,Contratista,Trabaja En Construccion,2025-11-14 17:48:40,2025-11-14 17:48:40,11113194053
+Guadalupe Hortencia Gaspar Hernandez,GAHG800511MOCSRO13,292,Katheryn Sthefanny Gonzalez Gaspar,1999-10-12,Hija,Universidad completa,Administrativa,N/a,2025-11-14 17:55:07,2025-11-14 17:55:07,11112795043
+Maria Ruiz Mendez,RUMM561022MOCZNR00,293,Gregorio Alberto Cruz Ruiz,1995-05-09,Hijo,Universidad completa,Pasante De Arquitecto,N/a,2025-11-14 18:04:49,2025-11-14 18:04:49,11113218407
+Violeta Lopez Ramirez,LORV770601MOCPML01,294,Antonio Lopez Ramirez,1975-11-16,Hermano,Universidad completa,Jefe,N/a,2025-11-14 18:15:14,2025-11-14 18:15:14,11113231927
+Alhelí Miramón  Gaspar,MIGA840708MOCRSL07,295,Berenice Matus N,2002-01-07,Hija,Preparatoria completa,Casada,,2025-11-15 19:11:08,2025-11-15 19:11:08,11112869400
+Nazaria De La Luz  Sanchez Martinez,SAMN920521MOCNRZ07,296,Benjamín García Martínez ,1996-02-04,Otro,Secundaria completa,Trabajador ,,2025-11-15 20:09:05,2025-11-15 20:09:05,11113039501
+Juana Santiago Ruiz,SARJ650712MOCNZB00,297,Augusto Dominguez,1964-07-17,Otro,Primaria completa,Comerciante,Na,2025-11-21 01:37:06,2025-11-21 01:37:06,11113042038
+Arianne Jatziry Peñaloza Ramirez,PERA030726MMNXMRA6,299,Lucia Ramirez Martinez,1980-03-15,Madre,Preparatoria completa,Na,Na,2025-11-21 01:54:18,2025-11-21 01:54:18,11112965092
+Citlalli Rocio Sosa Torres,SOTC000524MOCSRTAZ,300,Luis Angel Mendez Sanchez,1996-08-28,Otro,Preparatoria completa,Repartidor Barcel,Na,2025-11-21 02:01:26,2025-11-21 02:01:26,11113138946
+Maria De Los Angeles Hernandez Sanchez,HESA980308MOCRNN03,301,Nubia Monserrat Estrada,2017-02-05,Hija,Primaria completa,Estudiante,Na,2025-11-21 02:08:55,2025-11-21 02:08:55,11112892478
+Ma Soledad Cruz Leon,CULS700520MMCRNL06,302,Luis David Cruz Leon,2009-09-05,Hijo,Secundaria incompleta,Estudiante,Na,2025-11-21 02:19:43,2025-11-21 02:19:43,11113113052
+Leticia Morales Lopez,MOLL000807MOCRPTA0,303,Erick Alexader Lopez Morales,2020-03-29,Hijo,Sin estudios,Na,Na,2025-11-21 02:26:22,2025-11-21 02:26:22,11113082146
+Carmela Ramos Cruz,RACC720417MOCMRR04,304,Juana Cruz Cruz,1948-03-08,Madre,Otro,Jubilada,Na,2025-11-21 02:34:30,2025-11-21 02:34:30,11112814562
+Diana Laura Pacheco Morales,PAMD941023MOCCRN04,305,Diana Laura Nuñez Martinez,1993-10-15,Otro,Primaria completa,Empleada,Na,2025-11-21 02:41:03,2025-11-21 02:41:03,11112907237
+Alejandra Cortes Salvador,COSA880922MOCRLL02,306,Irma Salvador Munguia,1960-11-09,Madre,Secundaria completa,Ama De Casa,Na,2025-11-21 02:49:53,2025-11-21 02:49:53,11112947405
+Sara Lopez,LOXS821208MOCPXR01,307,Luz Elena Chavez,2000-11-14,Hija,Primaria completa,Empleada,Na,2025-11-21 03:00:28,2025-11-21 03:00:28,11112962070
+Maria Guadalupe Rosales Ruiz,RORG920918MOCSZD09,308,Max Hernandez Rosales,2013-08-14,Hijo,Secundaria completa,Estudiante,Na,2025-11-21 03:11:06,2025-11-21 03:11:06,11113146282
+Carolina Yolanda Alejandrina Hernandez Hernandez,HEHC590612MOCRRR04,309,Ana Soledad Nolasco Hernandez,1994-10-25,Hija,Preparatoria completa,Comerciante,Na,2025-11-21 03:18:18,2025-11-21 03:18:18,11112802275
+Leticia Chavez Gonzalez,CAGL910221MOCHNT03,310,Kimberly Desire Ramirez,2012-12-01,Hija,Secundaria incompleta,Estudiante,Na,2025-11-21 03:33:41,2025-11-21 03:33:41,11112794953
+Maria Esther Pinelo Espinoza,PIEE881031MOCNSS04,311,Mateo Zarate Pinelo,2012-03-24,Hijo,Primaria completa,Estudiante,Na,2025-11-21 03:39:54,2025-11-21 03:39:54,11112917095
+Jenifer Paola Muñoz Juarez,MUJJ030318MOCXRNA0,312,Leydi Rubi Muñoz Juarez,2002-08-12,Hermana,Primaria completa,Albañil,Na,2025-11-21 03:48:16,2025-11-21 03:48:16,11113107492
+Apolonia Lorenza Martinez Jimenez,MAJA660817MOCRMP08,313,Dilan Martinez Jimenez,2013-07-31,Hijo,Secundaria incompleta,Estudiante,Na,2025-11-21 03:55:22,2025-11-21 03:55:22,11112819235
+Gabriela Maribel Lopez Torres,LOTG731101MOCPRB00,314,Katia Karina Lopez Lustre,1995-03-01,Hija,Universidad completa,Empleada,Na,2025-11-21 04:02:06,2025-11-21 04:02:06,11113104303
+Gregoria Mendez Torres,MNTRGR50052520M300,315,Rivera Cortes Jaime Abisaid,1980-08-19,Otro,Otro,Na,Na,2025-11-21 04:08:57,2025-11-21 04:08:57,11113214056
+Guadalupe Claudia Garcia Garcia,GAGG910517MOCRRD05,316,Andrea Guadalupe Muñoz Garcia,2019-05-19,Hija,Primaria incompleta,Estudiante,Es La Pequeña ,2025-11-22 16:44:04,2025-11-22 16:44:04,11112783173
+Leonel Santiago Martínez,SAML921110HOCNRNO7,317,Leonel Santiago Lopez ,2012-11-02,Hijo,Secundaria incompleta,Estudiante,Hijo ,2025-11-22 17:18:15,2025-11-22 17:18:15,11113016455
+Gabriela Manuela  Garcia Garcia,GAGG831109MOCRRB03,318,Luz Carina Garcia Cruz ,2002-04-10,Prima,Secundaria incompleta,Ama De Casa,,2025-11-22 17:50:00,2025-11-22 17:50:00,11112781039
+Andrea Nayeli Cuevas Sanchez,CUSA831130MDFVNN01,319,Hernandez Cuevas Ana Cristina,1999-09-01,Hija,Secundaria completa,Vendedora De Ropa,,2025-12-03 15:37:55,2025-12-03 15:37:55,11113003608
+Lidiana Cruz Lopez,CULL870727MOCRPD07,320,Ana Paula Lopez Ruiz,1965-06-12,Madre,Secundaria completa,Venta De Comida,,2025-12-05 19:22:54,2025-12-05 19:22:54,11113049905
+Herminda Marine Hernandez Rojas,ROHH580413MOCJRR13,321,Irvin Hernández Rojas ,1993-10-22,Hijo,Preparatoria completa,Vendedor,,2025-12-16 20:45:21,2025-12-16 20:45:21,11113054433
+Maria  Antonia Flores Lopez,FOLA550117MPLLPN08,322,Leyva Flores Cristian Emmanuel,1993-12-01,Hijo,Secundaria completa,Empleado,,2025-12-16 21:14:37,2025-12-16 21:14:37,11112905722
+Leticia Del Pilar Ramirez Martinez,RAML631015MOCMRT04,323,Martin Flores Arango ,1960-11-11,Otro,Secundaria completa,Taxista,Esposo De La Clienta,2025-12-16 21:25:38,2025-12-16 21:25:38,11113007902
+Merced Teresa Garcia,GAXM541018MOCRXR09,324,Calixto Joel Cruz,1992-10-28,Otro,Primaria completa,Albañil,Esposo De La Clienta,2025-12-17 17:03:05,2025-12-17 17:03:05,11113019580
+Jolibeth Minerva Lopez  Galindo,LOGJ980620MBCPLL08,325,Yair Juan Lopez Galindo,2004-01-21,Hermano,Preparatoria completa,Estudiante,,2025-12-17 17:59:42,2025-12-17 17:59:42,11113009695
+Sara Estrella Mendoza Chavez,MEC5960620MOCNHR09,326,Oscar Cristian Pinelo Moreno,1992-12-01,Otro,Preparatoria completa,Empleado Aserradero,Esposo Clienta,2025-12-17 18:13:13,2025-12-17 18:13:13,11112666665
+Alexa Idali Hernandez Santiago,HESA061022MOCRNLA6,327,Concepcion Hernandez Santiago,1982-12-08,Madre,Primaria completa,Ama De Casa,,2025-12-17 18:21:14,2025-12-17 18:21:14,11112896316
+Rafael Gregorio Campos Perez,CAPR751024HOCMRF07,328,Secundario Marcialo Gomez,1945-06-02,Otro,Secundaria completa,Empleado,Suegro,2025-12-17 18:31:32,2025-12-17 18:31:32,11112948802
+Francisco  Guadalupe Lopez Pinelo,LOPF651106HOCPNR01,329,Raul Armando Juarez Lopez,1997-04-23,Otro,Secundaria completa,Musico,Sobrino,2025-12-17 18:40:30,2025-12-17 18:40:30,11113053778
+Martha Lopez Ramirez,LORM690206MOCPMR07,330,Andrea Michell Lopez Ruiz,2010-07-27,Hija,Primaria completa,Ama De Casa,,2025-12-17 18:54:19,2025-12-17 18:54:19,11113142034
+Felipa Velasco Ibañez,VEIF620526MOCLBL09,331,Gulmaro Rivera Garcia,1962-07-20,Otro,Primaria completa,Empleado,Esposo De La Clienta,2025-12-17 19:04:31,2025-12-17 19:04:31,11112985536
+Irene Juanita Muñoz Santos,MUSI960505MOCXNR00,332,Alejandro Espinoza Muñoz,1988-10-30,Otro,Primaria completa,Albañil,Esposo Clienta,2025-12-17 23:03:11,2025-12-17 23:03:11,11113189493
+Adelaida  Jovita Hernandez Vasquez,HEVA590519MOCRSD03,333,Monica Edith Perez Hernandez,2002-01-06,Hija,Secundaria completa,Empleada,,2025-12-18 15:24:51,2025-12-18 15:24:51,11112929397
+Cecilia Guadalupe Cruz Juarez,CUJC860701MOCRRC06,334,Jose Miguel Perez Cruz,2006-02-18,Hijo,Secundaria completa,Empleado,,2025-12-18 15:41:09,2025-12-18 15:41:09,11112939602
+Monica Edith Perez Hernandez,PEHNM020106MOCRNA7,335,Adelaida Jovita Hernandez Vasquez,1959-05-19,Madre,Primaria completa,Venta De Tortilla,,2025-12-18 15:57:34,2025-12-18 15:57:34,11112996848
+Yolanda Victoria Jimenez Chavez,JICY050226MOCMHLA0,336,Josefina Juana Chavez Fernandez,1986-09-24,Otro,Secundaria completa,Venta De Tortillas,,2025-12-18 16:04:17,2025-12-18 16:04:17,11113033563
+Maria Agustina Gines De La Luz,GILA771018MOCNZG07,337,Leylani Hernandez Ginez,2008-02-28,Hija,Preparatoria completa,Estudiante ,,2025-12-18 16:34:05,2025-12-18 16:34:05,11112858472
+Claudia Cruz Chavez,CACC810218MOCCHRL0,338,Salomon Ramirez Chavez,2000-06-25,Hijo,Secundaria completa,Albañil,,2025-12-18 16:46:37,2025-12-18 16:46:37,11112665749
+Silvia Lilia Gonzalez Chavez,GOCS630421MOCNHL05,339,Raul Mendez Morales,1965-03-02,Otro,Secundaria completa,Contratista Albañil,Esposo De La Clienta,2025-12-18 16:56:25,2025-12-18 16:56:25,11113006375
+Andrea Jaqueline Cruz Lopez,CULA041130MOCRPNAO,340,Nancy Yuliana Cruz Lopez,2000-10-03,Hermana,Primaria completa,Ama De Casa,,2025-12-18 17:06:15,2025-12-18 17:06:15,11112938595
+Rosalva Esteva Jacinto,EEJR670903MOCSCS02,341,Ledesma Cortes Esteva,1996-11-27,Hijo,Secundaria completa,Barberia,,2025-12-18 18:21:55,2025-12-18 18:21:55,11112942643
+Rocio  Gabriela Ramirez Garcia,RAGR910318MOCMRC05,342,Telesforo Ramirez Lopez,1956-01-05,Otro,Secundaria completa,Chalan De Albañil,Papa De La Clienta,2025-12-18 18:39:35,2025-12-18 18:39:35,11113005731
+Maria Lizbeth Guadarrama Miguel,6UMM920819MOCD6R06,343,Yuridia Guadarrama,2013-01-28,Hija,Secundaria incompleta,Estudiante,Na,2025-12-18 20:20:02,2025-12-18 20:20:02,11112936225
+Maria Elena Miguel Miguel,MIME730601MOC66LO4,344,Dilan Guadarrama Miguel,2013-08-26,Hijo,Primaria incompleta,Estudiante,,2025-12-18 20:31:23,2025-12-18 20:31:23,11112969340
+Maria Elena Cervantes Mendez,CEME670423MOCRNLO0,345,Ramiro Espinoza Garcia,1961-05-23,Otro,Primaria incompleta,Obrero,Na,2025-12-18 20:40:54,2025-12-18 20:40:54,11112828782
+Vicenta Guadencia Paz Santiago,PASG900122MOCZND09,348,Eladio Christian Paz Santiago,2009-02-18,Hijo,Secundaria completa,Albañil,Ayudante De Albañil,2025-12-19 20:33:21,2025-12-19 20:33:21,11112999671
+Flor Marybell Amador Gomez,AAGF920223MOCMML04,349,Amador Gomez Nieve Del Carmen ,1993-07-20,Hermana,Preparatoria incompleta,Empleada,,2025-12-19 21:46:52,2025-12-19 21:46:52,11112712265
+Catalina Guadalupe Hernandez Hernandez,HEHC830531MOCRRT04,350,Juan Carlos Hernandez Hernandez,1999-07-03,Hijo,Primaria completa,Albañil,,2025-12-24 18:28:21,2025-12-24 18:28:21,11112805044
+Cecilia Araceli Hernandez Hernandez,HEHC060924MOCRRCA0,351,Santiago Daniel Juarez Hernandez,2020-12-18,Hijo,Sin estudios,Estudiante,Menor De Edad,2025-12-24 18:41:56,2025-12-24 18:41:56,11112802463
+Ernestina Guadalupe Garcia,GAXE701107MOCRXR01,352,Luis González Hernández,1968-05-02,Otro,Primaria completa,Campesino,Esposo De La Clienta,2025-12-29 17:26:59,2025-12-29 17:26:59,11112933181
+Margarita Cristina Gonzalez Garcia,GOGM900413MOCNRR00,353,Alexis Mateo Martinez González ,2012-12-10,Hijo,Secundaria incompleta,Estudiante ,Hijo Clienta,2025-12-29 19:18:18,2025-12-29 19:18:18,11112985431
+Jeivi Cruz Avendaño,CUAJ940805MOCRVV04,354,Neri Cruz Avendaño,1992-11-23,Hermano,Preparatoria completa,Empleado,Na,2026-01-02 23:06:43,2026-01-02 23:06:43,11112918349
+Evangelina Diaz Pinelo,DIPE770416MOCZNV06,355,Mateo Ramos Diaz,2015-04-07,Hijo,Primaria completa,Estudiante,Na,2026-01-02 23:14:55,2026-01-02 23:14:55,11112904439
+Liliana Carrion Allende,CAAL740327MDFRLL09,356,Daniel Velasco Ortiz,1971-07-21,Otro,Secundaria completa,Obrero,Na,2026-01-02 23:22:10,2026-01-02 23:22:10,11112739079
+Karina Cruz Sosa,SOCK870613MOCSRR01,357,Juan Perez Sosa,2008-03-10,Hijo,Preparatoria completa,Estudiante,Na,2026-01-02 23:28:54,2026-01-02 23:28:54,11113044045
+Karla Daniela Pacheco Morales,PAMK931015MOCCRR09,358,Jorge Luis Ramos Ramos,1993-05-26,Otro,Secundaria completa,Empleado,Na,2026-01-02 23:39:10,2026-01-02 23:39:10,11112974492
+Flor Elena Gaytan Pinelo,GAPF900523MOCYNL00,359,Jose Esequiel Figueroa,2019-10-22,Hijo,Primaria incompleta,Estudiante,Na,2026-01-02 23:45:53,2026-01-02 23:45:53,11112863299
+Sylvia Susana FLORES Echeverria,GOCS691230MOCMRY05,360,Julia Hernandez,1997-06-19,Hija,Primaria completa,Chofer ,Na,2026-01-03 00:06:19,2026-01-03 00:06:19,11113004593
+Elda Janet Flores Echeverria,FOEE750702MCSLRL03,361,Juan Carlos Zarate,1974-11-21,Otro,Universidad completa,Contador,Na,2026-01-03 00:12:11,2026-01-03 00:12:11,11112878795
+Ilse Soledad Ortiz Caballero,OICI930114MOCRBL00,362,Estefania Pacheco Ortiz,2013-09-25,Hija,Primaria incompleta,Estudiante,Na,2026-01-03 00:19:19,2026-01-03 00:19:19,11112929341
+Rafaela Irma Perez Cruz,PECR591024MOCRRF07,363,Rodolfo Gonzalez Perez,1983-11-01,Hijo,Primaria completa,Empleado,Na,2026-01-03 00:25:38,2026-01-03 00:25:38,11112984529
+Rosa Lilian Echeverria Ruiz,EERR590318MCSCZS05,364,Socorro Muños,1959-06-27,Otro,Primaria completa,Independiente,Na,2026-01-03 00:33:15,2026-01-03 00:33:15,11113026843
+Belinda Michelle Soriano Lopez,SOLB000314MOCRPLA3,366,Lyndi Soriano Lopez,2025-02-21,Hija,Sin estudios,Na,Na,2026-01-03 01:04:29,2026-01-03 01:04:29,11113042756
+Maria  Elena Cervantes  Mendez,CEME670423MOCRNL00,367,Ramiro Espinoza Garcia ,1961-05-23,Otro,Primaria completa,Obrero,Esposo,2026-01-05 17:23:20,2026-01-05 17:23:20,11112824835
+Edith Irma Garcia  Lopez,GALE791203MOCRPD04,368,Edi Omar Garcia Gomez,2000-11-08,Hijo,Preparatoria completa,Maniobrista,,2026-01-05 17:41:28,2026-01-05 17:41:28,11112818336
+Monica Delia Castellanos Hernandez,CAHM731207MOCSRN09,369,Alonda Niño Castellanos,2005-01-16,Hijo,Preparatoria completa,Comerci,,2026-01-06 17:21:14,2026-01-06 17:21:14,11112815237
+Alondra  Sinai Niño Castellanos,NICA040516MOCXSLA5,370,Monica Delia Castellanos Hernandez,1973-12-07,Madre,Secundaria completa,Comer Y Promotora Tuperware,,2026-01-06 17:33:40,2026-01-06 17:33:40,11112837047
+Mayra Elizabeth Cruz Leon,CULM931117MOCRNY00,371,Ma Soledad Cruz Leon,1970-05-20,Madre,Secundaria completa,Empleada,,2026-01-13 19:16:33,2026-01-13 19:16:33,11113051816
+Monserrat Castellanos Castellanos,CACM911202MOCSSU08,372,Merced Castellanos,1994-08-10,Otro,Primaria completa,Venta De Zapatos Por Catalogo,,2026-01-14 18:45:33,2026-01-14 18:45:33,11112763649
+Fanny  Lizbeth Reyes Aragon,REAF951205MOCYRN04,373,Diego Emmanuel Mendez Solis,1989-11-19,Otro,Primaria completa,Negocio De Pizzas,,2026-01-14 19:40:26,2026-01-14 19:40:26,11112866249
+Dulce  Soledad Martinez  Garcia,MAGD931031MOCRRL09,374,Katerin Samara Ramirez Martinez,2016-12-30,Hija,Primaria incompleta,Estudiante,,2026-01-14 20:18:01,2026-01-14 20:18:01,11112818097
+Mercedes Castellanos,CAXM540810MOCSXR10,375,Oreste Joni Castellanos Castellanos,1987-10-10,Hijo,Primaria completa,Cuidado De Animales,Checar Fecha De Nac,2026-01-14 20:29:31,2026-01-14 20:29:31,11112975417
+Anahi Ramirez Castellanos,RACA950615MOCMSN04,376,Jesus Ruiz Lopez,2000-06-15,Otro,Primaria completa,Empleado,,2026-01-14 20:50:10,2026-01-14 20:50:10,11112792766
+Gloria  Mishel Muñoz Muñoz,MUMG960406MOCXXL01,377,Venancio Ramirez Bautista,1990-09-07,Otro,Secundaria completa,Maestro Albañil,,2026-01-14 21:15:36,2026-01-14 21:15:36,11113106411
+Maria  De Los Angeles Chavez Trujillo,CHTA790121MOCHRNOO,378,Angel Leonardo Maldonado Chavez,2011-03-15,Hijo,Secundaria incompleta,Estudiante,,2026-01-14 21:59:33,2026-01-14 21:59:33,11112887138
+Michel Romina Archila Toledo,AITM031230MOCRLCA8,379,Rosiber Archia Toledo,1973-03-19,Madre,Secundaria completa,Emprendedora,,2026-01-15 19:37:10,2026-01-15 19:37:10,11112996430
+Blanca  Estela Silva Garcia,SIGB630315MOCLRL07,380,Karen Estrada Silva,1996-01-26,Hija,Preparatoria completa,Empleada,,2026-01-15 19:49:42,2026-01-15 19:49:42,11112931322
+Ana  Maria Leon  Crisostemo,LECA660726MPLNRN09,381,Martha Lilia Hernandez Sanchez,1979-12-25,Otro,Secundaria completa,Empleada,,2026-01-15 20:02:09,2026-01-15 20:02:09,11112773739
+Claudia Mendez Cruz,MECC860523MOCNRL09,382,Miranda Mendez Manuel,2013-05-12,Hija,Secundaria incompleta,Estudiante,,2026-01-15 20:19:31,2026-01-15 20:19:31,11112802259
+Gloria Yolanda Ruiz Ayala,RUAG000225MOCZXLA6,383,Matias David Maldonado,2023-08-02,Hijo,Sin estudios,Hijo,Solo Viven Tres Personas,2026-01-15 20:43:04,2026-01-15 20:43:04,11113033618
+Guadalupe Ayala Decidero,AADG841213MOCYCD02,384,Maria Teresa Ruiz Desidero,2010-02-11,Hija,Preparatoria incompleta,Estudiante,,2026-01-15 20:57:42,2026-01-15 20:57:42,11112699307
+Wendi Edit Avendaño Zepeda,AEZW911223MOCVPN09,385,Jose Leonardo,2020-07-21,Hijo,Otro,Estudiante,Prescolar,2026-01-15 21:07:53,2026-01-15 21:07:53,11113116034
+Silvia Anel Morales Alvarado,MOAS931103MOCRLL09,386,Luca Emir Mendoza Morales,2013-07-23,Hijo,Secundaria incompleta,Estudiante,,2026-01-16 19:56:55,2026-01-16 19:56:55,11113042732
+Gabriela  Godinez Perez,GOPG730115MOCZLS04,387,David Hernandez Godinez,2006-12-29,Hijo,Primaria incompleta,Estudianes,,2026-01-16 20:28:00,2026-01-16 20:28:00,11113013674
+Concepcion Gomez Martinez,GOMC851208MOCMRN08,388,Maria Guadalupe,2018-12-07,Hijo,Primaria incompleta,Estudianes,,2026-01-16 20:53:28,2026-01-16 20:53:28,11112948100
+Pilar Garcia Lopez,GALP680113MOCRPF06,389,Jose Antonio Flores,2000-12-11,Hijo,Preparatoria completa,Empleado,,2026-01-16 21:07:02,2026-01-16 21:07:02,11112922583
+Maria Del Rosario Galvan Ruiz,GARR820501MOCLZS03,390,Nancy Hernandez Galvan,2006-08-31,Hija,Preparatoria incompleta,Manicurista,,2026-01-16 22:03:12,2026-01-16 22:03:12,11113002299
+Catalina  Petra Garcia Cruz,GACCC830603MOCRRT0,391,Anaya Garcia Lizbeth A,2006-03-27,Hija,Primaria incompleta,Estudiante,,2026-01-16 22:29:07,2026-01-16 22:29:07,11112706693
+Emma Guadalupe Evangelista Martinez,EAME000507MPLVRMA6,392,Emiliano Cervantes,2018-11-01,Hijo,Primaria incompleta,Estudiante,,2026-01-16 22:40:30,2026-01-16 22:40:30,11112807346
+Carmen  Vianey Evangelista Martinez,EAMC020716MPLVRRA9,393,Aitana Xareni Yescas Evangelista,2022-09-05,Hija,Otro,Estudiante,,2026-01-16 22:53:53,2026-01-16 22:53:53,11112783089
+Filadelfa Martinez Lopez,MALF581027MOCRPL04,394,Miriam Martinez,1958-10-27,Hija,Primaria completa,Empleada,,2026-01-23 16:02:01,2026-01-23 16:02:01,11112888569
+Minerva  Rosario Ignacio Garcia,IAGM710516MOCGRN06,395,Jua Perez,1987-10-17,Nieto,Primaria incompleta,Coerciante,En La Encuesta No Reporta Ningún Familiar ,2026-01-23 16:17:57,2026-01-23 16:17:57,11112862917
+Gloria  Angelica Ramos  Hernandez,RAHG720401MOCMRL09,396,Xochiquetzal Hernandez Ramos,2004-09-04,Hija,Preparatoria completa,Estudiante,,2026-01-23 16:41:54,2026-01-23 16:41:54,11112908291
+Irais  Roberta Lopez Cruz,LOCI710327MOCPRR09,397,No Reporta Ningun Familiar,1987-10-10,Padre,Sin estudios,Campesino,No Reporta Ningun Familiar En La Escuesta,2026-01-23 16:55:09,2026-01-23 16:55:09,11112952328
+Angeles  Yanira Cruz Avendaño,CUAA780802MOCRVN09,398,Daniel E Cruz,2008-10-17,Hijo,Universidad incompleta,Estudiante,Checar Fecha De Nacimiento,2026-01-23 17:11:26,2026-01-23 17:11:26,11112821419
+Celestina  Maricela Garcia Diaz,GADC770727MOCRZL05,399,Andrea Angeles ,1996-10-31,Hija,Preparatoria completa,Empleada,,2026-01-23 17:36:31,2026-01-23 17:36:31,11112716716
+Argelia  Julieta Garcia Ramos,GARA790730MOCRMR07,400,Angel Joel Lopez Garcia,2011-12-13,Hijo,Secundaria incompleta,Estudiante,,2026-01-23 18:39:02,2026-01-23 18:39:02,11112837856
+Argelia Esmeralda Lopez Garcia,LOGA020710MOCPRRA9,401,Angel Damian Lopez,2019-04-30,Hijo,Primaria incompleta,Estudiante,,2026-01-23 18:55:10,2026-01-23 18:55:10,11112918295
+Guadalupe Ruiz Garcia,RUGG721212MOCZRD03,402,No Tiene Registro Familia ,2010-10-10,Otro,Primaria incompleta,Obrero,"No Tiene Registro Familiar, Madre Sltera",2026-01-23 19:18:46,2026-01-23 19:18:46,11113093885
+Modesta Garcia Ruiz,GARM641104MOCRZD03,403,Emilio Nuñes Garcia,1965-08-12,Otro,Primaria completa,Empleado,,2026-01-23 20:03:00,2026-01-23 20:03:00,11112957025
+Samai Amairani Castellanos Juarez,CAJS020628MOCSBH95,404,Jose Guadalupe Galicia Castellanos,1996-12-12,Otro,Primaria incompleta,Hojalateria Y Pintura,Solo Se Reporta La Informacion De Su Cónyuge ,2026-01-26 15:59:30,2026-01-26 15:59:30,11112892924
+Flor  Leticia Juarez Gonzalez,JUGF750819MOCRNL00,405,Agustin Luis Castellanos Castellanos,1973-09-09,Otro,Secundaria completa,Chofer,Solo Reporta A Su Esposo En La Encuesta,2026-01-26 16:18:39,2026-01-26 16:18:39,11113005775
+Maria Marlene Cortes  Valdiviezo,COVM541210MOCRLR00,406,Amanda Pacheco Cortez,1990-06-18,Hija,Universidad completa,Ama De Casa,,2026-01-26 17:21:10,2026-01-26 17:21:10,11113091556
+Delia  Lucia Paz  De La Luz,PALD920707MOCZZL09,407,Dalia Marlen Lopez ,2011-03-07,Hija,Secundaria incompleta,Estudiante,,2026-01-26 18:13:16,2026-01-26 18:13:16,11112898863
+Adriana Cervantes Lopez,CELA841026HOCRPD04,408,Metzi Gonzalez Cervantes,2007-07-26,Hija,Preparatoria incompleta,Estudiante,,2026-01-26 18:26:35,2026-01-26 18:26:35,11112777895
+Aurora Juarez Martinez,JUMA520813MOCRRR09,409,Hernandez Diaz Pavel,1999-02-11,Sobrino,Secundaria incompleta,Albañil,,2026-01-26 18:55:26,2026-01-26 18:55:26,11113011924
+Sabina  Severa Sarabia Garcia,SAGS810829MOCRRB05,410,Ilegible La Encuesta,2012-12-12,Hijo,Primaria incompleta,Ilegible,El Registro De Encuesta Es Ilegible,2026-01-26 19:52:53,2026-01-26 19:52:53,11113023238
+Manuela Plumas  Lopez,PULM671224MOCLPN03,411,Gabriela,2011-01-29,Nieta,Secundaria incompleta,Estudiante,,2026-01-26 20:07:50,2026-01-26 20:07:50,11113188904
+Felicita Ninfa Cruz  Cruz,CUCF611123MOCRRL05,412,Nolasco Cruz Consuela Beatriz,1969-03-24,Hija,Preparatoria incompleta,Venta De Pan,,2026-01-27 15:45:17,2026-01-27 15:45:17,11112897851
+Carmen Espinoza Mendez,EIMC580526MOCSNR03,413,Jorge Lorenzo,1958-07-26,Otro,Sin estudios,Campesino,,2026-01-27 16:09:40,2026-01-27 16:09:40,11112861770
+Olivia  Pirsi  Santos  Hernandez,SAHO701121MOCNRL08,414,Baltazar Filiberto Santiago Santiago,1966-02-03,Otro,Secundaria incompleta,Albañil,Es Su Esposo ,2026-01-27 16:36:09,2026-01-27 16:36:09,11112993402
+Diana Laura Reyes  Mejia,REMD980324MOCYJN09,415,Mitzy Nicole Martinez Reyes,2014-01-26,Hija,Primaria incompleta,Estudiantes,,2026-01-27 16:47:22,2026-01-27 16:47:22,11112962972
+Aurea  Gloria Garcia  Marquez,GAMA640326MOCRRR08,416,Valiente Pastor Martinez Vasquez ,1958-10-14,Otro,Primaria incompleta,Albañil,Es Su Esposo,2026-01-27 16:57:47,2026-01-27 16:57:47,11112789848
+Rubi  Esmeralda Castro  Godinez,CAGR940901MOCSDB09,417,Eduardo Antonio Castellanos Castro,1994-09-14,Hijo,Sin estudios,Nene,,2026-01-27 17:16:10,2026-01-27 17:16:10,11112859540
+Rocio Susana Lopez Diaz,LODR781018MOCPZC00,418,Luis Emanuel Lopez,2005-10-30,Hijo,Preparatoria incompleta,Estudiante,,2026-01-27 17:37:45,2026-01-27 17:37:45,11113051729
+Guillermina Sanchez Torales,SATG92013OMVZNRL09,419,Mateo De Jesus,2017-04-09,Hijo,Primaria incompleta,Estudiante,,2026-01-27 17:49:20,2026-01-27 17:49:20,11113038739
+Maria Garcia Vasquez,GAUM890929MOCRSR08,420,Belem Garcia Garcia,2017-12-26,Hijo,Primaria incompleta,Estudiante,,2026-01-27 18:01:41,2026-01-27 18:01:41,11112982523
+Rosa Alicia Santiago Flores,SAFR970225MOCNLS05,421,Matias Santiago F,2017-10-08,Hijo,Primaria incompleta,Estudiante,,2026-01-27 18:11:58,2026-01-27 18:11:58,11113004040
+Cecilia Senaida Lucas  De La Luz,LULC890208MOCCZC03,422,Jesus Lopez Lucas,2016-02-28,Hijo,Primaria incompleta,Estudiante,,2026-01-27 18:24:03,2026-01-27 18:24:03,11113046199
+Bibiana Reyna Jimenez,REJB690629MGRYMB09,423,Areli Reyna Jiménez,2007-11-10,Hija,Preparatoria incompleta,Estudiante,,2026-01-28 17:40:05,2026-01-28 17:40:05,11112917978
+Minerva Castellanos Lopez,CALM731111MOCSPN08,424,Avendaño Castellanos Liuva,1994-05-24,Hija,Universidad completa,Empleada,,2026-01-28 18:03:50,2026-01-28 18:03:50,11112859703
+Yazmin  Gicela Soriano Lopez,SOLY910207MOCROZ03,425,Soriano López Arael Valentín ,2010-02-12,Hijo,Preparatoria incompleta,Estudiante,,2026-01-28 19:00:14,2026-01-28 19:00:14,11113279742
+Reina Juana Garcia Cruz,GACR750820MOCRRN05,426,Angel Abimael Muñoz,2017-01-14,Hijo,Primaria incompleta,Estudiante,,2026-01-28 19:09:56,2026-01-28 19:09:56,11112855162
+Alma Rosario Camacho  Gonzalez,CXGA860606MOCMNL02,427,García Camacho Jesús Nicolás ,2024-06-16,Hijo,Primaria incompleta,Estudiante,,2026-01-28 19:35:25,2026-01-28 19:35:25,11112919388
+Esther Gaytan Ramirez,GARE520719MOCYMS07,428,Gaytan Ramirez Esther ,1952-07-19,Madre,Primaria completa,Venta De Tortillas ,,2026-01-28 20:04:25,2026-01-28 20:04:25,11112872200
+Juana Lopez  Lopez,LOLJ760308MOCPPN09,429,Soriano Ramírez Valentin,1973-02-14,Otro,Secundaria incompleta,Albañil,,2026-01-29 15:50:40,2026-01-29 15:50:40,11113058061
+Sheila Sugeidi Cuevas Santiago,CUSS901225MOCVNH07,430,Mendez Cuevas Diego Andiel,2013-03-20,Hijo,Secundaria completa,Estudiante,,2026-01-29 16:30:29,2026-01-29 16:30:29,11113184661
+Marisol Elizabeth Vasquez X,VAXM760818MOCSXR06,431,Guadalupe Rojas Muñoz,1996-03-08,Otro,Primaria incompleta,Empleada,,2026-01-29 16:55:47,2026-01-29 16:55:47,11113169180
+Marcelina Mitra Cruz,MICM620426MOCTRR09,432,Axel Bladimir Diaz Ramirez,2007-10-16,Nieto,Secundaria incompleta,Empleado,,2026-01-29 17:22:31,2026-01-29 17:22:31,11112946318
+Veronica  Lucero Aparicio Morales,AAMV790122MOCPRR05,433,Aparicio Morales Alfonso Armando,1977-05-25,Hermano,Universidad completa,Licenciado,,2026-01-29 18:18:19,2026-01-29 18:18:19,11112933863
+Daniela Ortiz Gasga,OIGD860826MOCRSN03,434,Martinez Ortiz Daniela Michelle ,2004-01-14,Hija,Universidad incompleta,Estudiante,,2026-01-29 19:14:59,2026-01-29 19:14:59,11112916570
+Maria  Del Rosario Guadalupe Castellanos,GUCR821102MDFDSS09,435,Pedro Guadalupe Zumaya,1961-05-19,Padre,Primaria incompleta,Cpntratista,,2026-01-29 19:29:09,2026-01-29 19:29:09,11113058523
+Fatima Andrea  Hernandez Hernandez,HEHF020602MOCRRTA4,436,Violeta Hernández ,1978-07-22,Madre,Preparatoria completa,Comerciante,,2026-01-29 19:46:38,2026-01-29 19:46:38,11112839763
+Elda Perez Chavez,PECE030404MOCRHLA9,437,Pérez Chávez Alberto ,2002-11-15,Hermano,Secundaria completa,Empleado,,2026-01-30 16:14:20,2026-01-30 16:14:20,11112854697
+Aurea Jimenez Jijon,JIJA840824MOCMJR07,438,Leonel Morales García ,1987-04-23,Otro,Primaria completa,Chofer,,2026-01-30 18:06:10,2026-01-30 18:06:10,11112863857
+Consuelo Alvarado Perez,AAPC700712MOCLRN02,439,Morales Alvarado Jose Luis ,1991-02-07,Hijo,Universidad incompleta,Ingeniero,,2026-01-30 18:21:03,2026-01-30 18:21:03,11112778298
+Gabriela Gonzalez Lopez,GOLG920619MOCNPB07,440,Yuleizy Guadalupe Ruiz González ,2022-11-07,Hija,Sin estudios,Prescolar,,2026-01-30 18:49:13,2026-01-30 18:49:13,11112972707
+Amayrani  Jasibet Perez Cruz,PECA920728MOCRRM00,441,Pérez Cruz Claudio ,1991-10-14,Otro,Secundaria incompleta,Empleado,,2026-01-30 19:18:18,2026-01-30 19:18:18,11112815619
+Citlally Perez Cruz,PECC960329MOCRRT09,442,Claudio César Pérez Cruz ,1994-04-14,Hermano,Universidad completa,Ingeniero En Una Empresa ,,2026-01-30 19:36:55,2026-01-30 19:36:55,11112831329
+Alejandra Matadamas Bautista,MABA740324MOCTTL03,443,Carreño Heron,1953-05-17,Otro,Universidad completa,Comerciante,,2026-01-30 19:49:11,2026-01-30 19:49:11,11112731837
+Carmen Melissa Morales Ruiz,MORC010214MOCRZRA9,444,Ruiz Díaz Noema Angelica,1982-10-25,Madre,Secundaria completa,Ama De Casa,,2026-01-30 20:06:07,2026-01-30 20:06:07,11113053191
+Jazmith Hernandez Sanchez,HESJ840809MOCRNZ01,445,Hernández Sánchez Emmanuel Karim,2010-06-12,Hija,Secundaria incompleta,Estudiante,,2026-01-30 20:26:31,2026-01-30 20:26:31,11112981187
+Sofia Garcia Lopez,GALS690918MOCRPF07,446,Hernández García Michelle Monserrat ,1999-08-28,Hija,Preparatoria incompleta,Estudiante,,2026-01-30 20:48:00,2026-01-30 20:48:00,11112958035
+Itzel Guadalupe Lopez Jimenez,LOJI010107MOCPMTA5,447,Jimenez Mireya,1983-09-30,Madre,Primaria completa,Ama De Casa,,2026-01-31 17:19:19,2026-01-31 17:19:19,11113023290
+Julisa  Concepcion Martinez Castillo,MACJ951207MOCRSL07,448,Luz Divina Velasco Velasquez ,1998-07-17,Prima,Primaria incompleta,Comerciante,,2026-01-31 18:37:48,2026-01-31 18:37:48,11112833520
+Irais Guadalupe Martinez Torres,MATI961125MOCRRR03,449,Dereck Kaleb Soriano Martinez ,2020-04-01,Hijo,Sin estudios,Kinder,,2026-01-31 18:53:50,2026-01-31 18:53:50,11112992988
+Claudia Magali Gonzalez Maldonado,GOMC801016MOCNLL02,450,Salvador González Maldonado ,1965-10-02,Hermano,Primaria incompleta,Campesino,,2026-01-31 19:04:48,2026-01-31 19:04:48,11112946341
+Alejandrina Marcelina Gonzales Osorio,GOOA560101MOCNSL02,451,De La Luz González Aldo Ramón ,1995-08-18,Hijo,Preparatoria completa,Empleado De Oficina,,2026-01-31 19:20:20,2026-01-31 19:20:20,11112949092
+Rubiceli Alejandra Gonzalez Gonzalez,GOGR920111MOCNNB14,452,Gonzalez Maldnado Salvador Alverto,1965-11-02,Padre,Primaria incompleta,Campesino,,2026-01-31 19:34:16,2026-01-31 19:34:16,11113033057
+Edith Fidelia Martinez Torrez,MATE680323MOCRRD02,453,Martinez Torres Alxi Zoe,2011-07-01,Nieta,Secundaria incompleta,Estudiante,,2026-01-31 19:43:33,2026-01-31 19:43:33,11112957246
+Maximina Reyna Gonzalez Ortiz,GOOM620628MOCNRX07,454,Gonzalez De La Luz Fanny Valeria ,2014-06-15,Sobrina,Primaria incompleta,Estudiante,,2026-01-31 19:53:03,2026-01-31 19:53:03,11113066416
+Justina  Lorenza Cuevas  Santiago,CUSJ640718MOCVNS01,455,Cuevas Santiago Sheila Sugeidi ,1990-12-25,Hija,Secundaria completa,Comerciante,,2026-02-03 16:04:39,2026-02-03 16:04:39,11113096161
+Sofia Cruz Lucas,CULS860430MOCRCF06,456,Osorio Santos Silverio Miguel,1986-06-20,Otro,Secundaria completa,Albañil,,2026-02-03 16:59:01,2026-02-03 16:59:01,11113113239
+Teresa Remigia Lopez Pinelo,LOPT770901MOCPNR05,457,Nancy Yuliana Cruz López ,2000-09-03,Hija,Secundaria completa,Venta De Tortillas ,,2026-02-03 17:13:10,2026-02-03 17:13:10,11113192667
+Ricarda  Cruz Ramirez Paz,RMPZRC57060320M700,458,García Ramirez Elsa Teresa,1976-10-15,Hija,Secundaria incompleta,Empleada,,2026-02-03 17:27:55,2026-02-03 17:27:55,11113299859
+Alma  Delia Bautista Bautista,BABA780308MDFTTL09,459,Cruz Figueroa Ignacio Angel,1998-06-30,Otro,Primaria incompleta,Albañil,,2026-02-03 17:42:49,2026-02-03 17:42:49,11112623811
+Socorro Mendoza Mendoza,MEMS570627MOCNNC03,460,Javier Hernández Mendoza ,1977-08-02,Hijo,Secundaria completa,Obrero,,2026-02-03 18:02:17,2026-02-03 18:02:17,11113063797
+Alisson Andrea Morales  Ruis,MORA070922MOCRZLA3,461,Morales Ruiz Jasmin Julissa ,2003-01-26,Hermana,Primaria completa,Empleada De Pitico ,,2026-02-03 18:21:37,2026-02-03 18:21:37,11113036993
+Celia  Yaneth Castellanos  Cruz,CACC781103MOCSRL07,462,Saul Israel Cruz Castellanos,2002-02-21,Hijo,Preparatoria completa,Chofer,,2026-02-03 18:39:50,2026-02-03 18:39:50,11112666627
+Luisa  Galvan  Lazaro,GALL670530MOCLZS02,463,Hernández Galván Griselda Pilar ,1989-10-12,Hija,Preparatoria completa,Empleada,,2026-02-03 19:09:07,2026-02-03 19:09:07,11112881178
+Diana Vasquez Mendoza,VAMD040330MOCSNNA3,464,Carlos Daniel Vasquez Mendoza,2018-02-09,Hijo,Primaria incompleta,Estudiante,,2026-02-03 19:27:19,2026-02-03 19:27:19,11112968122
+Itzel Flores Godinez,FOGI950825MOCLDT05,465,Colmenares Flores Xareni,2021-09-12,Hija,Otro,Prescolar,,2026-02-03 19:52:02,2026-02-03 19:52:02,11112932922
+Maria  Guadalupe Lopez Garcia,LOGG811103MOCPRDO0,466,Santiago Lopez Sujeydy,2011-04-08,Hija,Secundaria completa,Estudiante,,2026-02-03 20:08:29,2026-02-03 20:08:29,11112971296
+Alejandra Cruz Plumas,CUPA900518MOCRLL08,467,Cruz Plumas Katia Lizeth ,2010-12-30,Hija,Secundaria incompleta,Estudiante,,2026-02-06 15:52:52,2026-02-06 15:52:52,11112972833
+Maria Teresa  Maldonado Chavez,MACT061019MOCLHRA1,468,Maria De Los Angeles Chavez Trujillo,1979-01-02,Madre,Secundaria completa,Ama De Casa Y Carniceria,,2026-02-06 16:11:40,2026-02-06 16:11:40,11112935138
+Gabriela Duran Audelo,DUAG740929MOCRDB01,469,Jiménez Duran Berenice,1995-12-23,Hija,Secundaria completa,Empleada ,,2026-02-06 16:34:08,2026-02-06 16:34:08,11112895952
+Ariadna Hernandez Lopez,HELA940714MOCRPR08,470,Hernández Hernández Jesús ,2005-04-08,Hijo,Primaria incompleta,Estudiante,,2026-02-06 16:59:24,2026-02-06 16:59:24,11112821422
+Lizbeth Morales Martinez,MOML980924MOCRRZ04,471,Rosa Camila Lopez Morales ,2014-09-26,Hija,Primaria incompleta,Estudiante,,2026-02-06 17:25:21,2026-02-06 17:25:21,11113097725
+Yesenia Hernandez Ignacio,HEIY840214MOCRGS07,472,Milagros Hernandez Ignacio ,2012-07-22,Hija,Secundaria incompleta,Estudiante,,2026-02-06 17:44:53,2026-02-06 17:44:53,11113036790
+Concepcion Maribel Osorio Santos,OOSC831206MOCSNN03,473,Lucas Gómez Julian,1987-01-09,Otro,Secundaria completa,Constructor,,2026-02-06 18:06:24,2026-02-06 18:06:24,11113085031
+Teresa Gonzalez Miguel,GOMT921015MOCNGR00,474,Yaretzi Cruz González ,2012-06-16,Hija,Secundaria incompleta,Estudiante,,2026-02-06 18:28:59,2026-02-06 18:28:59,11113117861
+Maria  Elena Oliva Canseco Santiago,CASE620525MOCNNL07,476,Garrido Fuentes Juan,1961-06-24,Padre,Primaria incompleta,Comerciante,,2026-02-06 19:28:23,2026-02-06 19:28:23,11112842761
+Alba  Candelaria Velazquez Cruz,VECA751202MVZLRL03,477,Juan Octavio Meza,2013-09-16,Hijo,Primaria completa,Estudiante ,,2026-02-06 22:41:16,2026-02-06 22:41:16,11112872212
+Teresa  Matilde  Muñoz Muñoz,MUMT910521MOCXXR09,478,Morales Muñoz Angel Uriel ,2014-09-04,Hijo,Primaria incompleta,Estudiante,,2026-02-07 18:01:39,2026-02-07 18:01:39,11113232046
+Claudia Maribel Ruiz Ruiz,RURC841116MOCZZL00,479,Ruiz Ruiz Miguel Ángel ,2001-11-23,Hijo,Secundaria completa,Albañil,,2026-02-07 18:21:30,2026-02-07 18:21:30,11113169116
+Gregoria Margarita Ramirez Hernandez,RAHG660509MOCMRR07,480,Sanchez Sanchez Justo,1956-08-05,Otro,Secundaria completa,Panadero,,2026-02-07 18:48:30,2026-02-07 18:48:30,11112905127
+Maria De Jesus Sanchez Ramirez,SARJ880725MOCNMS04,481,Santiago Sánchez Kevin Ernesto ,2014-05-10,Hijo,Primaria incompleta,Estudiante,,2026-02-07 19:02:40,2026-02-07 19:02:40,11113047273
+Patricia Martinez  Morales,MAMPG40417MOCRRT04,482,Cristian Ariel Gopar Martinez,1992-06-26,Hijo,Preparatoria completa,Empleado,,2026-02-07 19:19:25,2026-02-07 19:19:25,11112998765
+Patricia  Judith Sanchez Ramirez,SARP850506MOCNMT08,483,Sugey Surisdady Garcia Sanchez,2010-08-28,Hija,Preparatoria incompleta,Estudiante,,2026-02-07 19:32:40,2026-02-07 19:32:40,11113109760
+Jovita  Biridiana Quintero Garcia,QNGRJV87062720M400,484,Diana Carrasco Quintero ,2008-10-02,Hija,Preparatoria completa,Estudiante,,2026-02-07 20:08:31,2026-02-07 20:08:31,11113121146
+Monica Jimenez Garcia,JIGM810609MOCMRN00,485,Espinoza Jiménez Mónica Guadalupe ,2001-06-15,Hijo,Preparatoria incompleta,Estudiante - Empleada,,2026-02-07 20:17:46,2026-02-07 20:17:46,11112952009
+Adriana Betsai Gomez Jimenez,GOJA890415MOCMMD05,486,Martinez Gomez Melissa,2016-09-08,Hija,Primaria incompleta,Estudiante,,2026-02-09 16:46:14,2026-02-09 16:46:14,11112894601
+Eliazim Yuriria Lopez Jimenez,LOJE821028MOCPML07,487,García Díaz Citlaly ,2003-05-20,Otro,Preparatoria completa,Empleada De Fabrica,,2026-02-09 17:24:20,2026-02-09 17:24:20,11112987118
+Aishlin Samantha Cruz Velazco,CUVA061011MOCRLSA2,488,Gómez Orlando,2002-04-15,Primo,Preparatoria completa,Empleado,,2026-02-09 17:34:21,2026-02-09 17:34:21,11113035478
+Violeta  Yadira Hernandez Castellanos,HECV780722MOCRSL05,489,Hernández Hernández Ericel,1998-11-21,Hijo,Preparatoria completa,Comerciante,,2026-02-10 15:41:22,2026-02-10 15:41:22,11112946258
+Francisca Timotea Cruz Lucas,CULF980126MOCRCR06,490,Jesús Perfecto López Ramos,1986-12-10,Otro,Secundaria completa,Albañil,,2026-02-10 18:25:18,2026-02-10 18:25:18,11112988227
+Margarita  Lorenza Bautista Cruz,BACM810720MOCTRR09,491,Margarita Lorenza Bautista Cruz ,1981-07-20,Hija,Preparatoria completa,Empleada,,2026-02-10 19:38:13,2026-02-10 19:38:13,11112751250
+Liliana Lizbeth Blas  Sanchez,BASL901214MOCLNL04,492,Moreno Lopez Héctor Hugo ,1986-03-09,Otro,Primaria completa,Mecanico,,2026-02-10 20:04:34,2026-02-10 20:04:34,11112908304
+Leydi Aneli Hernandez Merino,HEML911021MOCRRY09,493,Garrido Hernandez Brytani Tacubi ,2011-05-10,Hija,Secundaria incompleta,Estudiante,,2026-02-10 20:18:13,2026-02-10 20:18:13,11112942297
+Georgina Rosalia Mendez  Gonzalez,MGG690422MOCNNRO3M,494,Soledad Nashielly Reyes Méndez ,1987-01-30,Hija,Universidad completa,Maestra,,2026-02-10 20:35:04,2026-02-10 20:35:04,11112732871
+Lidia  Rosa  Castellanos  Perez,CAPL640803MOCSRD03,495,Galicia Castellanos Jose Guadalupe,1996-12-12,Hijo,Secundaria completa,Hojalatero,,2026-02-10 20:50:36,2026-02-10 20:50:36,11112884857
+Araceli Santiago Avendaño,SAAA860622MOCNVR04,496,Jaret Platas Santiago,2018-11-09,Hijo,Primaria incompleta,Estudiante,,2026-02-10 21:07:00,2026-02-10 21:07:00,11112787203
+Laura Vera Hernandez,VEHL651019MOCRRR08,497,Laura Berenice Canssino Vera,1994-07-01,Hija,Universidad completa,Profesora,El Cliente  Se Ve Acto Para El Credito ,2026-02-12 15:40:22,2026-02-12 15:40:22,11113033055
+Juana Gudelia Ramirez Martinez,RAMJ770402MOCMRN04,498,Lucio Pablo Castellanos,1980-03-02,Otro,Primaria completa,Albañil,El Cliente Cumple Con Los Requisitos ,2026-02-12 16:23:09,2026-02-12 16:23:09,11112982584
+Elidia Clara Lopez Ruiz,LORE670803MOCPZL09,499,Igancio Lopez Carla Reyna,2010-02-11,Hija,Preparatoria completa,Estudiante ,,2026-02-12 17:30:43,2026-02-12 17:30:43,11113066481
+Lucero Rufina Lopez Jimenez,LOJL961027MOCPMC02,500,Espinoza Martinez Noe Jesus,1987-05-18,Otro,Primaria completa,Chofer De Mototaxi,,2026-02-12 18:30:09,2026-02-12 18:30:09,11113052056
+Jessica Yasmin Vasquez Arellanes,VAAJ030122MOCSRSA4,501,Allison Hernandez Vasquez,2019-05-29,Hijo,Otro,Prescolar,,2026-02-13 16:45:46,2026-02-13 16:45:46,11112902202
+Juliana  Amanda Lazaro Archila,LAAJ950503MOCZRL06,502,Ximena Cruz Lazaro,2011-09-17,Hija,Secundaria incompleta,Estudiante,,2026-02-13 17:12:35,2026-02-13 17:12:35,11112801054
+Angeles Diaz Leon,DILA920122MOCZNN09,503,Torres Quiroz Moisés ,2005-12-16,Otro,Secundaria completa,Comerciante,,2026-02-13 17:55:05,2026-02-13 17:55:05,11112822564
+Valeria Aguilar Mendoza,AUMV030421MOCGNLA1,504,No Tiene Datos,1987-10-17,Otro,Otro,No Tiene Datos En Encuesta,,2026-02-13 18:15:11,2026-02-13 18:15:11,11113137321
+Juana Venegas Lopez,VELJ600808MOCNPN00,505,Daniel Mejia Venegas,1985-04-14,Hijo,Preparatoria completa,Impresor,,2026-02-13 18:43:42,2026-02-13 18:43:42,11113052405
+Alma Yazmin Cruz  Leon,CULA040425MOCRNLA2,506,Maria Soledad Cruz Leon ,1970-05-20,Madre,Secundaria completa,Ama De Casa ,,2026-02-13 19:07:34,2026-02-13 19:07:34,11112939631
+Angelica Pura  Ojeda,PUOA860412MOCRJN05,507,Catalina Vásquez Garcua,1955-03-09,Tía,Secundaria completa,Venta De Alimentos,,2026-02-17 16:39:17,2026-02-17 16:39:17,11113093502
+Rosario Maite Osorio Cruz,OSCR051002MOCSRSA1,508,Francisca Timotea Cruz Lucas,1998-01-26,Tía,Sin estudios,Comerciante,,2026-02-18 16:32:20,2026-02-18 16:32:20,11113112491
+Angelica Rodriguez Rodriguez,RORA850130MOCDDN06,509,De Jesús Rodriguez Leslie Nayeli ,2005-02-20,Hija,Secundaria completa,Empleada,,2026-02-20 17:02:37,2026-02-20 17:02:37,11113089746
+Alma Rosa Maldonado Pinelo,MAPA770713MOCLNL02,510,Jonathan Francisco Lopez M,2006-07-27,Hijo,Secundaria completa,Estudiante,,2026-02-20 17:23:23,2026-02-20 17:23:23,11112874979
+Dulce  Belén Jimenez Ruiz,JIRD941128MOCMZL06,511,Luis Fernando Castellanos Jiménez ,2016-04-28,Hijo,Primaria incompleta,Estudiante,,2026-02-20 21:40:20,2026-02-20 21:40:20,11112977454
+Doris Greyce Alonso Ruiz,AORD930709MOCLZR03,512,Fernando Aguilar,1990-10-10,Otro,Primaria completa,Empleado,Nacionalidad Hondureña Se Desconoce Fecha De Nacimiento,2026-04-02 17:05:48,2026-04-02 17:05:48,11112948571
+Roxana Guadalupe Perez Cruz,PECR080206MOCRRXA5,513,Cruz Lopez Lidiana,1987-07-27,Madre,Preparatoria completa,Comerciante,,2026-04-02 17:20:42,2026-04-02 17:20:42,11112985466
+Ana Ely Santiago Cruz,SACA850609MOCNRN03,514,Aranza Natali Cruz Santiago,2008-12-03,Hija,Preparatoria incompleta,Estudiante,,2026-04-02 17:30:08,2026-04-02 17:30:08,11112809015
+Dulce Garcia Cruz,GACD970115MOCRRL04,515,Cruz Cruz Manuela Gregoria ,1939-05-25,Abuela,Otro,Ama De Casa,,2026-04-07 18:47:26,2026-04-07 18:47:26,11112714005
+Sara Mendoza Santiago,MESS841025MOCNNR02,516,Diego Manuel Mendoza Santiago ,2013-05-06,Hijo,Secundaria incompleta,Estudiante,,2026-04-10 19:40:01,2026-04-10 19:40:01,11113125574
+Beatriz Julieta Crespo Pinelo,CEPB780807MOCRNT07,517,Jose Chaves,1982-05-03,Sobrino,Primaria completa,Balconero,,2026-04-10 19:51:37,2026-04-10 19:51:37,11112826720
+Blanca  Veronica Martinez Figueroa,MAFB050709MOCRGLA6,518,Garcia Martinez Blanca Esmeralda ,2023-10-07,Hija,Otro,Niña De 3 Años,,2026-04-11 17:49:33,2026-04-11 17:49:33,11112786052
+Diana Lucia Lopez Miguel,LOMD931015MOCPGN02,519,López Méndez Eduardo Antonio ,2007-05-21,Otro,Primaria incompleta,Empleado,,2026-04-11 18:24:15,2026-04-11 18:24:15,11113005621
+Ericel  Raul Hernandez Hernandez,HEHE981121HOCRRR03,520,Alma Castellanos,1954-04-16,Abuela,Primaria completa,Comerciante,,2026-04-16 14:26:51,2026-04-16 14:26:51,11112823381
+Cinthia Mariana Gonzalez Garcia,GOGC960522MOCNRN05,521,Olga Matilde Garcia Lopez,1968-06-29,Otro,Primaria completa,Venta De Alimentos,,2026-04-16 14:43:46,2026-04-16 14:43:46,11112888361
+Concepcion Muñoz Cuevas,MUCC900828MOCXVN09,522,Lizeth Paola Garcia Muñoz,2013-10-12,Hija,Secundaria incompleta,Estudiante,,2026-04-17 19:41:26,2026-04-17 19:41:26,11112961004
+Gabriela Vianney Diaz Ruiz,DIRG950320MOCZZB08,523,Mateo Sanchez,2015-01-26,Hijo,Primaria incompleta,Estudiante Y Vendedora,,2026-04-20 18:31:30,2026-04-20 18:31:30,11112941078
+Esperanza Mendez Cruz,MECE921127MOCNRS09,524,Aanibal Mendez Perez,1943-02-23,Padre,Primaria completa,Chofer,,2026-04-22 22:05:10,2026-04-22 22:05:10,11112823652
+Margarita  Diana Cruz,CUXM580609MOCRXR09,525,Esperanza Mendez,1992-11-27,Hija,Primaria completa,Venta De Tortillas,,2026-04-22 22:14:31,2026-04-22 22:14:31,11113179172
+Sarahi Mireya Muñoz Cruz,MUCS051224MOCXRRA6,526,Pérez Hernández Carlos Alberto ,2000-06-11,Otro,Secundaria completa,Albañil,,2026-04-22 22:27:13,2026-04-22 22:27:13,11113126104
+Noemi Reyes Chavez,RECN000905MOCYHMA5,527,Miguel Alexis Reyes Reyes,2016-09-19,Hijo,Primaria incompleta,Estudiante,,2026-04-24 21:30:48,2026-04-24 21:30:48,11112967143
+Elvira Rosa Muñoz Lopez,MULE670711MOCXPL00,528,Martinez Reyes Felipe Luis,1967-04-28,Otro,Primaria completa,Albañil,,2026-04-24 21:46:23,2026-04-24 21:46:23,11113075182
+Tania Graciela Reyes Muñoz,REMT980122MOCYXN04,529,Rosa Isela Reyes Muñoz,2013-08-02,Hija,Secundaria incompleta,Estudiante,,2026-04-24 21:59:16,2026-04-24 21:59:16,11113121325
+Maricela Pilar Muñoz Herrera,MUHM770805MOCXRR04,530,Miguel Reyes Muñoz,1999-08-30,Hija,Primaria incompleta,Estudiante,,2026-04-24 22:09:21,2026-04-24 22:09:21,11113117395
+Moserrat Reyes Muñoz,REMM060714MOCYXNA2,531,Estrella Cuevas Reyes,2021-01-21,Hija,Otro,Menor,,2026-04-24 22:20:05,2026-04-24 22:20:05,11113055830
+Juliana  Cesarea Cruz Muñoz,CUMJ880207MOCRXL07,532,Angela Pilar Santiago Gruz,2022-01-14,Hija,Otro,Infante,,2026-04-24 22:27:28,2026-04-24 22:27:28,11113034520
+Guie Xhuuba Antonio Ruiz,AORG960923MOCNZX03,533,Elda Ruiz Pineda,1945-08-09,Abuela,Sin estudios,Ama De Casa,,2026-04-29 16:02:59,2026-04-29 16:02:59,11112971606
+Lorena Virginia Toyve Martinez,TOML930621MOCYRR04,534,Echeverria Martínez Alejandro ,1993-02-09,Otro,Secundaria completa,Musico,,2026-04-29 19:23:53,2026-04-29 19:23:53,11113166323
+Hilda  Aracely Rodriguez Lopez,ROLH510706MOCDPL09,535,Hilda Aracely,1981-07-06,Otro,Secundaria completa,Venta De Elotes Y Nieve,"No Dio Mas Inf Familiar, Solo La Suya ",2026-04-29 19:48:37,2026-04-29 19:48:37,11113095058
+Maria Del Carmen Soria  Gonzalez,SOGC830706MUCRNR06,536,Pandora Soria Gonzalez,2018-10-16,Hija,Primaria incompleta,Estudiante ,,2026-05-04 20:26:49,2026-05-04 20:26:49,11113006480
+Rosario Chavez  Pablo,CAPR751014MOCHBS08,537,Ma De Jesus Pinelo Chavez,1999-02-18,Hija,Universidad incompleta,Estudiante Y Vendedora,,2026-05-05 19:38:32,2026-05-05 19:38:32,11112945246
+Yanin Salina Diaz,SADY990427MOCLZN04,538,Prieto García Daniel,1981-06-10,Padre,Primaria completa,Empleado,,2026-05-06 16:45:40,2026-05-06 16:45:40,11112813052
+Constantino  Oscar Pinelo Jimenez,PIJC610520HOCNMN05,539,Maria De Los Angeles Feliza Moreno Ojeda,1955-03-31,Otro,Primaria completa,Ama De Casa,Esposa,2026-05-07 17:08:47,2026-05-07 17:08:47,11112944545
+Nieves  Miriam Arango Reyes,AARN770529MOCRYV03,540,Esther López Arango ,2012-04-09,Hija,Secundaria incompleta,Estudiante,,2026-05-08 20:01:41,2026-05-08 20:01:41,11112901756
+Kiara Castell Baldovinos,CABK911226MGRSLR02,541,Dasha Alizel Flores Castell,2008-01-21,Hija,Preparatoria incompleta,Estudiante,0,2026-05-09 17:33:27,2026-05-09 17:33:27,11112735798
+Soledad Reina Cruz Mejia,CUMS791216MOCRJL05,542,Luciana Margarita Cruz Cruz,2013-02-08,Hija,Primaria incompleta,Estudiante ,,2026-05-13 17:32:31,2026-05-13 17:32:31,11113126158
+Maria Luisa Chavez Chavez,CACL640315MOCHHS00,543,Leydi Gomez Chavez,1977-05-20,Hija,Universidad completa,Empleada,,2026-05-14 22:09:51,2026-05-14 22:09:51,11112755226
+Juana Rojas  Martinez,ROMJ780308MOCJRN08,544,Rogelio Antonio Muñoz Muñoz,1971-01-04,Otro,Primaria incompleta,Obrero,,2026-05-16 16:25:26,2026-05-16 16:25:26,11113125623
+Anahi Santiago Lopez,SALA870514MOCNPN07,545,Yanireth Vasquez Santiago,2008-06-10,Hija,Secundaria incompleta,Comerciante,,2026-05-16 16:44:24,2026-05-16 16:44:24,11112893523
+Angeles Becsahida Avendaño  Martinez,AEMA980120MOCVRN05,546,Martínez Rodríguez Julia Fabiola,1979-11-17,Madre,Universidad incompleta,Comerciante,,2026-05-20 17:50:47,2026-05-20 17:50:47,11112769851
+Daniel Jimenez Garcia,JIGD202012HOCMRNA1,547,Francisco Daniel Jimenez Crespo ,1979-10-03,Padre,Secundaria incompleta,Chofer,,2026-05-20 18:15:50,2026-05-20 18:15:50,11112867599
+Angeles Karina Castro Abrajan,CAAA010802MOCSBNA4,548,Castro Flores Hugo ,1968-09-19,Padre,Secundaria completa,Comerciante,,2026-05-22 16:40:52,2026-05-22 16:40:52,11112625987
+Gabriela Celia  Osorio De La Luz,OOLG940509MOCSZB00,549,Osorio De La Luz Gabriela Celia,1994-05-09,Hija,Preparatoria completa,Empleada,,2026-05-22 16:53:04,2026-05-22 16:53:04,11113056638
+Margarita Mariscal Hernandez,MAHM700610MOCRRR09,550,Margarita,1956-01-01,Prima,Primaria completa,Comerciante,,2026-05-26 18:32:49,2026-05-26 18:32:49,11112914012
+Nitzia Araceli Monterrosa Diaz,MODN950221MOCN2T03,551,Abdiel Emmanuel Sanchez Monterosa,2025-12-04,Hijo,Sin estudios,So,,2026-05-29 21:08:57,2026-05-29 21:08:57,11113023334
+Leilany Celia  Hernandez Gines,HEGL040228MOCRNLA1,552,Ramirez Lopez Alfredo Javier ,2001-12-03,Hermano,Secundaria incompleta,Chalan De Albañil,,2026-05-30 16:54:25,2026-05-30 16:54:25,11112887079
+Yuiliana Guadalupe Cruz Muñoz,CUMY890518MOCRXL02,553,Vasquez Reyes Ivan Michel,1986-09-15,Otro,Preparatoria completa,Empleado,,2026-05-30 17:07:35,2026-05-30 17:07:35,11113186245
+Reyna  Magdalena Reyes Santos,RESR960722MOCYNY00,554,Reyes Santos Fernado,2012-02-17,Hijo,Primaria completa,Chalan De Albañil,,2026-05-30 17:21:34,2026-05-30 17:21:34,11113162874
+Graciela Martinez Hernandez,MAHG620225MOCRRR06,555,Floriberto Espinoza Lopez,1959-11-01,Otro,Primaria completa,Colocador De Tabla Roca,,2026-05-30 17:33:23,2026-05-30 17:33:23,11112854078
+Sandra Cruz Santiago,CUSS890206MOCRNN09,556,Alexander Garcia Cruz,2010-05-10,Hijo,Preparatoria completa,Estudiante,,2026-06-03 20:36:30,2026-06-03 20:36:30,11113181739
+Areli Belem Lopez Ramos,LORA830117MOCPMR09,557,Estefani Castellanos Lopez,2010-01-27,Hija,Preparatoria incompleta,Estudiante,Ninguno,2026-06-04 20:11:23,2026-06-04 20:11:23,11113029242
+Karla  Yoselin Escamilla Reyes,EARK020419MOCSYRA7,558,Karla Elaine Zarate Escamilla,2026-03-10,Hija,Otro,Recien Nacida,,2026-06-10 17:59:46,2026-06-10 17:59:46,11112914985
+Juana Gonzalez Luengas,GOLJ640404MOCNNN01,559,Maroa Gonzalez,1983-07-06,Sobrina,Secundaria incompleta,Ama De Casa,,2026-06-10 18:19:11,2026-06-10 18:19:11,11113004468
+Victor  Arturo Ortiz Ojeda,OIOV820512HOCRJC08,560,Tania Mendoza,1986-06-10,Otro,Técnico,Cajera,,2026-06-10 18:40:39,2026-06-10 18:40:39,11113174457
+Omar Cain Paz Cruz,PACO810109HOCZRM07,561,Paz Avendaño Said Tadeo ,2014-09-25,Hijo,Preparatoria incompleta,Estudiante,,2026-06-10 18:55:08,2026-06-10 18:55:08,11112914791
+Karen Itzel Santiago Sumanos,SASK960224MOCNMR02,562,Victor Uriel Garcia Martinez,1995-06-01,Otro,Primaria completa,Chofer,,2026-06-12 17:45:34,2026-06-12 17:45:34,11113069896
+Viridiana Gonzalez Ramirez,GORV911227MDFNMR09,563,Fernanda Maldonado Gonzalez ,2010-06-24,Hija,Preparatoria incompleta,Estudiante,,2026-06-12 17:57:12,2026-06-12 17:57:12,11113186271
+Lizbeth Yakelin Miguel Lopez,MILL010707MOCGPZA9,564,Bautista Bautista Felix,1958-09-22,Otro,Primaria completa,Carnicero,,2026-06-16 17:15:14,2026-06-16 17:15:14,11113023526
+Martin Flores Arango,FOAM601111HOCLRR05,565,Ramirez Martínez Leticia Del Pilar,1963-10-15,Otro,Preparatoria completa,Ama De Casa ,Es Su Esposa,2026-06-17 18:22:53,2026-06-17 18:22:53,11112911821
+Yuleisy  Joana Ortiz Lopez,OILY040607MOCRPLA2,566,Zoe Guadalupe Cruz Ortiz,2000-07-04,Hija,Otro,Estudiante,,2026-06-17 18:58:32,2026-06-17 18:58:32,11113177745
+Ana Maria Lopez Vasquez,LOVA851010MOCPSN08,567,Manuel Garcia Garcia,1997-05-31,Otro,Secundaria completa,Albañil,,2026-06-17 19:09:54,2026-06-17 19:09:54,11113062348
+Manuel Alfredo Martinez Caballero,MACM940421HOCRBN05,568,Margarita Hernandez,1956-01-26,Madre,Primaria incompleta,Ama De Casa,,2026-06-17 19:30:36,2026-06-17 19:30:36,11112866965
+Claudia Janet Perez Cabanzo,PECC821021MOCRBL03,569,Mici Michel,2024-10-20,Hija,Otro,Menor De Dos Años ,,2026-06-17 19:42:53,2026-06-17 19:42:53,11112838338
+Maria Bolaños Lopez,BOLM600925MOCLPR07,570,Bolaños Lopez Carlos,1990-08-20,Hijo,Universidad incompleta,Chofer,,2026-06-17 19:51:03,2026-06-17 19:51:03,11112987168
+Tavita Dorcas Jimenez Hernandez,HIJT740515MOCMRV17,571,Dalia Anahi Jimenez Hernandez,1999-12-10,Hija,Preparatoria completa,Comerciante,,2026-06-17 20:13:42,2026-06-17 20:13:42,11113031567
+Veronica Gallardo Martinez,GAMV750605MDFLRR08,572,Conde Santiago Virgo,1986-09-22,Otro,Secundaria incompleta,Chofer De Transporte Publico,,2026-06-17 20:26:53,2026-06-17 20:26:53,11112994198
+Irma Patricia Garcia Torres,GATI700110MDFRRR00,573,García Garcia Paola ,1998-02-19,Hija,Secundaria completa,Empleada,,2026-06-18 21:54:32,2026-06-18 21:54:32,11112936233
+Ezequiel Gildardo Bolaños Lopez,BOLE650410HOCLPZ08,574,Carlos Uriel Bolaños Lopez,1990-08-07,Hermano,Secundaria completa,Empleado,,2026-06-18 22:11:32,2026-06-18 22:11:32,11112903021
+Rubi  Esmeralda Lopez Hernandez,LOHR980301MOCPRB05,575,Mateo Camacho C Hernandez,2019-08-20,Hijo,Primaria incompleta,Estudiante,,2026-06-19 17:26:42,2026-06-19 17:26:42,11113095404
+Nancy Rocio Lopez Cruz,LOCN961023MOCPRN03,576,Marco Antonio De La Luz Lopez,2014-02-13,Hijo,Primaria incompleta,Estudiante,,2026-06-19 18:07:55,2026-06-19 18:07:55,11113003747
+Carmen  Catalina Lopez Mejia,LOMC721127MOCPJR02,577,Karina Benita Lopez Mejia,2004-09-08,Hija,Primaria completa,Empleada,,2026-06-24 17:47:54,2026-06-24 17:47:54,11112996352
+Gudalupe Nayelli Martinez Cortes,MACG880709MOCRRD04,578,Javier Rodriguez,2017-01-01,Hijo,Primaria incompleta,Estudiante De Primaria,,2026-06-24 18:19:36,2026-06-24 18:19:36,11112807935
+Eduardo  Luis Alcantara  Santiago,AASE811209MOCLND07,579,Vicenta Alcantara,1957-01-22,Madre,Preparatoria completa,Trabajadora,,2026-06-24 18:34:44,2026-06-24 18:34:44,11112824518
+Carolina Juana Clemente Martinez,CEMC530527MOCLRR03,580,García Ignacio Angel Andres,1950-05-08,Otro,Primaria completa,Campesino,,2026-06-27 18:07:53,2026-06-27 18:07:53,11112806809
+Blanca Lui Bernal,LUBB631130MOCSRL05,581,Na,0001-01-01,Otro,Otro,Na,Ninguno,2026-07-02 21:01:32,2026-07-02 21:01:32,11112931059
+Juana Rita Luis Bernal,LUBJ760624MOCSRN07,582,Frida Araceli Amudio Luis Z,2000-12-12,Hija,Preparatoria incompleta,Ayudante,Ninguno,2026-07-02 21:16:25,2026-07-02 21:16:25,11113014663
+Ninfa Rocio Santiago Garcia,SAGN730506MOCNRN02,583,Flores Olmedo Yaheli,1999-10-25,Otro,Preparatoria completa,Empleada,,2026-07-02 23:01:36,2026-07-02 23:01:36,11112973732
+Yabeli Areli Aquino Silva,AUSY050927MOCQLBA2,584,Dilan Alonso Ortiz Aquino,2024-08-04,Hijo,Primaria incompleta,Estudiante,,2026-07-03 18:15:46,2026-07-03 18:15:46,11113222743
+Fany Hernandez Padilla,HEPF961002MOCRDN07,585,Santiago Hernández Allison Vianey ,2014-02-23,Hija,Primaria incompleta,Estudiante,,2026-07-03 18:53:04,2026-07-03 18:53:04,11112917334
+Juana Velasquez,VEXJ650310MOCLXN02,586,Esteban Reyes Morales,1965-09-20,Otro,Primaria incompleta,Campesino,,2026-07-03 20:38:15,2026-07-03 20:38:15,11113179982
+Lidia  Andrea Ramirez  Isidro,RAIL020412MOCMSDA7,587,Abdiel Reyes Ramirez Ramirez,2022-11-22,Hijo,Sin estudios,Prescolar ,,2026-07-03 21:02:03,2026-07-03 21:02:03,11112964591
+Margarita Salvador Sanchez,SASM780707MOCLNR08,588,Juan Vicente Reyes Morales,1978-04-06,Otro,Primaria completa,Empleado,,2026-07-03 21:15:58,2026-07-03 21:15:58,11113087803
+Miriam Araceli Lopez Hernandez,LOHM830224MOCPRR07,589,Ramirez López Kimberly,2009-01-08,Hija,Preparatoria completa,Estudiante,,2026-07-03 23:46:10,2026-07-03 23:46:10,11113046773
+Ana Luz Morales  Martinez,MOMA940531MOCRRN01,590,Javier Pinelo García ,1970-09-24,Padre,Primaria incompleta,Artesamo,,2026-07-07 18:56:27,2026-07-07 18:56:27,11112982881
+Uriel Rocio Velasco Carrion,VECU040916HDFLRRA6,591,Victor Alejandro Velasco Chavarría,2021-02-06,Hijo,Sin estudios,Estuadiante,,2026-07-09 20:40:51,2026-07-09 20:40:51,11113074398
+Ana Luz Morales Martinez,MOMA940531MOCRRN02,592,Javier Pinelo García ,1970-04-29,Padre,Primaria completa,Artesano,,2026-07-09 21:21:59,2026-07-09 21:21:59,11112983434
+Laura  Darina Bautista Osorio,BAOL980123MOCTSR06,593,Carmen Osorio,1980-08-22,Madre,Secundaria completa,Empleada,,2026-07-16 16:12:18,2026-07-16 16:12:18,11112867783
+Monica Liliana Santos Ramirez,SARM920913MOCNMN07,594,Franco Ulises Alberto Antonio,1989-01-31,Otro,Secundaria completa,Empleado,,2026-07-16 17:17:35,2026-07-16 17:17:35,11113071228
+Norma Lopez Lopez,LOLN870828MOCPPR02,595,Adrian Chavez Arango,1995-01-24,Otro,Otro,Negocio,,2026-07-16 19:37:32,2026-07-16 19:37:32,11113092434
+Azucena Chavez Arango,CAAA030421MOCHRZA4,596,Osmar Chavez Arango,1999-01-15,Hermano,Universidad completa,Negocio,,2026-07-16 20:41:36,2026-07-16 20:41:36,11112626052
+Xochitl De La Luz Martinez,LUMX840610MOCZRC02,597,De La Luz Soriano Elena Yasmín ,1991-06-26,Hija,Secundaria completa,Estudiante,,2026-07-16 23:19:47,2026-07-16 23:19:47,11113265056
+Maria Del Carmen Canseco Mendez,CAMC680116MOCNNR05,598,Fernando Ramirez,1968-02-11,Otro,Secundaria completa,Empleado,,2026-07-17 16:47:12,2026-07-17 16:47:12,11112767272
+Celia  Febe Montes Morales,MOMC780606MOCNRL02,599,Ruiz Montes Luis ,1996-07-07,Hijo,Preparatoria completa,Técnico ,,2026-07-17 17:04:15,2026-07-17 17:04:15,11113004656
+Juana  Emma Medina Lopez,MELJ801215MDFDPN09,600,Natalia Mendez Mendez,2010-09-30,Hija,Preparatoria completa,Estudiante,,2026-07-17 17:19:38,2026-07-17 17:19:38,11112964451
+Dorotea Aguilar Cruz,AUCN831109MOCGRR02,601,Saturnina Cruz Rey,1946-11-30,Madre,Sin estudios,Ama De Casa,,2026-07-17 17:41:12,2026-07-17 17:41:12,11112951374
+Laura  Berenice  Cancino  Vera,CAVL940701MOCNRR09,602,Sánchez Ballesteros Estefanía ,1996-11-11,Madre,Otro,Trabajadora Social,,2026-07-17 19:32:12,2026-07-17 19:32:12,11112947297
+Concepcion Berenice  Pimentel Acosta,PIAC561208MVZMCN09,603,Jair Pimentel,1985-08-27,Hijo,Preparatoria completa,Discapacitado,,2026-07-17 20:21:21,2026-07-17 20:21:21,11112857174
+Maria Auxilio Silva Hurtado,SIHA680118MDFLRX03,604,Marlon Arath Leon,2001-10-31,Hijo,Preparatoria incompleta,Empleado,,2026-07-17 20:31:06,2026-07-17 20:31:06,11112933326
+Petrona Lopez Reyna,LORP640118MOCPYT07,605,Alfredo Rodriguez,1958-10-20,Otro,Sin estudios,Jardinero,,2026-07-20 17:20:18,2026-07-20 17:20:18,11113179794
+Monserrat Rodriguez Lopez,ROLM030611MOCDPNA0,606,Sayuri Sofia Castillo,2018-08-27,Hija,Primaria completa,Estudiante,,2026-07-20 18:53:42,2026-07-20 18:53:42,11113145552
+Balvina Claudia Martinez Santos,MASB840331MOCRNL01,607,Jimenez Crespo Miguel Ramiro,1983-05-25,Otro,Secundaria completa,Chofer,,2026-07-20 20:47:44,2026-07-20 20:47:44,11112913625
+Jessica Asbel Flores  Olmedo,FOOJ971228MOCLLS08,608,Ricardo Alberto Sosa Martinez,1994-03-22,Otro,Secundaria completa,Empleado,,2026-07-20 20:58:01,2026-07-20 20:58:01,11113027782
+Erika Iridian Cruz Hernandez,CUHE991013MOCRRR04,609,Maria Teresa Garcia Ramos ,1986-10-14,Abuela,Sin estudios,Recepcionista,,2026-07-20 21:35:13,2026-07-20 21:35:13,11112939450
+Nancy Jessica Cruz Garcia,CUGN950824MOCRRN07,610,Mayra Areli Lopez Flores,2004-03-04,Otro,Sin estudios,Empleado,,2026-07-20 22:14:47,2026-07-20 22:14:47,11113015330
+Pablo Mendez Juarez,MEJP780629HOCNRB00,611,López Méndez Eduardo Antonio,2007-07-21,Hijo,Preparatoria incompleta,Estudiante,,2026-07-22 19:00:40,2026-07-22 19:00:40,11113004199
+Blanca Estela Montaño  De Los Santos,MOSN850511MOCNNL06,612,Miguel Lopez Montaño,2011-02-21,Hijo,Secundaria incompleta,Estudiante ,,2026-07-23 19:09:10,2026-07-23 19:09:10,11113172654
+Maximina Lucila Pinelo Castellanos,PICM951029MOCNSX04,613,Cecilia Lizeth Lopez Pinelo,2012-11-22,Hija,Secundaria completa,Estudiante,,2026-07-24 20:29:36,2026-07-24 20:29:36,11112976322
+Rosa  Elia Miguel Cruz,MICR760302MOCGRS07,614,Martha Laura Cruz Jimenez,2001-02-13,Otro,Preparatoria incompleta,Empleado,,2026-07-24 21:38:25,2026-07-24 21:38:25,11112991256

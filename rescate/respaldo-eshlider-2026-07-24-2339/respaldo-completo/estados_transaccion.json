@@ -1,0 +1,47 @@
+[
+ {
+  "id_estado": 1,
+  "codigo": "PENDIENTE",
+  "nombre": "Pendiente",
+  "descripcion": "Movimiento registrado pero pendiente de confirmación",
+  "color": "#F59E0B",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:27"
+ },
+ {
+  "id_estado": 2,
+  "codigo": "CONFIRMADO",
+  "nombre": "Confirmado",
+  "descripcion": "Movimiento confirmado y aplicado al capital",
+  "color": "#10B981",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:27"
+ },
+ {
+  "id_estado": 3,
+  "codigo": "CANCELADO",
+  "nombre": "Cancelado",
+  "descripcion": "Movimiento cancelado",
+  "color": "#EF4444",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:27"
+ },
+ {
+  "id_estado": 4,
+  "codigo": "REVISION",
+  "nombre": "En Revisión",
+  "descripcion": "Movimiento en proceso de revisión",
+  "color": "#8B5CF6",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:27"
+ },
+ {
+  "id_estado": 5,
+  "codigo": "AUTORIZADO",
+  "nombre": "Autorizado",
+  "descripcion": "Movimiento autorizado pero no aplicado",
+  "color": "#3B82F6",
+  "activo": 1,
+  "fecha_creacion": "2025-09-20 17:06:27"
+ }
+]
