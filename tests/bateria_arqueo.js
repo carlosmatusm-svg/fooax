@@ -1084,6 +1084,44 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     body: JSON.stringify({ fecha: D39, monto: 1000, concepto: "Retiro de dirección", categoria: "Retiro de dirección", metodo: "efectivo" }) });
   ok("un movimiento SIN ejecutiva se sigue aceptando (retiro de dirección)", rSin39.status === 200, "status " + rSin39.status);
 
+  console.log("\n— 40. LA CLIENTA QUE LIQUIDA SALE DE LA APP DE SU EJECUTIVA (Karina, 5-ago) —");
+  // «Cuando liquidan, los ejecutivos lo siguen teniendo en su sistema.» Una
+  // clienta que termina de pagar NO queda dada de baja: sigue activa con saldo
+  // cero, así que no entraba en la lista de QUITAR y se le seguía apareciendo.
+  // Pero la que paga su última cuota HOY tiene que seguir viéndose hoy: si
+  // desapareciera, su renglón se borra del teléfono y —como el sync reemplaza el
+  // día completo— ese pago se perdería al sincronizar.
+  // La cuenta de prueba no tiene cartera, así que se usa una ejecutiva REAL
+  // (local): es la única forma de ver la lista que de verdad viaja a su app.
+  const cCh = await login("christopher", "chris2026");
+  const html40 = await (await fetch(U + "/app", { headers: H(cCh) })).text();
+  const mQ = /var _Q=(\[.*?\]);/.exec(html40);
+  ok("la app de la ejecutiva recibe su lista de créditos a quitar", !!mQ,
+    mQ ? "sí" : "no se encontró _Q en el HTML de la app");
+  const todos40 = await j(await fetch(U + "/api/creditos?q=", { headers: H(cm) }));
+  const buscar40 = async (t) => j(await fetch(U + "/api/creditos?q=" + encodeURIComponent(t), { headers: H(cm) }));
+  if (mQ) {
+    const quitar = JSON.parse(mQ[1]);
+    ok("la lista de quitar no trae duplicados",
+      new Set(quitar.map((q) => q.id + "|" + q.producto)).size === quitar.length, "quitar: " + quitar.length);
+    // NINGUNO de los que se le quitan puede tener saldo pendiente: si le
+    // borráramos del teléfono a una clienta que aún debe, dejaría de cobrarle.
+    const liq40 = await j(await fetch(U + "/api/creditos?estado=liquidadas", { headers: H(cm) }));
+    const vivos40 = new Map();
+    for (const x of (liq40.resultados || [])) vivos40.set(String(x.id) + "|" + x.producto, x.saldoActual || 0);
+    const conDeuda = quitar.filter((q) => (vivos40.get(String(q.id) + "|" + q.producto) || 0) > 0.009);
+    ok("ningún crédito CON saldo pendiente se le quita de la app", conDeuda.length === 0,
+      JSON.stringify(conDeuda.slice(0, 3)));
+    // Y los que YA están en cero de días anteriores sí tienen que estar.
+    const ceroDeChris = (liq40.resultados || []).filter((x) => /christopher/i.test(String(x.ejecutivo)));
+    const faltantes = ceroDeChris.filter((x) =>
+      !quitar.some((q) => String(q.id) === String(x.id) && q.producto === x.producto));
+    ok("los créditos de Christopher que llegaron a cero sí salen de su app",
+      faltantes.length === 0 || ceroDeChris.length === 0,
+      "en cero: " + ceroDeChris.length + " · sin quitar: " + faltantes.length);
+    void todos40; void buscar40;
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

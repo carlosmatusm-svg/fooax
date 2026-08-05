@@ -131,6 +131,18 @@
   .credchip.credx{color:var(--gris);border-color:var(--linea)}
   .rbadge-venc{font-size:10px;font-weight:800;color:#fff;background:#B00020;
     border-radius:99px;padding:2px 8px;vertical-align:middle;letter-spacing:.03em}
+  .rbadge-liq{font-size:10px;font-weight:800;color:#fff;background:#0B7247;
+    border-radius:99px;padding:2px 8px;vertical-align:middle;letter-spacing:.03em}
+  .hcaja{display:flex;flex-direction:column;gap:5px;width:100%;font-size:13px}
+  .hres{font-size:12px;color:var(--gris);background:var(--lav);border-radius:8px;padding:6px 9px}
+  .hsec{font-size:11px;font-weight:800;color:var(--rio);text-transform:uppercase;
+    letter-spacing:.03em;margin-top:6px;line-height:1.35}
+  .hpago{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;
+    padding:5px 9px;border-radius:8px;background:#F0F7F3}
+  .hpago b{color:#0B7247}
+  .hpago span{font-size:12px;color:var(--gris)}
+  .hpago.hprevio{background:var(--lav);opacity:.75}
+  .hpago.hprevio b{color:var(--gris)}
   .credacc{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
   .credbtn{font:inherit;font-size:12px;font-weight:700;background:none;border-radius:99px;
     border:1.5px solid var(--rio,#324AB6);color:var(--rio,#324AB6);padding:5px 12px;cursor:pointer}
@@ -687,16 +699,27 @@ function tarjetaCredito(c, i) {
   const esBaja = c.activa === false || c.estatus === "BAJA";
   const saldoAct = (c.saldoActual != null ? c.saldoActual : c.saldo) || 0;
   let badge = "";
+  // LIQUIDADO en cuanto el saldo llega a cero (regla Karina, 5-ago). El sistema
+  // ya lo trataba como terminado en los cálculos —sale del esperado y del
+  // semáforo activo— pero la tarjeta no lo decía: se veía igual que una clienta
+  // que aún debe, y encima ofrecía "Marcar vencida" sobre un crédito ya pagado.
+  // Se pide que HAYA tenido saldo: un crédito que nació en cero no es liquidado.
+  const liquidado = !esBaja && saldoAct <= 0.009 && (c.saldo || 0) > 0;
   if (esBaja) badge = '<span class="rbadge-baja">' + (c.estatus === "LIQUIDADO" ? "LIQUIDADO" : "BAJA") + "</span>";
-  else if (c.estatus === "VENCIDA") badge = '<span class="rbadge-venc">VENCIDA</span>';
+  else if (liquidado) badge = '<span class="rbadge-liq">LIQUIDADO</span>';
+  else if (esVencidaUI(c)) badge = '<span class="rbadge-venc">VENCIDA</span>';
   let acc = "";
   if (!esBaja && window.__PUEDE_CREDITO) {
     const reda = saldoAct <= 0
       ? '<button class="credbtn reda" onclick="pedirRecredito(this,' + i + ')">Re-dar crédito</button>' : "";
+    // A un crédito LIQUIDADO no se le ofrece "Marcar vencida": ya no debe nada.
+    // Sí se deja "Ajustar saldo", por si el cero salió de una captura mala.
+    const venc = liquidado ? ""
+      : '<button class="credbtn venc" onclick="pedirMora(this,' + i + ')">' + (esVencidaUI(c) ? "Editar mora" : "Marcar vencida") + "</button>";
     acc = '<div class="credacc">'
+      + '<button class="credbtn" onclick="verPagos(this,' + i + ')">Ver pagos</button>'
       + '<button class="credbtn" onclick="pedirAjuste(this,' + i + ')">Ajustar saldo</button>'
-      + '<button class="credbtn venc" onclick="pedirMora(this,' + i + ')">' + (esVencidaUI(c) ? "Editar mora" : "Marcar vencida") + "</button>"
-      + reda + "</div>";
+      + venc + reda + "</div>";
   }
   return '<div class="rcard">'
     + '<div class="rn">' + hesc(c.nombre) + (badge ? " " + badge : "") + "</div>"
@@ -708,6 +731,43 @@ function tarjetaCredito(c, i) {
     + "</div>"
     + (esBaja ? "" : '<div class="racc"><button class="rbaja" onclick="pedirBaja(this,\'' + esc(c.id) + "','" + esc(c.producto) + '\')">Dar de baja</button></div>')
     + acc + "</div>";
+}
+// VER PAGOS: qué pagó la clienta, en qué fecha y si ese pago cuenta contra el
+// saldo de hoy. Pedido por Karina el 5-ago para poder comprobar que el abono sí
+// está bajando el saldo — y para explicar el saldo que «se le olvida»: lo pagado
+// ANTES del corte no vuelve a descontarse porque la plantilla ya lo traía.
+async function verPagos(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  box.className = "credbox";
+  box.innerHTML = "<span>Cargando pagos de " + hesc(c.nombre) + "…</span>";
+  let d;
+  try {
+    d = await (await fetch("/api/credito/historial?id=" + encodeURIComponent(c.id)
+      + "&producto=" + encodeURIComponent(c.producto), { credentials: "include" })).json();
+  } catch { box.innerHTML = "<span>Sin conexión con el servidor.</span>"; return; }
+  if (d.error) { box.innerHTML = "<span>" + hesc(d.error) + "</span>"; return; }
+  const cuentan = (d.historial || []).filter((h) => h.cuenta);
+  const previos = (d.historial || []).filter((h) => !h.cuenta);
+  const fila = (h) => '<div class="hpago' + (h.cuenta ? "" : " hprevio") + '">'
+    + "<span>" + hesc(h.fecha) + "</span>"
+    + "<span>" + (h.tipo === "liquidacion" ? "liquidación" : "pago") + "</span>"
+    + "<b>" + dinero(h.pago) + "</b>"
+    + (h.garantia ? "<span>+ gar. " + dinero(h.garantia) + "</span>" : "")
+    + "<span>" + hesc(h.ejecutivo || "—") + "</span></div>";
+  box.innerHTML = '<div class="hcaja">'
+    + "<b>" + hesc(d.nombre) + " · " + hesc(d.producto) + "</b>"
+    + '<div class="hres">Saldo de la plantilla <b>' + dinero(d.saldoPlantilla) + "</b>"
+    + " − pagado desde el corte <b>" + dinero(d.pagadoDesdeElCorte + d.liquidado) + "</b>"
+    + " = <b>" + dinero(d.saldoActual) + "</b></div>"
+    + (cuentan.length
+        ? '<div class="hsec">Cuentan contra el saldo de hoy (del ' + hesc(d.corte) + " en adelante)</div>" + cuentan.map(fila).join("")
+        : '<div class="hsec">Sin pagos desde el corte del ' + hesc(d.corte) + "</div>")
+    + (previos.length
+        ? '<div class="hsec">Antes del corte — <b>ya venían descontados</b> en el saldo de la plantilla, por eso no vuelven a bajarlo</div>'
+          + previos.map(fila).join("")
+          + '<div class="hres">Suma de lo anterior: <b>' + dinero(d.pagadoAntesDelCorte) + "</b></div>"
+        : "")
+    + '<button class="credno" onclick="refrescarLista()">Cerrar</button></div>';
 }
 function pedirAjuste(btn, i) {
   const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;

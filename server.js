@@ -1772,6 +1772,70 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   res.json({ total: base.length, resultados: lista });
 });
 
+// HISTORIAL DE PAGOS de un crédito: qué pagó, en qué fecha y quién lo capturó.
+// Pedido por Karina el 5-ago: «cuando le piquen a una clienta que sepa lo que
+// pagó y en qué fecha, para asegurarme de que sí se está bajando».
+//
+// Sirve además para explicar el saldo que «se le olvida» y regresa: el saldo
+// vivo NO descuenta todo lo que la clienta ha pagado en su vida, sino lo pagado
+// DESDE EL CORTE — porque el saldo de la plantilla ya trae descontado lo
+// anterior. Por eso cada renglón dice si CUENTA o no contra el saldo de hoy: si
+// un pago sale como «ya venía en la plantilla» y aun así el saldo no bajó, el
+// problema está en la plantilla, no en la captura.
+app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
+  const id = String(req.query.id || "").trim();
+  const producto = String(req.query.producto || "").trim();
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  const c = PADRON.find((x) => String(x.id) === id && (!producto || x.producto === producto));
+  if (!c) return res.status(404).json({ error: "No encuentro ese crédito." });
+  const corte = corteSaldos();
+  const clave = claveCredito(c.id, c.producto);
+  const snaps = (store.respaldo().snapshots) || {};
+  const permitidas = new Set(idsEjecutivos(req.usuario));
+  const filas = [];
+  const acum = (nodo, key, fecha, ejec) => {
+    if (!nodo || typeof nodo !== "object") return;
+    const p = nodo.pago || 0, g = nodo.garantia || 0, s = nodo.solidario || 0;
+    if (p <= 0 && g <= 0 && s <= 0) return;
+    const partes = String(key).split("|");
+    if (claveCredito(partes[0], partes[1]) !== clave) return;
+    filas.push({ fecha, tipo: "pago", ejecutivo: ejec, pago: p, garantia: g, solidario: s,
+      forma: nodo.forma || "E", cuenta: fecha >= corte });
+  };
+  for (const ej in snaps) {
+    if (!permitidas.has(ej)) continue;
+    for (const fecha in snaps[ej]) {
+      let data = snaps[ej][fecha].snapshot;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
+      for (const bloque of [data && data.reg, data && data.regI]) {
+        if (!bloque) continue;
+        for (const k in bloque) acum(bloque[k], k, fecha, USUARIOS[ej] ? USUARIOS[ej].nombre : ej);
+      }
+    }
+  }
+  // Liquidaciones y recuperaciones: van por SOCIO, no por crédito.
+  for (const m of (store.respaldo().movimientos || [])) {
+    if (m.anulado || socioDeMov(m) !== String(c.id)) continue;
+    const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim();
+    if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+    filas.push({ fecha: m.fecha, tipo: "liquidacion", ejecutivo: m.registradoPor || "—",
+      pago: m.monto, garantia: 0, solidario: 0, forma: m.metodo || "efectivo",
+      cuenta: String(m.fecha) >= corte, folio: m.folio });
+  }
+  filas.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+  const info = infoCredito(carteraViva(req.usuario), c);
+  res.json({
+    socio: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
+    ejecutivo: c.ejecutivo, cuota: c.cuota || 0, corte,
+    saldoPlantilla: c.saldo || 0, pagadoDesdeElCorte: info.pagado, liquidado: info.liquidado,
+    saldoActual: info.saldoActual,
+    // Lo pagado ANTES del corte no baja el saldo de hoy: ya venía descontado en
+    // la plantilla. Se devuelve aparte para poder decirlo con todas sus letras.
+    pagadoAntesDelCorte: Math.round(filas.filter((x) => !x.cuenta).reduce((s, x) => s + x.pago, 0) * 100) / 100,
+    historial: filas,
+  });
+});
+
 // Marcar / quitar VENCIDO con su mora (y, si hace falta, corregir el saldo).
 app.post("/api/creditos/mora", soloAnelMonse, (req, res) => {
   const b = req.body || {};
@@ -2668,7 +2732,8 @@ app.get("/", (req, res) => {
 // ejecutiva. Se inyectan en su app al abrir para que APAREZCAN y les pueda
 // cobrar el mismo día — antes solo salían en los reportes de dirección, no en
 // la app, así que la clienta nueva quedaba sin poder cobrarse.
-function altasParaApp(nombreEjec) {
+function altasParaApp(usuario) {
+  const nombreEjec = usuario.nombre;
   const centros = {};
   for (const cb of store.cambiosPadron())
     if (cb.tipo === "centro" && cb.centro) centros[norm(cb.centro)] = "C-" + cb.numero + " · " + cb.centro;
@@ -2690,8 +2755,33 @@ function altasParaApp(nombreEjec) {
   // renovados, o reasignados a otra). Sin esto el crédito viejo se le quedaba
   // pegado en el teléfono: los montos viven EMBEBIDOS en el HTML de cada app,
   // así que darlo de baja en el servidor no lo borraba de su pantalla.
+  //
+  // Y TAMBIÉN los que LLEGARON A CERO. Reportado el 5-ago: «cuando liquidan, los
+  // ejecutivos lo siguen teniendo en su sistema». Una clienta que termina de
+  // pagar NO queda dada de baja —sigue activa con saldo cero—, así que no
+  // entraba aquí y se le seguía apareciendo en la lista de cobro.
+  //
+  // OJO CON EL DÍA DE HOY: el saldo se mide SIN los abonos de hoy. Si se quitara
+  // a la que acaba de dar su última cuota esta misma mañana, su renglón
+  // desaparecería del teléfono y —como el sync REEMPLAZA el día completo— ese
+  // pago se perdería al sincronizar. Así que desaparece hasta mañana.
+  const hoy = hoyMX();
+  const corte = corteSaldos();
+  const { porFecha } = pagosDeLaSemana(usuario, corte);
+  const fechasLiq = {};
+  liquidacionesDeLaSemana(usuario, corte, fechasLiq);
+  const liquidadoAntesDeHoy = (c) => {
+    const clave = claveCredito(c.id, c.producto);
+    const pf = porFecha[clave] || {};
+    let pagado = 0;
+    for (const f in pf) if (f < hoy) pagado += pf[f].p || 0;
+    let liq = 0;
+    const fl = fechasLiq[String(c.id)] || {};
+    for (const f in fl) if (f < hoy) liq += fl[f] || 0;
+    return (c.saldo || 0) > 0 && (c.saldo || 0) - pagado - liq <= 0.009;
+  };
   const quitar = PADRON
-    .filter((c) => !viva(c) && mia(c))
+    .filter((c) => mia(c) && (!viva(c) || liquidadoAntesDeHoy(c)))
     .map((c) => ({ id: String(c.id), producto: c.producto }));
   return { altas, centros, quitar };
 }
@@ -2717,7 +2807,7 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
     'var _rc=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(_rc)return;_rc=true;location.reload();});}</script>';
   // Sincronización y capa de mejoras antes de </body>.
   // Script que mete las altas del tablero en CENTROS/INDIVIDUALES de la app.
-  const dA = altasParaApp(req.usuario.nombre);
+  const dA = altasParaApp(req.usuario);
   const scriptAltas = (dA.altas.length || dA.quitar.length) ? (
     "<script>(function(){try{" +
     "var _A=" + JSON.stringify(dA.altas) + ";var _CN=" + JSON.stringify(dA.centros) + ";" +
