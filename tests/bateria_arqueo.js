@@ -1049,6 +1049,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     despT.semaforo.liquidada > antesT.semaforo.liquidada,
     "liquidadas " + antesT.semaforo.liquidada + " → " + despT.semaforo.liquidada);
 
+  console.log("\n— 39. EL GASTO QUE CAPTURA DIRECCIÓN SE LE CARGA A SU EJECUTIVA (Karina, 5-ago) —");
+  // Karina lo cachó: un gasto de Julio capturado desde el tablero no sumaba en
+  // "otros movimientos" de nadie. Se guardaba a nombre de quien lo tecleó
+  // (Dirección) y el reparto lo tiraba por no ser ejecutiva. En EFECTIVO al
+  // menos bajaba el efectivo a entregar del día; POR TRANSFERENCIA no toca la
+  // caja y desaparecía de TODOS los totales.
+  const D39 = "2026-03-19";
+  const ejs39 = await j(await fetch(U + "/api/ejecutivos", { headers: H(cm) }));
+  ok("el tablero puede pedir la lista de ejecutivas para el selector",
+    Array.isArray(ejs39.ejecutivos) && ejs39.ejecutivos.length > 0 && ejs39.ejecutivos[0].nombre,
+    JSON.stringify(ejs39.ejecutivos));
+  const mio39 = (ejs39.ejecutivos || [])[0].id;
+  const post39 = (monto, metodo, ejecutivo) => j(fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: D39, monto, concepto: "Gasto de campo", categoria: "Otro", metodo, ejecutivo }) })
+    .then((r) => r));
+  await post39(450, "transferencia", mio39);
+  await post39(200, "efectivo", mio39);
+  const arq39 = await j(await fetch(U + "/api/arqueo?fecha=" + D39, { headers: H(cm) }));
+  const e39 = arq39.porEjec[mio39] || {};
+  ok("el gasto POR TRANSFERENCIA sí le suma a su ejecutiva (antes se perdía)",
+    (e39.movSalidas || 0) === 650, "otros− " + (e39.movSalidas || 0) + " (esperado 650 = 450+200)");
+  ok("pero la transferencia NO le baja el efectivo a entregar: va al banco, no a la caja",
+    arq39.egresosEfectivo === 200, "egresosEfectivo " + arq39.egresosEfectivo + " (solo los $200 en efectivo)");
+  const rMal39 = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: D39, monto: 99, concepto: "X", categoria: "Otro", metodo: "efectivo", ejecutivo: "no-existe" }) });
+  ok("una ejecutiva inventada se rechaza", rMal39.status === 400, "status " + rMal39.status);
+  const lst39 = await j(await fetch(U + "/api/movimientos?fecha=" + D39, { headers: H(cm) }));
+  ok("la lista dice DE QUIÉN es el gasto, no solo quién lo capturó",
+    (lst39.lista || []).filter((m) => m.ejecutivoNombre).length >= 2,
+    "con dueño: " + (lst39.lista || []).filter((m) => m.ejecutivoNombre).length);
+  // Un retiro de dirección no es de nadie: sigue siendo válido dejarlo sin dueño.
+  const rSin39 = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: D39, monto: 1000, concepto: "Retiro de dirección", categoria: "Retiro de dirección", metodo: "efectivo" }) });
+  ok("un movimiento SIN ejecutiva se sigue aceptando (retiro de dirección)", rSin39.status === 200, "status " + rSin39.status);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -467,6 +467,9 @@
         <option>Retiro de dirección</option><option>Gasto operativo</option><option>Autorización / préstamo</option><option>Otro</option>
       </select></div>
       <div class="mcampo"><label>Concepto (¿en qué?)</label><input id="mConcepto" type="text" required placeholder="Ej. pago de luz, retiro para insumos…"></div>
+      <div class="mcampo"><label>¿De qué ejecutiva es? (opcional)</label><select id="mEjec">
+        <option value="">De nadie en particular (dirección)</option>
+      </select></div>
       <div class="mcampo"><label>Autorizado a (opcional)</label><input id="mAut" type="text" placeholder="Quién recibe el dinero"></div>
       <button class="movsubmit" type="submit">Registrar movimiento</button>
       <div class="moverr" id="movErr"></div>
@@ -895,7 +898,7 @@ async function registrarMov(e) {
   const btn = e.target.querySelector(".movsubmit"); btn.disabled = true;
   const body = {
     fecha: $("mFecha").value || undefined,
-    monto: $("mMonto").value, metodo: $("mMetodo").value,
+    monto: $("mMonto").value, metodo: $("mMetodo").value, ejecutivo: $("mEjec").value,
     categoria: $("mCategoria").value, concepto: $("mConcepto").value, autorizadoA: $("mAut").value,
   };
   if (!body.fecha) { err.textContent = "Elige la fecha en que salió el gasto."; err.classList.add("on"); btn.disabled = false; return; }
@@ -910,7 +913,22 @@ async function registrarMov(e) {
   } catch { err.textContent = "Sin conexión con el servidor."; err.classList.add("on"); }
   btn.disabled = false;
 }
+// Llena el «¿de qué ejecutiva es?» del formulario de movimientos. Una sola vez:
+// la lista de ejecutivas no cambia mientras el tablero está abierto.
+let ejecsCargadas = false;
+async function cargarEjecutivos() {
+  if (ejecsCargadas) return;
+  const sel = $("mEjec"); if (!sel) return;
+  try {
+    const d = await (await fetch("/api/ejecutivos", { credentials: "include" })).json();
+    for (const e of (d.ejecutivos || [])) {
+      const o = document.createElement("option"); o.value = e.id; o.textContent = e.nombre; sel.appendChild(o);
+    }
+    ejecsCargadas = true;
+  } catch { /* sin conexión: se queda solo la opción de dirección */ }
+}
 async function cargarMovs() {
+  cargarEjecutivos();
   let d;
   try { d = await (await fetch("/api/movimientos" + fq(), { credentials: "include" })).json(); }
   catch { return; }
@@ -927,6 +945,7 @@ async function cargarMovs() {
   cont.innerHTML = d.lista.map(m =>
     '<div class="movitem' + (m.anulado ? " anulado" : "") + '"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + (m.anulado ? ' <span class="mi-anulado">ANULADO' + (m.anuladoPor ? " por " + hesc(m.anuladoPor) : " por la ejecutiva") + (m.anuladoMotivo ? " · " + hesc(m.anuladoMotivo) : "") + "</span>" : "") + "</div>"
     + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo) + (m.cheque ? " #" + hesc(m.cheque) : "")
+    + (m.ejecutivoNombre ? " · de " + hesc(m.ejecutivoNombre) : "")
     + (m.autorizadoA ? " · a " + hesc(m.autorizadoA) : "")
     + " · registró " + hesc(m.registradoPor)
     + " · " + new Date(m.ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })

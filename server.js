@@ -1956,6 +1956,19 @@ function usuarioDeMov(m) {
   if (mm && USUARIOS[mm[1].toLowerCase()]) return mm[1].toLowerCase();
   return null;
 }
+// DE QUIÉN ES el movimiento (distinto de QUIÉN LO CAPTURÓ). Nació el 5-ago
+// porque Karina cachó que un gasto de Julio capturado desde el tablero no
+// sumaba en «otros movimientos» de nadie: se guardaba a nombre de Dirección, y
+// como Dirección no es ejecutiva, repartirMovsPorEjecutivo lo tiraba. En
+// efectivo al menos bajaba el «efectivo a entregar» del día, así que el dinero
+// se seguía viendo; POR TRANSFERENCIA no toca la caja y desaparecía de todos
+// los totales. Ahora Dirección elige a quién pertenece y ese es el dueño.
+function ejecutivoDeMov(m) {
+  const e = m.ejecutivo;
+  if (e && USUARIOS[e] && USUARIOS[e].rol === "ejecutivo") return e;
+  const u = usuarioDeMov(m);
+  return u && USUARIOS[u].rol === "ejecutivo" ? u : null;
+}
 // Socio ligado a un movimiento (para bajarle el saldo en una liquidación).
 // Los movimientos nuevos lo traen como campo; los viejos sólo dentro del texto.
 function socioDeMov(m) {
@@ -1976,7 +1989,7 @@ function movsDeFecha(fecha, usuario, conAnulados) {
 // (recuperaciones) y salidas (gastos) que registró, junto a su efectivo.
 function repartirMovsPorEjecutivo(porEjec, movs) {
   for (const m of movs) {
-    const id = usuarioDeMov(m);
+    const id = ejecutivoDeMov(m);
     if (!id || !porEjec[id]) continue;
     const e = porEjec[id];
     if (m.entrada) e.movEntradas = (e.movEntradas || 0) + m.monto;
@@ -2005,12 +2018,19 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   if (!concepto) return res.status(400).json({ error: "Escribe un concepto para el movimiento." });
   if (!categoria) return res.status(400).json({ error: "Elige una categoría válida." });
   if (!metodo) return res.status(400).json({ error: "Elige el método (efectivo o transferencia)." });
+  // A QUIÉN pertenece el gasto. Sin esto el movimiento quedaba a nombre de quien
+  // lo capturó (Dirección) y no le sumaba a NINGUNA ejecutiva. Es opcional: un
+  // retiro de dirección no es de nadie en particular.
+  const ejec = String(b.ejecutivo || "").trim().toLowerCase() || null;
+  if (ejec && !(USUARIOS[ejec] && USUARIOS[ejec].rol === "ejecutivo"
+      && !!USUARIOS[ejec].test === !!req.usuario.test))
+    return res.status(400).json({ error: "Esa ejecutiva no existe." });
 
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
   const folio = "DIR-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
   const mov = {
-    folio, fecha, monto, concepto, categoria, metodo,
+    folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec,
     autorizadoA: (b.autorizadoA || "").trim() || null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
@@ -2142,7 +2162,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   // otro del MISMO día. Dirección/admin siguen viendo todos.
   const todos = movsDeFecha(fecha, req.usuario);
   const movs = (req.usuario.rol === "ejecutivo")
-    ? todos.filter((m) => usuarioDeMov(m) === req.usuario.id)
+    ? todos.filter((m) => ejecutivoDeMov(m) === req.usuario.id)
     : todos;
   const egresosEfectivo = egresosEnEfectivo(movs);
   repartirMovsPorEjecutivo(a.porEjec, movs);
@@ -2357,7 +2377,11 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
       const r = s.getRow(fila++);
       const entra = !!m.entrada;
       r.getCell(1).value = String(m.concepto || m.categoria || "Movimiento");
-      r.getCell(2).value = [m.registradoPor || m.usuario || "",
+      // DE QUIÉN es el gasto primero, y quién lo capturó después: Monse necesita
+      // saber a qué ejecutiva cargarlo, no quién tecleó.
+      const dueño = ejecutivoDeMov(m);
+      r.getCell(2).value = [dueño ? "de " + USUARIOS[dueño].nombre : "",
+        m.registradoPor || m.usuario || "",
         m.autorizadoA ? "a " + m.autorizadoA : ""].filter(Boolean).join(" · ");
       const mt = String(m.metodo || m.via || "efectivo");
       r.getCell(3).value = via[mt] || via[mt.toUpperCase()] || mt;
@@ -2593,11 +2617,23 @@ app.post("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
   res.json({ ok: true, ejec, fecha, cifras: elegida.cifras, archivado: elegida.archivado });
 });
 
+// Las ejecutivas del sistema, para que el tablero pueda preguntar «¿de quién es
+// este gasto?» al registrar un movimiento de caja.
+app.get("/api/ejecutivos", requiere("direccion", "admin"), (req, res) => {
+  res.json({ ejecutivos: idsEjecutivos(req.usuario)
+    .map((id) => ({ id, nombre: USUARIOS[id].nombre }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")) });
+});
+
 app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   // La lista trae también los anulados (marcados) para que quede el rastro a la
   // vista; los totales solo suman los vivos.
-  const lista = movsDeFecha(fecha, req.usuario, true).sort((a, b) => b.ts - a.ts);
+  // `ejecutivoNombre` va resuelto para que la lista diga DE QUIÉN es el gasto,
+  // no solo quién lo capturó (que casi siempre es Dirección).
+  const lista = movsDeFecha(fecha, req.usuario, true).sort((a, b) => b.ts - a.ts)
+    .map((m) => { const e = ejecutivoDeMov(m);
+      return e ? { ...m, ejecutivoNombre: USUARIOS[e].nombre } : m; });
   const vivos = lista.filter(m => !m.anulado);
   const totalEfectivo = vivos.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
   const totalTransf = vivos.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
