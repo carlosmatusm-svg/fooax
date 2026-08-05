@@ -1019,16 +1019,18 @@ async function cargarCartera() {
       + d.inconsistentes.slice(0, 10).map((x) => "• " + hesc(x.nombre) + " (" + hesc(x.producto) + "): plazo dice <b>" + x.plazoPadron + "</b>, real <b>" + x.plazoReal + "</b>").join("<br>")
       + "</div>";
   }
-  // ATORADAS EN SU ÚLTIMO PAGO. Suele ser un abono capturado ANTES del corte que
-  // la plantilla no alcanzó a traer: el sistema deja de descontarlo y la clienta
-  // se queda debiendo justo una cuota, para siempre. Lo cachó Karina el 4-ago.
-  if ((d.ultimoPago || []).length) {
-    const tot = d.ultimoPago.reduce((a, b) => a + (b.saldo || 0), 0);
-    h += '<div class="ct-nota"><b>⚠ ' + d.ultimoPago.length + " créditos parados en su ÚLTIMO pago (" + dinero(tot) + ").</b> "
-      + "Deben exactamente una cuota y ahí se quedaron. Casi siempre es un abono que se capturó <b>antes del corte</b> y la plantilla no alcanzó a traer: el sistema deja de descontarlo y la clienta sigue apareciendo como deudora. "
-      + "Revisa si ya pagaron; si sí, ajústales el saldo a $0 desde este panel.<br>"
-      + d.ultimoPago.slice(0, 12).map((x) => "• " + hesc(x.ejecutivo || "—") + " · " + hesc(x.nombre) + " (" + hesc(x.producto) + "): " + dinero(x.saldo)).join("<br>")
-      + (d.ultimoPago.length > 12 ? "<br>… y " + (d.ultimoPago.length - 12) + " más" : "")
+  // PLAZO YA VENCIDO. Antes se avisaba de las que debían "exactamente una cuota",
+  // pero con la plantilla al día eso es NORMAL: es su último pago. Lo que sí
+  // importa es a quién ya se le acabó el plazo y no cerró.
+  if ((d.plazoVencido || []).length) {
+    const tot = d.plazoVencido.reduce((a, b) => a + (b.saldo || 0), 0);
+    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">⚠ ' + d.plazoVencido.length
+      + " créditos con el PLAZO YA VENCIDO y saldo pendiente (" + dinero(tot) + ").</b> "
+      + "A estas ya se les acabó su plazo y no terminaron de pagar. No es que falte capturar: es cartera que se pasó de su fecha.<br>"
+      + d.plazoVencido.slice(0, 12).map((x) => "• " + hesc(x.ejecutivo || "—") + " · " + hesc(x.nombre)
+          + " (" + hesc(x.producto) + "): " + dinero(x.saldo) + " · terminaba el " + hesc(x.terminaba)
+          + ", hace " + x.diasVencido + " días").join("<br>")
+      + (d.plazoVencido.length > 12 ? "<br>… y " + (d.plazoVencido.length - 12) + " más" : "")
       + "</div>";
   }
   // Liquidaciones que entraron a caja pero no le bajaron el saldo a nadie.

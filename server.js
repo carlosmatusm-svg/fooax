@@ -1420,6 +1420,18 @@ function cuotaDelCredito(c) { return Number(c.cuota) || 0; }
 // el término del crédito y no lo siga reflejando semanas siguientes a su
 // término». Un crédito en cero deja de esperar cuota, sale del semáforo activo y
 // del cálculo de mora — ya no hay nada que cobrarle.
+// Cuándo debía terminar de pagar: fecha de desembolso + plazo. La plantilla del
+// 4-ago ya trae las dos cosas en el 100% de los créditos.
+function finDelPlazo(c) {
+  const d = String(c.desembolso || "").slice(0, 10);
+  const pl = Number(c.plazo) || 0;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || pl <= 0) return null;
+  const f = new Date(d + "T12:00:00");
+  // Los semanales van en semanas; MAGNUS y los mensuales, en meses.
+  if (/mes/i.test(String(c.unidad || "")) || esCuotaVariable(c.producto)) f.setMonth(f.getMonth() + pl);
+  else f.setDate(f.getDate() + pl * 7);
+  return f.toISOString().slice(0, 10);
+}
 function estaTerminado(c, info) {
   if (/termino|liquidad/i.test(String(c.estatus || ""))) return true;
   return !!info && (info.saldoActual || 0) <= 0.009;
@@ -1567,15 +1579,20 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
-    // Créditos parados EXACTAMENTE en una cuota: si llevan semanas así, suele ser
-    // un último pago que se capturó antes del corte y la plantilla no alcanzó a
-    // traer. Se listan para que Monse los revise en vez de descubrirlos de uno en
-    // uno (lo cachó Karina el 4-ago con PATRICIA ELISOL y ADRIANA BETSAI).
-    ultimoPago: activos.filter((c) => {
-      const info = infoCredito(cv, c), q = Number(c.cuota) || 0;
-      return q > 0 && info.saldoActual > 0 && Math.abs(info.saldoActual - q) < 0.01 && !esVencido(c);
-    }).map((c) => ({ socio: String(c.id), nombre: c.nombre, producto: c.producto,
-      ejecutivo: c.ejecutivo, centro: c.centro, saldo: r2(infoCredito(cv, c).saldoActual) })),
+    // Créditos cuyo PLAZO YA TERMINÓ y siguen debiendo. Antes se avisaba de los
+    // que debían «exactamente una cuota», pero con la plantilla al día eso es
+    // NORMAL: es una clienta en su último pago. Lo cachó Karina el 4-ago. Con la
+    // fecha de desembolso y el plazo (ahora al 100% en la plantilla) se puede
+    // decir lo que de verdad importa: a esta ya se le acabó el plazo y no cerró.
+    plazoVencido: activos.map((c) => {
+      const info = infoCredito(cv, c);
+      const fin = finDelPlazo(c);
+      if (!fin || info.saldoActual <= 0.009) return null;
+      if (fin >= hoyMX()) return null;                        // todavía dentro de su plazo
+      const dias = Math.round((new Date(hoyMX() + "T12:00") - new Date(fin + "T12:00")) / 86400000);
+      return { socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo,
+        centro: c.centro, saldo: r2(info.saldoActual), terminaba: fin, diasVencido: dias };
+    }).filter(Boolean).sort((a, b) => b.diasVencido - a.diasVencido),
     // El dictado de Monse LLEGÓ el 4-ago y ya está programado: mora = cuotas no
     // pagadas · recuperación por estado del crédito, contada una sola vez ·
     // activo recuperable, vigente y activo mora son ACTIVOS. Lo único que sigue

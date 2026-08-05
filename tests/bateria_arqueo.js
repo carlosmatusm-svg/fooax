@@ -987,9 +987,9 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("una liquidación SIN clienta se detecta y se avisa (antes pasaba en silencio)",
     (carL.liquidacionesSinClienta || []).some((x) => x.folio === rSin.movimiento.folio),
     JSON.stringify((carL.liquidacionesSinClienta || []).map((x) => x.folio)));
-  ok("y el tablero lista los créditos parados en su último pago",
-    Array.isArray(carL.ultimoPago) && carL.ultimoPago.every((x) => x.saldo > 0),
-    "atorados: " + (carL.ultimoPago || []).length);
+  ok("y el tablero lista los créditos con el plazo ya vencido",
+    Array.isArray(carL.plazoVencido) && carL.plazoVencido.every((x) => x.saldo > 0 && x.diasVencido > 0),
+    "plazo vencido: " + (carL.plazoVencido || []).length);
 
   console.log("\n— 37. COBRANZA vs RECUPERACIÓN por ESTADO del crédito (dictado de Monse, 4-ago) —");
   // «Recuperación es todo lo entrante, tanto de créditos de mora como de créditos

@@ -109,9 +109,9 @@ const cerca = (a, b, tol) => Math.abs(Number(a || 0) - Number(b || 0)) <= (tol =
   const inc = (c.inconsistentes || []).length;
   if (inc) nota(inc + " créditos con el plazo mal capturado: a esos el nº de pago sale vacío. Si cae uno en la muestra, la prueba se cae por falta de dato.");
   else ok("Ningún crédito con el plazo mal capturado", true);
-  const up = (c.ultimoPago || []).length;
-  if (up) nota(up + " créditos parados en su último pago (" + mx((c.ultimoPago || []).reduce((s, x) => s + x.saldo, 0)) + "). Revísalos: puede que ya hayan pagado.");
-  else ok("Ningún crédito parado en su último pago", true);
+  const pv = (c.plazoVencido || []).length;
+  if (pv) nota(pv + " créditos con el plazo YA VENCIDO y saldo pendiente (" + mx((c.plazoVencido || []).reduce((s, x) => s + x.saldo, 0)) + "). Es cartera que se pasó de su fecha: Monse va a preguntar por ellos.");
+  else ok("Ningún crédito se pasó de su plazo con saldo pendiente", true);
   const sc = (c.liquidacionesSinClienta || []).length;
   if (sc) nota(sc + " liquidaciones sin clienta (" + mx((c.liquidacionesSinClienta || []).reduce((s, x) => s + x.monto, 0)) + "): ese dinero no le bajó el saldo a nadie.");
   else ok("Ninguna liquidación quedó sin clienta", true);
