@@ -5,6 +5,8 @@ const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
 const store = require("./store");
+// Misma carpeta de datos que usa el store (DATA_DIR la cambia en pruebas).
+const DATA_DIR_APP = process.env.DATA_DIR || path.join(__dirname, "data");
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -907,9 +909,39 @@ function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
 // plantillas nuevas, Anel/Monse actualizan el corte en el tablero — si no,
 // lo ya descontado en la plantilla se restaría DOBLE.
 const CORTE_SALDOS_DEFECTO = "2026-07-21";   // plantillas nuevas del 21-jul
+// EL CORTE VIAJA CON LA PLANTILLA. Antes era un ajuste aparte que alguien tenía
+// que acordarse de mover, y si no se movía pasaban las tres cosas que reportó
+// Monse el 4-ago: los saldos no se actualizaban, un crédito terminado seguía
+// apareciendo semanas después, y el Excel arrastraba el viernes y el sábado a la
+// semana siguiente. Las tres son el mismo problema.
+// Ahora cada plantilla trae su fecha de corte en `data/padron_corte.json` y el
+// sistema la toma sola: cargar la plantilla YA mueve el corte. Si Anel o Monse
+// fijan uno a mano después, ese manda (se toma el más reciente de los dos).
+function cortePlantilla() {
+  try {
+    const f = path.join(DATA_DIR_APP, "padron_corte.json");
+    if (!fs.existsSync(f)) return null;
+    const d = JSON.parse(fs.readFileSync(f, "utf8"));
+    return /^\d{4}-\d{2}-\d{2}$/.test(d.corte || "") ? d.corte : null;
+  } catch { return null; }
+}
 function corteSaldos() {
   const cortes = store.cambiosPadron().filter((c) => c.tipo === "corte" && /^\d{4}-\d{2}-\d{2}$/.test(c.fecha || ""));
   return cortes.length ? cortes[cortes.length - 1].fecha : CORTE_SALDOS_DEFECTO;
+}
+// Al arrancar: si la plantilla trae un corte MÁS NUEVO que el último registrado,
+// se registra solo. Así cargar la plantilla ya mueve el corte —que es lo que
+// pidió Monse— pero queda como un cambio más, así que Anel o Monse pueden
+// moverlo después en cualquier dirección desde el tablero. Si mandara siempre la
+// plantilla, no habría manera de corregirlo a mano.
+function aplicarCorteDeLaPlantilla() {
+  const plant = cortePlantilla();
+  if (!plant) return;
+  if (corteSaldos() >= plant) return;                       // ya está igual o después
+  if (store.cambiosPadron().some((c) => c.tipo === "corte" && c.dePlantilla === plant)) return;
+  store.agregarCambioPadron({ tipo: "corte", fecha: plant, dePlantilla: plant,
+    por: "plantilla", motivo: "Corte que viene con la plantilla cargada", ts: Date.now() });
+  console.log("[corte] la plantilla lo movió a " + plant);
 }
 // SEMÁNTICA DEL CORTE (decidido el 29-jul, después de comprobarlo con Karina):
 // el corte es el PRIMER DÍA CUYOS ABONOS SÍ SE DESCUENTAN — se cuenta ese día
@@ -1384,10 +1416,21 @@ function numeroDePago(c, saldoActual) {
 // OJO: ya existe un `cuotaDe(key)` que busca por llave de captura. Este es otro:
 // toma el CRÉDITO. Nombres distintos a propósito — el choque dejó `faltantes` en 0.
 function cuotaDelCredito(c) { return Number(c.cuota) || 0; }
+// TERMINÓ: la clienta ya no debe nada. Monse pidió el 4-ago que la app «aplique
+// el término del crédito y no lo siga reflejando semanas siguientes a su
+// término». Un crédito en cero deja de esperar cuota, sale del semáforo activo y
+// del cálculo de mora — ya no hay nada que cobrarle.
+function estaTerminado(c, info) {
+  if (/termino|liquidad/i.test(String(c.estatus || ""))) return true;
+  return !!info && (info.saldoActual || 0) <= 0.009;
+}
 function semaforoDe(c, info, pagoSemana) {
   // Antes preguntaba por `estatus === "VENCIDA"` (con A) y esa palabra NO EXISTE
   // en la plantilla: dice "VENCIDO", "CREDITO VENCIDO A RECUPERAR". Resultado: 29
   // vencidos no se marcaban como vencidos (solo los cachaba la mora capturada).
+  // Terminado gana sobre cualquier otro estado: si ya no debe, no está vencida
+  // ni en mora aunque traiga la marca de antes.
+  if (estaTerminado(c, info)) return "liquidada";
   if (esVencido(c) || Number(c.mora) > 0) return "vencida";
   if (info.saldoActual <= 0) return "liquidada";
   // Cuota VARIABLE (Magnus): su cuota baja cada periodo, así que compararla
@@ -2795,5 +2838,6 @@ store.init().then(() => {
   repararCapturaKarina24jul();
   reasignarMarthaPatricia30jul();
   repararCarteraJulio();
+  aplicarCorteDeLaPlantilla();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });

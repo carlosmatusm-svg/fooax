@@ -290,6 +290,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
 
   console.log("\n— 12. CRÉDITOS Y SALDOS · solo Anel y Monse —");
   const cm = await login("monse", "monse2026");           // admin real (local)
+  // La batería fija SU corte al arrancar. Desde el 4-ago el corte lo mueve la
+  // plantilla al cargarse, y si queda en una fecha futura los pagos que capturan
+  // estas pruebas caen ANTES del corte y no cuentan. Se pone bien atrás para que
+  // todo lo que capture la batería sí se descuente; las secciones que necesitan
+  // un corte propio lo fijan aparte.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
   const cal = await login("alejandra", "alejandra2026");  // admin, pero NO es Anel/Monse
   let cr = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", nombre: "CARTERA TEST", producto: "Credito Prueba", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
   ok("alta de clienta con saldo para la cartera", cr.ok === true, JSON.stringify(cr).slice(0, 60));
@@ -1015,6 +1021,29 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y NO se contó dos veces (opción A de Monse)",
     despR.cobradoSemana === 500 && dRec === 500,
     "cobrado " + despR.cobradoSemana + " · recuperación +" + dRec);
+
+  console.log("\n— 38. LOS TRES PUNTOS DE MONSE (4-ago) —");
+  // 1) que los saldos se actualicen · 2) que un crédito terminado deje de
+  // aparecer · 3) que el Excel no arrastre el viernes o el sábado a la semana
+  // siguiente. Los tres eran el mismo problema: el corte no se movía solo cuando
+  // entraba una plantilla nueva. Ahora el corte VIAJA CON LA PLANTILLA.
+  const coP = await j(await fetch(U + "/api/saldos/corte", { headers: H(cd) }));
+  ok("el corte se lee sin que nadie lo mueva a mano", !!coP.corte, JSON.stringify(coP));
+  // Un crédito TERMINADO (saldo 0) sale como liquidado y no espera cuota.
+  const cenT = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: "70000000861", nombre: "YA TERMINO", producto: "Grupal-Basico", centro: cenT,
+    ejecutivo: "Neri", saldo: 500, cuota: 500, plazo: 24 }) });
+  const antesT = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm), body: JSON.stringify({
+    id: "70000000861", producto: "Grupal-Basico", saldo: 0, motivo: "terminó de pagar" }) });
+  const despT = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("un crédito que llega a cero deja de esperar cuota",
+    despT.esperadoSemana <= antesT.esperadoSemana - 500 + 0.02,
+    "esperado " + antesT.esperadoSemana + " → " + despT.esperadoSemana);
+  ok("y sale del semáforo como liquidado, no como vencido ni en mora",
+    despT.semaforo.liquidada > antesT.semaforo.liquidada,
+    "liquidadas " + antesT.semaforo.liquidada + " → " + despT.semaforo.liquidada);
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
