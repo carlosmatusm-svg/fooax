@@ -1218,6 +1218,46 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const xls42 = await fetch(U + "/api/arqueo/excel?fecha=" + D42, { headers: H(cd) });
   ok("y el Excel del arqueo se genera con eso adentro", xls42.status === 200, "status " + xls42.status);
 
+  console.log("\n— 43. LA LIQUIDACIÓN DE «OTROS MOVIMIENTOS» SÍ LE BAJA EL SALDO (Karina, 5-ago) —");
+  // «¿Estás seguro de que cuando marquen liquidación en otros se resta
+  // automáticamente en las clientas?» — se prueba en los casos donde podría
+  // fallar: exacta, de más, parcial, con dos créditos, recuperación, y borrada.
+  const saldo43 = async (q, prod) => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent(q), { headers: H(cm) }));
+    const l = (d.resultados || []).filter((x) => x.activa !== false);
+    const x = prod ? l.find((y) => y.producto === prod) : l[0];
+    return x ? { base: x.saldo, act: x.saldoActual } : null;
+  };
+  const mov43 = (fecha, socio, monto, concepto, folio) => fetch(U + "/api/sync", { method: "POST", headers: H(cCh),
+    body: JSON.stringify({ fecha, snapshot: { reg: {}, movs: [{ folio, concepto, monto, via: "E", clienta: "X", socio }] },
+      ts: Date.now() + Math.floor(Math.random() * 1000) }) });
+  const sonia = await saldo43("SONIA ELIZABETH LUIS");
+  await mov43("2026-07-08", "11113152077", sonia.base, "LIQUIDACION", "L43a");
+  ok("una liquidación por el saldo exacto lo deja en cero",
+    (await saldo43("SONIA ELIZABETH LUIS")).act <= 0.009, "saldo " + JSON.stringify(await saldo43("SONIA ELIZABETH LUIS")));
+  const vic = await saldo43("VICENTA GAUDENCIA");
+  await mov43("2026-07-09", "11112999671", vic.base + 5000, "LIQUIDACION", "L43b");
+  ok("una liquidación MAYOR que el saldo no lo deja en negativo",
+    (await saldo43("VICENTA GAUDENCIA")).act === 0, JSON.stringify(await saldo43("VICENTA GAUDENCIA")));
+  const mar = await saldo43("MARTHA SILVIA");
+  await mov43("2026-07-10", "11112943727", 200, "RECUPERACION", "L43c");
+  ok("una RECUPERACIÓN también le baja el saldo",
+    Math.abs((await saldo43("MARTHA SILVIA")).act - (mar.base - 200)) < 0.01,
+    mar.base + " → " + (await saldo43("MARTHA SILVIA")).act);
+  const e1 = await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2");
+  const e2 = await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional");
+  await mov43("2026-07-11", "11112816492", e1.base + e2.base, "LIQUIDACION", "L43d");
+  ok("con DOS créditos, la liquidación se reparte entre los dos",
+    (await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2")).act <= 0.009
+    && (await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")).act <= 0.009,
+    JSON.stringify([await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2"), await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")]));
+  // Si la ejecutiva la BORRA de su app, el sync la marca anulada y deja de contar.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: "2026-07-10",
+    snapshot: { reg: {}, movs: [{ folio: "L43z", concepto: "GASTO", monto: 10, via: "E" }] }, ts: Date.now() + 99999 }) });
+  ok("y si la borran en la app, el saldo de la clienta vuelve",
+    Math.abs((await saldo43("MARTHA SILVIA")).act - mar.base) < 0.01,
+    "quedó en " + (await saldo43("MARTHA SILVIA")).act + " y debía volver a " + mar.base);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
