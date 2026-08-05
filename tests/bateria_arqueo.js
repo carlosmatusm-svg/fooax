@@ -1061,9 +1061,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     Array.isArray(ejs39.ejecutivos) && ejs39.ejecutivos.length > 0 && ejs39.ejecutivos[0].nombre,
     JSON.stringify(ejs39.ejecutivos));
   const mio39 = (ejs39.ejecutivos || [])[0].id;
-  const post39 = (monto, metodo, ejecutivo) => j(fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
-    body: JSON.stringify({ fecha: D39, monto, concepto: "Gasto de campo", categoria: "Otro", metodo, ejecutivo }) })
-    .then((r) => r));
+  // OJO: hay que esperar la RESPUESTA, no solo lanzar el fetch. Escrito como
+  // estaba (j(fetch(...).then(r=>r))) el await se resolvía antes de que el
+  // servidor guardara, y las comprobaciones de abajo corrían en carrera.
+  const post39 = async (monto, metodo, ejecutivo) => j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: D39, monto, concepto: "Gasto de campo", categoria: "Otro", metodo, ejecutivo }) }));
   await post39(450, "transferencia", mio39);
   await post39(200, "efectivo", mio39);
   const arq39 = await j(await fetch(U + "/api/arqueo?fecha=" + D39, { headers: H(cm) }));
@@ -1157,6 +1159,42 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("los créditos que ya vienen en CERO en la plantilla también salen",
     cero40.every(([id, p]) => enQ(q40b, id, p)),
     JSON.stringify(cero40.filter(([id, p]) => !enQ(q40b, id, p))));
+
+  console.log("\n— 41. CUANDO DIRECCIÓN LA DEJA EN CERO, TAMBIÉN SALE DE LA APP (Karina, 5-ago) —");
+  // Son TRES caminos distintos por los que Monse o Anel pueden dejar un crédito
+  // liquidado, y los tres tienen que sacar a la clienta de la app de su
+  // ejecutiva. El tercero no existía: el formulario de Dirección no tenía dónde
+  // poner la clienta, y por eso la liquidación entraba a caja sin bajarle el
+  // saldo a nadie (de ahí venía la alerta de «liquidaciones sin clienta»).
+  const AJ = ["11112934517", "Grupal-Basico"];      // HERIBERTA · $2,320
+  const BJ = ["11113003674", "Grupal-Basico"];      // ARIADNA PAOLA · $4,620
+  const LQ = ["11112957047", "Grupal-Basico"];      // ANDREA JOSELYN · $1,800
+  const rAj = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: AJ[0], producto: AJ[1], saldo: 0, motivo: "terminó de pagar" }) }));
+  ok("AJUSTAR SALDO a cero saca a la clienta de la app", rAj.ok && enQ(await qDe(), AJ[0], AJ[1]),
+    "ajuste " + JSON.stringify(rAj).slice(0, 60));
+  const rBj = await j(await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: BJ[0], producto: BJ[1], motivo: "No renovó" }) }));
+  ok("DAR DE BAJA la saca de la app", rBj.ok && enQ(await qDe(), BJ[0], BJ[1]),
+    "baja " + JSON.stringify(rBj).slice(0, 60));
+  // Una baja con el producto mal escrito antes contestaba "ok" sin tocar nada.
+  const rBjMal = await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: BJ[0], producto: "Producto Que No Existe", motivo: "No renovó" }) });
+  ok("una baja con el producto mal escrito se rechaza", rBjMal.status === 400, "status " + rBjMal.status);
+  const rLq = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-05-27", monto: 1800, concepto: "Liquidación",
+      categoria: "Otro", metodo: "efectivo", socio: LQ[0] }) }));
+  ok("una LIQUIDACIÓN de caja se puede ligar a la clienta",
+    !!(rLq.movimiento && rLq.movimiento.socio === LQ[0]), JSON.stringify(rLq).slice(0, 90));
+  ok("y esa liquidación sí la saca de la app", enQ(await qDe(), LQ[0], LQ[1]),
+    "le sigue apareciendo");
+  const lst41 = await j(await fetch(U + "/api/movimientos?fecha=2026-05-27", { headers: H(cm) }));
+  ok("la lista de movimientos dice de qué clienta fue",
+    (lst41.lista || []).some((m) => m.clientaNombre), JSON.stringify((lst41.lista || []).map((m) => m.clientaNombre)));
+  const rMal41 = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, monto: 100, concepto: "Liquidación", categoria: "Otro",
+      metodo: "efectivo", socio: "99999999" }) });
+  ok("un número de socio inventado se rechaza", rMal41.status === 400, "status " + rMal41.status);
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

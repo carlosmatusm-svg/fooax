@@ -479,6 +479,11 @@
         <option>Retiro de dirección</option><option>Gasto operativo</option><option>Autorización / préstamo</option><option>Otro</option>
       </select></div>
       <div class="mcampo"><label>Concepto (¿en qué?)</label><input id="mConcepto" type="text" required placeholder="Ej. pago de luz, retiro para insumos…"></div>
+      <div class="mcampo"><label>¿De qué clienta es? (para liquidaciones y recuperaciones)</label>
+        <input id="mBuscaCli" type="text" placeholder="Escribe el nombre o el número de socio" autocomplete="off">
+        <select id="mSocio"><option value="">— Sin clienta —</option></select>
+        <div class="rechint" id="mCliHint">Si no eliges clienta, el dinero entra a la caja pero <b>no le baja el saldo a nadie</b>.</div>
+      </div>
       <div class="mcampo"><label>¿De qué ejecutiva es? (opcional)</label><select id="mEjec">
         <option value="">De nadie en particular (dirección)</option>
       </select></div>
@@ -959,8 +964,16 @@ async function registrarMov(e) {
   const body = {
     fecha: $("mFecha").value || undefined,
     monto: $("mMonto").value, metodo: $("mMetodo").value, ejecutivo: $("mEjec").value,
+    socio: $("mSocio").value,
     categoria: $("mCategoria").value, concepto: $("mConcepto").value, autorizadoA: $("mAut").value,
   };
+  // Una liquidación o recuperación SIN clienta entra a la caja y no le baja el
+  // saldo a nadie. Antes ni siquiera se podía elegir clienta desde aquí; ahora
+  // que sí, se avisa antes de guardar en vez de descubrirlo después.
+  if (!body.socio && /liquidaci|recuperaci/i.test(body.concepto || "")
+      && !confirm("Este movimiento parece una liquidación o recuperación y NO le pusiste clienta.\n\nEl dinero va a entrar a la caja pero no le va a bajar el saldo a nadie. ¿Lo guardo así?")) {
+    btn.disabled = false; return;
+  }
   if (!body.fecha) { err.textContent = "Elige la fecha en que salió el gasto."; err.classList.add("on"); btn.disabled = false; return; }
   try {
     const r = await fetch("/api/movimiento", {
@@ -975,6 +988,36 @@ async function registrarMov(e) {
 }
 // Llena el «¿de qué ejecutiva es?» del formulario de movimientos. Una sola vez:
 // la lista de ejecutivas no cambia mientras el tablero está abierto.
+// Buscador de clienta del formulario de movimientos. Se apoya en /api/clientes,
+// el mismo que usa la búsqueda del tablero: escribe nombre o socio y elige el
+// crédito. Sin esto una liquidación capturada por Dirección no se podía ligar a
+// nadie y el saldo de la clienta nunca bajaba.
+let mCliTimer = null;
+function armarBuscadorClienta() {
+  const inp = $("mBuscaCli"), sel = $("mSocio");
+  if (!inp || !sel || inp.dataset.listo) return;
+  inp.dataset.listo = "1";
+  inp.addEventListener("input", () => {
+    clearTimeout(mCliTimer);
+    const q = inp.value.trim();
+    if (q.length < 2) { sel.innerHTML = '<option value="">— Sin clienta —</option>'; return; }
+    mCliTimer = setTimeout(async () => {
+      let d;
+      try { d = await (await fetch("/api/clientes?q=" + encodeURIComponent(q), { credentials: "include" })).json(); }
+      catch { return; }
+      const con = (d.resultados || []).filter((c) => (c.saldoActual != null ? c.saldoActual : c.saldo) > 0.009);
+      sel.innerHTML = '<option value="">— Sin clienta —</option>'
+        + con.map((c) => '<option value="' + hesc(c.id) + '">' + hesc(c.nombre) + " · " + hesc(c.producto)
+            + " · debe " + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</option>").join("");
+      if (con.length === 1) sel.selectedIndex = 1;
+      // El abono se guarda POR SOCIA: si tiene varios créditos, el sistema lo
+      // reparte entre ellos. Por eso el texto no promete elegir uno.
+      $("mCliHint").textContent = con.length
+        ? "Elige a la clienta. Si tiene varios créditos, el abono se le aplica a los suyos en orden."
+        : "No hay clientas activas con saldo que empaten con “" + q + "”.";
+    }, 250);
+  });
+}
 let ejecsCargadas = false;
 async function cargarEjecutivos() {
   if (ejecsCargadas) return;
@@ -988,7 +1031,7 @@ async function cargarEjecutivos() {
   } catch { /* sin conexión: se queda solo la opción de dirección */ }
 }
 async function cargarMovs() {
-  cargarEjecutivos();
+  cargarEjecutivos(); armarBuscadorClienta();
   let d;
   try { d = await (await fetch("/api/movimientos" + fq(), { credentials: "include" })).json(); }
   catch { return; }
@@ -1005,6 +1048,7 @@ async function cargarMovs() {
   cont.innerHTML = d.lista.map(m =>
     '<div class="movitem' + (m.anulado ? " anulado" : "") + '"><div class="mi-info"><div class="mi-cat">' + hesc(tituloMov(m)) + (m.anulado ? ' <span class="mi-anulado">ANULADO' + (m.anuladoPor ? " por " + hesc(m.anuladoPor) : " por la ejecutiva") + (m.anuladoMotivo ? " · " + hesc(m.anuladoMotivo) : "") + "</span>" : "") + "</div>"
     + '<div class="mi-sub">' + hesc(m.concepto) + " · " + hesc(m.metodo) + (m.cheque ? " #" + hesc(m.cheque) : "")
+    + (m.clientaNombre ? " · clienta " + hesc(m.clientaNombre) : "")
     + (m.ejecutivoNombre ? " · de " + hesc(m.ejecutivoNombre) : "")
     + (m.autorizadoA ? " · a " + hesc(m.autorizadoA) : "")
     + " · registró " + hesc(m.registradoPor)

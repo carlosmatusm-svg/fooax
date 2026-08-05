@@ -1356,8 +1356,16 @@ app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
   const motivo = MOTIVOS_BAJA.includes(b.motivo) ? b.motivo : null;
   if (!id) return res.status(400).json({ error: "Falta el número de socio." });
   if (!motivo) return res.status(400).json({ error: "Elige un motivo de baja válido." });
+  // El crédito tiene que EXISTIR. Antes se guardaba el cambio a ciegas: una baja
+  // con el producto mal escrito no tocaba a nadie y aun así contestaba "ok", así
+  // que quien la dio se quedaba creyendo que la clienta salió (5-ago).
+  const prodBaja = (b.producto || "").trim();
+  const objetivo = PADRON.filter((c) => String(c.id) === id
+    && (!prodBaja || norm(c.producto) === norm(prodBaja)));
+  if (!objetivo.length) return res.status(400).json({
+    error: prodBaja ? "No encuentro ese crédito (revisa socio y producto)." : "No encuentro esa clienta." });
   store.agregarCambioPadron({
-    tipo: "baja", id, producto: (b.producto || "").trim(), motivo,
+    tipo: "baja", id, producto: prodBaja, motivo,
     fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
   });
   refrescarPadron();
@@ -2089,12 +2097,22 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   if (ejec && !(USUARIOS[ejec] && USUARIOS[ejec].rol === "ejecutivo"
       && !!USUARIOS[ejec].test === !!req.usuario.test))
     return res.status(400).json({ error: "Esa ejecutiva no existe." });
+  // DE QUÉ CLIENTA es. Sin esto una liquidación capturada por Dirección entraba
+  // a la caja pero NO le bajaba el saldo a nadie: el tablero solo podía avisar
+  // del hueco ("liquidaciones sin clienta"), no cerrarlo. Ligarla es lo que hace
+  // que la clienta quede en cero y desaparezca de la app de su ejecutiva
+  // (pedido de Karina, 5-ago).
+  const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim() || null;
+  if (socio) {
+    const cred = PADRON.filter((c) => String(c.id) === socio && c.activa !== false && c.estatus !== "BAJA");
+    if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
+  }
 
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
   const folio = "DIR-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
   const mov = {
-    folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec,
+    folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec, socio,
     autorizadoA: (b.autorizadoA || "").trim() || null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
@@ -2696,8 +2714,13 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
   // `ejecutivoNombre` va resuelto para que la lista diga DE QUIÉN es el gasto,
   // no solo quién lo capturó (que casi siempre es Dirección).
   const lista = movsDeFecha(fecha, req.usuario, true).sort((a, b) => b.ts - a.ts)
-    .map((m) => { const e = ejecutivoDeMov(m);
-      return e ? { ...m, ejecutivoNombre: USUARIOS[e].nombre } : m; });
+    .map((m) => {
+      const e = ejecutivoDeMov(m), s = socioDeMov(m);
+      const cl = s && PADRON.find((c) => String(c.id) === String(s));
+      return { ...m,
+        ejecutivoNombre: e ? USUARIOS[e].nombre : undefined,
+        clientaNombre: cl ? cl.nombre : undefined };
+    });
   const vivos = lista.filter(m => !m.anulado);
   const totalEfectivo = vivos.filter(m => m.metodo === "efectivo").reduce((s, m) => s + m.monto, 0);
   const totalTransf = vivos.filter(m => m.metodo === "transferencia").reduce((s, m) => s + m.monto, 0);
