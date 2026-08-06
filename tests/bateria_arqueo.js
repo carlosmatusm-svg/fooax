@@ -1313,6 +1313,23 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y un cobro BUENO no sale en la lista",
     !sc44.some((x) => String(x.socio) === "11112783089"), JSON.stringify(sc44.map((x) => x.socio)));
 
+  console.log("\n— 44c. CONCILIACIÓN: ¿todo lo cobrado bajó de algún saldo? (Karina, 5-ago) —");
+  // Es el control que sustituye a pedirle el Excel a Monse para comparar. Si
+  // cuadra, los saldos del sistema son los buenos y no hace falta cotejar con
+  // nadie; si no, dice cuánto y por qué.
+  const kk = async () => (await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).conciliacion;
+  const k1 = await kk();
+  ok("la conciliación responde con sus cifras",
+    k1 && k1.cobrado != null && k1.bajoDeSaldos != null, JSON.stringify(k1));
+  ok("con el cobro huérfano de arriba, NO da por bueno el día",
+    k1 && k1.cuadra === false && k1.porArreglar >= 700, JSON.stringify(k1));
+  ok("y lo atribuye a cobros que no empatan con ningún crédito",
+    k1 && k1.porque.cobrosSinCredito >= 700, JSON.stringify(k1 && k1.porque));
+  ok("no queda dinero SIN EXPLICAR", k1 && Math.abs(k1.porque.sinExplicar) < 1,
+    "sinExplicar " + (k1 && k1.porque.sinExplicar));
+  ok("las garantías se reportan aparte: son ahorro y no bajan saldo",
+    k1 && k1.garantias > 0, "garantías " + (k1 && k1.garantias));
+
   console.log("\n— 45. EL ALTA DEL TABLERO NO CONGELA EL SALDO (Karina, 5-ago) —");
   // Monse da de alta desde el tablero a las clientas recién desembolsadas que
   // todavía no vienen en su archivo, pero captura el saldo ORIGINAL. Ese renglón

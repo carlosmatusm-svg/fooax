@@ -1165,6 +1165,32 @@ async function cargarCartera() {
       + d.liquidacionesSinClienta.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.concepto) + " · " + dinero(x.monto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "")).join("<br>")
       + "</div>";
   }
+  // CONCILIACIÓN: ¿todo lo cobrado bajó de algún saldo? Es lo que sustituye a
+  // pedirle el Excel a Monse para comparar. Va ARRIBA de las alertas porque es
+  // el número que se mira primero cada mañana.
+  if (d.conciliacion) {
+    const k = d.conciliacion, p = k.porque || {};
+    const bien = k.cuadra;
+    h += '<div class="ct-nota" style="border-color:' + (bien ? "#0B7247" : "#B00020") + '">'
+      + '<b style="color:' + (bien ? "#0B7247" : "#B00020") + '">'
+      + (bien ? "✓ TODO LO COBRADO ESTÁ APLICADO"
+              : "🔴 HAY " + dinero(k.porArreglar || Math.abs(p.sinExplicar || 0)) + " COBRADOS QUE NO LE BAJARON A NADIE")
+      + "</b> — desde el corte del " + hesc(k.desde) + ".<br>"
+      + "Se cobró <b>" + dinero(k.cobrado) + "</b> y bajó de saldos <b>" + dinero(k.bajoDeSaldos) + "</b>."
+      + (k.garantias ? " Aparte entraron " + dinero(k.garantias) + " de garantías, que <b>no bajan saldo</b> porque son ahorro." : "")
+      + (k.diferencia
+          ? "<br>La diferencia de " + dinero(k.diferencia) + " se explica así:<br>"
+            + (p.cobrosSinCredito ? "&nbsp;&nbsp;• " + dinero(p.cobrosSinCredito) + " de cobros que no empatan con ningún crédito<br>" : "")
+            + (p.liquidacionesSinClienta ? "&nbsp;&nbsp;• " + dinero(p.liquidacionesSinClienta) + " de liquidaciones sin clienta<br>" : "")
+            + (p.abonoMayorAlSaldo ? "&nbsp;&nbsp;• " + dinero(p.abonoMayorAlSaldo) + " de abonos que superaron el saldo (sobrante, no perdido)<br>" : "")
+            + (Math.abs(p.sinExplicar || 0) >= 1
+                ? "&nbsp;&nbsp;• <b>" + dinero(Math.abs(p.sinExplicar)) + " sin explicar — eso hay que revisarlo</b><br>" : "")
+          : "")
+      + (bien
+          ? "<br><b>No hace falta cotejar contra ningún Excel:</b> cada peso cobrado ya está en el saldo de alguien."
+          : "<br>Ese dinero está en la caja pero <b>no bajó ningún saldo</b>. Míralo en las alertas de abajo y corrígelo; mientras no se corrija, los saldos de esas clientas están más altos de lo real.")
+      + "</div>";
+  }
   // Fichas que entraron a la caja pero no le bajaron el saldo a nadie porque su
   // socio+producto no empata con ningún crédito. Es el hueco por el que se podía
   // perder cobranza en silencio.

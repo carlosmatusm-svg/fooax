@@ -1054,6 +1054,57 @@ function carteraViva(usuario) {
   }
   return { porCredito, pagos, garantias };
 }
+// CONCILIACIÓN: ¿todo lo que se cobró bajó de algún saldo?
+// Es el control que sustituye al "pedirle el Excel a Monse para comparar". Si
+// cuadra, los saldos del sistema son los buenos y no hace falta cotejar con
+// nadie. Si no cuadra, dice EXACTAMENTE cuánto y por qué. Pedido por Karina el
+// 5-ago: «me preocupa que la otra semana tenga que pedir exceles».
+function conciliacionDeSaldos(usuario) {
+  const corte = corteSaldos();
+  const cv = carteraViva(usuario);
+  const { pago: pagos, gar: garantias } = pagosDeLaSemana(usuario, corte);
+  const suma = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+  const cobradoFichas = suma(pagos);
+  const cobradoGarantias = suma(garantias);
+  const fechasLiq = {};
+  liquidacionesDeLaSemana(usuario, corte, fechasLiq);
+  const cobradoLiq = Object.values(fechasLiq).reduce((a, d) => a + suma(d), 0);
+  let bajoPorFichas = 0, bajoPorLiq = 0;
+  for (const v of cv.porCredito.values()) { bajoPorFichas += v.pagado || 0; bajoPorLiq += v.liquidado || 0; }
+  // Lo que NO bajó ningún saldo, con su razón.
+  const sinCredito = cobranzaSinCredito(usuario, corte)
+    .reduce((a, x) => a + (x.pago || 0), 0);
+  const sinClienta = liquidacionesSinClienta(usuario, corte)
+    .reduce((a, x) => a + (x.monto || 0), 0);
+  const r = (n) => Math.round(n * 100) / 100;
+  // Un abono mayor al saldo se topa: el resto es sobrante, no dinero perdido.
+  const topado = r(Math.max(0, (cobradoFichas - sinCredito - bajoPorFichas)
+    + (cobradoLiq - sinClienta - bajoPorLiq)));
+  const cobrado = r(cobradoFichas + cobradoLiq);
+  const bajo = r(bajoPorFichas + bajoPorLiq);
+  const explicado = r(sinCredito + sinClienta + topado);
+  const sinExplicar = r((cobrado - bajo) - explicado);
+  return {
+    desde: corte,
+    cobrado, bajoDeSaldos: bajo,
+    // Las garantías son AHORRO: entran a la caja y no bajan saldo a propósito.
+    garantias: r(cobradoGarantias),
+    diferencia: r(cobrado - bajo),
+    porque: {
+      cobrosSinCredito: r(sinCredito),
+      liquidacionesSinClienta: r(sinClienta),
+      // Un abono mayor al saldo se topa: es sobrante, no dinero perdido.
+      abonoMayorAlSaldo: topado,
+      sinExplicar,
+    },
+    // CUADRA solo si CADA PESO cobrado llegó a un saldo. El dinero huérfano
+    // —sin crédito o sin clienta— tiene explicación pero NO está aplicado: es un
+    // problema que hay que arreglar, no una razón para dar el día por bueno.
+    // Un abono que se pasó del saldo sí es normal: la clienta pagó de más.
+    cuadra: Math.abs(sinExplicar) < 1 && r(sinCredito + sinClienta) === 0,
+    porArreglar: r(sinCredito + sinClienta),
+  };
+}
 function infoCredito(cv, c) {
   return cv.porCredito.get(claveCredito(c.id, c.producto)) ||
     { pagado: 0, liquidado: 0, garantia: 0, saldoActual: Math.max(0, c.saldo || 0) };
@@ -1678,6 +1729,9 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // Fichas cobradas que no empatan con ningún crédito: el dinero está en la
     // caja pero no le bajó el saldo a nadie.
     cobranzaSinCredito: cobranzaSinCredito(req.usuario, corteSaldos()),
+    // ¿Todo lo cobrado bajó de algún saldo? Es el control que sustituye a pedir
+    // el Excel de Monse para comparar.
+    conciliacion: conciliacionDeSaldos(req.usuario),
     movsAtrasados: movsAtrasadosQueSiCuentan(req.usuario, corteSaldos())
       .filter((m) => /^(liquidaci|recuperaci)/i.test(String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim()))
       .map((m) => { const s = socioDeMov(m); const cl = s && PADRON.find((c) => String(c.id) === String(s));
