@@ -281,7 +281,11 @@
   .descargas{display:flex;flex-direction:column;gap:8px;margin:8px 16px 0}
   .dlbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;border:none;border-radius:12px;
     padding:13px 14px;cursor:pointer;text-align:left;background:linear-gradient(120deg,var(--atardecer),var(--aurora),var(--rio));
-    box-shadow:0 3px 12px rgba(241,34,142,.22);-webkit-tap-highlight-color:transparent}
+    box-shadow:0 3px 12px rgba(241,34,142,.22);-webkit-tap-highlight-color:transparent;
+    display:flex;align-items:center;gap:10px}
+  /* Iconos de línea, monocromos: heredan el color del botón y se ven igual sobre
+     el degradado y sobre el fondo claro del secundario. Nada de emojis. */
+  .dlico{width:19px;height:19px;flex:0 0 19px;opacity:.92}
   .dlbtn:active{transform:translateY(1px)}
   .dlbtn.secun{background:#EEF0F8;color:var(--rio);box-shadow:none}
   .dlhint{font-size:11.5px;color:var(--gris);margin:8px 16px 0}
@@ -528,10 +532,10 @@
 
   <h3>Descargas en Excel</h3>
   <div class="descargas">
-    <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')">🧾 Arqueo de caja del día</button>
-    <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')">💵 Cierre de caja de la semana</button>
-    <button class="dlbtn" onclick="descargar('/api/semana/excel')">📊 Saldos actualizados de la semana</button>
-    <button class="dlbtn secun" onclick="descargar('/api/respaldo')">💾 Respaldo completo (toda la cobranza)</button>
+    <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg><span>Arqueo de caja del día</span></button>
+    <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg><span>Cierre de caja de la semana</span></button>
+    <button class="dlbtn" onclick="descargar('/api/semana/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Saldos actualizados de la semana</span></button>
+    <button class="dlbtn secun" onclick="descargar('/api/respaldo')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v6h8V4M8 20v-5h8v5"/></svg><span>Respaldo completo (toda la cobranza)</span></button>
   </div>
   <div class="dlhint" id="dlAviso" style="display:none"></div>
   <div class="dlhint">Para bajar el arqueo de otro día, cámbialo en el selector de fecha de arriba: el botón te dice qué día va a descargar. Los saldos actualizados son la plantilla semanal (saldo − lo pagado), lista para tu control.</div>
@@ -564,7 +568,9 @@ function etiquetaDia(iso) {
 function pintarBotonArqueo() {
   const b = $("btnArqueo"); if (!b) return;
   const f = FECHA_VISTA || FECHA_HOY;
-  b.textContent = "🧾 Arqueo de caja · " + (f ? etiquetaDia(f) : "del día");
+  // Se reescribe con la fecha, así que el icono se vuelve a poner (textContent
+  // lo borraría).
+  b.innerHTML = ICONO_RECIBO + "<span>Arqueo de caja · " + hesc(f ? etiquetaDia(f) : "del día") + "</span>";
 }
 function refrescarVista() {
   $("fHoy").style.display = FECHA_VISTA ? "inline-flex" : "none";
@@ -1084,7 +1090,7 @@ async function cargarCajaSemana() {
     // El botón va aquí también, no solo en la lista de descargas: es donde se
     // está mirando el número cuando dan ganas de mandárselo a alguien.
     + '<button class="recbtn" style="margin-top:10px" onclick="descargar(\'/api/semana/caja/excel\')">'
-    + "⬇ Descargar este cierre en Excel</button>";
+    + '' + flecha.replace("'", "\'") + '' + "Descargar este cierre en Excel</button>";
 }
 async function cargarMovs() {
   cargarEjecutivos(); armarBuscadorClienta(); cargarCajaSemana();
@@ -1579,6 +1585,9 @@ async function cargarSemana() {
 // anterior "no estaba disponible". Navegar a la URL sí funciona en todos lados:
 // el servidor manda Content-Disposition: attachment, así que el navegador
 // descarga el archivo sin sacarte del tablero.
+// El icono del botón de arqueo vive aquí porque su texto se rehace con la
+// fecha del día y textContent borraría el SVG.
+const ICONO_RECIBO = '<svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg>';
 function descargar(base) {
   const url = base + (base.indexOf("/arqueo/") >= 0 ? fq() : "");
   const btns = document.querySelectorAll(".dlbtn");
