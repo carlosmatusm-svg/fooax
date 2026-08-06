@@ -1093,7 +1093,9 @@ function conciliacionDeSaldos(usuario) {
   return {
     desde: corte,
     cobrado, bajoDeSaldos: bajo,
-    // Las garantías son AHORRO: entran a la caja y no bajan saldo a propósito.
+    // La GARANTÍA respalda el crédito: entra a la caja y no abona al saldo. NUNCA
+    // se le llama ahorro — una SOFOM E.N.R. no está autorizada a captar ahorro y
+    // nombrarlo así expone a FOOAX (regla Karina, 5-ago-2026).
     garantias: r(cobradoGarantias),
     diferencia: r(cobrado - bajo),
     porque: {
@@ -2148,7 +2150,7 @@ function tipoGastoCanonico(t) {
 const CONCEPTOS_EJEC = {
   COMISION:     { etiqueta: "Comisión de desembolso",   categoria: "Otro",            entrada: true },
   RECUPERACION: { etiqueta: "Recuperación / adelanto",  categoria: "Otro",            entrada: true },
-  GARANTIA:     { etiqueta: "Garantía (ahorro)",        categoria: "Otro",            entrada: true },
+  GARANTIA:     { etiqueta: "Garantía",                 categoria: "Otro",            entrada: true },
   LIQUIDACION:  { etiqueta: "Liquidación",              categoria: "Otro",            entrada: true },
   DESEMBOLSO:   { etiqueta: "Desembolso (crédito nuevo)", categoria: "Autorización / préstamo", entrada: false },
   GASTO:        { etiqueta: "Gasto",                    categoria: "Gasto operativo", entrada: false },
@@ -2455,6 +2457,15 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     // transferencia va al banco y no toca la caja.
     e.aEntregar = Math.round((e.efectivo - (e.egresoEfectivo || 0)) * 100) / 100;
     e.dif = Math.round((e.contado - e.aEntregar) * 100) / 100;
+    // Si lo que le SOBRA coincide con un gasto suyo en efectivo, se nombra: es
+    // casi siempre un gasto anotado cuyo dinero todavía no salió de la caja, y
+    // así la ejecutiva no tiene que deducirlo (Karina, 5-ago).
+    if (e.dif > 0.009) {
+      const suyos = movs.filter((m) => !m.entrada && !m.anulado && m.metodo === "efectivo"
+        && ejecutivoDeMov(m) === id && Math.abs(Number(m.monto) - e.dif) < 0.01);
+      if (suyos.length === 1) e.difPorGasto = suyos[0].tipoGasto
+        || String(suyos[0].concepto || "").split(" · ")[0] || "un gasto";
+    }
   }
   // Los "otros movimientos" que NO son efectivo también son dinero que llegó (o
   // salió) del banco: van al renglón que les toca, no solo al "otros +" de la
@@ -2587,10 +2598,23 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
       // Cuando hay gastos registrados se dice la causa más probable con todas
       // sus letras: casi siempre es un gasto anotado cuyo dinero no salió de la
       // caja, no un faltante de la ejecutiva.
+      // Si lo que sobra COINCIDE con un gasto anotado, se dice con nombre: es
+      // casi siempre eso, y así la ejecutiva no tiene que deducirlo. Pedido por
+      // Karina el 5-ago, viendo su arqueo con $100 de gasolina.
+      const sobra = Math.abs(sinDesglosar);
+      const culpables = (movs || []).filter((m) => !m.entrada && !m.anulado && m.metodo === "efectivo"
+        && Math.abs(Number(m.monto) - sobra) < 0.01);
+      const nombreGasto = culpables.length === 1
+        ? (culpables[0].tipoGasto || String(culpables[0].concepto || "").split(" · ")[0] || "gasto")
+        : null;
       c.value = "⚠ " + (falta ? "FALTAN" : "SOBRAN") + " contra lo contado" +
-        (!falta && egresosEfectivo > 0
-          ? " — revisa si algún gasto se anotó pero el dinero no salió de la caja"
-          : (falta ? " — revisa la cobranza y el conteo" : ""));
+        (!falta && nombreGasto
+          ? " — es justo el gasto de " + nombreGasto + " que se anotó. Revisa si ese dinero YA salió de la caja: "
+            + "si todavía está adentro, cuenten los billetes DESPUÉS de sacarlo; si alguien lo pagó de su bolsa, "
+            + "no va como salida de caja sino como reembolso."
+          : (!falta && egresosEfectivo > 0
+            ? " — revisa si algún gasto se anotó pero el dinero no salió de la caja"
+            : (falta ? " — revisa la cobranza y el conteo" : "")));
     } else {
       c.value = "⚠ Sin conteo de billetes: el efectivo de arriba viene de los pagos registrados";
     }

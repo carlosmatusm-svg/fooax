@@ -1340,6 +1340,33 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     (G.posiblesDobles || []).some((x) => x.monto === 450), JSON.stringify(G.posiblesDobles));
   ok("los gastos siguen bajando el efectivo a entregar",
     arq44.egresosEfectivo === 1580, "egresosEfectivo " + arq44.egresosEfectivo);
+  // Lo que SOBRA contra lo contado casi siempre es un gasto anotado cuyo dinero
+  // no salió de la caja. Si el monto coincide, se dice con nombre en vez de
+  // dejar a la ejecutiva adivinando (Karina, 5-ago, con sus $100 de gasolina).
+  const D44e = "2026-01-29";
+  const reg44e = { "C-1": {} };
+  reg44e["C-1"]["11112783089|Grupal-Basico|CARMEN VIANEY EVANGELISTA MARTINEZ|0"] = { pago: 1000, forma: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: D44e,
+    snapshot: { reg: reg44e, arqueo: { 500: 2 },        // contó los $1,000 completos
+      movs: [{ folio: "ge1", concepto: "GASTO", monto: 100, via: "E", tipoGasto: "Gasolina", nota: "ruta" }] },
+    ts: Date.now() }) });
+  // Christopher es una ejecutiva REAL: hay que mirarlo con la cuenta real, no
+  // con la de prueba (esa solo ve su propia burbuja).
+  const arq44e = await j(await fetch(U + "/api/arqueo?fecha=" + D44e, { headers: H(cm) }));
+  const ch44 = Object.values(arq44e.porEjec || {}).find((x) => /christopher/i.test(x.nombre)) || {};
+  ok("cuando sobra dinero, se atribuye al gasto que coincide",
+    ch44.dif === 100 && ch44.difPorGasto === "Gasolina",
+    "sobra " + ch44.dif + " · atribuido a " + ch44.difPorGasto);
+  const xls44e = await fetch(U + "/api/arqueo/excel?fecha=" + D44e, { headers: H(cm) });
+  ok("y el Excel del arqueo se genera con esa explicación", xls44e.status === 200, "status " + xls44e.status);
+
+  // NUNCA "ahorro": una SOFOM E.N.R. no está autorizada a captar ahorro, y
+  // nombrar así la garantía expone a FOOAX (regla Karina, 5-ago).
+  const eti44 = await (await fetch(U + "/app", { headers: H(ce) })).text();
+  const lst44 = await j(await fetch(U + "/api/movimientos?fecha=" + D44d, { headers: H(cd) }));
+  ok("en ningún lado se le llama AHORRO a la garantía",
+    !/ahorro/i.test(eti44) && !(lst44.lista || []).some((m) => /ahorro/i.test(String(m.concepto || ""))),
+    "aparece en la app o en los conceptos");
 
   console.log("\n— 44c. CONCILIACIÓN: ¿todo lo cobrado bajó de algún saldo? (Karina, 5-ago) —");
   // Es el control que sustituye a pedirle el Excel a Monse para comparar. Si

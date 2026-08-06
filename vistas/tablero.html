@@ -1177,7 +1177,7 @@ async function cargarCartera() {
               : "🔴 HAY " + dinero(k.porArreglar || Math.abs(p.sinExplicar || 0)) + " COBRADOS QUE NO LE BAJARON A NADIE")
       + "</b> — desde el corte del " + hesc(k.desde) + ".<br>"
       + "Se cobró <b>" + dinero(k.cobrado) + "</b> y bajó de saldos <b>" + dinero(k.bajoDeSaldos) + "</b>."
-      + (k.garantias ? " Aparte entraron " + dinero(k.garantias) + " de garantías, que <b>no bajan saldo</b> porque son ahorro." : "")
+      + (k.garantias ? " Aparte entraron " + dinero(k.garantias) + " de garantías, que <b>no bajan saldo</b> porque respaldan el crédito, no lo abonan." : "")
       + (k.diferencia
           ? "<br>La diferencia de " + dinero(k.diferencia) + " se explica así:<br>"
             + (p.cobrosSinCredito ? "&nbsp;&nbsp;• " + dinero(p.cobrosSinCredito) + " de cobros que no empatan con ningún crédito<br>" : "")
@@ -1324,6 +1324,13 @@ async function cargarArqueo() {
       const cuadre = (e.contado > 0 || e.aEntregar > 0)
         ? '<div class="arq-cuadre"><span>contó <b>' + dinero(e.contado || 0) + "</b> · debe entregar <b>" + dinero(e.aEntregar || 0) + "</b></span>" +
           '<span class="' + (cuadra ? "cuadraok" : "cuadrano") + '">' + difTxt + "</span></div>"
+          // Lo que sobra coincide con un gasto suyo: se dice con nombre en vez
+          // de dejarla adivinando de dónde salió la diferencia.
+          + (e.difPorGasto
+            ? '<div class="arq-cuadre" style="font-size:12px;color:#8A5A00">'
+              + "<span>es justo el gasto de <b>" + hesc(e.difPorGasto)
+              + "</b>: ¿ya salió ese dinero de la caja?</span></div>"
+            : "")
         : "";
       return '<div class="arq-ejecblk"><div class="arq-ejec"><span>' + hesc(e.nombre) + "</span><b>efectivo " + dinero(e.efectivo) +
         " · transf. " + dinero(e.transferencia) + otros + "</b></div>" + cuadre + "</div>";
