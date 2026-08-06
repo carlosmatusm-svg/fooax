@@ -1591,6 +1591,11 @@ async function cargarArqueo() {
             + '</span><span style="font-size:12px">revisar</span></div>').join("");
     })() +
     fila("Garantías", dinero(d.garantias)) +
+    // Cuando alguna garantía se capturó suelta (no dentro de la ficha) se dice,
+    // para que el número se pueda rastrear.
+    (d.garantiasDeMovs
+      ? '<div class="arq-fila" style="opacity:.7"><span style="font-size:12px">de eso, capturadas aparte</span>'
+        + '<span style="font-size:12px">' + dinero(d.garantiasDeMovs) + "</span></div>" : "") +
     fila("Mora del día (faltantes)", dinero(d.faltantes), d.faltantes > 0) +
     (porEjec ? '<div style="margin-top:8px">' + porEjec + "</div>" : "") +
     '<button class="arq-enviar" onclick="enviarArqueo()">Enviar arqueo</button>' +

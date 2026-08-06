@@ -1419,6 +1419,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     body: JSON.stringify({ tipo: "Gasto operativo", monto: 400, concepto: "Papelería", metodo: "efectivo", fecha: D44g }) });
   ok("y un GASTO sí sigue restando",
     (await arq44g()).efectivoAEntregar === a44g2.efectivoAEntregar - 400, "no restó");
+  // Una GARANTÍA capturada suelta por Dirección debe salir en el renglón de
+  // garantías, no solo engordar el efectivo a entregar. Antes quedaba escondida:
+  // Monse veía dinero de más sin concepto que lo explicara (Karina, 6-ago).
+  const gar0 = await arq44g();
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Garantía", monto: 300, concepto: "Garantía", metodo: "efectivo", fecha: D44g }) });
+  const gar1 = await arq44g();
+  ok("una garantía capturada aparte SÍ aparece en el renglón de garantías",
+    gar1.garantias === gar0.garantias + 300 && gar1.garantiasDeMovs === 300,
+    "garantías " + gar0.garantias + " → " + gar1.garantias + " (de movs " + gar1.garantiasDeMovs + ")");
+  ok("y también suma al efectivo a entregar, porque ese dinero entró",
+    gar1.efectivoAEntregar === gar0.efectivoAEntregar + 300,
+    gar0.efectivoAEntregar + " → " + gar1.efectivoAEntregar);
   const cat44g = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
   ok("el catálogo separa lo que entra de lo que sale",
     (cat44g.conceptos || []).some((c) => c.nombre === "Liquidación" && c.entrada)

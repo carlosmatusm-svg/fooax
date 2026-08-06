@@ -2253,6 +2253,20 @@ function gastosDelDia(movs, porEjec) {
   return { porTipo, total: Math.round(gastos.reduce((a, m) => a + Number(m.monto || 0), 0) * 100) / 100,
     posiblesDobles: dobles, sobregiro };
 }
+// Cuánto de los "otros movimientos" son GARANTÍAS. Normalmente la garantía viene
+// dentro de la ficha que captura la ejecutiva, pero si una clienta la paga en la
+// oficina, Dirección la registra suelta. Antes ese dinero sumaba al efectivo a
+// entregar y NO aparecía en el renglón de Garantías: Monse veía dinero de más
+// sin concepto que lo explicara. Lo destapó Karina el 6-ago preguntando por qué
+// la garantía estaba en la lista.
+function garantiasDeMovs(movs) {
+  return Math.round((movs || []).reduce((a, m) => {
+    if (m.anulado) return a;
+    const tipo = String(m.tipo || m.concepto || "").split(" · ")[0].split(" — ")[0].trim();
+    if (!/^garant/i.test(tipo)) return a;
+    return a + (m.entrada ? Number(m.monto) : -Number(m.monto));
+  }, 0) * 100) / 100;
+}
 function netoMovsPorMetodo(movs) {
   const out = { transferencia: 0, cheque: 0 };
   for (const m of movs || []) {
@@ -2529,8 +2543,11 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   // salió) del banco: van al renglón que les toca, no solo al "otros +" de la
   // ejecutiva. Lo pidió Karina el 5-ago viendo el arqueo.
   const movsMet = netoMovsPorMetodo(movs);
+  const garMovs = garantiasDeMovs(movs);
   res.json({
     fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
+    // Las garantías del renglón son las de FICHA más las capturadas sueltas.
+    garantias: Math.round((a.garantias + garMovs) * 100) / 100, garantiasDeMovs: garMovs,
     movsTransferencia: movsMet.transferencia, movsCheque: movsMet.cheque,
     gastos: gastosDelDia(movs, a.porEjec), tiposGasto: TIPOS_GASTO,
     denominaciones: DENOMS_ARQUEO,
