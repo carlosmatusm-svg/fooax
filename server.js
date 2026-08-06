@@ -2159,6 +2159,26 @@ app.post("/api/saldos/corte", soloAnelMonse, (req, res) => {
 
 // ---------- movimientos de dirección/caja (retiros, gastos, autorizaciones) ----------
 const CATEGORIAS = ["Retiro de dirección", "Gasto operativo", "Autorización / préstamo", "Otro"];
+// CATÁLOGO DE MOVIMIENTOS DE DIRECCIÓN. Antes el concepto era texto libre y el
+// movimiento SIEMPRE se guardaba como salida: una liquidación capturada aquí le
+// bajaba el saldo a la clienta (bien) pero además RESTABA del efectivo a
+// entregar (mal). Con $1,000 el error era de $2,000, porque ese dinero entró.
+// Lo cachó la Ing. Monse el 6-ago: «liquidación y recuperación solo son
+// aplicables para ingresos, no egresos». Ahora el concepto se elige de lista y
+// él decide si el dinero ENTRA o SALE, igual que en la app de las ejecutivas.
+const CONCEPTOS_DIR = {
+  // ENTRADAS · dinero que LLEGA a la caja
+  "Liquidación":                 { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  "Recuperación / adelanto":     { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  "Comisión de desembolso":      { entrada: true,  categoria: "Otro", clienta: "sugiere" },
+  "Garantía":                    { entrada: true,  categoria: "Otro", clienta: "sugiere" },
+  // SALIDAS · dinero que SALE de la caja
+  "Gasto operativo":             { entrada: false, categoria: "Gasto operativo" },
+  "Retiro de dirección":         { entrada: false, categoria: "Retiro de dirección" },
+  "Autorización / préstamo":     { entrada: false, categoria: "Autorización / préstamo" },
+  "Desembolso (crédito nuevo)":  { entrada: false, categoria: "Autorización / préstamo", clienta: "sugiere" },
+  "Otro":                        { entrada: false, categoria: "Otro" },
+};
 const METODOS = ["efectivo", "transferencia", "cheque"];
 
 // Movimientos que capturan las EJECUTIVAS en la pestaña "Otros movimientos".
@@ -2305,7 +2325,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
   const monto = Number(b.monto);
   const concepto = (b.concepto || "").trim();
-  const categoria = CATEGORIAS.includes(b.categoria) ? b.categoria : null;
+  // El TIPO manda: de él salen `entrada` y la categoría. Se acepta el catálogo
+  // nuevo y, por compatibilidad, la categoría suelta de los movimientos viejos.
+  const tipo = CONCEPTOS_DIR[String(b.tipo || "").trim()] || null;
+  const categoria = tipo ? tipo.categoria : (CATEGORIAS.includes(b.categoria) ? b.categoria : null);
   const metodo = METODOS.includes(b.metodo) ? b.metodo : null;
   const fecha = b.fecha || hoyMX();
   // La fecha del gasto la elige quien captura: antes no había campo y TODO caía
@@ -2315,7 +2338,11 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   if (fecha > hoyMX()) return res.status(400).json({ error: "El gasto no puede ser de una fecha futura." });
   if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
   if (!concepto) return res.status(400).json({ error: "Escribe un concepto para el movimiento." });
-  if (!categoria) return res.status(400).json({ error: "Elige una categoría válida." });
+  if (!categoria) return res.status(400).json({ error: "Elige de qué es el movimiento." });
+  // Una liquidación o recuperación SIN clienta entra a la caja y no le baja el
+  // saldo a nadie: por eso aquí se exige, no se sugiere.
+  if (tipo && tipo.clienta === "obliga" && !String(b.socio || "").trim())
+    return res.status(400).json({ error: "Elige la CLIENTA: una " + String(b.tipo).toLowerCase() + " le baja el saldo a alguien, y sin clienta ese dinero no se aplica." });
   if (!metodo) return res.status(400).json({ error: "Elige el método (efectivo o transferencia)." });
   // A QUIÉN pertenece el gasto. Sin esto el movimiento quedaba a nombre de quien
   // lo capturó (Dirección) y no le sumaba a NINGUNA ejecutiva. Es opcional: un
@@ -2340,6 +2367,8 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const folio = "DIR-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
   const mov = {
     folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec, socio,
+    // ENTRADA o SALIDA. Sin esto todo se guardaba como salida.
+    tipo: tipo ? String(b.tipo).trim() : null, entrada: tipo ? !!tipo.entrada : false,
     autorizadoA: (b.autorizadoA || "").trim() || null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
@@ -3127,6 +3156,11 @@ app.post("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
 
 // Las ejecutivas del sistema, para que el tablero pueda preguntar «¿de quién es
 // este gasto?» al registrar un movimiento de caja.
+// El catálogo de conceptos, para que el tablero arme su menú de una sola fuente.
+app.get("/api/conceptos", requiere("direccion", "admin"), (req, res) => {
+  res.json({ conceptos: Object.keys(CONCEPTOS_DIR).map((k) => ({
+    nombre: k, entrada: !!CONCEPTOS_DIR[k].entrada, clienta: CONCEPTOS_DIR[k].clienta || null })) });
+});
 app.get("/api/ejecutivos", requiere("direccion", "admin"), (req, res) => {
   res.json({ ejecutivos: idsEjecutivos(req.usuario)
     .map((id) => ({ id, nombre: USUARIOS[id].nombre }))

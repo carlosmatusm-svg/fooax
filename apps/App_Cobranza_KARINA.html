@@ -266,7 +266,7 @@
         <option value="GASTO">Gasto</option>
       </select>
     </div>
-    <div class="row2" style="margin-top:9px">
+    <div class="row2" style="margin-top:9px" id="movQuienBox">
       <div><label>Centro</label>
         <select id="movCentro"><option value="">— Centro —</option></select>
       </div>
@@ -1401,6 +1401,15 @@ function toggleGasto(){
   const esGasto=document.getElementById('movConcepto').value==='GASTO';
   const box=document.getElementById('gastoBox');
   if(box)box.style.display=esGasto?'block':'none';
+  // CENTRO Y CLIENTA NO APLICAN A UN GASTO: la gasolina, la papelería o los
+  // alimentos son de la RUTA o de una necesidad general, no de una clienta
+  // (Ing. Monse, 6-ago). Se esconden y se limpian para que no se cuelen.
+  const quien=document.getElementById('movQuienBox');
+  if(quien)quien.style.display=esGasto?'none':'';
+  if(esGasto){
+    const c=document.getElementById('movCentro'), cl=document.getElementById('movClienta');
+    if(c)c.value=''; if(cl)cl.value='';
+  }
   // En un gasto la nota NO es opcional: es el comprobante que Dirección
   // lee para autorizarlo. El texto del campo lo tiene que decir.
   const lab=document.getElementById('labelNota');

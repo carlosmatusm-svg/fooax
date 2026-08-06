@@ -234,17 +234,27 @@
   /* Fase 2 · cartera, mora y semáforo */
   .ct-hero{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;margin:12px 16px 0}
   .ct-hero .eti{font-size:11.5px;font-weight:800;color:var(--gris);letter-spacing:.03em;text-transform:uppercase}
-  .ct-vs{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
-  .ct-vs>div{flex:1;min-width:120px}
-  .ct-n{font:800 21px/1.15 var(--fuente);font-variant-numeric:tabular-nums;color:var(--tinta)}
+  /* HERO DE CARTERA. Antes eran cinco números del mismo tamaño en cajas de
+     min-width 120px: con cifras de seis dígitos a 21px no cabían y se
+     encabalgaban ("$134,896.50$7,582.50"). Ahora hay UN titular —el
+     cumplimiento, que es la pregunta que se viene a contestar— y el resto
+     abajo en una rejilla que sí respeta el ancho del teléfono. */
+  .ct-tit{display:flex;align-items:flex-end;gap:12px;margin-top:8px;flex-wrap:wrap}
+  .ct-pct{font:800 40px/1 var(--fuente);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .ct-pct.bien{color:#0B7247}.ct-pct.medio{color:#8A4A12}.ct-pct.mal{color:#B00020}
+  .ct-pct-l{font-size:12px;color:var(--gris);line-height:1.3;padding-bottom:4px}
+  .ct-vs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;margin-top:12px}
+  .ct-vs>div{min-width:0}
+  .ct-n{font:800 17px/1.2 var(--fuente);font-variant-numeric:tabular-nums;color:var(--tinta);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ct-n.mora{color:#B00020}.ct-n.ok{color:#0B7247}.ct-n.rec{color:#8A5A00}
-  .ct-l{font-size:11.5px;color:var(--gris);margin-top:2px}
+  .ct-l{font-size:11px;color:var(--gris);margin-top:1px;line-height:1.25}
   .ct-barra{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:11px;background:var(--lav)}
   .ct-barra i{display:block}
   .ct-cumpl{font-size:12px;color:var(--gris);margin-top:7px}
   .ct-cumpl b{color:var(--tinta);font-variant-numeric:tabular-nums}
-  .ct-sem{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
-  .ct-chip{font-size:11.5px;font-weight:700;border-radius:99px;padding:5px 11px;border:1.5px solid}
+  .ct-sem{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:11px;border-top:1px solid var(--lav)}
+  .ct-chip{font-size:11px;font-weight:700;border-radius:99px;padding:4px 9px;border:1px solid;white-space:nowrap}
   .ct-chip .q{font-variant-numeric:tabular-nums}
   /* AVISOS DE CARTERA. Antes todos se veían igual —mismo beige— así que "todo
      bien" y "hay dinero perdido" competían por la misma atención, y el más
@@ -501,11 +511,26 @@
         <div class="mcampo"><label>Monto</label><input id="mMonto" type="number" inputmode="decimal" min="0" step="0.01" required></div>
         <div class="mcampo"><label>Método</label><select id="mMetodo"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="cheque">Cheque</option></select></div>
       </div>
-      <div class="mcampo"><label>Categoría</label><select id="mCategoria">
-        <option>Retiro de dirección</option><option>Gasto operativo</option><option>Autorización / préstamo</option><option>Otro</option>
-      </select></div>
+      <!-- EL CONCEPTO decide si el dinero ENTRA o SALE. Antes era texto libre y
+           todo se guardaba como salida: una liquidación restaba del efectivo a
+           entregar cuando en realidad lo aumenta (Ing. Monse, 6-ago). -->
+      <div class="mcampo"><label>¿Qué movimiento es?</label><select id="mTipo" onchange="tipoMovCambio()">
+        <optgroup label="Entra dinero a la caja">
+          <option>Liquidación</option>
+          <option>Recuperación / adelanto</option>
+          <option>Comisión de desembolso</option>
+          <option>Garantía</option>
+        </optgroup>
+        <optgroup label="Sale dinero de la caja">
+          <option selected>Gasto operativo</option>
+          <option>Retiro de dirección</option>
+          <option>Autorización / préstamo</option>
+          <option>Desembolso (crédito nuevo)</option>
+          <option>Otro</option>
+        </optgroup>
+      </select><div class="rechint" id="mTipoHint" style="margin:6px 0 0"></div></div>
       <div class="mcampo"><label>Concepto (¿en qué?)</label><input id="mConcepto" type="text" required placeholder="Ej. pago de luz, retiro para insumos…"></div>
-      <div class="mcampo"><label>¿De qué clienta es? (para liquidaciones y recuperaciones)</label>
+      <div class="mcampo" id="mCliCampo"><label>¿De qué clienta es?</label>
         <input id="mBuscaCli" type="text" placeholder="Escribe el nombre o el número de socio" autocomplete="off">
         <select id="mSocio"><option value="">— Sin clienta —</option></select>
         <div class="rechint" id="mCliHint">Si no eliges clienta, el dinero entra a la caja pero <b>no le baja el saldo a nadie</b>.</div>
@@ -1010,15 +1035,10 @@ async function registrarMov(e) {
     fecha: $("mFecha").value || undefined,
     monto: $("mMonto").value, metodo: $("mMetodo").value, ejecutivo: $("mEjec").value,
     socio: $("mSocio").value,
-    categoria: $("mCategoria").value, concepto: $("mConcepto").value, autorizadoA: $("mAut").value,
+    tipo: $("mTipo").value, concepto: $("mConcepto").value, autorizadoA: $("mAut").value,
   };
-  // Una liquidación o recuperación SIN clienta entra a la caja y no le baja el
-  // saldo a nadie. Antes ni siquiera se podía elegir clienta desde aquí; ahora
-  // que sí, se avisa antes de guardar en vez de descubrirlo después.
-  if (!body.socio && /liquidaci|recuperaci/i.test(body.concepto || "")
-      && !confirm("Este movimiento parece una liquidación o recuperación y NO le pusiste clienta.\n\nEl dinero va a entrar a la caja pero no le va a bajar el saldo a nadie. ¿Lo guardo así?")) {
-    btn.disabled = false; return;
-  }
+  // La liquidación y la recuperación SIN clienta las rechaza el servidor: ese
+  // dinero entraría a la caja sin bajarle el saldo a nadie.
   if (!body.fecha) { err.textContent = "Elige la fecha en que salió el gasto."; err.classList.add("on"); btn.disabled = false; return; }
   try {
     const r = await fetch("/api/movimiento", {
@@ -1037,6 +1057,32 @@ async function registrarMov(e) {
 // el mismo que usa la búsqueda del tablero: escribe nombre o socio y elige el
 // crédito. Sin esto una liquidación capturada por Dirección no se podía ligar a
 // nadie y el saldo de la clienta nunca bajaba.
+// Qué hace cada concepto, dicho al momento de elegirlo: si el dinero entra o
+// sale, y si hay que decir de qué clienta es. Los gastos de ruta —gasolina,
+// papelería— no son de ninguna clienta (Ing. Monse, 6-ago).
+let CONCEPTOS = [];
+async function cargarConceptos() {
+  if (CONCEPTOS.length) return;
+  try { CONCEPTOS = (await (await fetch("/api/conceptos", { credentials: "include" })).json()).conceptos || []; }
+  catch { return; }
+  tipoMovCambio();
+}
+function tipoMovCambio() {
+  const sel = $("mTipo"), hint = $("mTipoHint"), campo = $("mCliCampo");
+  if (!sel) return;
+  const c = CONCEPTOS.find((x) => x.nombre === sel.value) || {};
+  if (hint) hint.innerHTML = c.entrada
+    ? '<b style="color:#0B7247">Entra dinero a la caja</b> — suma al efectivo que se entrega.'
+    : '<b style="color:#B00020">Sale dinero de la caja</b> — resta del efectivo que se entrega.';
+  if (campo) {
+    campo.style.display = c.clienta ? "" : "none";
+    const lab = campo.querySelector("label");
+    if (lab) lab.textContent = c.clienta === "obliga"
+      ? "¿De qué clienta es? (obligatorio: le baja el saldo)"
+      : "¿De qué clienta es? (opcional)";
+    if (!c.clienta) { const sc = $("mSocio"); if (sc) sc.value = ""; }
+  }
+}
 let mCliTimer = null;
 function armarBuscadorClienta() {
   const inp = $("mBuscaCli"), sel = $("mSocio");
@@ -1113,7 +1159,7 @@ async function cargarCajaSemana() {
     + '' + flecha.replace("'", "\'") + '' + "Descargar este cierre en Excel</button>";
 }
 async function cargarMovs() {
-  cargarEjecutivos(); armarBuscadorClienta(); cargarCajaSemana();
+  cargarEjecutivos(); armarBuscadorClienta(); cargarCajaSemana(); cargarConceptos();
   let d;
   try { d = await (await fetch("/api/movimientos" + fq(), { credentials: "include" })).json(); }
   catch { return; }
@@ -1208,18 +1254,26 @@ async function cargarCartera() {
   // "mora de la semana" pero medía esperado − cobrado: un martes marcaba
   // $272,469 de "mora" que eran centros que todavía no llegaban a su día. Ahora
   // se separan: mora es lo que YA venció sin cubrirse; el resto es pendiente.
+  const espFecha = d.esperadoALaFecha != null ? d.esperadoALaFecha : d.esperadoSemana;
+  const cum = d.cumplimiento || 0;
+  const tono = cum >= 90 ? "bien" : cum >= 70 ? "medio" : "mal";
   let h = '<div class="ct-hero"><div class="eti">Cobranza de la semana</div>'
-    + '<div class="ct-vs">'
-    + '<div><div class="ct-n">' + dinero(d.esperadoALaFecha != null ? d.esperadoALaFecha : d.esperadoSemana) + '</div><div class="ct-l">esperado a la fecha</div></div>'
-    + '<div><div class="ct-n ok">' + dinero(d.cobradoSemana) + '</div><div class="ct-l">cobrado</div></div>'
-    + '<div><div class="ct-n mora">' + dinero(d.moraSemana) + '</div><div class="ct-l">mora (ya venció)</div></div>'
-    + '<div><div class="ct-n">' + dinero(d.pendienteSemana || 0) + '</div><div class="ct-l">pendiente de cobro</div></div>'
-    + '<div><div class="ct-n rec">' + dinero(d.recuperacionSemana) + '</div><div class="ct-l">recuperación</div></div>'
-    + "</div>"
+    // EL TITULAR es el cumplimiento: es la pregunta que se viene a contestar.
+    // Los cinco montos van abajo, más chicos, como el respaldo del número.
+    + '<div class="ct-tit"><div class="ct-pct ' + tono + '">' + cum + "%</div>"
+    + '<div class="ct-pct-l">de lo que ya debía entrar<br>'
+    + "<b>" + dinero(d.cobradoSemana) + "</b> de " + dinero(espFecha) + "</div></div>"
     + '<div class="ct-barra"><i style="width:' + pct + '%;background:#0B7247"></i><i style="width:' + (100 - pct) + '%;background:#E9C3C8"></i></div>'
-    + '<div class="ct-cumpl">Cumplimiento <b>a la fecha</b>: <b>' + (d.cumplimiento || 0) + "%</b> — sobre "
-    + dinero(d.esperadoALaFecha != null ? d.esperadoALaFecha : d.esperadoSemana) + " que ya debía entrar, no sobre los "
-    + dinero(d.esperadoSemana) + " de la semana completa · semana del " + hesc(d.lunes) + " al " + hesc(d.hoy) + "</div>"
+    + '<div class="ct-vs">'
+    + '<div><div class="ct-n ok">' + dinero(d.cobradoSemana) + '</div><div class="ct-l">cobrado</div></div>'
+    + '<div><div class="ct-n">' + dinero(espFecha) + '</div><div class="ct-l">esperado a la fecha</div></div>'
+    + '<div><div class="ct-n mora">' + dinero(d.moraSemana) + '</div><div class="ct-l">mora · ya venció</div></div>'
+    + '<div><div class="ct-n">' + dinero(d.pendienteSemana || 0) + '</div><div class="ct-l">pendiente · aún no vence</div></div>'
+    + '<div><div class="ct-n rec">' + dinero(d.recuperacionSemana) + '</div><div class="ct-l">recuperación</div></div>'
+    + '<div><div class="ct-n">' + dinero(d.esperadoSemana) + '</div><div class="ct-l">semana completa</div></div>'
+    + "</div>"
+    + '<div class="ct-cumpl">Semana del ' + hesc(d.lunes) + " al " + hesc(d.hoy)
+    + ". El cumplimiento se mide contra lo que <b>ya debía entrar</b> a la fecha, no contra la semana completa.</div>"
     + '<div class="ct-sem">'
     + chip("Al corriente", S.alCorriente || 0, "#0B7247", "#EAF7EF")
     + chip("Pago parcial", S.parcial || 0, "#8A5A00", "#FFF6E9")

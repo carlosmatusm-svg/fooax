@@ -1385,6 +1385,46 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !/ahorro/i.test(eti44) && !(lst44.lista || []).some((m) => /ahorro/i.test(String(m.concepto || ""))),
     "aparece en la app o en los conceptos");
 
+  console.log("\n— 44g. LIQUIDACIÓN Y RECUPERACIÓN SON INGRESOS, NO EGRESOS (Monse, 6-ago) —");
+  // El formulario de Dirección guardaba TODO como salida: una liquidación le
+  // bajaba el saldo a la clienta (bien) pero además RESTABA del efectivo a
+  // entregar (mal). Con $1,000 el error era de $2,000, porque ese dinero entra.
+  // «Esos conceptos solo son aplicables para ingresos, no egresos» — Ing. Monse.
+  const D44g = "2026-02-25";
+  const arq44g = async () => j(await fetch(U + "/api/arqueo?fecha=" + D44g, { headers: H(cm) }));
+  const sal44g = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=11112807346", { headers: H(cm) }));
+    const x = (d.resultados || [])[0]; return x ? x.saldoActual : null;
+  };
+  const a44g0 = await arq44g(), s44g0 = await sal44g();
+  const rLiq = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 1000, concepto: "Liquidación total",
+      metodo: "efectivo", socio: "11112807346", fecha: D44g }) }));
+  const a44g1 = await arq44g(), s44g1 = await sal44g();
+  ok("una liquidación de Dirección se guarda como ENTRADA",
+    rLiq.movimiento && rLiq.movimiento.entrada === true, JSON.stringify(rLiq).slice(0, 100));
+  // El abono se TOPA al saldo: si debía menos de lo abonado, queda en cero y el
+  // resto es sobrante, no dinero perdido.
+  ok("le baja el saldo a la clienta (topándose en cero)",
+    s44g1 === Math.max(0, s44g0 - 1000), s44g0 + " → " + s44g1);
+  ok("y SUMA al efectivo a entregar (antes lo restaba: error del doble)",
+    a44g1.efectivoAEntregar === a44g0.efectivoAEntregar + 1000,
+    a44g0.efectivoAEntregar + " → " + a44g1.efectivoAEntregar);
+  const rSinCli = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 500, concepto: "x", metodo: "efectivo", fecha: D44g }) });
+  ok("una liquidación SIN clienta se rechaza: ese dinero no le bajaría a nadie",
+    rSinCli.status === 400, "status " + rSinCli.status);
+  const a44g2 = await arq44g();
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 400, concepto: "Papelería", metodo: "efectivo", fecha: D44g }) });
+  ok("y un GASTO sí sigue restando",
+    (await arq44g()).efectivoAEntregar === a44g2.efectivoAEntregar - 400, "no restó");
+  const cat44g = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
+  ok("el catálogo separa lo que entra de lo que sale",
+    (cat44g.conceptos || []).some((c) => c.nombre === "Liquidación" && c.entrada)
+    && (cat44g.conceptos || []).some((c) => c.nombre === "Gasto operativo" && !c.entrada),
+    JSON.stringify(cat44g.conceptos));
+
   console.log("\n— 44f. CIERRE DE CAJA DE LA SEMANA (Karina, 5-ago · su urgencia #4) —");
   // El arqueo diario contesta "¿cuánto entrega cada ejecutiva hoy?", no "¿cuánto
   // efectivo tiene FOOAX el sábado?". Por eso al cierre aparecía un excedente sin
