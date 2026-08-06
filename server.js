@@ -2560,6 +2560,76 @@ function cierreDeCaja(usuario, lunesOpt) {
 app.get("/api/semana/caja", requiere("direccion", "admin"), (req, res) => {
   res.json(cierreDeCaja(req.usuario, req.query.lunes));
 });
+// El mismo cierre en Excel, para mandárselo a Dirección o guardarlo del sábado.
+app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, res) => {
+  const c = cierreDeCaja(req.usuario, req.query.lunes);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const s = wb.addWorksheet("Cierre de caja", { properties: { defaultColWidth: 20 } });
+  const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF0B7247";
+  const dinero = '"$"#,##0.00';
+  const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const nomDia = (f) => { const [y, m, d] = f.split("-").map(Number);
+    return DIAS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] + " " + d; };
+  s.columns = [{ width: 44 }, { width: 16 }, { width: 16 }, { width: 16 }];
+  let fila = 1;
+  const tit = s.getRow(fila++); s.mergeCells(1, 1, 1, 4);
+  tit.getCell(1).value = "FOOAX · CIERRE DE CAJA DE LA SEMANA · " + c.lunes + " al " + c.hasta;
+  tit.getCell(1).font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  tit.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  tit.getCell(1).alignment = { horizontal: "center" }; tit.height = 22;
+  const nota = s.getRow(fila++); s.mergeCells(2, 1, 2, 4);
+  nota.getCell(1).value = "La caja arranca en CERO cada lunes, así que lo que debe quedar es lo que entró menos lo que salió.";
+  nota.getCell(1).font = { italic: true, size: 9 };
+  nota.getCell(1).alignment = { horizontal: "center" };
+  fila++;
+  const enc = (txt, color) => { const r = s.getRow(fila++); s.mergeCells(fila - 1, 1, fila - 1, 3);
+    r.getCell(1).value = txt; r.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    r.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } }; return r; };
+  const linea = (txt, val, negrita) => { const r = s.getRow(fila++);
+    r.getCell(1).value = txt; if (negrita) r.getCell(1).font = { bold: true };
+    const cc = r.getCell(4); cc.value = val; cc.numFmt = dinero; if (negrita) cc.font = { bold: true }; };
+  enc("ENTRÓ EN EFECTIVO", RIO).getCell(4).value = null;
+  linea("Cobranza (fichas, garantías y solidario)", c.entroCobranza);
+  for (const k of Object.keys(c.entradasPorTipo).sort((a, b) => c.entradasPorTipo[b] - c.entradasPorTipo[a]))
+    linea("   " + k, c.entradasPorTipo[k]);
+  linea("TOTAL QUE ENTRÓ", c.entro, true);
+  fila++;
+  enc("SALIÓ EN EFECTIVO", RIO);
+  const sal = Object.keys(c.salidasPorTipo).sort((a, b) => c.salidasPorTipo[b] - c.salidasPorTipo[a]);
+  if (!sal.length) linea("Nada salió de la caja esta semana", 0);
+  for (const k of sal) linea("   " + k, c.salidasPorTipo[k]);
+  linea("TOTAL QUE SALIÓ", c.salio, true);
+  fila++;
+  const rq = s.getRow(fila++); s.mergeCells(fila - 1, 1, fila - 1, 3);
+  rq.getCell(1).value = "EFECTIVO QUE DEBE QUEDAR EL SÁBADO";
+  rq.getCell(1).font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+  rq.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: VERDE } };
+  const cq = rq.getCell(4); cq.value = c.quedaEnCaja; cq.numFmt = dinero;
+  cq.font = { bold: true, size: 12, color: { argb: VERDE } };
+  fila++;
+  enc("APARTE — NO ES EFECTIVO, VA AL BANCO", "FF8A5A00");
+  linea("Transferencias", c.transferencias);
+  linea("Depósitos Oxxo / tienda", c.depositos);
+  if (c.cheques) linea("Cheques (son papel, no billetes)", c.cheques);
+  fila++;
+  const rh = s.getRow(fila++);
+  ["Día", "Entró", "Salió", "Neto"].forEach((h, i) => { const cc = rh.getCell(i + 1);
+    cc.value = h; cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    cc.alignment = { horizontal: i ? "center" : "left" }; });
+  for (const d of (c.dias || [])) {
+    const r = s.getRow(fila++);
+    r.getCell(1).value = nomDia(d.fecha) + " · " + d.fecha;
+    r.getCell(2).value = d.cobranza + d.entradas; r.getCell(2).numFmt = dinero;
+    r.getCell(3).value = d.salidas; r.getCell(3).numFmt = dinero;
+    const cn = r.getCell(4); cn.value = d.neto; cn.numFmt = dinero;
+    cn.font = { bold: true, color: { argb: d.neto < 0 ? "FFB00020" : "FF000000" } };
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Cierre de caja FOOAX ${c.lunes} al ${c.hasta}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
 
 // ---------- ARQUEO DE CAJA en Excel (formato de la ficha física) ----------
 // Botón para Monse: cuenta el efectivo por denominación (billetes/monedas),

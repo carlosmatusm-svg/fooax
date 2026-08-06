@@ -529,6 +529,7 @@
   <h3>Descargas en Excel</h3>
   <div class="descargas">
     <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')">🧾 Arqueo de caja del día</button>
+    <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')">💵 Cierre de caja de la semana</button>
     <button class="dlbtn" onclick="descargar('/api/semana/excel')">📊 Saldos actualizados de la semana</button>
     <button class="dlbtn secun" onclick="descargar('/api/respaldo')">💾 Respaldo completo (toda la cobranza)</button>
   </div>
@@ -1079,7 +1080,11 @@ async function cargarCajaSemana() {
     + '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Día</th><th>Entró</th><th>Salió</th><th>Neto</th></tr></thead><tbody>'
     + (c.dias || []).map((d) => "<tr><td>" + hesc(nom(d.fecha)) + "</td><td>" + dinero(d.cobranza + d.entradas)
         + "</td><td>" + dinero(d.salidas) + "</td><td><b>" + dinero(d.neto) + "</b></td></tr>").join("")
-    + "</tbody></table>";
+    + "</tbody></table>"
+    // El botón va aquí también, no solo en la lista de descargas: es donde se
+    // está mirando el número cuando dan ganas de mandárselo a alguien.
+    + '<button class="recbtn" style="margin-top:10px" onclick="descargar(\'/api/semana/caja/excel\')">'
+    + "⬇ Descargar este cierre en Excel</button>";
 }
 async function cargarMovs() {
   cargarEjecutivos(); armarBuscadorClienta(); cargarCajaSemana();

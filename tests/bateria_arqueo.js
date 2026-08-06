@@ -1398,6 +1398,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     caja.entro + " − " + caja.salio + " = " + caja.quedaEnCaja);
   ok("la semana va de LUNES a SÁBADO, nunca más de 6 días",
     (caja.dias || []).length <= 6, (caja.dias || []).length + " días");
+  const xlsCaja = await fetch(U + "/api/semana/caja/excel", { headers: H(cm) });
+  ok("el cierre se puede descargar en Excel",
+    xlsCaja.status === 200 && /spreadsheet/.test(xlsCaja.headers.get("content-type") || ""),
+    xlsCaja.status + " " + xlsCaja.headers.get("content-type"));
   ok("y las transferencias van APARTE: no son efectivo de caja",
     caja.transferencias != null && caja.depositos != null,
     "transf " + caja.transferencias + " · dep " + caja.depositos);
