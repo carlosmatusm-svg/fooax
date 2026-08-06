@@ -867,13 +867,23 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
 // impedía decir que los saldos se actualizan solos (Karina, 5-ago).
 function cobranzaSinCredito(usuario, desde) {
   const { detalle } = pagosDeLaSemana(usuario, desde || corteSaldos());
-  const vivas = new Set(PADRON.map((c) => claveCredito(c.id, c.producto)));
+  // Solo los créditos ACTIVOS pueden recibir un abono. Antes se comparaba contra
+  // TODO el padrón, así que un cobro a una clienta DADA DE BAJA empataba, no se
+  // avisaba, y aun así no le bajaba el saldo a nadie: el dinero desaparecía en
+  // silencio y la conciliación decía que el día cuadraba. Lo encontró una prueba
+  // adversarial el 5-ago.
+  const vivas = new Set(PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
+    .map((c) => claveCredito(c.id, c.producto)));
   const out = [];
   for (const clave in detalle) {
     const d = detalle[clave];
     if ((d.pago || 0) + (d.gar || 0) <= 0) continue;
     if (vivas.has(clave)) continue;
     const otros = PADRON.filter((c) => String(c.id) === String(d.socio));
+    const activos = otros.filter((c) => c.activa !== false && c.estatus !== "BAJA");
+    // El mismo crédito, pero dado de baja: no es un dedazo, es una clienta que
+    // se cerró y a la que le siguieron cobrando.
+    const deBaja = otros.find((c) => claveCredito(c.id, c.producto) === clave);
     out.push({
       socio: d.socio, producto: d.producto,
       pago: Math.round((d.pago || 0) * 100) / 100, garantia: Math.round((d.gar || 0) * 100) / 100,
@@ -882,7 +892,9 @@ function cobranzaSinCredito(usuario, desde) {
       // Si la clienta SÍ existe con otros productos, casi siempre es un dedazo
       // en el nombre del producto y se puede decir cuáles son los buenos.
       clienta: otros.length ? otros[0].nombre : null,
-      productosQueSiTiene: otros.map((c) => c.producto),
+      productosQueSiTiene: activos.map((c) => c.producto),
+      estaDeBaja: !!deBaja,
+      motivoBaja: deBaja ? (deBaja.motivo_baja || deBaja.estatus || null) : null,
     });
   }
   return out.sort((a, b) => b.pago - a.pago);

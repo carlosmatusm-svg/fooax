@@ -1312,6 +1312,23 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     sc44.some((x) => String(x.socio) === "99999999999" && x.pago === 700), JSON.stringify(sc44));
   ok("y un cobro BUENO no sale en la lista",
     !sc44.some((x) => String(x.socio) === "11112783089"), JSON.stringify(sc44.map((x) => x.socio)));
+  // EL QUE SE PERDÍA EN SILENCIO: un cobro a una clienta DADA DE BAJA. Antes se
+  // comparaba contra TODO el padrón, así que empataba, no se avisaba, y aun así
+  // no le bajaba el saldo a nadie: el dinero desaparecía y la conciliación decía
+  // que el día cuadraba. Lo encontró una prueba adversarial el 5-ago.
+  const SB = "11112949301";                       // NOEMI GARCIA, Christopher
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SB, producto: "Grupal-Basico", motivo: "No renovó" }) });
+  const regB = { C44b: {} };
+  regB.C44b[SB + "|Grupal-Basico|NOEMI|0"] = { pago: 400, forma: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cCh),
+    body: JSON.stringify({ fecha: "2026-06-04", snapshot: { reg: regB }, ts: Date.now() }) });
+  const scB = (await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).cobranzaSinCredito || [];
+  const xb = scB.find((x) => String(x.socio) === SB);
+  ok("un cobro a una clienta DADA DE BAJA también se detecta", !!xb,
+    JSON.stringify(scB.map((x) => x.socio)));
+  ok("y se dice que está de baja, no que sea un dedazo de producto",
+    !!(xb && xb.estaDeBaja && xb.motivoBaja), JSON.stringify(xb));
 
   console.log("\n— 44d. GASTOS DE CAMPO CON TIPO, Y SUS CONTROLES (Karina, 5-ago) —");
   // La ejecutiva ya podía capturar gastos, pero todos caían en un cajón

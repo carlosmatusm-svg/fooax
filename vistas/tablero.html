@@ -1265,8 +1265,15 @@ async function cargarCartera() {
       + d.cobranzaSinCredito.slice(0, 8).map((x) => "• " + ((x.fechas || []).join(" y ") || "—")
           + " · socio " + hesc(x.socio) + " · <b>" + hesc(x.producto) + "</b> · "
           + dinero(x.pago + x.garantia) + (x.ejecutivo ? " · " + hesc(x.ejecutivo) : "")
-          + (x.clienta
-             ? "<br>&nbsp;&nbsp;&nbsp;es " + hesc(x.clienta) + ", y sus créditos son: " + x.productosQueSiTiene.map(hesc).join(", ")
+          // Tres causas distintas, y cada una se arregla diferente.
+          + (x.estaDeBaja
+             ? "<br>&nbsp;&nbsp;&nbsp;<b>" + hesc(x.clienta || "esa clienta") + " está DADA DE BAJA</b>"
+               + (x.motivoBaja ? " (" + hesc(x.motivoBaja) + ")" : "")
+               + " y le siguieron cobrando. Si el cobro es bueno hay que reactivarle el crédito;"
+               + " si no, ese dinero es de otra clienta."
+             : x.clienta
+             ? "<br>&nbsp;&nbsp;&nbsp;es " + hesc(x.clienta) + ", y sus créditos activos son: "
+               + (x.productosQueSiTiene.length ? x.productosQueSiTiene.map(hesc).join(", ") : "ninguno")
                + ". Parece dedazo en el producto."
              // Si el socio NO existe, casi siempre la ejecutiva usó "Agregar
              // clienta nueva" en su app —queda solo en su teléfono— y nadie la
