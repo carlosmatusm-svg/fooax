@@ -246,6 +246,26 @@
   .ct-sem{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .ct-chip{font-size:11.5px;font-weight:700;border-radius:99px;padding:5px 11px;border:1.5px solid}
   .ct-chip .q{font-variant-numeric:tabular-nums}
+  /* AVISOS DE CARTERA. Antes todos se veían igual —mismo beige— así que "todo
+     bien" y "hay dinero perdido" competían por la misma atención, y el más
+     importante quedaba enterrado bajo un muro de texto. Ahora la severidad se
+     lee de un vistazo: barra de color a la izquierda, título propio y el
+     detalle plegado cuando es largo. */
+  .av{border-radius:14px;margin:10px 16px 0;background:#fff;border:1px solid var(--lav);
+    border-left:4px solid var(--lav);overflow:hidden}
+  .av-alta{border-left-color:#B00020;background:#FFF5F6}
+  .av-media{border-left-color:#FD6E29;background:#FFF8F1}
+  .av-ok{border-left-color:#0B7247;background:#F2FAF6}
+  .av-info{border-left-color:#C9CEE6}
+  .av-h{display:flex;align-items:baseline;gap:8px;padding:11px 14px;font-size:13px;font-weight:800;color:var(--tinta)}
+  .av-alta .av-h{color:#8E0019} .av-media .av-h{color:#8A4A12} .av-ok .av-h{color:#0B7247}
+  .av-monto{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .av-b{padding:0 14px 12px;font-size:11.5px;line-height:1.5;color:var(--gris)}
+  .av-li{padding:6px 14px;font-size:11.5px;line-height:1.45;color:var(--tinta);border-top:1px solid rgba(0,0,0,.05)}
+  .av-li .sub{color:var(--gris);font-size:11px}
+  .av-mas{width:100%;font:inherit;font-size:11.5px;font-weight:700;color:var(--rio);background:none;
+    border:none;border-top:1px solid rgba(0,0,0,.05);padding:9px;cursor:pointer;text-align:center}
+  .av-mas:active{background:rgba(0,0,0,.03)}
   .ct-nota{font-size:11.5px;line-height:1.45;color:var(--gris);background:#FFF6E9;border:1px solid #F0DCC0;
     border-radius:12px;padding:9px 11px;margin:10px 16px 0}
   .ct-tab{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
@@ -1138,6 +1158,42 @@ async function cargarMovs() {
 }
 
 // ---------- FASE 2 · cartera, mora y semáforo ----------
+// Un aviso de cartera. `sev` decide el color: alta = hay dinero mal, media =
+// revisar, ok = todo bien, info = referencia. Las listas largas se pliegan: se
+// muestran 3 y un botón con el resto, porque un muro de 27 nombres no se lee.
+let avSeq = 0;
+function aviso(sev, titulo, monto, cuerpo, items) {
+  const id = "av" + (++avSeq);
+  const vis = (items || []).slice(0, 3), resto = (items || []).slice(3);
+  // Las notas de REFERENCIA nacen plegadas: son un glosario que se lee una vez,
+  // y abiertas empujaban las alertas de verdad fuera de la pantalla.
+  const ref = sev === "info";
+  return '<div class="av av-' + sev + '">'
+    + '<div class="av-h"' + (ref ? ' style="cursor:pointer" onclick="plegar(this,\'' + id + 'b\')"' : "") + ">"
+    + "<span>" + titulo + "</span>"
+    + (monto ? '<span class="av-monto">' + monto + "</span>" : "")
+    + (ref ? '<span class="av-chev" style="margin-left:auto;color:var(--gris);font-weight:400">ver</span>' : "")
+    + "</div>"
+    + (cuerpo ? '<div class="av-b" id="' + id + 'b"' + (ref ? ' style="display:none"' : "") + ">" + cuerpo + "</div>" : "")
+    + vis.map((x) => '<div class="av-li">' + x + "</div>").join("")
+    + (resto.length
+        ? '<div id="' + id + '" style="display:none">' + resto.map((x) => '<div class="av-li">' + x + "</div>").join("") + "</div>"
+          + '<button class="av-mas" onclick="verMas(this,\'' + id + '\',' + resto.length + ')">Ver los ' + resto.length + " restantes</button>"
+        : "")
+    + "</div>";
+}
+function plegar(h, id) {
+  const c = document.getElementById(id); if (!c) return;
+  const cerrado = c.style.display === "none";
+  c.style.display = cerrado ? "" : "none";
+  const ch = h.querySelector(".av-chev"); if (ch) ch.textContent = cerrado ? "ocultar" : "ver";
+}
+function verMas(btn, id, n) {
+  const c = document.getElementById(id);
+  const abierto = c.style.display !== "none";
+  c.style.display = abierto ? "none" : "";
+  btn.textContent = abierto ? "Ver los " + n + " restantes" : "Ocultar";
+}
 async function cargarCartera() {
   const box = $("carteraBox"); if (!box) return;
   let d;
@@ -1227,81 +1283,97 @@ async function cargarCartera() {
       + d.liquidacionesSinClienta.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.concepto) + " · " + dinero(x.monto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "")).join("<br>")
       + "</div>";
   }
-  // CONCILIACIÓN: ¿todo lo cobrado bajó de algún saldo? Es lo que sustituye a
-  // pedirle el Excel a Monse para comparar. Va ARRIBA de las alertas porque es
-  // el número que se mira primero cada mañana.
+  // ORDEN: primero el semáforo del día (¿cuadra?), luego lo que cuesta dinero,
+  // luego lo que hay que revisar, y hasta el final la referencia. Antes la
+  // conciliación quedaba enterrada bajo un muro de 1,600 caracteres.
+  let alto = "", medio = "", info = "";
+
   if (d.conciliacion) {
     const k = d.conciliacion, p = k.porque || {};
     const bien = k.cuadra;
-    h += '<div class="ct-nota" style="border-color:' + (bien ? "#0B7247" : "#B00020") + '">'
-      + '<b style="color:' + (bien ? "#0B7247" : "#B00020") + '">'
-      + (bien ? "✓ TODO LO COBRADO ESTÁ APLICADO"
-              : "🔴 HAY " + dinero(k.porArreglar || Math.abs(p.sinExplicar || 0)) + " COBRADOS QUE NO LE BAJARON A NADIE")
-      + "</b> — desde el corte del " + hesc(k.desde) + ".<br>"
-      + "Se cobró <b>" + dinero(k.cobrado) + "</b> y bajó de saldos <b>" + dinero(k.bajoDeSaldos) + "</b>."
-      + (k.garantias ? " Aparte entraron " + dinero(k.garantias) + " de garantías, que <b>no bajan saldo</b> porque respaldan el crédito, no lo abonan." : "")
-      + (k.diferencia
-          ? "<br>La diferencia de " + dinero(k.diferencia) + " se explica así:<br>"
-            + (p.cobrosSinCredito ? "&nbsp;&nbsp;• " + dinero(p.cobrosSinCredito) + " de cobros que no empatan con ningún crédito<br>" : "")
-            + (p.liquidacionesSinClienta ? "&nbsp;&nbsp;• " + dinero(p.liquidacionesSinClienta) + " de liquidaciones sin clienta<br>" : "")
-            + (p.abonoMayorAlSaldo ? "&nbsp;&nbsp;• " + dinero(p.abonoMayorAlSaldo) + " de abonos que superaron el saldo (sobrante, no perdido)<br>" : "")
-            + (Math.abs(p.sinExplicar || 0) >= 1
-                ? "&nbsp;&nbsp;• <b>" + dinero(Math.abs(p.sinExplicar)) + " sin explicar — eso hay que revisarlo</b><br>" : "")
-          : "")
-      + (bien
-          ? "<br><b>No hace falta cotejar contra ningún Excel:</b> cada peso cobrado ya está en el saldo de alguien."
-          : "<br>Ese dinero está en la caja pero <b>no bajó ningún saldo</b>. Míralo en las alertas de abajo y corrígelo; mientras no se corrija, los saldos de esas clientas están más altos de lo real.")
-      + "</div>";
+    const det = [];
+    if (p.cobrosSinCredito) det.push(dinero(p.cobrosSinCredito) + " de cobros que no empatan con ningún crédito");
+    if (p.liquidacionesSinClienta) det.push(dinero(p.liquidacionesSinClienta) + " de liquidaciones sin clienta");
+    if (p.abonoMayorAlSaldo) det.push(dinero(p.abonoMayorAlSaldo) + " de abonos que superaron el saldo <span class=\"sub\">(sobrante, no perdido)</span>");
+    if (Math.abs(p.sinExplicar || 0) >= 1) det.push("<b>" + dinero(Math.abs(p.sinExplicar)) + " sin explicar — hay que revisarlo</b>");
+    h += aviso(bien ? "ok" : "alta",
+      bien ? "Todo lo cobrado está aplicado" : "Hay dinero cobrado que no le bajó a nadie",
+      bien ? "" : dinero(k.porArreglar),
+      "Desde el corte del " + hesc(k.desde) + " se cobró <b>" + dinero(k.cobrado)
+        + "</b> y bajó de saldos <b>" + dinero(k.bajoDeSaldos) + "</b>."
+        + (k.garantias ? " Aparte entraron " + dinero(k.garantias) + " de garantías, que no bajan saldo porque respaldan el crédito." : "")
+        + (bien ? "<br><b>No hace falta cotejar contra ningún Excel.</b>"
+                : "<br>Ese dinero está en la caja pero no bajó ningún saldo: mientras no se corrija, esas clientas aparecen debiendo de más."),
+      det);
   }
-  // Fichas que entraron a la caja pero no le bajaron el saldo a nadie porque su
-  // socio+producto no empata con ningún crédito. Es el hueco por el que se podía
-  // perder cobranza en silencio.
+
   if ((d.cobranzaSinCredito || []).length) {
-    const totC = d.cobranzaSinCredito.reduce((a, b) => a + (b.pago || 0) + (b.garantia || 0), 0);
-    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">🔴 ' + d.cobranzaSinCredito.length
-      + " cobros que NO le bajaron el saldo a nadie (" + dinero(totC) + ").</b> "
-      + "Ese dinero sí está en el arqueo, pero el crédito al que se cobró no existe con ese nombre. "
-      + "O es un dedazo en el producto, o la clienta se agregó en la app de la ejecutiva y nunca se dio de alta aquí.<br>"
-      + d.cobranzaSinCredito.slice(0, 8).map((x) => "• " + ((x.fechas || []).join(" y ") || "—")
-          + " · socio " + hesc(x.socio) + " · <b>" + hesc(x.producto) + "</b> · "
-          + dinero(x.pago + x.garantia) + (x.ejecutivo ? " · " + hesc(x.ejecutivo) : "")
-          // Tres causas distintas, y cada una se arregla diferente.
-          + (x.estaDeBaja
-             ? "<br>&nbsp;&nbsp;&nbsp;<b>" + hesc(x.clienta || "esa clienta") + " está DADA DE BAJA</b>"
-               + (x.motivoBaja ? " (" + hesc(x.motivoBaja) + ")" : "")
-               + " y le siguieron cobrando. Si el cobro es bueno hay que reactivarle el crédito;"
-               + " si no, ese dinero es de otra clienta."
-             : x.clienta
-             ? "<br>&nbsp;&nbsp;&nbsp;es " + hesc(x.clienta) + ", y sus créditos activos son: "
-               + (x.productosQueSiTiene.length ? x.productosQueSiTiene.map(hesc).join(", ") : "ninguno")
-               + ". Parece dedazo en el producto."
-             // Si el socio NO existe, casi siempre la ejecutiva usó "Agregar
-             // clienta nueva" en su app —queda solo en su teléfono— y nadie la
-             // registró aquí. La app misma le dice que avise a Monse.
-             : "<br>&nbsp;&nbsp;&nbsp;<b>ese socio no está en el padrón.</b> Seguramente la ejecutiva la agregó"
-               + " en su app (queda solo en su teléfono): hay que darla de alta aquí con ese mismo número de socio"
-               + " y el saldo se acomoda solo.")).join("<br>")
-      + (d.cobranzaSinCredito.length > 8 ? "<br>… y " + (d.cobranzaSinCredito.length - 8) + " más" : "")
-      + "</div>";
+    const tot = d.cobranzaSinCredito.reduce((a, b) => a + (b.pago || 0) + (b.garantia || 0), 0);
+    alto += aviso("alta", d.cobranzaSinCredito.length + " cobros sin dueño", dinero(tot),
+      "Ese dinero sí está en el arqueo, pero el crédito al que se cobró no existe con ese nombre.",
+      d.cobranzaSinCredito.map((x) => "<b>" + dinero(x.pago + x.garantia) + "</b> · " + hesc(x.producto)
+        + " · socio " + hesc(x.socio) + (x.ejecutivo ? " · " + hesc(x.ejecutivo) : "")
+        + '<br><span class="sub">' + ((x.fechas || []).join(" y ") || "—") + " · "
+        + (x.estaDeBaja
+            ? hesc(x.clienta || "esa clienta") + " está <b>dada de baja</b>"
+              + (x.motivoBaja ? " (" + hesc(x.motivoBaja) + ")" : "") + " y le siguieron cobrando"
+            : x.clienta
+            ? "es " + hesc(x.clienta) + " — sus créditos activos: "
+              + (x.productosQueSiTiene.length ? x.productosQueSiTiene.map(hesc).join(", ") : "ninguno") + ". Parece dedazo en el producto"
+            : "ese socio no está en el padrón: seguramente la agregaron en la app y falta darla de alta aquí")
+        + "</span>"));
   }
-  // Abonos con fecha vieja capturados después del corte: SÍ descuentan (antes se
-  // perdían), pero mueven saldos de días que la plantilla daba por cerrados.
+
+  if ((d.liquidacionesSinClienta || []).length) {
+    const totL = d.liquidacionesSinClienta.reduce((a, b) => a + (b.monto || 0), 0);
+    alto += aviso("alta", d.liquidacionesSinClienta.length + " liquidaciones sin clienta", dinero(totL),
+      "Ese dinero entró a la caja pero <b>no le bajó el saldo a nadie</b>, porque el movimiento no dice de qué clienta es. Hay que anularlos y recapturarlos con su clienta.",
+      d.liquidacionesSinClienta.map((x) => "<b>" + dinero(x.monto) + "</b> · " + hesc(x.fecha)
+        + '<br><span class="sub">' + hesc(x.concepto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "") + "</span>"));
+  }
+
   if ((d.movsAtrasados || []).length) {
     const totA = d.movsAtrasados.reduce((a, b) => a + (b.monto || 0), 0);
-    h += '<div class="ct-nota" style="border-color:#FD6E29"><b style="color:#FD6E29">⚠ ' + d.movsAtrasados.length
-      + " abonos capturados con fecha atrasada (" + dinero(totA) + ").</b> Son anteriores al corte del "
-      + hesc(d.corte) + ", pero se registraron después, así que <b>la plantilla no los traía</b>. "
-      + "El sistema ya se los descuenta a su clienta — se avisan porque mueven saldos de días que la plantilla daba por cerrados.<br>"
-      + d.movsAtrasados.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.clienta || "sin clienta")
-          + " · " + dinero(x.monto) + " · capturado el " + hesc(x.capturado)
-          + (x.registradoPor ? " por " + hesc(x.registradoPor) : "")).join("<br>")
-      + (d.movsAtrasados.length > 8 ? "<br>… y " + (d.movsAtrasados.length - 8) + " más" : "")
-      + "</div>";
+    medio += aviso("media", d.movsAtrasados.length + " abonos con fecha atrasada", dinero(totA),
+      "Son anteriores al corte del " + hesc(d.corte) + " pero se capturaron después, así que la plantilla no los traía. <b>El sistema ya se los descuenta a su clienta</b> — se avisan porque mueven saldos de días que la plantilla daba por cerrados.",
+      d.movsAtrasados.map((x) => "<b>" + dinero(x.monto) + "</b> · " + hesc(x.clienta || "sin clienta")
+        + '<br><span class="sub">fecha ' + hesc(x.fecha) + " · capturado el " + hesc(x.capturado)
+        + (x.registradoPor ? " por " + hesc(x.registradoPor) : "") + "</span>"));
   }
+
+  if ((d.atrasados || []).length) {
+    const tot = d.atrasados.reduce((a, b) => a + (b.saldo || 0), 0);
+    medio += aviso("media", d.atrasados.length + " créditos atrasados 4 pagos o más", dinero(tot),
+      "El plazo no es una fecha límite sino un número de pagos: esto compara los que lleva contra los que debería llevar.",
+      // El ATRASO va primero y solo: es el dato por el que se ordena la lista.
+      // Antes iba al final del renglón y se partía en dos líneas.
+      d.atrasados.map((x) => '<b>' + hesc(x.nombre) + "</b>"
+        + '<span class="av-monto" style="float:right;font-weight:800;color:#8A4A12">'
+        + x.atraso + " pagos tarde</span>"
+        + '<br><span class="sub">' + hesc(x.ejecutivo || "—") + " · " + hesc(x.producto)
+        + " · debe " + dinero(x.saldo) + " · lleva " + x.hechos + " de " + x.plazo
+        + ", debería llevar " + x.debio + "</span>"));
+  }
+
+  if ((d.inconsistentes || []).length) {
+    medio += aviso("media", d.inconsistentes.length + " créditos con el plazo mal capturado", "",
+      "Al dividir su saldo entre la cuota salen más pagos de los que dice el plazo, así que a esos no se les puede calcular el “pago 13 de 18”. Para que Monse los corrija:",
+      d.inconsistentes.map((x) => "<b>" + hesc(x.nombre) + "</b> · " + hesc(x.producto)
+        + '<br><span class="sub">el plazo dice ' + x.plazoPadron + ", el real es " + x.plazoReal + "</span>"));
+  }
+
   if (S.cuotaVariable) {
-    h += '<div class="ct-nota"><b>' + S.cuotaVariable + ' créditos de CUOTA VARIABLE (Magnus).</b> Su cuota baja cada periodo, así que la del padrón deja de servir al primer pago. Para no marcarles mora falsa, quedan fuera del esperado, del semáforo y del “pago 13 de 18” hasta que exista el módulo de intereses. Su cobranza y su arqueo sí cuentan normal.</div>';
+    info += aviso("info", S.cuotaVariable + " créditos de cuota variable (Magnus)", "",
+      "Su cuota baja cada periodo, así que la del padrón deja de servir al primer pago. Para no marcarles mora falsa quedan fuera del esperado, del semáforo y del “pago 13 de 18” hasta que exista el módulo de intereses. Su cobranza y su arqueo sí cuentan normal.", []);
   }
-  h += '<div class="ct-nota"><b>Mora</b> es la amortización que <b>ya venció</b> sin cubrirse: su día de cobro pasó y la clienta no completó su cuota. <b>Pendiente de cobro</b> es la que todavía no vence —su día no ha llegado, o es hoy— y es operación normal, no morosidad. El <b>cumplimiento</b> se mide contra lo que ya debía entrar a la fecha, no contra la semana completa. La mora <i>acumulada</i> de semanas anteriores, con sus días de atraso e IVA, requiere el motor de intereses y no está incluida aquí.<br><br><b>Estas definiciones las dictó Ing. Monse el 4-ago-2026:</b> la mora son las cuotas que la clienta no ha pagado, y el dinero de un crédito en mora o vencido cuenta <b>solo</b> como recuperación — no se suma también a la cobranza.</div>';
+  info += aviso("info", "Qué significa cada número", "",
+    "<b>Mora</b> es la amortización que <b>ya venció</b> sin cubrirse: su día de cobro pasó y la clienta no completó su cuota. "
+    + "<b>Pendiente de cobro</b> es la que todavía no vence —su día no ha llegado, o es hoy— y es operación normal, no morosidad. "
+    + "El <b>cumplimiento</b> se mide contra lo que ya debía entrar a la fecha, no contra la semana completa. "
+    + "La mora <i>acumulada</i> de semanas anteriores, con sus días de atraso e IVA, requiere el motor de intereses y no está incluida aquí."
+    + "<br><br><b>Definiciones dictadas por la Ing. Monse el 4-ago-2026:</b> la mora son las cuotas que la clienta no ha pagado, y el dinero de un crédito en mora o vencido cuenta <b>solo</b> como recuperación — no se suma también a la cobranza.", []);
+
+  h += alto + medio + info;
   box.innerHTML = h;
 }
 
