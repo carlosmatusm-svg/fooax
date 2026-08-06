@@ -463,7 +463,9 @@
   </div>
 
   <div class="tbtab" id="tb-caja" style="display:none">
-  <h3 style="margin-top:6px">Movimientos de caja · dirección y ejecutivas</h3>
+  <h3 style="margin-top:6px">Cierre de caja de la semana</h3>
+  <div class="reccard"><div id="cajaSemana"><div class="rechint">Cargando…</div></div></div>
+  <h3>Movimientos de caja · dirección y ejecutivas</h3>
   <div class="movwrap">
     <button class="movtoggle" id="movToggle" onclick="toggleMovForm()">+ Registrar retiro o gasto</button>
     <form class="movform" id="movForm" onsubmit="registrarMov(event)" style="display:none">
@@ -1046,8 +1048,41 @@ async function cargarEjecutivos() {
     ejecsCargadas = true;
   } catch { /* sin conexión: se queda solo la opción de dirección */ }
 }
+// CIERRE DE CAJA DE LA SEMANA. El arqueo diario dice cuánto entrega cada
+// ejecutiva; esto dice cuánto efectivo debe quedar el SÁBADO. La caja arranca en
+// cero cada lunes (regla Karina), así que es simplemente entró − salió.
+async function cargarCajaSemana() {
+  const box = $("cajaSemana"); if (!box) return;
+  let c;
+  try { c = await (await fetch("/api/semana/caja", { credentials: "include" })).json(); }
+  catch { box.innerHTML = '<div class="rechint">Sin conexión con el servidor.</div>'; return; }
+  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const nom = (f) => { const [y, m, d] = f.split("-").map(Number);
+    return dias[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] + " " + d; };
+  const ren = (t, v, cls) => '<div class="arq-fila' + (cls ? " " + cls : "") + '"><span>' + t + "</span><b>" + dinero(v) + "</b></div>";
+  const lista = (o) => Object.keys(o).filter((k) => o[k] > 0).sort((a, b) => o[b] - o[a])
+    .map((k) => '<div class="arq-fila" style="opacity:.75"><span style="font-size:12px">' + hesc(k)
+      + '</span><span style="font-size:12px">' + dinero(o[k]) + "</span></div>").join("");
+  box.innerHTML =
+    '<div class="rechint">Del ' + hesc(c.lunes) + " al " + hesc(c.hasta)
+      + ". La caja arranca en cero cada lunes, así que lo que debe quedar es lo que entró menos lo que salió.</div>"
+    + '<div class="arq-fila" style="margin-top:8px"><span style="font-weight:700">ENTRÓ EN EFECTIVO</span><b>' + dinero(c.entro) + "</b></div>"
+    + ren("Cobranza (fichas, garantías y solidario)", c.entroCobranza)
+    + lista(c.entradasPorTipo)
+    + '<div class="arq-fila" style="margin-top:8px"><span style="font-weight:700">SALIÓ EN EFECTIVO</span><b>' + dinero(c.salio) + "</b></div>"
+    + (Object.keys(c.salidasPorTipo).length ? lista(c.salidasPorTipo)
+       : '<div class="arq-fila" style="opacity:.6"><span style="font-size:12px">nada salió de la caja esta semana</span><span></span></div>')
+    + '<div class="arq-entregar" style="margin-top:10px"><span>Efectivo que debe quedar el sábado</span><b>' + dinero(c.quedaEnCaja) + "</b></div>"
+    + '<div class="rechint" style="margin-top:8px">Aparte, que <b>no es efectivo</b> y va al banco: transferencias '
+      + dinero(c.transferencias) + " · depósitos Oxxo " + dinero(c.depositos)
+      + (c.cheques ? " · cheques " + dinero(c.cheques) : "") + ".</div>"
+    + '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Día</th><th>Entró</th><th>Salió</th><th>Neto</th></tr></thead><tbody>'
+    + (c.dias || []).map((d) => "<tr><td>" + hesc(nom(d.fecha)) + "</td><td>" + dinero(d.cobranza + d.entradas)
+        + "</td><td>" + dinero(d.salidas) + "</td><td><b>" + dinero(d.neto) + "</b></td></tr>").join("")
+    + "</tbody></table>";
+}
 async function cargarMovs() {
-  cargarEjecutivos(); armarBuscadorClienta();
+  cargarEjecutivos(); armarBuscadorClienta(); cargarCajaSemana();
   let d;
   try { d = await (await fetch("/api/movimientos" + fq(), { credentials: "include" })).json(); }
   catch { return; }

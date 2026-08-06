@@ -1368,6 +1368,40 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !/ahorro/i.test(eti44) && !(lst44.lista || []).some((m) => /ahorro/i.test(String(m.concepto || ""))),
     "aparece en la app o en los conceptos");
 
+  console.log("\n— 44f. CIERRE DE CAJA DE LA SEMANA (Karina, 5-ago · su urgencia #4) —");
+  // El arqueo diario contesta "¿cuánto entrega cada ejecutiva hoy?", no "¿cuánto
+  // efectivo tiene FOOAX el sábado?". Por eso al cierre aparecía un excedente sin
+  // concepto: los retiros de dirección y los desembolsos salían de la caja y
+  // nunca se restaban de un acumulado semanal.
+  // LA CAJA ARRANCA EN CERO CADA LUNES (regla Karina): queda = entró − salió.
+  const car44f = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  const L44 = car44f.lunes;
+  const dia44 = (n) => { const d = new Date(L44 + "T12:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  const regC = { "C-1": {} };
+  regC["C-1"]["11112807346|Grupal-Basico|EMMA GUADALUPE EVANGELISTA MARTINEZ|0"] = { pago: 5000, forma: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: dia44(0),
+    snapshot: { reg: regC, movs: [{ folio: "cs1", concepto: "GASTO", monto: 300, via: "E", tipoGasto: "Gasolina", nota: "ruta" }] },
+    ts: Date.now() }) });
+  await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: dia44(1), monto: 2000, concepto: "BANCARIZACION",
+      categoria: "Autorización / préstamo", metodo: "efectivo" }) }));
+  const caja = await j(await fetch(U + "/api/semana/caja", { headers: H(cm) }));
+  ok("el cierre semanal cuenta lo que ENTRÓ en efectivo",
+    caja.entroCobranza >= 5000, "entró de cobranza " + caja.entroCobranza);
+  ok("y lo que SALIÓ, con su concepto",
+    caja.salio >= 2300 && (caja.salidasPorTipo || {})["Gasto · Gasolina"] === 300,
+    JSON.stringify(caja.salidasPorTipo));
+  ok("el retiro de dirección aparece como salida (antes no se restaba en la semana)",
+    Object.keys(caja.salidasPorTipo || {}).some((k) => /BANCARIZACION/i.test(k)), JSON.stringify(caja.salidasPorTipo));
+  ok("lo que debe quedar el sábado es entró − salió",
+    Math.abs(caja.quedaEnCaja - (caja.entro - caja.salio)) < 0.01,
+    caja.entro + " − " + caja.salio + " = " + caja.quedaEnCaja);
+  ok("la semana va de LUNES a SÁBADO, nunca más de 6 días",
+    (caja.dias || []).length <= 6, (caja.dias || []).length + " días");
+  ok("y las transferencias van APARTE: no son efectivo de caja",
+    caja.transferencias != null && caja.depositos != null,
+    "transf " + caja.transferencias + " · dep " + caja.depositos);
+
   console.log("\n— 44e. DAR DE ALTA A UNA CLIENTA A LA QUE YA LE COBRARON (Karina, 5-ago) —");
   // Es el caso de "Agregar clienta nueva" en la app: la ejecutiva la mete en su
   // teléfono, le cobra, y Monse la registra después. El cobro SÍ se le aplica

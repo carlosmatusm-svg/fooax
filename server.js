@@ -2496,6 +2496,71 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   });
 });
 
+// ---------- CIERRE DE CAJA DE LA SEMANA ----------
+// El arqueo diario contesta "¿cuánto entrega cada ejecutiva hoy?". No contesta
+// "¿cuánto efectivo tiene FOOAX el sábado?", y por eso al cierre de semana
+// aparecía un excedente sin concepto: los retiros de dirección, las
+// bancarizaciones y los desembolsos salían de la caja pero nunca se restaban de
+// un acumulado semanal. Pedido por Karina el 5-ago (su urgencia #4).
+//
+// LA CAJA ARRANCA EN CERO CADA LUNES (regla Karina): no arrastra saldo, así que
+// lo que debe quedar el sábado es simplemente lo que entró menos lo que salió.
+// El cierre se para el SÁBADO: ninguna clienta tiene ese día de cobro, pero sí
+// entra dinero (recuperaciones, liquidaciones, pagos atrasados).
+function cierreDeCaja(usuario, lunesOpt) {
+  const r2 = (n) => Math.round((n || 0) * 100) / 100;
+  const hoy = hoyMX();
+  const lunes = lunesOpt || lunesDeLaSemana(hoy);
+  const ids = idsEjecutivos(usuario);
+  const dias = [];
+  let entroCobranza = 0, entroMovs = 0, salio = 0;
+  let transferencias = 0, depositos = 0, cheques = 0, garantias = 0;
+  const entradasPorTipo = {}, salidasPorTipo = {};
+  const d0 = new Date(lunes + "T12:00:00");
+  for (let i = 0; i < 6; i++) {                     // lunes … sábado
+    const f = new Date(d0); f.setDate(d0.getDate() + i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) break;
+    const a = calcularArqueo(fISO, ids);
+    // OJO: `a.efectivo` YA trae adentro las garantías y el solidario cobrados en
+    // efectivo (ver acumular()). Sumar `a.garantias` aparte sería contar doble.
+    const cob = a.efectivo || 0;
+    let ent = 0, sal = 0;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      const monto = Number(m.monto) || 0;
+      const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+      if (m.metodo === "transferencia") { transferencias += m.entrada ? monto : -monto; continue; }
+      if (m.metodo === "cheque") { cheques += m.entrada ? monto : -monto; continue; }
+      if (m.metodo !== "efectivo") continue;
+      if (m.entrada) { ent += monto; entradasPorTipo[tipo] = (entradasPorTipo[tipo] || 0) + monto; }
+      else {
+        sal += monto;
+        const et = m.tipoGasto ? (tipo + " · " + m.tipoGasto) : tipo;
+        salidasPorTipo[et] = (salidasPorTipo[et] || 0) + monto;
+      }
+    }
+    entroCobranza += cob; entroMovs += ent; salio += sal;
+    transferencias += (a.transferencia || 0) - (a.deposito || 0);
+    depositos += a.deposito || 0;
+    garantias += a.garantias || 0;
+    dias.push({ fecha: fISO, cobranza: r2(cob), entradas: r2(ent), salidas: r2(sal), neto: r2(cob + ent - sal) });
+  }
+  const entro = r2(entroCobranza + entroMovs);
+  return {
+    lunes, hasta: dias.length ? dias[dias.length - 1].fecha : lunes,
+    entroCobranza: r2(entroCobranza), entroMovs: r2(entroMovs), entro,
+    salio: r2(salio), quedaEnCaja: r2(entro - salio),
+    // De la cobranza en efectivo, cuánto fue garantía (ya va dentro, se informa).
+    garantiasDentro: r2(garantias),
+    // Esto NO es efectivo: va al banco. Se reporta aparte para que nadie lo sume.
+    transferencias: r2(transferencias), depositos: r2(depositos), cheques: r2(cheques),
+    entradasPorTipo, salidasPorTipo, dias,
+  };
+}
+app.get("/api/semana/caja", requiere("direccion", "admin"), (req, res) => {
+  res.json(cierreDeCaja(req.usuario, req.query.lunes));
+});
+
 // ---------- ARQUEO DE CAJA en Excel (formato de la ficha física) ----------
 // Botón para Monse: cuenta el efectivo por denominación (billetes/monedas),
 // subtotal y total, del día elegido. Solo dirección/admin.
