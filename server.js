@@ -286,8 +286,14 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
       // agregarMovimiento es append-only por folio, re-sincronizar no duplica.
       folio: "EJE-" + usuario.id.toUpperCase() + "-" + (m.folio || Math.abs(monto) + "-" + cve),
       fecha, monto,
-      concepto: def.etiqueta + (quien ? " · " + quien : "") + (m.nota ? " — " + m.nota : ""),
+      // El TIPO va dentro del concepto ("Gasto · Gasolina — nota") para que se
+      // lea igual en el tablero, en el Excel y en el respaldo. El primer
+      // segmento sigue siendo el concepto, que es lo que miran los filtros.
+      concepto: def.etiqueta
+        + (cve === "GASTO" && tipoGastoCanonico(m.tipoGasto) ? " · " + tipoGastoCanonico(m.tipoGasto) : "")
+        + (quien ? " · " + quien : "") + (m.nota ? " — " + m.nota : ""),
       categoria: def.categoria,
+      tipoGasto: cve === "GASTO" ? tipoGastoCanonico(m.tipoGasto) : null,
       // CH = CHEQUE: dinero que entra pero NO en billetes — si cayera en
       // "efectivo", el arqueo exigiría en caja billetes que son papeles
       // (el faltante de $2,280 de Neri del sábado 25-jul).
@@ -2128,6 +2134,17 @@ const METODOS = ["efectivo", "transferencia", "cheque"];
 // Unos meten dinero a la caja (comisión, recuperación, garantía, liquidación) y
 // otros lo sacan (gasto, desembolso). El signo importa: si se tratan todos como
 // salida, el efectivo a entregar sale mal.
+// TIPOS DE GASTO de campo. Antes la ejecutiva solo podía poner "Gasto" y el
+// detalle vivía en la nota, así que el arqueo no podía decir en QUÉ se fue el
+// dinero: todo caía en "Gasto operativo". Pedido por Karina el 5-ago.
+const TIPOS_GASTO = ["Gasolina", "Casetas / transporte", "Papelería", "Alimentos",
+  "Mensajería", "Mantenimiento", "Otro"];
+// Se empata SIN acentos ni mayúsculas: la app manda el texto del select, y un
+// "Papeleria" contra "Papelería" mandaba el gasto al cajón genérico en silencio.
+function tipoGastoCanonico(t) {
+  const n = norm(t);
+  return TIPOS_GASTO.find((x) => norm(x) === n) || null;
+}
 const CONCEPTOS_EJEC = {
   COMISION:     { etiqueta: "Comisión de desembolso",   categoria: "Otro",            entrada: true },
   RECUPERACION: { etiqueta: "Recuperación / adelanto",  categoria: "Otro",            entrada: true },
@@ -2148,6 +2165,43 @@ function egresosEnEfectivo(movs) {
 // renglón de Transferencias del arqueo —solo en su "otros +"— así que el dinero
 // que llegó al banco quedaba sin sumar donde Monse lo busca.
 // Entrada suma, salida resta: un gasto pagado por transferencia SACA del banco.
+// EN QUÉ SE FUE EL DINERO. Desglosa los gastos del día por tipo y marca los
+// riesgos que en cobranza de campo cuestan caro:
+//   • un gasto que deja a la ejecutiva entregando MENOS de lo que cobró en
+//     efectivo, o incluso en negativo — hay que verlo el mismo día;
+//   • el MISMO gasto capturado por la ejecutiva Y por Dirección: se resta dos
+//     veces y a nadie le cuadra la caja.
+function gastosDelDia(movs, porEjec) {
+  const gastos = (movs || []).filter((m) => !m.entrada && !m.anulado);
+  const porTipo = {};
+  for (const m of gastos) {
+    const t = m.tipoGasto || (String(m.categoria || "").trim() || "Otro");
+    porTipo[t] = Math.round(((porTipo[t] || 0) + Number(m.monto || 0)) * 100) / 100;
+  }
+  // Posible doble captura: mismo monto y misma forma el mismo día, uno de campo
+  // (folio EJE-) y otro de Dirección (folio DIR-).
+  const dobles = [];
+  for (const a of gastos.filter((m) => String(m.folio).startsWith("EJE-"))) {
+    for (const b of gastos.filter((m) => String(m.folio).startsWith("DIR-"))) {
+      if (Math.abs(Number(a.monto) - Number(b.monto)) < 0.01 && a.metodo === b.metodo)
+        dobles.push({ monto: Number(a.monto), metodo: a.metodo,
+          enCampo: a.folio, enDireccion: b.folio,
+          concepto: String(a.concepto || "").slice(0, 60) });
+    }
+  }
+  // Ejecutivas cuyo gasto en efectivo se comió lo que cobraron.
+  const sobregiro = [];
+  for (const id in (porEjec || {})) {
+    const e = porEjec[id];
+    const aEntregar = (e.efectivo || 0) - (e.egresoEfectivo || 0);
+    if ((e.egresoEfectivo || 0) > 0 && aEntregar < 0)
+      sobregiro.push({ ejecutivo: e.nombre, cobro: Math.round((e.efectivo || 0) * 100) / 100,
+        gastos: Math.round((e.egresoEfectivo || 0) * 100) / 100,
+        aEntregar: Math.round(aEntregar * 100) / 100 });
+  }
+  return { porTipo, total: Math.round(gastos.reduce((a, m) => a + Number(m.monto || 0), 0) * 100) / 100,
+    posiblesDobles: dobles, sobregiro };
+}
 function netoMovsPorMetodo(movs) {
   const out = { transferencia: 0, cheque: 0 };
   for (const m of movs || []) {
@@ -2409,6 +2463,7 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   res.json({
     fecha, ...a, egresosEfectivo, efectivoAEntregar: a.efectivo - egresosEfectivo,
     movsTransferencia: movsMet.transferencia, movsCheque: movsMet.cheque,
+    gastos: gastosDelDia(movs, a.porEjec), tiposGasto: TIPOS_GASTO,
     denominaciones: DENOMS_ARQUEO,
   });
 });
@@ -2563,6 +2618,36 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   }
   if (movsMetX.transferencia) linea("   de eso, otros movimientos", movsMetX.transferencia);
   if (movsMetX.cheque) linea("Cheques (no son billetes)", movsMetX.cheque);
+  // EN QUÉ SE FUE EL DINERO, por tipo. Antes el Excel decía "− Gastos $X" y para
+  // saber en qué había que leer el detalle renglón por renglón.
+  const gx = gastosDelDia(movs, a.porEjec);
+  // Formateador propio: más abajo esta misma función declara su `pesos`, y
+  // usarlo aquí arriba truena por la zona muerta del const.
+  const mxn = (n) => "$" + Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const tiposX = Object.keys(gx.porTipo || {}).filter((k) => gx.porTipo[k] > 0).sort((p, q) => gx.porTipo[q] - gx.porTipo[p]);
+  if (tiposX.length) {
+    fila++;
+    const rg = s.getRow(fila++); rg.getCell(1).value = "EN QUÉ SE FUE EL DINERO";
+    rg.getCell(1).font = { bold: true, color: { argb: RIO } };
+    for (const t of tiposX) linea("   " + t, gx.porTipo[t]);
+    linea("   Total de gastos", gx.total);
+    for (const sg of (gx.sobregiro || [])) {
+      const r = s.getRow(fila++);
+      r.getCell(1).value = "⚠ " + sg.ejecutivo + " gastó " + mxn(sg.gastos) + " y solo cobró " + mxn(sg.cobro);
+      r.getCell(1).font = { bold: true, color: { argb: "FFB00020" } };
+      s.mergeCells(fila - 1, 1, fila - 1, 3);
+      const c = r.getCell(4); c.value = sg.aEntregar; c.numFmt = dinero;
+      c.font = { bold: true, color: { argb: "FFB00020" } };
+    }
+    for (const db of (gx.posiblesDobles || [])) {
+      const r = s.getRow(fila++);
+      s.mergeCells(fila - 1, 1, fila - 1, 4);
+      const c = r.getCell(1);
+      c.value = "⚠ " + mxn(db.monto) + " está capturado DOS VECES (campo y dirección): " + db.concepto;
+      c.font = { bold: true, color: { argb: "FFB00020" } };
+    }
+    fila++;
+  }
   linea("Garantías", a.garantias);
   const rm = s.getRow(fila++); rm.getCell(1).value = "Mora del día (faltantes)";
   const cm = rm.getCell(4); cm.value = a.faltantes; cm.numFmt = dinero;

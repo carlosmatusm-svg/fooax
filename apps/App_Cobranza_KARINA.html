@@ -280,6 +280,7 @@
         <select id="movVia" onchange="toggleCheque()"><option value="E">Efectivo</option><option value="T">Transferencia</option><option value="CH">Cheque</option></select>
       </div>
     </div>
+    <div id="gastoBox" style="margin-top:9px;display:none"><label>Tipo de gasto</label><select id="movTipoGasto"><option>Gasolina</option><option>Casetas / transporte</option><option>Papelería</option><option>Alimentos</option><option>Mensajería</option><option>Mantenimiento</option><option>Otro</option></select></div>
     <div id="chequeBox" style="margin-top:9px;display:none"><label>Número de cheque</label><input type="text" inputmode="numeric" id="movCheque" placeholder="Ej. 0012345"></div>
     <div id="desembBox" style="margin-top:9px;display:none">
       <div class="row2">
@@ -288,7 +289,7 @@
       </div>
       <div class="meta" style="margin-top:6px">Estas fechas viajan a Monse para que su Excel las jale solo (ya no las captura a mano).</div>
     </div>
-    <div style="margin-top:9px"><label>Nota / referencia (opcional)</label><input type="text" id="movNota" placeholder="Ej. pagaré, descuento, nombre"></div>
+    <div style="margin-top:9px"><label id="labelNota">Nota / referencia (opcional)</label><input type="text" id="movNota" placeholder="Ej. pagaré, descuento, nombre"></div>
     <div class="meta" style="margin-top:7px">Cada movimiento recibe un <b>folio</b>. Si tienes evidencia (foto del pagaré, ticket), mándala por WhatsApp a Monse citando el folio.</div>
     <button class="btn btn-wa" style="width:100%;margin-top:12px" onclick="agregarMov()">Agregar movimiento</button>
   </div>
@@ -1362,6 +1363,12 @@ function agregarMov(){
     return;
   }
   if(via==='CH' && !cheque){alert('Escribe el número de cheque.');return;}
+  // Un GASTO tiene que decir en qué se fue: esa nota es el comprobante que
+  // Monse va a buscar en el arqueo. Sin ella el gasto no se puede justificar.
+  if(concepto==='GASTO' && !nota.trim()){
+    alert('Escribe en la nota en qué fue el gasto (ej. "gasolina ruta Sta Lucía", "casetas ida y vuelta").\n\nEse texto es lo que Dirección ve para autorizarlo.');
+    return;
+  }
   // Fechas de desembolso (solo si el concepto es DESEMBOLSO)
   let fechaDesem='', fechaPrimerPago='';
   if(concepto==='DESEMBOLSO'){
@@ -1377,7 +1384,8 @@ function agregarMov(){
     const cl=arr.find(x=>(x.k||x.f)===clk);
     if(cl){clienta=cl.n;socio=cl.f;}
   }
-  movs.push({folio:nuevoFolio(),concepto,centro:cen,clienta,socio,monto,via,cheque,nota,fechaDesem,fechaPrimerPago});
+  const tipoGasto=(concepto==='GASTO')?(document.getElementById('movTipoGasto')||{}).value||'Otro':'';
+  movs.push({folio:nuevoFolio(),concepto,centro:cen,clienta,socio,monto,via,cheque,nota,tipoGasto,fechaDesem,fechaPrimerPago});
   document.getElementById('movMonto').value='';document.getElementById('movNota').value='';
   if(document.getElementById('movCheque'))document.getElementById('movCheque').value='';
   if(document.getElementById('movFechaDesem'))document.getElementById('movFechaDesem').value='';
@@ -1389,7 +1397,19 @@ function toggleCheque(){
   const box=document.getElementById('chequeBox');
   if(box)box.style.display=(v==='CH')?'block':'none';
 }
+function toggleGasto(){
+  const esGasto=document.getElementById('movConcepto').value==='GASTO';
+  const box=document.getElementById('gastoBox');
+  if(box)box.style.display=esGasto?'block':'none';
+  // En un gasto la nota NO es opcional: es el comprobante que Dirección
+  // lee para autorizarlo. El texto del campo lo tiene que decir.
+  const lab=document.getElementById('labelNota');
+  if(lab)lab.textContent=esGasto?'¿En qué fue? (obligatorio)':'Nota / referencia (opcional)';
+  const inp=document.getElementById('movNota');
+  if(inp)inp.placeholder=esGasto?'Ej. gasolina ruta Sta Lucía, casetas ida y vuelta':'Ej. pagaré, descuento, nombre';
+}
 function toggleDesemb(){
+  toggleGasto();
   const c=document.getElementById('movConcepto').value;
   const box=document.getElementById('desembBox');
   if(box)box.style.display=(c==='DESEMBOLSO')?'block':'none';

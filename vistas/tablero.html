@@ -1360,6 +1360,26 @@ async function cargarArqueo() {
     // Los cheques no son billetes ni banco: se reportan aparte para que Monse
     // sepa qué papeles esperar (el faltante de $2,280 de Neri del 25-jul).
     (d.movsCheque ? fila("Cheques", dinero(d.movsCheque)) : "") +
+    // EN QUÉ SE FUE EL DINERO. Antes el arqueo decía "− Gastos $X" y ya; para
+    // saber en qué, había que abrir el detalle renglón por renglón.
+    (function () {
+      const g = d.gastos || {}, t = g.porTipo || {};
+      const tipos = Object.keys(t).filter((k) => t[k] > 0).sort((a, b) => t[b] - t[a]);
+      if (!tipos.length) return "";
+      return '<div class="arq-fila" style="margin-top:6px"><span style="font-weight:700">En qué se fue</span>'
+        + "<b>" + dinero(g.total) + "</b></div>"
+        + tipos.map((k) => '<div class="arq-fila" style="opacity:.75"><span style="font-size:12px">' + hesc(k)
+            + '</span><span style="font-size:12px">' + dinero(t[k]) + "</span></div>").join("")
+        // Una ejecutiva que gastó más de lo que cobró entrega en negativo: eso
+        // se revisa el mismo día, no a fin de mes.
+        + (g.sobregiro || []).map((s) => '<div class="arq-fila" style="color:#B00020"><span style="font-size:12px">⚠ '
+            + hesc(s.ejecutivo) + " gastó " + dinero(s.gastos) + " y solo cobró " + dinero(s.cobro)
+            + '</span><span style="font-size:12px">' + dinero(s.aEntregar) + "</span></div>").join("")
+        // El mismo gasto capturado por la ejecutiva Y por Dirección se resta dos veces.
+        + (g.posiblesDobles || []).map((x) => '<div class="arq-fila" style="color:#B00020"><span style="font-size:12px">⚠ '
+            + dinero(x.monto) + " está capturado dos veces (campo y dirección): " + hesc(x.concepto)
+            + '</span><span style="font-size:12px">revisar</span></div>').join("");
+    })() +
     fila("Garantías", dinero(d.garantias)) +
     fila("Mora del día (faltantes)", dinero(d.faltantes), d.faltantes > 0) +
     (porEjec ? '<div style="margin-top:8px">' + porEjec + "</div>" : "") +

@@ -1313,6 +1313,34 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y un cobro BUENO no sale en la lista",
     !sc44.some((x) => String(x.socio) === "11112783089"), JSON.stringify(sc44.map((x) => x.socio)));
 
+  console.log("\n— 44d. GASTOS DE CAMPO CON TIPO, Y SUS CONTROLES (Karina, 5-ago) —");
+  // La ejecutiva ya podía capturar gastos, pero todos caían en un cajón
+  // genérico: el arqueo no decía EN QUÉ se fue el dinero. Ahora llevan tipo, y
+  // el arqueo marca los dos riesgos de caja que importan en campo.
+  const D44d = "2026-01-28";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce), body: JSON.stringify({ fecha: D44d,
+    snapshot: { reg: {}, movs: [
+      { folio: "gg1", concepto: "GASTO", monto: 450, via: "E", tipoGasto: "Gasolina", nota: "ruta" },
+      { folio: "gg2", concepto: "GASTO", monto: 80, via: "E", tipoGasto: "Papeleria", nota: "sin acento" },
+      { folio: "gg3", concepto: "GASTO", monto: 600, via: "E", tipoGasto: "Alimentos", nota: "comidas" },
+    ] }, ts: Date.now() }) });
+  const ejs44 = await j(await fetch(U + "/api/ejecutivos", { headers: H(cd) }));
+  await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cd),
+    body: JSON.stringify({ fecha: D44d, monto: 450, concepto: "Gasolina de la ruta",
+      categoria: "Gasto operativo", metodo: "efectivo", ejecutivo: ejs44.ejecutivos[0].id }) }));
+  const arq44 = await j(await fetch(U + "/api/arqueo?fecha=" + D44d, { headers: H(cd) }));
+  const G = arq44.gastos || {};
+  ok("el arqueo dice EN QUÉ se fue el dinero, por tipo",
+    (G.porTipo || {})["Gasolina"] === 450 && (G.porTipo || {})["Alimentos"] === 600, JSON.stringify(G.porTipo));
+  ok("un tipo escrito sin acento se empata igual (Papeleria → Papelería)",
+    (G.porTipo || {})["Papelería"] === 80, JSON.stringify(G.porTipo));
+  ok("avisa cuando la ejecutiva gastó MÁS de lo que cobró",
+    (G.sobregiro || []).some((s) => s.aEntregar < 0), JSON.stringify(G.sobregiro));
+  ok("y avisa del mismo gasto capturado en campo Y por dirección",
+    (G.posiblesDobles || []).some((x) => x.monto === 450), JSON.stringify(G.posiblesDobles));
+  ok("los gastos siguen bajando el efectivo a entregar",
+    arq44.egresosEfectivo === 1580, "egresosEfectivo " + arq44.egresosEfectivo);
+
   console.log("\n— 44c. CONCILIACIÓN: ¿todo lo cobrado bajó de algún saldo? (Karina, 5-ago) —");
   // Es el control que sustituye a pedirle el Excel a Monse para comparar. Si
   // cuadra, los saldos del sistema son los buenos y no hace falta cotejar con
