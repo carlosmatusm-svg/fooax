@@ -293,6 +293,8 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
         + (cve === "GASTO" && tipoGastoCanonico(m.tipoGasto) ? " · " + tipoGastoCanonico(m.tipoGasto) : "")
         + (quien ? " · " + quien : "") + (m.nota ? " — " + m.nota : ""),
       categoria: def.categoria,
+      // El TIPO explícito: así no depende de cómo quedó redactado el concepto.
+      tipo: def.etiqueta,
       tipoGasto: cve === "GASTO" ? tipoGastoCanonico(m.tipoGasto) : null,
       // CH = CHEQUE: dinero que entra pero NO en billetes — si cayera en
       // "efectivo", el arqueo exigiría en caja billetes que son papeles
@@ -908,7 +910,7 @@ function liquidacionesSinClienta(usuario, desde) {
     const fISO = f.toISOString().slice(0, 10);
     if (fISO > hoy) break;
     for (const m of movsDeFecha(fISO, usuario)) {
-      const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "";
+      const tipo = tipoDeMov(m);
       if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
       if (socioDeMov(m)) continue;
       out.push({ folio: m.folio, fecha: m.fecha, monto: m.monto, concepto: m.concepto,
@@ -921,7 +923,7 @@ function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
   const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
   const liqPorSocio = {};
   const sumar = (m, fISO) => {
-    const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+    const tipo = tipoDeMov(m) || "Otro";
     if (!/^(liquidaci|recuperaci)/i.test(tipo)) return;
     const soc = socioDeMov(m);
     if (!soc) return;
@@ -1181,7 +1183,7 @@ app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) =>
       const fISO = f.toISOString().slice(0, 10);
       if (fISO > hoy) break;
       for (const m of movsDeFecha(fISO, req.usuario)) {
-        const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+        const tipo = tipoDeMov(m) || "Otro";
         porTipoMov[tipo] = porTipoMov[tipo] || { entra: 0, sale: 0 };
         if (m.entrada) { movEntradas += m.monto; porTipoMov[tipo].entra += m.monto; }
         else { movSalidas += m.monto; porTipoMov[tipo].sale += m.monto; }
@@ -1770,7 +1772,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // el Excel de Monse para comparar.
     conciliacion: conciliacionDeSaldos(req.usuario),
     movsAtrasados: movsAtrasadosQueSiCuentan(req.usuario, corteSaldos())
-      .filter((m) => /^(liquidaci|recuperaci)/i.test(String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim()))
+      .filter((m) => /^(liquidaci|recuperaci)/i.test(tipoDeMov(m)))
       .map((m) => { const s = socioDeMov(m); const cl = s && PADRON.find((c) => String(c.id) === String(s));
         return { folio: m.folio, fecha: m.fecha, monto: m.monto, socio: s || null,
           clienta: cl ? cl.nombre : null, registradoPor: m.registradoPor || null,
@@ -1846,7 +1848,7 @@ function seriesSemanales(usuario) {
     const id = usuarioDeMov(m);
     const u = id && USUARIOS[id];
     if (!!(u && u.test) !== !!(usuario && usuario.test)) continue;   // misma burbuja
-    const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+    const tipo = tipoDeMov(m) || "Otro";
     if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
     const b = bucket(m.fecha);
     b.recuperacion += m.monto;
@@ -1986,7 +1988,7 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
   // Liquidaciones y recuperaciones: van por SOCIO, no por crédito.
   for (const m of (store.respaldo().movimientos || [])) {
     if (m.anulado || socioDeMov(m) !== String(c.id)) continue;
-    const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim();
+    const tipo = tipoDeMov(m);
     if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
     filas.push({ fecha: m.fecha, tipo: "liquidacion", ejecutivo: m.registradoPor || "—",
       pago: m.monto, garantia: 0, solidario: 0, forma: m.metodo || "efectivo",
@@ -2304,6 +2306,17 @@ function ejecutivoDeMov(m) {
 }
 // Socio ligado a un movimiento (para bajarle el saldo en una liquidación).
 // Los movimientos nuevos lo traen como campo; los viejos sólo dentro del texto.
+// DE QUÉ TIPO ES UN MOVIMIENTO. Antes se adivinaba leyendo el texto que
+// escribió quien lo capturó: si en vez de "Liquidación…" ponía "Pago final de
+// Emma", el dinero entraba a la caja y el saldo de la clienta NUNCA bajaba, en
+// silencio. Lo cachó Karina el 6-ago preguntando «¿seguro que sí va a bajar?».
+// Ahora manda el TIPO que se eligió del menú; el texto libre es solo el
+// respaldo para los movimientos viejos, que no lo traen.
+function tipoDeMov(m) {
+  if (m && m.tipo) return String(m.tipo).trim();
+  return String((m && m.concepto) || "").split(" · ")[0].split(" — ")[0].trim()
+    || (m && m.categoria) || "";
+}
 function socioDeMov(m) {
   if (m.socio) return String(m.socio);
   const mm = String(m.concepto || "").match(/·\s*(\d{6,})/);
@@ -2586,7 +2599,7 @@ function cierreDeCaja(usuario, lunesOpt) {
     let ent = 0, sal = 0;
     for (const m of movsDeFecha(fISO, usuario)) {
       const monto = Number(m.monto) || 0;
-      const tipo = String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim() || m.categoria || "Otro";
+      const tipo = tipoDeMov(m) || "Otro";
       if (m.metodo === "transferencia") { transferencias += m.entrada ? monto : -monto; continue; }
       if (m.metodo === "cheque") { cheques += m.entrada ? monto : -monto; continue; }
       if (m.metodo !== "efectivo") continue;

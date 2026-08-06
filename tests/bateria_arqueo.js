@@ -1432,6 +1432,28 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y también suma al efectivo a entregar, porque ese dinero entró",
     gar1.efectivoAEntregar === gar0.efectivoAEntregar + 300,
     gar0.efectivoAEntregar + " → " + gar1.efectivoAEntregar);
+  // LA NOTA NO DECIDE NADA: manda el TIPO que se eligió del menú. Antes se
+  // adivinaba leyendo el texto —si en vez de "Liquidación…" ponían "Pago final
+  // de Emma", el dinero entraba a la caja y el saldo NUNCA bajaba, en silencio.
+  const salLibre = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=11113131595", { headers: H(cm) }));
+    const x = (d.resultados || []).filter((y) => y.activa !== false)[0]; return x ? x.saldoActual : null;
+  };
+  const sl0 = await salLibre();
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 200, concepto: "el pago que trajo su hija",
+      metodo: "efectivo", socio: "11113131595", fecha: D44g }) });
+  ok("una liquidación con la nota escrita LIBRE también baja el saldo",
+    (await salLibre()) === sl0 - 200, sl0 + " → " + (await salLibre()));
+  const sl1 = await salLibre();
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Recuperación / adelanto", monto: 100, concepto: "abono suelto",
+      metodo: "efectivo", socio: "11113131595", fecha: D44g }) });
+  ok("y una recuperación con nota libre, igual",
+    (await salLibre()) === sl1 - 100, sl1 + " → " + (await salLibre()));
+  // La app de la ejecutiva manda su propio tipo: las dos vías igual de firmes.
+  const movApp = await j(await fetch(U + "/api/movimientos?fecha=" + D44g, { headers: H(cd) }));
+  void movApp;
   const cat44g = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
   ok("el catálogo separa lo que entra de lo que sale",
     (cat44g.conceptos || []).some((c) => c.nombre === "Liquidación" && c.entrada)
