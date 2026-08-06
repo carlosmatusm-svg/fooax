@@ -1199,11 +1199,19 @@ async function cargarCartera() {
     h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">🔴 ' + d.cobranzaSinCredito.length
       + " cobros que NO le bajaron el saldo a nadie (" + dinero(totC) + ").</b> "
       + "Ese dinero sí está en el arqueo, pero el crédito al que se cobró no existe con ese nombre. "
-      + "Casi siempre es un dedazo en el producto: hay que corregirlo para que el saldo de la clienta baje.<br>"
-      + d.cobranzaSinCredito.slice(0, 8).map((x) => "• socio " + hesc(x.socio) + " · <b>" + hesc(x.producto) + "</b> · "
+      + "O es un dedazo en el producto, o la clienta se agregó en la app de la ejecutiva y nunca se dio de alta aquí.<br>"
+      + d.cobranzaSinCredito.slice(0, 8).map((x) => "• " + ((x.fechas || []).join(" y ") || "—")
+          + " · socio " + hesc(x.socio) + " · <b>" + hesc(x.producto) + "</b> · "
           + dinero(x.pago + x.garantia) + (x.ejecutivo ? " · " + hesc(x.ejecutivo) : "")
-          + (x.clienta ? "<br>&nbsp;&nbsp;&nbsp;es " + hesc(x.clienta) + ", y sus créditos son: " + x.productosQueSiTiene.map(hesc).join(", ")
-             : "<br>&nbsp;&nbsp;&nbsp;ese socio no está en el padrón")).join("<br>")
+          + (x.clienta
+             ? "<br>&nbsp;&nbsp;&nbsp;es " + hesc(x.clienta) + ", y sus créditos son: " + x.productosQueSiTiene.map(hesc).join(", ")
+               + ". Parece dedazo en el producto."
+             // Si el socio NO existe, casi siempre la ejecutiva usó "Agregar
+             // clienta nueva" en su app —queda solo en su teléfono— y nadie la
+             // registró aquí. La app misma le dice que avise a Monse.
+             : "<br>&nbsp;&nbsp;&nbsp;<b>ese socio no está en el padrón.</b> Seguramente la ejecutiva la agregó"
+               + " en su app (queda solo en su teléfono): hay que darla de alta aquí con ese mismo número de socio"
+               + " y el saldo se acomoda solo.")).join("<br>")
       + (d.cobranzaSinCredito.length > 8 ? "<br>… y " + (d.cobranzaSinCredito.length - 8) + " más" : "")
       + "</div>";
   }
