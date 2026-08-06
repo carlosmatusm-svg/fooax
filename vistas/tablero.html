@@ -1165,6 +1165,22 @@ async function cargarCartera() {
       + d.liquidacionesSinClienta.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.concepto) + " · " + dinero(x.monto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "")).join("<br>")
       + "</div>";
   }
+  // Fichas que entraron a la caja pero no le bajaron el saldo a nadie porque su
+  // socio+producto no empata con ningún crédito. Es el hueco por el que se podía
+  // perder cobranza en silencio.
+  if ((d.cobranzaSinCredito || []).length) {
+    const totC = d.cobranzaSinCredito.reduce((a, b) => a + (b.pago || 0) + (b.garantia || 0), 0);
+    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">🔴 ' + d.cobranzaSinCredito.length
+      + " cobros que NO le bajaron el saldo a nadie (" + dinero(totC) + ").</b> "
+      + "Ese dinero sí está en el arqueo, pero el crédito al que se cobró no existe con ese nombre. "
+      + "Casi siempre es un dedazo en el producto: hay que corregirlo para que el saldo de la clienta baje.<br>"
+      + d.cobranzaSinCredito.slice(0, 8).map((x) => "• socio " + hesc(x.socio) + " · <b>" + hesc(x.producto) + "</b> · "
+          + dinero(x.pago + x.garantia) + (x.ejecutivo ? " · " + hesc(x.ejecutivo) : "")
+          + (x.clienta ? "<br>&nbsp;&nbsp;&nbsp;es " + hesc(x.clienta) + ", y sus créditos son: " + x.productosQueSiTiene.map(hesc).join(", ")
+             : "<br>&nbsp;&nbsp;&nbsp;ese socio no está en el padrón")).join("<br>")
+      + (d.cobranzaSinCredito.length > 8 ? "<br>… y " + (d.cobranzaSinCredito.length - 8) + " más" : "")
+      + "</div>";
+  }
   // Abonos con fecha vieja capturados después del corte: SÍ descuentan (antes se
   // perdían), pero mueven saldos de días que la plantilla daba por cerrados.
   if ((d.movsAtrasados || []).length) {

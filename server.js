@@ -854,6 +854,33 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
 // NO le bajan el saldo a nadie, en silencio. La app ya lo impide, pero un
 // movimiento capturado desde el tablero de Dirección no lleva socio, y los
 // movimientos viejos tampoco. Se detectan para poder avisar (4-ago).
+// COBRANZA QUE NO LE BAJÓ EL SALDO A NADIE. La llave de un crédito es
+// socio+producto: si una ficha llega con un producto que esa clienta no tiene, o
+// con un socio que no está en el padrón, el dinero SÍ entra al arqueo pero no
+// baja ningún saldo — y antes eso pasaba en silencio. Es el último hueco que
+// impedía decir que los saldos se actualizan solos (Karina, 5-ago).
+function cobranzaSinCredito(usuario, desde) {
+  const { detalle } = pagosDeLaSemana(usuario, desde || corteSaldos());
+  const vivas = new Set(PADRON.map((c) => claveCredito(c.id, c.producto)));
+  const out = [];
+  for (const clave in detalle) {
+    const d = detalle[clave];
+    if ((d.pago || 0) + (d.gar || 0) <= 0) continue;
+    if (vivas.has(clave)) continue;
+    const otros = PADRON.filter((c) => String(c.id) === String(d.socio));
+    out.push({
+      socio: d.socio, producto: d.producto,
+      pago: Math.round((d.pago || 0) * 100) / 100, garantia: Math.round((d.gar || 0) * 100) / 100,
+      ejecutivo: Object.keys(d.ejec || {})[0] || null,
+      fechas: Object.keys(d.fechas || {}).sort(),
+      // Si la clienta SÍ existe con otros productos, casi siempre es un dedazo
+      // en el nombre del producto y se puede decir cuáles son los buenos.
+      clienta: otros.length ? otros[0].nombre : null,
+      productosQueSiTiene: otros.map((c) => c.producto),
+    });
+  }
+  return out.sort((a, b) => b.pago - a.pago);
+}
 function liquidacionesSinClienta(usuario, desde) {
   const hoy = hoyMX(), inicio = desde || lunesDeLaSemana(hoy);
   const d0 = new Date(inicio + "T12:00:00");
@@ -1648,6 +1675,9 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // Abonos capturados DESPUÉS del corte pero con fecha anterior a él. Ya
     // descuentan (antes se perdían en silencio), pero se avisan: mueven saldos
     // de días que la plantilla daba por cerrados, y eso Monse tiene que verlo.
+    // Fichas cobradas que no empatan con ningún crédito: el dinero está en la
+    // caja pero no le bajó el saldo a nadie.
+    cobranzaSinCredito: cobranzaSinCredito(req.usuario, corteSaldos()),
     movsAtrasados: movsAtrasadosQueSiCuentan(req.usuario, corteSaldos())
       .filter((m) => /^(liquidaci|recuperaci)/i.test(String(m.concepto || "").split(" · ")[0].split(" — ")[0].trim()))
       .map((m) => { const s = socioDeMov(m); const cl = s && PADRON.find((c) => String(c.id) === String(s));

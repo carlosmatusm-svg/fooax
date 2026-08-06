@@ -1290,6 +1290,29 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("pero si el corte se fija después de la captura, deja de descontar",
     Math.abs((await s44()) - antes44) < 0.01, "quedó en " + (await s44()) + " y debía volver a " + antes44);
 
+  console.log("\n— 44b. UN COBRO QUE NO EMPATA CON NINGÚN CRÉDITO SE AVISA (Karina, 5-ago) —");
+  // «¿100% que actualiza los saldos?» — la llave de un crédito es
+  // socio+producto. Si la ficha llega con un producto que la clienta no tiene, o
+  // con un socio que no existe, el dinero SÍ entra al arqueo pero NO le baja el
+  // saldo a nadie. Antes eso pasaba en silencio; era el último hueco.
+  const K44 = (id, p, nom) => id + "|" + p + "|" + nom + "|0";
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: "2026-06-03",
+    snapshot: { reg: { C44: {
+      [K44("11112926916", "Grupal Basico Mal Escrito", "HERALIA")]: { pago: 400, forma: "E" },
+      [K44("99999999999", "Grupal-Basico", "FANTASMA")]: { pago: 700, forma: "E" },
+    } } }, ts: Date.now() }) });
+  const sc44 = (await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).cobranzaSinCredito || [];
+  ok("se detecta el cobro con el producto mal escrito",
+    sc44.some((x) => String(x.socio) === "11112926916" && x.pago === 400), JSON.stringify(sc44));
+  ok("y dice cuáles son los créditos que esa clienta SÍ tiene",
+    (sc44.find((x) => String(x.socio) === "11112926916") || {}).productosQueSiTiene?.length > 0,
+    JSON.stringify(sc44.find((x) => String(x.socio) === "11112926916")));
+  ok("se detecta el cobro a un socio que no existe",
+    sc44.some((x) => String(x.socio) === "99999999999" && x.pago === 700), JSON.stringify(sc44));
+  ok("y un cobro BUENO no sale en la lista",
+    !sc44.some((x) => String(x.socio) === "11112783089"), JSON.stringify(sc44.map((x) => x.socio)));
+
   console.log("\n— 45. EL ALTA DEL TABLERO NO CONGELA EL SALDO (Karina, 5-ago) —");
   // Monse da de alta desde el tablero a las clientas recién desembolsadas que
   // todavía no vienen en su archivo, pero captura el saldo ORIGINAL. Ese renglón
