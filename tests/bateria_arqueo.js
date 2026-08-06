@@ -1368,6 +1368,45 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !/ahorro/i.test(eti44) && !(lst44.lista || []).some((m) => /ahorro/i.test(String(m.concepto || ""))),
     "aparece en la app o en los conceptos");
 
+  console.log("\n— 44e. DAR DE ALTA A UNA CLIENTA A LA QUE YA LE COBRARON (Karina, 5-ago) —");
+  // Es el caso de "Agregar clienta nueva" en la app: la ejecutiva la mete en su
+  // teléfono, le cobra, y Monse la registra después. El cobro SÍ se le aplica
+  // solo… pero hay dos formas de equivocarse y ninguna se ve:
+  //   1. capturar el saldo que debe HOY en vez del ORIGINAL → se resta doble;
+  //   2. escribir el producto distinto al del cobro → el pago se queda suelto.
+  // OJO con las burbujas: `ce` es la cuenta de PRUEBA y `ca` es Anel, que es
+  // real. Si se sincroniza con una y se lee con la otra, el pago no se ve —
+  // cada una solo mira su propio mundo. Aquí se usa Neri (real) de punta a
+  // punta, con su fecha propia y el corte atrás para que el pago cuente.
+  const D44f = "2026-02-19";
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  const S44 = "70000000431", S45 = "70000000432";
+  const reg44f = { "C-0": {} };
+  reg44f["C-0"][S44 + "|Individual|CLIENTA DE PRUEBA 44|0"] = { pago: 200, forma: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: D44f, snapshot: { reg: reg44f }, ts: Date.now() }) });
+  const alta44 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: S44, nombre: "CLIENTA DE PRUEBA 44", producto: "Individual",
+      centro: "C-0", ejecutivo: "Neri", saldo: 5000, cuota: 250 }) }));
+  ok("al darla de alta, el cobro que ya traía se le aplica solo",
+    alta44.yaLePagaron === 200 && alta44.saldoQuedaEn === 4800,
+    "capturado " + alta44.saldoCapturado + " · pagado " + alta44.yaLePagaron + " · queda " + alta44.saldoQuedaEn);
+  ok("y se avisa cuánto le quedó, para cachar si se capturó el saldo equivocado",
+    alta44.saldoCapturado === 5000 && alta44.saldoQuedaEn < alta44.saldoCapturado, JSON.stringify(alta44));
+  // Producto distinto al del cobro: el pago NO se aplica y hay que decirlo.
+  const reg44g = { "C-0": {} };
+  reg44g["C-0"][S45 + "|Individual|OTRA DE PRUEBA 44|0"] = { pago: 300, forma: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: "2026-02-20", snapshot: { reg: reg44g }, ts: Date.now() + 1 }) });
+  const alta45 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: S45, nombre: "OTRA DE PRUEBA 44", producto: "Individual 2",
+      centro: "C-0", ejecutivo: "Neri", saldo: 3000, cuota: 150 }) }));
+  ok("si el producto no empata, avisa que el cobro quedó suelto",
+    (alta45.cobrosQueSiguenSueltos || []).some((x) => x.monto === 300 && x.producto === "Individual"),
+    JSON.stringify(alta45));
+  // El corte se deja en 2026-01-01 a propósito: es el que espera la sección
+  // que sigue. Moverlo aquí le dejaba la ventana vacía y la tumbaba.
+
   console.log("\n— 44c. CONCILIACIÓN: ¿todo lo cobrado bajó de algún saldo? (Karina, 5-ago) —");
   // Es el control que sustituye a pedirle el Excel a Monse para comparar. Si
   // cuadra, los saldos del sistema son los buenos y no hace falta cotejar con
@@ -1382,7 +1421,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     k1 && k1.porque.cobrosSinCredito >= 700, JSON.stringify(k1 && k1.porque));
   ok("no queda dinero SIN EXPLICAR", k1 && Math.abs(k1.porque.sinExplicar) < 1,
     "sinExplicar " + (k1 && k1.porque.sinExplicar));
-  ok("las garantías se reportan aparte: son ahorro y no bajan saldo",
+  ok("las garantías se reportan aparte: respaldan el crédito y no bajan saldo",
     k1 && k1.garantias > 0, "garantías " + (k1 && k1.garantias));
 
   console.log("\n— 45. EL ALTA DEL TABLERO NO CONGELA EL SALDO (Karina, 5-ago) —");

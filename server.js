@@ -1463,7 +1463,24 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
     fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
   });
   refrescarPadron();
-  res.json({ ok: true, clienta });
+  // AVISO DE COBROS QUE YA TRAÍA. Cuando se da de alta a una clienta a la que la
+  // ejecutiva YA le cobró (el caso de "Agregar clienta nueva" en la app), hay
+  // dos formas de equivocarse y ninguna se ve:
+  //   1. capturar el saldo que debe HOY en vez del ORIGINAL → el sistema le
+  //      resta el pago otra vez y la clienta queda debiendo de menos;
+  //   2. escribir el producto distinto al del cobro → el pago se queda huérfano.
+  // Se contesta con lo que de verdad quedó, para que se vea en el momento.
+  const yaCobrado = cobranzaSinCredito(req.usuario, corteSaldos())
+    .filter((x) => String(x.socio) === id);
+  const info = infoCredito(carteraViva(req.usuario), clienta);
+  res.json({ ok: true, clienta,
+    saldoCapturado: clienta.saldo,
+    yaLePagaron: Math.round((info.pagado || 0) * 100) / 100,
+    saldoQuedaEn: Math.round((info.saldoActual || 0) * 100) / 100,
+    // Cobros de ESE socio que siguen sin empatar: casi siempre el producto se
+    // escribió distinto.
+    cobrosQueSiguenSueltos: yaCobrado.map((x) => ({ producto: x.producto, monto: x.pago })),
+  });
 });
 
 app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {

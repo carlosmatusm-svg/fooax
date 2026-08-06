@@ -909,8 +909,24 @@ async function registrarAlta(e) {
     // que recargar el tablero y se volvía a escribir a mano — justo el dedazo
     // que estamos evitando).
     cargarCentros();
-    err.textContent = "✓ " + d.clienta.nombre + " dada de alta (" + d.clienta.producto + ")"; err.className = "altaerr ok";
-    setTimeout(() => { err.textContent = ""; }, 3500);
+    // Si a esa clienta YA le habían cobrado, se dice qué pasó con ese dinero.
+    // Son dos errores que no se ven solos: capturar el saldo de HOY en vez del
+    // ORIGINAL (se le resta el pago dos veces), o escribir el producto distinto
+    // al del cobro (el pago se queda suelto).
+    let extra = "";
+    if (d.yaLePagaron > 0) {
+      extra = ". Ojo: ya le habían cobrado " + dinero(d.yaLePagaron) + " esta semana, así que del saldo que"
+        + " capturaste (" + dinero(d.saldoCapturado) + ") queda en <b>" + dinero(d.saldoQuedaEn) + "</b>."
+        + " Si el monto que pusiste YA traía descontado ese pago, córrigelo con Ajustar saldo.";
+    }
+    if ((d.cobrosQueSiguenSueltos || []).length) {
+      extra += " ⚠ Ese socio todavía trae cobros sueltos en otro producto: "
+        + d.cobrosQueSiguenSueltos.map((x) => "<b>" + hesc(x.producto) + "</b> " + dinero(x.monto)).join(", ")
+        + ". Diste de alta \"" + hesc(d.clienta.producto) + "\", que no es el mismo nombre.";
+    }
+    err.innerHTML = "✓ " + hesc(d.clienta.nombre) + " dada de alta (" + hesc(d.clienta.producto) + ")" + extra;
+    err.className = "altaerr ok";
+    setTimeout(() => { err.textContent = ""; }, extra ? 20000 : 3500);
   } catch { err.textContent = "Sin conexión con el servidor."; err.className = "altaerr err"; }
   btn.disabled = false;
 }
