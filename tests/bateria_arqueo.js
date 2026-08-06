@@ -1290,6 +1290,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("pero si el corte se fija después de la captura, deja de descontar",
     Math.abs((await s44()) - antes44) < 0.01, "quedó en " + (await s44()) + " y debía volver a " + antes44);
 
+  console.log("\n— 45. EL ALTA DEL TABLERO NO CONGELA EL SALDO (Karina, 5-ago) —");
+  // Monse da de alta desde el tablero a las clientas recién desembolsadas que
+  // todavía no vienen en su archivo, pero captura el saldo ORIGINAL. Ese renglón
+  // quedaba CONGELADO: ninguna plantilla podía volver a bajarlo. Se comprobó en
+  // 25 créditos — la diferencia era exactamente el número de pagos que llevaban
+  // según su desembolso. Ahora el saldo lo manda la plantilla; del alta solo se
+  // conserva que la clienta existe. La RENOVACIÓN es la excepción: ahí el
+  // renglón de la plantilla es el ciclo VIEJO y el bueno es el del alta.
+  const ver45 = async (id, prod) => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + id, { headers: H(cm) }));
+    return (d.resultados || []).find((y) => String(y.id) === id && y.producto === prod && y.activa !== false) || null;
+  };
+  const A45 = ["11112658700", "Grupal-Basico"];   // ANGELA ARANGO · plantilla $12,936
+  const dePlant45 = (await ver45(A45[0], A45[1]) || {}).saldo;
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: A45[0], producto: A45[1], motivo: "Otro" }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: A45[0], nombre: "ANGELA ARANGO FLORES", producto: A45[1],
+      centro: "FRUTOS DE DINERO", ejecutivo: "Karina", saldo: dePlant45 + 1176, cuota: 588 }) });
+  const tras45 = await ver45(A45[0], A45[1]);
+  ok("un alta del tablero NO pisa el saldo de la plantilla",
+    tras45 && tras45.saldo === dePlant45, "plantilla " + dePlant45 + " · quedó " + (tras45 && tras45.saldo));
+  ok("y se guarda lo que capturó el alta, por si hay que revisarlo",
+    tras45 && tras45.saldoDelAlta === dePlant45 + 1176, "saldoDelAlta " + (tras45 && tras45.saldoDelAlta));
+  // RENOVACIÓN: liquida y le re-dan crédito. Ahí manda el monto nuevo.
+  const B45 = ["11112748267", "Grupal-Basico"];
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: B45[0], producto: B45[1], saldo: 0, motivo: "liquidó" }) });
+  await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: B45[0], producto: B45[1], saldo: 20000, cuota: 900,
+      centro: "FRUTOS DE DINERO", ejecutivo: "Karina" }) }));
+  const ren45 = await ver45(B45[0], B45[1]);
+  ok("pero una RENOVACIÓN sí conserva su propio monto (la plantilla es el ciclo viejo)",
+    ren45 && ren45.saldo === 20000 && ren45.recredito === true, JSON.stringify(ren45 && { s: ren45.saldo, r: ren45.recredito }));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

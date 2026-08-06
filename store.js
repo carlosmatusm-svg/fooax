@@ -34,12 +34,34 @@ function aplicarCambios(base, cambios) {
       const ya = arr.some((cl) => String(cl.id) === String(c.clienta.id) &&
         norm2(cl.producto) === norm2(c.clienta.producto) &&
         cl.activa !== false && cl.estatus !== "BAJA");
+      // EL SALDO LO MANDA LA PLANTILLA, NO EL ALTA. Monse da de alta desde el
+      // tablero a las clientas que acaban de desembolsar y todavía no vienen en
+      // su archivo. Pero captura el saldo ORIGINAL, y ese renglón se quedaba
+      // CONGELADO: por más plantillas que entraran, nunca volvía a bajarle.
+      // Se comprobó el 5-ago en 25 créditos: la diferencia contra la plantilla
+      // era exactamente el número de pagos que llevaban según su fecha de
+      // desembolso (2 cuotas los del 20-jul, 1 los del 23-24). $21,587 de más.
+      // Así que si la base (la plantilla) YA trae ese crédito, de ahí salen los
+      // montos; del alta solo se conserva que la clienta existe.
+      // EXCEPCIÓN: las RENOVACIONES (`recredito`). Ahí el renglón de la base es
+      // el ciclo VIEJO —otro monto, otro plazo— y el bueno es el del alta.
+      const dePlantilla = (!c.recredito && !(c.clienta && c.clienta.recredito))
+        ? base.find((b) => String(b.id) === String(c.clienta.id)
+            && norm2(b.producto) === norm2(c.clienta.producto))
+        : null;
+      const montos = dePlantilla ? {
+        saldo: dePlantilla.saldo, cuota: dePlantilla.cuota, plazo: dePlantilla.plazo,
+        desembolso: dePlantilla.desembolso, diaPago: dePlantilla.diaPago,
+        centro: dePlantilla.centro, noCentro: dePlantilla.noCentro,
+        saldoDelAlta: c.clienta.saldo,
+      } : {};
       // `alta_fecha` es indispensable para las RENOVACIONES: la llave de un crédito
       // es socio+producto, y al renovar el nombre es el MISMO. Sin la fecha desde la
       // que existe este ciclo, los pagos del ciclo anterior se le descuentan al
       // nuevo (probado el 29-jul: renovó $10,000 y salía en $8,000 porque le
       // restaron los $2,000 con que liquidó el ciclo viejo).
-      if (!ya) arr.push(Object.assign({}, c.clienta, { origen: "alta", activa: true, alta_fecha: c.fecha || null }));
+      if (!ya) arr.push(Object.assign({}, c.clienta, montos,
+        { origen: "alta", activa: true, alta_fecha: c.fecha || null }));
     } else if (c.tipo === "baja") {
       for (const cl of arr) {
         if (String(cl.id) === String(c.id) && (!c.producto || norm2(cl.producto) === norm2(c.producto))) {
