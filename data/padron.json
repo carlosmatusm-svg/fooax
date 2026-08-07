@@ -341,7 +341,7 @@
   "producto": "Grupal-Basico",
   "centro": "24 DE FEBRERO",
   "ejecutivo": "Neri",
-  "saldo": 13392.0,
+  "saldo": 14112.0,
   "cuota": 588.0,
   "mora": 0,
   "plazo": 24,
@@ -349,11 +349,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-31",
   "diaPago": "VIERNES",
-  "noCentro": "C-59",
-  "saldo_antes_ajuste": 14112.0,
-  "ajuste_motivo": "abono del 2026-08-01 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "noCentro": "C-59"
  },
  {
   "id": "11113004040",
@@ -745,7 +741,7 @@
   "producto": "Grupal-Basico 2",
   "centro": "BARCHIEL",
   "ejecutivo": "Neri",
-  "saldo": 13434.0,
+  "saldo": 15552.0,
   "cuota": 864.0,
   "mora": 0,
   "plazo": 18,
@@ -753,11 +749,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-30",
   "diaPago": "JUEVES",
-  "noCentro": "C-9",
-  "saldo_antes_ajuste": 15552.0,
-  "ajuste_motivo": "abono del 2026-07-31 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "noCentro": "C-9"
  },
  {
   "id": "11112971322",
@@ -909,7 +901,7 @@
   "producto": "Grupal-Basico 2",
   "centro": "BARCHIEL",
   "ejecutivo": "Neri",
-  "saldo": 8208.0,
+  "saldo": 10368.0,
   "cuota": 576.0,
   "mora": 0,
   "plazo": 18,
@@ -917,11 +909,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-30",
   "diaPago": "JUEVES",
-  "noCentro": "C-9",
-  "saldo_antes_ajuste": 10368.0,
-  "ajuste_motivo": "abono del 2026-07-31 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "noCentro": "C-9"
  },
  {
   "id": "11112849831",
@@ -5052,7 +5040,7 @@
   "producto": "Grupal-Basico",
   "centro": "NAZARENO",
   "ejecutivo": "Karina",
-  "saldo": 15480.0,
+  "saldo": 20160.0,
   "cuota": 840.0,
   "mora": 0,
   "plazo": 24,
@@ -5060,11 +5048,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-29",
   "diaPago": "MIERCOLES",
-  "noCentro": "C-78",
-  "saldo_antes_ajuste": 20160.0,
-  "ajuste_motivo": "abono del 2026-07-31 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "noCentro": "C-78"
  },
  {
   "id": "11113105160",
@@ -5184,7 +5168,7 @@
   "producto": "Grupal-Basico",
   "centro": "NAZARENO",
   "ejecutivo": "Karina",
-  "saldo": 13752.0,
+  "saldo": 17280.0,
   "cuota": 720.0,
   "mora": 0,
   "plazo": 24,
@@ -5192,11 +5176,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-29",
   "diaPago": "MIERCOLES",
-  "noCentro": "C-78",
-  "saldo_antes_ajuste": 17280.0,
-  "ajuste_motivo": "abono del 2026-07-31 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "noCentro": "C-78"
  },
  {
   "id": "11113057488",
@@ -7238,7 +7218,7 @@
   "producto": "Grupal-Micro",
   "centro": "TENEXPAM",
   "ejecutivo": "Christopher",
-  "saldo": 18560.0,
+  "saldo": 23040.0,
   "cuota": 480.0,
   "mora": 0,
   "plazo": 48,
@@ -7246,11 +7226,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-30",
   "diaPago": "JUEVES",
-  "noCentro": "C-17",
-  "saldo_antes_ajuste": 23040.0,
-  "ajuste_motivo": "abono del 2026-08-01 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "noCentro": "C-17"
  },
  {
   "id": "11113115541",
@@ -8222,7 +8198,7 @@
   "producto": "Grupal-Micro",
   "centro": "SAN PABLO",
   "ejecutivo": "Karina",
-  "saldo": 16512.0,
+  "saldo": 18432.0,
   "cuota": 384.0,
   "mora": 0,
   "plazo": 48,
@@ -8230,11 +8206,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-31",
   "diaPago": "VIERNES",
-  "noCentro": "C-58",
-  "saldo_antes_ajuste": 18432.0,
-  "ajuste_motivo": "abono del 2026-08-01 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "noCentro": "C-58"
  },
  {
   "id": "11112625987",
@@ -10162,7 +10134,7 @@
   "producto": "Foxi Plus - 2",
   "centro": "",
   "ejecutivo": "Julio",
-  "saldo": 52398.0,
+  "saldo": 76212.0,
   "cuota": 3175.5,
   "mora": 0,
   "plazo": 24,
@@ -10170,11 +10142,7 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-30",
   "diaPago": "JUEVES",
-  "origen": "plantilla 2026-08-06 (Julio)",
-  "saldo_antes_ajuste": 76212.0,
-  "ajuste_motivo": "abono del 2026-08-04 que la plantilla no traía",
-  "ajuste_fecha": "2026-08-07",
-  "ajuste_por": "Karina (revisión 7-ago)"
+  "origen": "plantilla 2026-08-06 (Julio)"
  },
  {
   "id": "11113018033",

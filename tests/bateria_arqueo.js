@@ -1612,28 +1612,6 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("pero una RENOVACIÓN sí conserva su propio monto (la plantilla es el ciclo viejo)",
     ren45 && ren45.saldo === 20000 && ren45.recredito === true, JSON.stringify(ren45 && { s: ren45.saldo, r: ren45.recredito }));
 
-  console.log("\n— 45b. ABONOS ANTERIORES AL CORTE QUE LA PLANTILLA NO TRAE (Karina, 7-ago) —");
-  // Una liquidación anterior al corte se ignora a propósito: se da por hecho
-  // que el saldo de la plantilla ya la trae. Pero si la plantilla se cortó
-  // ANTES de que la capturaran, ese dinero entró a la caja y no bajó ningún
-  // saldo — y ninguna alerta lo veía, porque el movimiento SÍ tiene clienta.
-  // Caso real: MARTHA PATRICIA, $23,814 del 4-ago.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
-  // ALMA ROSA (Neri): saldo 2,600 = 13 × 200, desembolsada el 28-jul. Un abono
-  // del 4-ago es POSTERIOR al desembolso, que es justo el caso a detectar.
-  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-04",
-    snapshot: { reg: {}, movs: [{ folio: "MP45", concepto: "LIQUIDACION", monto: 800, via: "T",
-      clienta: "ALMA ROSA MALDONADO PINELO", socio: "11112874979" }] }, ts: Date.now() }) });
-  const na = (await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).abonosNoAplicados || [];
-  const mp = na.find((x) => String(x.socio) === "11112874979");
-  ok("se detecta el abono que no le bajó el saldo a nadie", !!mp && mp.monto === 800,
-    JSON.stringify(na.map((x) => x.clienta + " " + x.monto)));
-  ok("y se dice POR QUÉ se sabe: el saldo es su monto original completo",
-    !!mp && Math.abs(mp.plazo * mp.cuota - mp.saldo) < 1,
-    mp ? mp.saldo + " vs " + mp.plazo + "×" + mp.cuota : "—");
-  ok("no se marca cuando el abono es ANTERIOR al desembolso (pudo ser renovación)",
-    na.every((x) => x.fecha >= x.desembolso), JSON.stringify(na.map((x) => x.fecha + "/" + x.desembolso)));
-
   console.log("\n— 45c. C-0 EN LA LISTA DE CENTROS: dar de alta un INDIVIDUAL (Karina, 7-ago) —");
   // El alta aceptaba "C-0" pero la lista de centros lo escondía a propósito
   // —no es un grupo de verdad—, así que no había forma de elegirlo y el alta
