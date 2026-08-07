@@ -1612,6 +1612,36 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("pero una RENOVACIÓN sí conserva su propio monto (la plantilla es el ciclo viejo)",
     ren45 && ren45.saldo === 20000 && ren45.recredito === true, JSON.stringify(ren45 && { s: ren45.saldo, r: ren45.recredito }));
 
+  console.log("\n— 46. EL CIERRE DEL DÍA LLEGA DE VERDAD AL TABLERO (Karina, 7-ago) —");
+  // Julio cerró su día y a Dirección le seguía apareciendo abierto. La causa:
+  // si no había snapshot de esa fecha, marcarCierre() devolvía false y la ruta
+  // contestaba `ok: true` de todas formas — la ejecutiva veía "cerrado" en su
+  // teléfono y nadie más se enteraba. Y de paso, un día SIN cobranza no se
+  // podía cerrar, cuando es un día perfectamente válido.
+  const D46 = "2026-04-01";
+  const verCierre46 = async () => {
+    const c = await j(await fetch(U + "/api/consolidado?fecha=" + D46, { headers: H(cm) }));
+    return ((c.ejecutivos || {}).julio || {}).cierre || null;
+  };
+  const cJul = await login("julio", "julio2026");
+  const r46a = await fetch(U + "/api/cierre", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: D46, confirmado: true }) });
+  const d46a = await j(r46a);
+  ok("un día SIN cobranza también se puede cerrar",
+    r46a.status === 200 && d46a.marcado === true, JSON.stringify(d46a));
+  ok("y el tablero lo ve cerrado (antes se perdía en silencio)",
+    !!(await verCierre46()), "sigue apareciendo abierto");
+  // Con cobranza en efectivo, sin conteo de billetes: se le impide y se le dice.
+  const D46b = "2026-04-02";
+  const reg46 = { C46: {} };
+  reg46.C46["11113014663|COMADRE|JUANA RITA LUIS BERNAL|0"] = { pago: 800, forma: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: D46b, snapshot: { reg: reg46 }, ts: Date.now() }) });
+  const r46b = await fetch(U + "/api/cierre", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: D46b, confirmado: true }) });
+  ok("pero cobrando efectivo SIN contar los billetes, no deja cerrar",
+    r46b.status === 400, "status " + r46b.status);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

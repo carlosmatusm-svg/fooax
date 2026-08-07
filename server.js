@@ -169,6 +169,14 @@ app.post("/api/cierre", requiere("ejecutivo"), (req, res) => {
     });
   }
   const marcado = store.marcarCierre(req.usuario.id, fecha, !!b.confirmado);
+  // Si por lo que sea no se pudo marcar, NO se contesta "ok": la app diría que
+  // cerró y a Dirección le seguiría apareciendo abierta (el bug del 7-ago).
+  if (!marcado) {
+    return res.status(500).json({
+      error: "No se pudo cerrar el día en el servidor. Vuelve a intentarlo con señal; si sigue igual, avisa a Dirección.",
+      marcado: false, fecha,
+    });
+  }
   res.json({ ok: true, marcado, fecha, confirmado: !!b.confirmado, contado });
 });
 

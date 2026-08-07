@@ -323,8 +323,18 @@ module.exports = {
   // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
   // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.
   marcarCierre(ejecutivo, fecha, confirmado) {
-    const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
-    if (!rec) return false;
+    mem.snapshots[ejecutivo] = mem.snapshots[ejecutivo] || {};
+    let rec = mem.snapshots[ejecutivo][fecha];
+    // UN DÍA SIN COBRANZA TAMBIÉN SE CIERRA. Antes, si no había snapshot de ese
+    // día, el cierre se tiraba en silencio: devolvía false, el servidor
+    // contestaba ok igual, la ejecutiva veía "cerrado" en su teléfono y a Monse
+    // le seguía apareciendo abierta. Lo reportó Karina el 7-ago con Julio.
+    // Un día sin cobrar es un día válido —no salió a ruta, o todo fue
+    // transferencia— y tiene que poder cerrarse.
+    if (!rec) {
+      rec = { snapshot: {}, ts: Date.now(), recibido: Date.now() };
+      mem.snapshots[ejecutivo][fecha] = rec;
+    }
     rec.cierre = Date.now();
     // confirmado = la ejecutiva marcó la palomita "lo que capturé es verdad".
     if (confirmado) rec.confirmado = Date.now();
