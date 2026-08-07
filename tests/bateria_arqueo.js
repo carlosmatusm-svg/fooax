@@ -1633,6 +1633,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("no se marca cuando el abono es ANTERIOR al desembolso (pudo ser renovación)",
     na.every((x) => x.fecha >= x.desembolso), JSON.stringify(na.map((x) => x.fecha + "/" + x.desembolso)));
 
+  console.log("\n— 45c. C-0 EN LA LISTA DE CENTROS: dar de alta un INDIVIDUAL (Karina, 7-ago) —");
+  // El alta aceptaba "C-0" pero la lista de centros lo escondía a propósito
+  // —no es un grupo de verdad—, así que no había forma de elegirlo y el alta
+  // se rechazaba con "ese centro no existe".
+  const cen45 = await j(await fetch(U + "/api/centros", { headers: H(cm) }));
+  const c0 = (cen45.centros || []).find((x) => x.individual);
+  ok("C-0 aparece en la lista de centros", !!c0, JSON.stringify((cen45.centros || []).slice(0, 3)));
+  const rInd = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "11199999001", nombre: "PRUEBA INDIVIDUAL", producto: "Individual 1",
+      centro: "C-0", ejecutivo: "Julio", saldo: 5000, cuota: 500, plazo: 10 }) });
+  ok("y se puede dar de alta una clienta INDIVIDUAL", rInd.status === 200, "status " + rInd.status);
+
   console.log("\n— 46. EL CIERRE DEL DÍA LLEGA DE VERDAD AL TABLERO (Karina, 7-ago) —");
   // Julio cerró su día y a Dirección le seguía apareciendo abierto. La causa:
   // si no había snapshot de esa fecha, marcarCierre() devolvía false y la ruta

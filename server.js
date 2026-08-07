@@ -1418,9 +1418,17 @@ function listaCentros() {
     if (cb.tipo === "centro" && cb.centro && !mapa.has(cb.centro))
       mapa.set(cb.centro, { centro: cb.centro, clientas: 0, ejecutivos: new Set(cb.ejecutivo ? [cb.ejecutivo] : []) });
   }
-  return [...mapa.values()]
+  const lista = [...mapa.values()]
     .map((x) => ({ centro: x.centro, clientas: x.clientas, ejecutivos: [...x.ejecutivos] }))
     .sort((a, b) => a.centro.localeCompare(b.centro, "es"));
+  // C-0 = CRÉDITO INDIVIDUAL. Arriba se salta al armar el mapa —no es un grupo
+  // de verdad— pero tiene que estar en la lista para poder dar de alta una
+  // clienta individual. Sin él, el alta la rechazaba con "ese centro no existe"
+  // aunque la validación sí lo acepte. Lo cachó Karina el 7-ago.
+  const individuales = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA"
+    && /^c-?0$/i.test(String(c.centro || "").trim())).length;
+  lista.unshift({ centro: "C-0", clientas: individuales, ejecutivos: [], individual: true });
+  return lista;
 }
 // Productos (tipos de crédito) que EXISTEN en el padrón, del más usado al menos.
 // El producto dejó de ser texto libre por la misma razón que el centro: la llave

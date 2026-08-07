@@ -1866,8 +1866,11 @@ async function cargarCentros() {
   if (sel && d.centros) {
     const cur = sel.value;
     sel.innerHTML = '<option value="" disabled' + (cur ? "" : " selected") + '>— Elige el centro —</option>'
-      + d.centros.map((c) => '<option value="' + hesc(c.centro) + '">' + hesc(c.centro)
-        + (c.clientas ? " (" + c.clientas + ")" : " (nuevo)") + "</option>").join("")
+      // C-0 va con su nombre en palabras: quien da de alta no tiene por qué
+      // saber que "C-0" quiere decir crédito individual.
+      + d.centros.map((c) => '<option value="' + hesc(c.centro) + '">'
+        + (c.individual ? "C-0 · Crédito INDIVIDUAL (sin grupo)" : hesc(c.centro))
+        + (c.clientas ? " (" + c.clientas + ")" : (c.individual ? "" : " (nuevo)")) + "</option>").join("")
       + '<option value="__nuevo__">➕ Centro NUEVO…</option>';
     if (cur && cur !== "__nuevo__") sel.value = cur;
   }
