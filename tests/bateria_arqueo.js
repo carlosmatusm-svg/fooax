@@ -1618,14 +1618,15 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // ANTES de que la capturaran, ese dinero entró a la caja y no bajó ningún
   // saldo — y ninguna alerta lo veía, porque el movimiento SÍ tiene clienta.
   // Caso real: MARTHA PATRICIA, $23,814 del 4-ago.
-  const cJ45 = await login("julio", "julio2026");
   await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
-  await fetch(U + "/api/sync", { method: "POST", headers: H(cJ45), body: JSON.stringify({ fecha: "2026-08-04",
-    snapshot: { reg: {}, movs: [{ folio: "MP45", concepto: "LIQUIDACION", monto: 23814, via: "T",
-      clienta: "MARTHA PATRICIA VASQUEZ HERNANDEZ", socio: "11113236921" }] }, ts: Date.now() }) });
+  // ALMA ROSA (Neri): saldo 2,600 = 13 × 200, desembolsada el 28-jul. Un abono
+  // del 4-ago es POSTERIOR al desembolso, que es justo el caso a detectar.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-04",
+    snapshot: { reg: {}, movs: [{ folio: "MP45", concepto: "LIQUIDACION", monto: 800, via: "T",
+      clienta: "ALMA ROSA MALDONADO PINELO", socio: "11112874979" }] }, ts: Date.now() }) });
   const na = (await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).abonosNoAplicados || [];
-  const mp = na.find((x) => String(x.socio) === "11113236921");
-  ok("se detecta el abono que no le bajó el saldo a nadie", !!mp && mp.monto === 23814,
+  const mp = na.find((x) => String(x.socio) === "11112874979");
+  ok("se detecta el abono que no le bajó el saldo a nadie", !!mp && mp.monto === 800,
     JSON.stringify(na.map((x) => x.clienta + " " + x.monto)));
   ok("y se dice POR QUÉ se sabe: el saldo es su monto original completo",
     !!mp && Math.abs(mp.plazo * mp.cuota - mp.saldo) < 1,
@@ -1638,8 +1639,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // —no es un grupo de verdad—, así que no había forma de elegirlo y el alta
   // se rechazaba con "ese centro no existe".
   const cen45 = await j(await fetch(U + "/api/centros", { headers: H(cm) }));
-  const c0 = (cen45.centros || []).find((x) => x.individual);
-  ok("C-0 aparece en la lista de centros", !!c0, JSON.stringify((cen45.centros || []).slice(0, 3)));
+  const cero45 = (cen45.centros || []).find((x) => x.individual);
+  ok("C-0 aparece en la lista de centros", !!cero45, JSON.stringify((cen45.centros || []).slice(0, 3)));
   const rInd = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: "11199999001", nombre: "PRUEBA INDIVIDUAL", producto: "Individual 1",
       centro: "C-0", ejecutivo: "Julio", saldo: 5000, cuota: 500, plazo: 10 }) });
