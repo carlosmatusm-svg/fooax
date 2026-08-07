@@ -3349,6 +3349,33 @@ function altasParaApp(usuario) {
     .map((c) => ({ id: String(c.id), producto: c.producto }));
   return { altas, centros, quitar };
 }
+
+// DATOS VIVOS PARA LA APP. Los montos de cada clienta viven EMBEBIDOS en el HTML
+// de cada app: se escribieron el día que se generó el archivo y ahí se quedaron.
+// Cuando Monse manda una plantilla nueva, el padrón del servidor se actualiza y
+// el teléfono NO — la ejecutiva sigue viendo la cuota del mes pasado. Reportado
+// por Julio el 7-ago: sus tres MAGNUS traían la mensualidad de un mes anterior
+// (es decreciente) y Martha seguía con el crédito viejo de $50,000.
+//
+// Y EL PLAZO NUNCA VIAJÓ. El padrón lo tiene desde la plantilla, pero ningún
+// HTML lo incluye, así que la app se lo pedía a mano a la ejecutiva —y encima
+// preguntaba «¿de cuántas SEMANAS?» a los créditos MENSUALES de MAGNUS.
+//
+// Esto manda los datos frescos en cada carga: se acabó el archivo que envejece.
+function datosVivosParaApp(usuario) {
+  const mia = (c) => norm(c.ejecutivo) === norm(usuario.nombre);
+  return PADRON
+    .filter((c) => mia(c) && c.activa !== false && c.estatus !== "BAJA")
+    .map((c) => ({
+      id: String(c.id), producto: c.producto,
+      cuota: Number(c.cuota) || 0,
+      plazo: Number(c.plazo) || 0,
+      unidad: c.unidad || "",
+      dia: c.diaPago || "",
+      importe: Number(c.importe) || 0,
+    }));
+}
+
 app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   const archivo = path.join(__dirname, "apps", req.usuario.app);
   if (!fs.existsSync(archivo)) return res.status(404).send("No se encontró el archivo de la app de este ejecutivo.");
@@ -3398,7 +3425,38 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
     "if(typeof render==='function')try{render();}catch(e){}" +
     "}catch(e){}})();</script>"
   ) : "";
-  const inyecciones = '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' + scriptAltas;
+  // VA DESPUÉS DE scriptAltas: así las clientas que nacieron en el tablero
+  // también quedan con su plazo y su cuota al día, no solo las del HTML.
+  const vivos = datosVivosParaApp(req.usuario);
+  const scriptVivos = vivos.length ? (
+    "<script>(function(){try{" +
+    "var _V=" + JSON.stringify(vivos) + ";" +
+    "function _n(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\s+/g,' ').trim();}" +
+    "var _ix={};_V.forEach(function(v){_ix[String(v.id)+'|'+_n(v.producto)]=v;});" +
+    "var _tocadas=0;" +
+    "function _p(arr){if(!arr||!arr.length)return;arr.forEach(function(c){" +
+    "var v=_ix[String(c.f)+'|'+_n(c.sub)];if(!v)return;_tocadas++;" +
+    "if(v.cuota>0)c.esp=v.cuota;" +
+    "if(v.plazo>0)c.plazo=v.plazo;" +
+    "if(v.unidad)c.unidad=v.unidad;" +
+    "if(v.dia)c.dia=v.dia;" +
+    "if(v.importe>0){c.imp=v.importe;c.impOrig=v.importe;c.sug=Math.round(v.importe*1.2);}" +
+    // El plazo se siembra en datosCli para que la ejecutiva ya no lo teclee:
+    // solo captura en qué pago va. NUNCA se pisa lo que ella ya escribió.
+    "var k=c.k||c.f;var d=datosCli[k]||(datosCli[k]={});" +
+    "if(v.plazo>0&&!d.plazo)d.plazo=v.plazo;" +
+    "if(v.unidad)d.unidad=v.unidad;" +
+    "});}" +
+    "for(var q in CENTROS)_p(CENTROS[q]);" +
+    "if(typeof INDIVIDUALES!=='undefined')_p(INDIVIDUALES);" +
+    "if(_tocadas&&typeof guardarDatosCli==='function')guardarDatosCli();" +
+    "if(typeof fillCentros==='function')try{fillCentros();}catch(e){}" +
+    "if(typeof render==='function')try{render();}catch(e){}" +
+    "if(typeof renderIndiv==='function')try{renderIndiv();}catch(e){}" +
+    "if(typeof recalc==='function')try{recalc();}catch(e){}" +
+    "}catch(e){}})();</script>"
+  ) : "";
+  const inyecciones = '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' + scriptAltas + scriptVivos;
   let out = html.includes("</head>") ? html.replace("</head>", cabeza + "</head>") : cabeza + html;
   out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
   res.type("html").send(out);

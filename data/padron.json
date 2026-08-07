@@ -10142,7 +10142,9 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-30",
   "diaPago": "JUEVES",
-  "origen": "plantilla 2026-08-06 (Julio)"
+  "origen": "plantilla 2026-08-06 (Julio)",
+  "unidad": "SEMANAS",
+  "importe": 60000.0
  },
  {
   "id": "11113018033",
@@ -10559,8 +10561,10 @@
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-02-28",
-  "diaPago": "2026-08-31 00:00:00",
-  "origen": "plantilla 2026-08-06 (Julio)"
+  "diaPago": "DÍA 31",
+  "origen": "plantilla 2026-08-06 (Julio)",
+  "unidad": "MENSUALIDADES",
+  "importe": 100000.0
  },
  {
   "id": "11113089148",
@@ -10575,8 +10579,10 @@
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-03-25",
-  "diaPago": "2026-08-30 00:00:00",
-  "origen": "plantilla 2026-08-06 (Julio)"
+  "diaPago": "DÍA 30",
+  "origen": "plantilla 2026-08-06 (Julio)",
+  "unidad": "MENSUALIDADES",
+  "importe": 100000.0
  },
  {
   "id": "11112769851",
@@ -10591,8 +10597,10 @@
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-05-22",
-  "diaPago": "2026-08-30 00:00:00",
-  "origen": "plantilla 2026-08-06 (Julio)"
+  "diaPago": "DÍA 30",
+  "origen": "plantilla 2026-08-06 (Julio)",
+  "unidad": "MENSUALIDADES",
+  "importe": 80000.0
  },
  {
   "id": "11112931059",
@@ -10608,7 +10616,9 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-05-28",
   "diaPago": "JUEVES",
-  "origen": "plantilla 2026-08-06 (Julio)"
+  "origen": "plantilla 2026-08-06 (Julio)",
+  "unidad": "SEMANAS",
+  "importe": 11000.0
  },
  {
   "id": "11113014663",
@@ -10624,6 +10634,8 @@
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-06-11",
   "diaPago": "JUEVES",
-  "origen": "plantilla 2026-08-06 (Julio)"
+  "origen": "plantilla 2026-08-06 (Julio)",
+  "unidad": "SEMANAS",
+  "importe": 20000.0
  }
 ]

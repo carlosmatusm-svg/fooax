@@ -935,24 +935,39 @@ function cliRow(centro,cl){
       +'</div>'):'')
     +'</div>';
 }
+// Un crédito de MAGNUS se paga POR MES, no por semana. Antes la app le
+// preguntaba "¿de cuántas SEMANAS es el crédito?" a todos por igual, y a Julio
+// —que trae tres mensuales— no le cuadraba. La unidad viaja desde el padrón.
+function unidadDe(d){
+  return /MENS|MES/.test(String((d&&d.unidad)||'').toUpperCase())
+    ? {varios:'meses', uno:'mes'} : {varios:'semanas', uno:'semana'};
+}
 function fichaClienteDato(key){
   const d=datosCli[key]||{};
+  const U=unidadDe(d);
   if(d.plazo && d.semana){
     // ya tiene datos: muestra "pago X de Y" con opción de corregir
     return '<div class="clidato ok" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Pago '+d.semana+' de '+d.plazo+' <span class="edit">✎</span></div>';
   }
+  // El plazo ya lo manda el padrón: solo falta en qué pago va.
+  if(d.plazo){
+    return '<div class="clidato falta" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Falta: ¿en qué pago va? (el crédito es de '+d.plazo+' '+U.varios+')</div>';
+  }
   // falta capturar
-  return '<div class="clidato falta" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Falta: plazo y semana de esta clienta (toca para capturar)</div>';
+  return '<div class="clidato falta" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Falta: plazo y pago de esta clienta (toca para capturar)</div>';
 }
 function editarDato(key){
   const d=datosCli[key]||{};
-  const plazo=prompt('¿De cuántas semanas es el crédito? (plazo total)', d.plazo||'');
+  const U=unidadDe(d);
+  const plazo=prompt('¿De cuántos '+U.varios+' es el crédito? (plazo total)', d.plazo||'');
   if(plazo===null)return;
-  const semana=prompt('¿En qué número de pago/semana va? (ej. 13)', d.semana||'');
+  const semana=prompt('¿En qué número de pago va? (ej. 13)', d.semana||'');
   if(semana===null)return;
   const p=parseInt(plazo)||0, s=parseInt(semana)||0;
   if(p>0 && s>0){
-    datosCli[key]={plazo:p, semana:s, tsSemana:Date.now()};
+    // Object.assign, NO reemplazo: reemplazar borraba la unidad (semanas/meses)
+    // y la cuota que se hubiera corregido a mano en esta misma clienta.
+    datosCli[key]=Object.assign(datosCli[key]||{},{plazo:p, semana:s, tsSemana:Date.now()});
     guardarDatosCli();
     // re-render
     const centro=document.getElementById('selCentro').value;

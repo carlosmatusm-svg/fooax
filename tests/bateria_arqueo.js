@@ -1654,6 +1654,61 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("pero cobrando efectivo SIN contar los billetes, no deja cerrar",
     r46b.status === 400, "status " + r46b.status);
 
+  console.log("\n— 47. EL PLAZO Y LA CUOTA LLEGAN AL TELÉFONO (Karina, 7-ago) —");
+  // "Los plazos en la app de Julio están mal." Eran dos cosas: (1) el plazo
+  // NUNCA viajaba —vive en el padrón desde la plantilla, pero ningún HTML lo
+  // incluía, así que la app se lo pedía a mano—, y (2) los montos embebidos en
+  // el HTML envejecen: sus tres MAGNUS traían la mensualidad de un mes anterior
+  // (es decreciente) y Martha seguía con el crédito viejo de $50,000.
+  const appJ = await (await fetch(U + "/app", { headers: H(cJul) })).text();
+  const mV = appJ.match(/var _V=(\[.*?\]);/s);
+  ok("la app de Julio recibe los datos vivos del padrón", !!mV, "no se inyectaron");
+  const vivos47 = mV ? JSON.parse(mV[1]) : [];
+  const porNom_47 = {};
+  const mI47 = appJ.match(/let INDIVIDUALES=(\[.*?\]);/s);
+  (mI47 ? JSON.parse(mI47[1]) : []).forEach((c) => { porNom_47[c.n] = c; });
+  const vPor47 = {};
+  vivos47.forEach((v) => { vPor47[String(v.id)] = v; });
+  ok("todos traen plazo", vivos47.length > 0 && vivos47.every((v) => v.plazo > 0),
+    JSON.stringify(vivos47.filter((v) => !(v.plazo > 0))));
+  // MAGNUS se paga POR MES. Sin esto la app le preguntaba "¿de cuántas SEMANAS
+  // es el crédito?" a un crédito mensual.
+  const sole47 = vPor47["11113064631"];
+  ok("y MAGNUS viaja como MENSUALIDADES, no como semanas",
+    !!sole47 && /MENS/i.test(sole47.unidad || ""), JSON.stringify(sole47));
+  ok("con la mensualidad de la plantilla del 6-ago, no la del mes pasado",
+    !!sole47 && Math.abs(sole47.cuota - 6875.75) < 0.01, "cuota " + (sole47 || {}).cuota);
+  const mar47 = vPor47["11113236921"];
+  ok("y Martha con su crédito NUEVO, no con el de $50,000",
+    !!mar47 && Math.abs(mar47.cuota - 3175.5) < 0.01 && Math.abs(mar47.importe - 60000) < 1,
+    JSON.stringify(mar47));
+  ok("el día de pago mensual se lee (no un '2026-08-31 00:00:00')",
+    vivos47.every((v) => !String(v.dia).includes("00:00:00")),
+    JSON.stringify(vivos47.map((v) => v.dia)));
+  // Y que el script inyectado de verdad PARCHE los objetos de la app: que los
+  // datos lleguen no sirve si no se aplican sobre la lista que ella ve.
+  const inj47 = appJ.match(/<script>\(function\(\)\{try\{var _V=\[.*?\}\)\(\);<\/script>/s);
+  let aplicado47 = null;
+  if (inj47 && mI47) {
+    const INDIVIDUALES = JSON.parse(mI47[1]);
+    const datosCli = {};
+    // Lo que Julio ya hubiera tecleado a mano NO se debe pisar.
+    const kSole = "11113064631|MAGNUS|SOLEDAD FABIOLA MENDOZA|0";
+    datosCli[kSole] = { plazo: 18, semana: 7, cuota: 9999 };
+    new Function("CENTROS", "INDIVIDUALES", "datosCli", "guardarDatosCli",
+      inj47[0].replace(/^<script>/, "").replace(/<\/script>$/, ""))({}, INDIVIDUALES, datosCli, () => {});
+    aplicado47 = { INDIVIDUALES, datosCli, kSole };
+  }
+  ok("el script inyectado corre y parcha la lista de la app",
+    !!aplicado47 && aplicado47.INDIVIDUALES.every((c) => c.plazo > 0),
+    JSON.stringify((aplicado47 || {}).INDIVIDUALES || []).slice(0, 200));
+  ok("y siembra el plazo para que ya no se lo pregunte a mano",
+    !!aplicado47 && aplicado47.INDIVIDUALES.every((c) => (aplicado47.datosCli[c.k || c.f] || {}).plazo > 0),
+    "alguna clienta se quedó sin plazo sembrado");
+  const dS47 = aplicado47 ? aplicado47.datosCli[aplicado47.kSole] : {};
+  ok("sin pisar lo que la ejecutiva ya había capturado",
+    dS47.plazo === 18 && dS47.semana === 7 && dS47.cuota === 9999, JSON.stringify(dS47));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
