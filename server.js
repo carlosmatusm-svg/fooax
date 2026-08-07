@@ -2591,6 +2591,11 @@ function cierreDeCaja(usuario, lunesOpt) {
   const dias = [];
   let entroCobranza = 0, entroMovs = 0, salio = 0;
   let transferencias = 0, depositos = 0, cheques = 0, garantias = 0;
+  // LA COBRANZA COMPLETA, por forma de pago. Sin esto no se podía cuadrar el
+  // cierre contra la tarjeta de Cartera: aquí solo entra el EFECTIVO, y la
+  // diferencia —transferencias y depósitos— no se veía por ningún lado.
+  // Preguntó Karina el 6-ago: «¿de dónde sacas esto? si llevamos $222,843.50».
+  let cobTransfer = 0, cobDeposito = 0;
   const entradasPorTipo = {}, salidasPorTipo = {};
   const d0 = new Date(lunes + "T12:00:00");
   for (let i = 0; i < 6; i++) {                     // lunes … sábado
@@ -2616,6 +2621,8 @@ function cierreDeCaja(usuario, lunesOpt) {
       }
     }
     entroCobranza += cob; entroMovs += ent; salio += sal;
+    cobTransfer += (a.transferencia || 0) - (a.deposito || 0);
+    cobDeposito += a.deposito || 0;
     transferencias += (a.transferencia || 0) - (a.deposito || 0);
     depositos += a.deposito || 0;
     garantias += a.garantias || 0;
@@ -2628,6 +2635,10 @@ function cierreDeCaja(usuario, lunesOpt) {
     salio: r2(salio), quedaEnCaja: r2(entro - salio),
     // De la cobranza en efectivo, cuánto fue garantía (ya va dentro, se informa).
     garantiasDentro: r2(garantias),
+    // LA COBRANZA COMPLETA DE LA SEMANA, partida por forma. Sirve para cuadrar
+    // este cierre contra la tarjeta de Cartera, que suma todas las formas.
+    cobranza: { efectivo: r2(entroCobranza), transferencia: r2(cobTransfer),
+      deposito: r2(cobDeposito), total: r2(entroCobranza + cobTransfer + cobDeposito) },
     // Esto NO es efectivo: va al banco. Se reporta aparte para que nadie lo sume.
     transferencias: r2(transferencias), depositos: r2(depositos), cheques: r2(cheques),
     entradasPorTipo, salidasPorTipo, dias,
@@ -2664,8 +2675,23 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
   const linea = (txt, val, negrita) => { const r = s.getRow(fila++);
     r.getCell(1).value = txt; if (negrita) r.getCell(1).font = { bold: true };
     const cc = r.getCell(4); cc.value = val; cc.numFmt = dinero; if (negrita) cc.font = { bold: true }; };
+  // De dónde sale el número: el desglose por forma, para poder cuadrarlo contra
+  // la tarjeta de Cartera sin adivinar (Karina, 6-ago).
+  if (c.cobranza) {
+    enc("COBRANZA DE LA SEMANA, POR FORMA", "FF8A5A00");
+    linea("En efectivo — es lo único que entra a esta caja", c.cobranza.efectivo);
+    linea("En transferencias — van al banco", c.cobranza.transferencia);
+    linea("En depósitos Oxxo / tienda — van al banco", c.cobranza.deposito);
+    linea("TOTAL COBRADO EN LA SEMANA", c.cobranza.total, true);
+    const rn = s.getRow(fila++); s.mergeCells(fila - 1, 1, fila - 1, 4);
+    rn.getCell(1).value = "Este total incluye garantías y solidario, y lo cobrado a créditos en recuperación. "
+      + "La tarjeta de Cartera los reporta aparte, por eso los dos números no son el mismo.";
+    rn.getCell(1).font = { italic: true, size: 9 };
+    rn.getCell(1).alignment = { wrapText: true };
+    fila++;
+  }
   enc("ENTRÓ EN EFECTIVO", RIO).getCell(4).value = null;
-  linea("Cobranza (fichas, garantías y solidario)", c.entroCobranza);
+  linea("Cobranza en efectivo (fichas, garantías y solidario)", c.entroCobranza);
   for (const k of Object.keys(c.entradasPorTipo).sort((a, b) => c.entradasPorTipo[b] - c.entradasPorTipo[a]))
     linea("   " + k, c.entradasPorTipo[k]);
   linea("TOTAL QUE ENTRÓ", c.entro, true);

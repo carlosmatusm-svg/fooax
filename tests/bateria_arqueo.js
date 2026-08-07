@@ -1504,6 +1504,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el cierre se puede descargar en Excel",
     xlsCaja.status === 200 && /spreadsheet/.test(xlsCaja.headers.get("content-type") || ""),
     xlsCaja.status + " " + xlsCaja.headers.get("content-type"));
+  // DE DÓNDE SALE EL NÚMERO. Aquí solo entra el efectivo, y la tarjeta de
+  // Cartera cuenta otra cosa. Sin el desglose por forma no hay manera de
+  // cuadrarlos, y el que mira concluye que falta dinero (Karina, 6-ago).
+  ok("el cierre trae la cobranza partida por forma de pago",
+    caja.cobranza && caja.cobranza.efectivo != null && caja.cobranza.transferencia != null
+    && caja.cobranza.deposito != null, JSON.stringify(caja.cobranza));
+  ok("y las tres formas suman el total cobrado de la semana",
+    caja.cobranza && Math.abs(caja.cobranza.total
+      - (caja.cobranza.efectivo + caja.cobranza.transferencia + caja.cobranza.deposito)) < 0.01,
+    JSON.stringify(caja.cobranza));
+  ok("lo que entra a la caja es SOLO la parte en efectivo",
+    caja.cobranza && caja.cobranza.efectivo === caja.entroCobranza,
+    "efectivo " + (caja.cobranza || {}).efectivo + " vs entroCobranza " + caja.entroCobranza);
   ok("y las transferencias van APARTE: no son efectivo de caja",
     caja.transferencias != null && caja.depositos != null,
     "transf " + caja.transferencias + " · dep " + caja.depositos);
