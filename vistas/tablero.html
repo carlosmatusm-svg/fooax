@@ -323,7 +323,8 @@
   .rechint{font-size:12px;color:var(--gris);line-height:1.45;margin-bottom:10px}
   .recbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .recinput{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--lav);border-radius:10px;color:var(--tinta)}
-  .recbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--rio);border:none;border-radius:10px;padding:10px 16px;cursor:pointer}
+  .recbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--rio);border:none;
+    border-radius:10px;padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
   .recbtn:active{filter:brightness(.94)}
   .recej{margin-top:14px;border-top:1px solid var(--lav);padding-top:10px}
   .recej h4{margin:0 0 2px;font-size:14px;color:var(--tinta)}
@@ -1155,7 +1156,11 @@ async function cargarCajaSemana() {
     // El botón va aquí también, no solo en la lista de descargas: es donde se
     // está mirando el número cuando dan ganas de mandárselo a alguien.
     + '<button class="recbtn" style="margin-top:10px" onclick="descargar(\'/api/semana/caja/excel\')">'
-    + '' + flecha.replace("'", "\'") + '' + "Descargar este cierre en Excel</button>";
+    // El icono va escrito aquí, no en una variable: así no depende de nada más.
+    + '<svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M4 19h16"/></svg>'
+    + "<span>Descargar este cierre en Excel</span></button>";
 }
 async function cargarMovs() {
   cargarEjecutivos(); armarBuscadorClienta(); cargarCajaSemana(); cargarConceptos();
