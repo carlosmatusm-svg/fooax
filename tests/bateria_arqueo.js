@@ -1097,9 +1097,14 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // (local): es la única forma de ver la lista que de verdad viaja a su app.
   const cCh = await login("christopher", "chris2026");
   const html40 = await (await fetch(U + "/app", { headers: H(cCh) })).text();
-  const mQ = /var _Q=(\[.*?\]);/.exec(html40);
+  // El paquete completo (altas, bajas y montos) viaja en window.__VIVOS0 y
+  // `vivos.js` lo vuelve a pedir a /api/vivos cada minuto.
+  const mP40 = /window\.__VIVOS0=(\{.*?\});<\/script>/s.exec(html40);
+  const mQ = mP40 ? { 1: JSON.stringify(JSON.parse(mP40[1]).quitar || []) } : null;
   ok("la app de la ejecutiva recibe su lista de créditos a quitar", !!mQ,
-    mQ ? "sí" : "no se encontró _Q en el HTML de la app");
+    mQ ? "sí" : "no se encontró window.__VIVOS0 en el HTML de la app");
+  ok("y también carga vivos.js, que la mantiene al día sin recargar",
+    html40.includes('src="/vivos.js"'), "no se inyectó vivos.js");
   const todos40 = await j(await fetch(U + "/api/creditos?q=", { headers: H(cm) }));
   const buscar40 = async (t) => j(await fetch(U + "/api/creditos?q=" + encodeURIComponent(t), { headers: H(cm) }));
   if (mQ) {
@@ -1139,7 +1144,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const K40 = (id, p, nom) => id + "|" + p + "|" + nom + "|0";
   const qDe = async () => {
     const html = await (await fetch(U + "/app", { headers: H(cCh) })).text();
-    const mm = /var _Q=(\[.*?\]);/.exec(html); return mm ? JSON.parse(mm[1]) : [];
+    const mm = /window\.__VIVOS0=(\{.*?\});<\/script>/s.exec(html);
+    return mm ? (JSON.parse(mm[1]).quitar || []) : [];
   };
   const enQ = (q, id, p) => q.some((x) => String(x.id) === String(id) && x.producto === p);
   await sync40("2026-05-13", { C40: { [K40("11112783089", "Grupal-Basico", "CARMEN VIANEY EVANGELISTA MARTINEZ")]: { pago: 2340, forma: "E" } } }, 1);
@@ -1661,7 +1667,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // el HTML envejecen: sus tres MAGNUS traían la mensualidad de un mes anterior
   // (es decreciente) y Martha seguía con el crédito viejo de $50,000.
   const appJ = await (await fetch(U + "/app", { headers: H(cJul) })).text();
-  const mV = appJ.match(/var _V=(\[.*?\]);/s);
+  const mP47 = appJ.match(/window\.__VIVOS0=(\{.*?\});<\/script>/s);
+  const mV = mP47 ? { 1: JSON.stringify(JSON.parse(mP47[1]).vivos || []) } : null;
   ok("la app de Julio recibe los datos vivos del padrón", !!mV, "no se inyectaron");
   const vivos47 = mV ? JSON.parse(mV[1]) : [];
   const porNom_47 = {};
@@ -1685,29 +1692,109 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el día de pago mensual se lee (no un '2026-08-31 00:00:00')",
     vivos47.every((v) => !String(v.dia).includes("00:00:00")),
     JSON.stringify(vivos47.map((v) => v.dia)));
-  // Y que el script inyectado de verdad PARCHE los objetos de la app: que los
-  // datos lleguen no sirve si no se aplican sobre la lista que ella ve.
-  const inj47 = appJ.match(/<script>\(function\(\)\{try\{var _V=\[.*?\}\)\(\);<\/script>/s);
+  // Y que `vivos.js` de verdad PARCHE los objetos de la app: que los datos
+  // lleguen no sirve si no se aplican sobre la lista que ella ve. Se corre el
+  // archivo REAL que se le sirve al teléfono, no una copia de su lógica.
+  const kSole = "11113064631|MAGNUS|SOLEDAD FABIOLA MENDOZA|0";
   let aplicado47 = null;
-  if (inj47 && mI47) {
+  if (mI47) {
     const INDIVIDUALES = JSON.parse(mI47[1]);
     const datosCli = {};
     // Lo que Julio ya hubiera tecleado a mano NO se debe pisar.
-    const kSole = "11113064631|MAGNUS|SOLEDAD FABIOLA MENDOZA|0";
     datosCli[kSole] = { plazo: 18, semana: 7, cuota: 9999 };
+    const fuente = require("fs").readFileSync(require("path").join(__dirname, "..", "public", "vivos.js"), "utf8");
+    const noop = () => {};
+    const win = { __VIVOS0: JSON.parse(mP47[1]), addEventListener: noop };
     new Function("CENTROS", "INDIVIDUALES", "datosCli", "guardarDatosCli",
-      inj47[0].replace(/^<script>/, "").replace(/<\/script>$/, ""))({}, INDIVIDUALES, datosCli, () => {});
+      "window", "navigator", "document", "setInterval", "setTimeout", "fetch", fuente)(
+      {}, INDIVIDUALES, datosCli, noop,
+      win, { onLine: false }, { hidden: true, addEventListener: noop }, noop, noop, noop);
     aplicado47 = { INDIVIDUALES, datosCli, kSole };
   }
-  ok("el script inyectado corre y parcha la lista de la app",
+  ok("vivos.js corre y parcha la lista de la app",
     !!aplicado47 && aplicado47.INDIVIDUALES.every((c) => c.plazo > 0),
     JSON.stringify((aplicado47 || {}).INDIVIDUALES || []).slice(0, 200));
   ok("y siembra el plazo para que ya no se lo pregunte a mano",
     !!aplicado47 && aplicado47.INDIVIDUALES.every((c) => (aplicado47.datosCli[c.k || c.f] || {}).plazo > 0),
     "alguna clienta se quedó sin plazo sembrado");
-  const dS47 = aplicado47 ? aplicado47.datosCli[aplicado47.kSole] : {};
+  const dS47 = (aplicado47 ? aplicado47.datosCli[aplicado47.kSole] : null) || {};
   ok("sin pisar lo que la ejecutiva ya había capturado",
     dS47.plazo === 18 && dS47.semana === 7 && dS47.cuota === 9999, JSON.stringify(dS47));
+
+  console.log("\n— 48. TODO VA LINKEADO: lo que hace Monse aparece en el teléfono (Karina, 7-ago) —");
+  // «En dirección tienen bien los pagos, no se está ejecutando en las apps de
+  // los ejecutivos. Si Monse hace un cambio tiene que aparecer automáticamente
+  // en el del ejecutivo.» El sync era de UNA SOLA VÍA: la app subía y el
+  // servidor nunca le contestaba nada. Ahora baja por /api/vivos.
+  const vivos48 = async (ck) => j(await fetch(U + "/api/vivos", { headers: H(ck) }));
+  const saldo48 = async (ck, id) => {
+    const d = await vivos48(ck);
+    const v = (d.vivos || []).find((x) => String(x.id) === String(id));
+    return v ? v.saldo : null;
+  };
+  const BLANCA48 = "11112931059";                 // COMADRE, saldo $6,272.50
+  const base48 = await saldo48(cJul, BLANCA48);
+  ok("la app pide sus datos vivos al servidor", base48 !== null, "no vino en /api/vivos");
+  ok("y arranca con el saldo de la plantilla", Math.abs(base48 - 6272.5) < 0.01, "saldo " + base48);
+
+  // (a) Un abono que registra DIRECCIÓN sí le baja en el teléfono.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Recuperación / adelanto", concepto: "Abono en oficina",
+      monto: 1000, metodo: "efectivo", socio: BLANCA48, ejecutivo: "julio" }) });
+  ok("un abono que captura Dirección le baja el saldo a la ejecutiva",
+    Math.abs((await saldo48(cJul, BLANCA48)) - 5272.5) < 0.01, "saldo " + (await saldo48(cJul, BLANCA48)));
+
+  // (b) Pero lo que capturó ELLA no se resta dos veces. La app ya lo descuenta
+  // en pantalla con su captura local; si el servidor lo mandara descontado, la
+  // clienta aparecería debiendo de menos de lo que debe.
+  const hoy48 = HOY;
+  const kB48 = BLANCA48 + "|COMADRE|BLANCA LUIS BERNAL|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: hoy48, snapshot: { regI: { [kB48]: { pago: 1554.5, forma: "E" } } }, ts: Date.now() }) });
+  const conSuPago48 = await saldo48(cJul, BLANCA48);
+  ok("lo que capturó ELLA no se le resta dos veces",
+    Math.abs(conSuPago48 - 5272.5) < 0.01, "saldo " + conSuPago48 + " (debía seguir en 5272.50)");
+  // Y la cuenta final tiene que cuadrar con lo que ve Monse en su tablero.
+  const enTablero48 = (await j(await fetch(U + "/api/clientes?q=BLANCA%20LUIS", { headers: H(cm) })))
+    .resultados.find((c) => c.ejecutivo === "Julio");
+  // Que el pago SÍ haya entrado, no que la prueba pase en vacío: si la llave
+  // del snapshot no coincidiera, los dos lados dirían 5272.50 y "cuadraría"
+  // sin haber capturado nada.
+  ok("el pago de la ejecutiva sí quedó registrado",
+    Math.abs(((enTablero48 || {}).saldoActual) - 3718) < 0.01,
+    "tablero " + (enTablero48 || {}).saldoActual + " (esperado 3718 = 6272.50 − 1000 − 1554.50)");
+  ok("y la pantalla de la ejecutiva cuadra con el tablero de Dirección",
+    Math.abs((conSuPago48 - 1554.5) - (enTablero48 || {}).saldoActual) < 0.01,
+    "app " + (conSuPago48 - 1554.5) + " vs tablero " + (enTablero48 || {}).saldoActual);
+
+  // (c) Un AJUSTE de saldo hecho por Monse baja al teléfono.
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: BLANCA48, producto: "COMADRE", saldo: 9000, cuota: 900, motivo: "prueba de linkeo" }) });
+  const tras48 = await vivos48(cJul);
+  const vB48 = (tras48.vivos || []).find((x) => String(x.id) === BLANCA48) || {};
+  ok("un ajuste de saldo de Dirección llega al teléfono",
+    Math.abs(vB48.saldo - (9000 - 1000)) < 0.01, "saldo " + vB48.saldo);
+  ok("y el cambio de cuota también", Math.abs(vB48.cuota - 900) < 0.01, "cuota " + vB48.cuota);
+
+  // (d) Un ALTA de Monse aparece sola en la app de la ejecutiva.
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "11199999048", nombre: "ALTA QUE HIZO MONSE", producto: "Individual 1",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4000, cuota: 400, plazo: 10 }) });
+  const conAlta48 = await vivos48(cJul);
+  ok("un alta de Dirección aparece sola en la app",
+    (conAlta48.altas || []).some((a) => String(a.id) === "11199999048"), JSON.stringify(conAlta48.altas || []));
+  ok("y ya viene con su plazo y su saldo",
+    (conAlta48.vivos || []).some((v) => String(v.id) === "11199999048" && v.plazo === 10 && v.saldo === 4000),
+    JSON.stringify((conAlta48.vivos || []).filter((v) => String(v.id) === "11199999048")));
+
+  // (e) Y una BAJA la saca del teléfono.
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "11199999048", producto: "Individual 1", motivo: "No renovó" }) });
+  const conBaja48 = await vivos48(cJul);
+  ok("una baja de Dirección la saca del teléfono",
+    (conBaja48.quitar || []).some((q) => String(q.id) === "11199999048")
+    && !(conBaja48.vivos || []).some((v) => String(v.id) === "11199999048"),
+    JSON.stringify(conBaja48.quitar || []).slice(0, 160));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

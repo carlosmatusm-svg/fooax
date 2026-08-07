@@ -98,6 +98,29 @@ for (const a of apps) {
   ok(nom + ": no dice 'ahorro' en ningún lado", !/ahorro/i.test(h), "aparece la palabra");
 }
 
+// LOS SCRIPTS QUE SE LE INYECTAN A LA APP. Viven fuera del HTML, así que las
+// pruebas de las apps no los tocaban: un error de sintaxis aquí deja el
+// teléfono con los montos viejos y nadie se entera (el servidor contesta 200).
+console.log("\n═══ LO QUE SE LE INYECTA A LA APP ═══\n");
+for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
+  const ruta = path.join(__dirname, "..", "public", f);
+  if (!fs.existsSync(ruta)) { ok(f + ": existe", false, "no está en public/"); continue; }
+  const src = fs.readFileSync(ruta, "utf8");
+  let compila = true, err = "";
+  try { new Function(src); } catch (e) { compila = false; err = e.message; }
+  ok(f + ": compila", compila, err);
+}
+// vivos.js es el que mantiene el teléfono al día: si deja de pedir /api/vivos
+// o de aplicar el primer paquete, todo vuelve a quedarse congelado.
+{
+  const v = fs.readFileSync(path.join(__dirname, "..", "public", "vivos.js"), "utf8");
+  ok("vivos.js sigue pidiendo /api/vivos", /\/api\/vivos/.test(v), "ya no lo pide");
+  ok("vivos.js aplica el primer paquete del HTML", /__VIVOS0/.test(v), "ya no lee __VIVOS0");
+  ok("vivos.js vuelve a preguntar solo (setInterval)", /setInterval\(/.test(v), "sin sondeo");
+  ok("vivos.js no pisa el plazo que capturó la ejecutiva",
+    /!d\.plazo/.test(v), "podría estar sobrescribiéndolo");
+}
+
 console.log("\n══════════════════════════════════");
 console.log(FALLA === 0 ? "✅✅ TODO PASÓ: " + PASA + " verificaciones" : "❌ FALLARON " + FALLA + " de " + (PASA + FALLA));
 process.exit(FALLA === 0 ? 0 : 1);

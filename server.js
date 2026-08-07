@@ -3364,17 +3364,61 @@ function altasParaApp(usuario) {
 // Esto manda los datos frescos en cada carga: se acabó el archivo que envejece.
 function datosVivosParaApp(usuario) {
   const mia = (c) => norm(c.ejecutivo) === norm(usuario.nombre);
+  const hoy = hoyMX();
+  const corte = corteSaldos();
+  const cv = carteraViva(usuario);
+  const { porFecha } = pagosDeLaSemana(usuario, corte);
+
+  // EL SALDO SE MANDA SIN LO QUE ELLA CAPTURÓ HOY. La app resta en pantalla su
+  // propia captura del día (`saldoNeto = saldo − lo cobrado − sus abonos`), así
+  // que si el saldo ya viniera descontado se restaría DOS VECES y la clienta
+  // aparecería debiendo de menos. Se le devuelve solo lo suyo de hoy.
+  //
+  // Lo de DIRECCIÓN (folio DIR-…) NO se devuelve: una liquidación que capturó
+  // Monse tiene que verse ya descontada en el teléfono de la ejecutiva. Eso era
+  // exactamente lo que no bajaba.
+  const suyoHoy = {};   // socio → liquidado/recuperado por ELLA hoy
+  for (const m of movsDeFecha(hoy, usuario)) {
+    if (String(m.folio || "").startsWith("DIR-")) continue;
+    if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+    const soc = socioDeMov(m);
+    if (soc) suyoHoy[soc] = (suyoHoy[soc] || 0) + (Number(m.monto) || 0);
+  }
+
+  const bolsa = Object.assign({}, suyoHoy);   // se consume: una liquidación por socia
   return PADRON
     .filter((c) => mia(c) && c.activa !== false && c.estatus !== "BAJA")
-    .map((c) => ({
-      id: String(c.id), producto: c.producto,
-      cuota: Number(c.cuota) || 0,
-      plazo: Number(c.plazo) || 0,
-      unidad: c.unidad || "",
-      dia: c.diaPago || "",
-      importe: Number(c.importe) || 0,
-    }));
+    .map((c) => {
+      const info = infoCredito(cv, c);
+      const pagoHoy = ((porFecha[claveCredito(c.id, c.producto)] || {})[hoy] || {}).p || 0;
+      // Nunca se devuelve más de lo que de verdad se le descontó a ESTE crédito.
+      const soc = String(c.id);
+      const devuelve = Math.min(bolsa[soc] || 0, info.liquidado || 0);
+      if (devuelve > 0) bolsa[soc] -= devuelve;
+      return {
+        id: soc, producto: c.producto,
+        saldo: Math.max(0, info.saldoActual + pagoHoy + devuelve),
+        cuota: Number(c.cuota) || 0,
+        plazo: Number(c.plazo) || 0,
+        unidad: c.unidad || "",
+        dia: c.diaPago || "",
+        importe: Number(c.importe) || 0,
+        mora: Number(c.mora) || 0,
+      };
+    });
 }
+
+// El paquete completo que baja al teléfono: altas, bajas y montos al día.
+// Lo pide `vivos.js` al abrir, cada minuto, al recuperar señal y al volver a la
+// pestaña — para que un cambio de Dirección aparezca solo, sin recargar y sin
+// que nadie tenga que regenerar el archivo de nadie.
+function paqueteVivo(usuario) {
+  const { altas, centros, quitar } = altasParaApp(usuario);
+  return { altas, centros, quitar, vivos: datosVivosParaApp(usuario), ts: Date.now() };
+}
+app.get("/api/vivos", requiere("ejecutivo"), (req, res) => {
+  res.json(paqueteVivo(req.usuario));
+});
 
 app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   const archivo = path.join(__dirname, "apps", req.usuario.app);
@@ -3397,66 +3441,14 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
     '}).catch(function(){});' +
     'var _rc=false;navigator.serviceWorker.addEventListener("controllerchange",function(){if(_rc)return;_rc=true;location.reload();});}</script>';
   // Sincronización y capa de mejoras antes de </body>.
-  // Script que mete las altas del tablero en CENTROS/INDIVIDUALES de la app.
-  const dA = altasParaApp(req.usuario);
-  const scriptAltas = (dA.altas.length || dA.quitar.length) ? (
-    "<script>(function(){try{" +
-    "var _A=" + JSON.stringify(dA.altas) + ";var _CN=" + JSON.stringify(dA.centros) + ";" +
-    "var _Q=" + JSON.stringify(dA.quitar) + ";" +
-    "function _n(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\s+/g,' ').trim();}" +
-    "function _ind(c,p){var n=_n(c);return !n||n==='c-0'||n==='0'||n==='individual'||/individual|foxi/.test(_n(p));}" +
-    // QUITAR VA PRIMERO, SIEMPRE. Al renovar con el mismo nombre y el mismo
-    // ejecutivo, el crédito viejo (de baja) y el nuevo comparten socio+producto:
-    // si se agregara antes de quitar, el "quitar" borraría el crédito NUEVO y la
-    // clienta desaparecería de la app. Se saca en el lugar (splice) para no
-    // romper referencias que la app ya tenga a esos arreglos.
-    "var _rm=function(arr){if(!arr||!arr.length)return;for(var i=arr.length-1;i>=0;i--){var c=arr[i];" +
-    "if(_Q.some(function(q){return String(c.f)===String(q.id)&&_n(c.sub)===_n(q.producto);}))arr.splice(i,1);}};" +
-    "if(_Q.length){for(var _qk in CENTROS)_rm(CENTROS[_qk]);if(typeof INDIVIDUALES!=='undefined')_rm(INDIVIDUALES);}" +
-    "var _bn={};for(var k in CENTROS){_bn[_n(String(k).split('·').pop())]=k;}" +
-    "_A.forEach(function(a){" +
-    "var cl={n:a.nombre,f:String(a.id),sub:a.producto,k:a.id+'|'+a.producto+'|'+a.nombre+'|0',imp:a.saldo||0,saldo:a.saldo||0,esp:a.cuota||0,impOrig:a.saldo||0,mora:0,sug:Math.round((a.saldo||0)*1.2),des:'',dia:'',_nueva:true};" +
-    "if(_ind(a.centro,a.producto)){if(!INDIVIDUALES.some(function(c){return String(c.f)===String(a.id)&&_n(c.sub)===_n(a.producto);}))INDIVIDUALES.push(cl);}" +
-    "else{var nm=_n(a.centro);var lv=_bn[nm];if(!lv){lv=_CN[nm]||a.centro;CENTROS[lv]=CENTROS[lv]||[];_bn[nm]=lv;}" +
-    "if(!CENTROS[lv].some(function(c){return String(c.f)===String(a.id)&&_n(c.sub)===_n(a.producto);}))CENTROS[lv].push(cl);}" +
-    "});" +
-    "if(typeof fillCentros==='function')try{fillCentros();}catch(e){}" +
-    "if(typeof renderIndiv==='function')try{renderIndiv();}catch(e){}" +
-    "if(typeof render==='function')try{render();}catch(e){}" +
-    "}catch(e){}})();</script>"
-  ) : "";
-  // VA DESPUÉS DE scriptAltas: así las clientas que nacieron en el tablero
-  // también quedan con su plazo y su cuota al día, no solo las del HTML.
-  const vivos = datosVivosParaApp(req.usuario);
-  const scriptVivos = vivos.length ? (
-    "<script>(function(){try{" +
-    "var _V=" + JSON.stringify(vivos) + ";" +
-    "function _n(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/\\s+/g,' ').trim();}" +
-    "var _ix={};_V.forEach(function(v){_ix[String(v.id)+'|'+_n(v.producto)]=v;});" +
-    "var _tocadas=0;" +
-    "function _p(arr){if(!arr||!arr.length)return;arr.forEach(function(c){" +
-    "var v=_ix[String(c.f)+'|'+_n(c.sub)];if(!v)return;_tocadas++;" +
-    "if(v.cuota>0)c.esp=v.cuota;" +
-    "if(v.plazo>0)c.plazo=v.plazo;" +
-    "if(v.unidad)c.unidad=v.unidad;" +
-    "if(v.dia)c.dia=v.dia;" +
-    "if(v.importe>0){c.imp=v.importe;c.impOrig=v.importe;c.sug=Math.round(v.importe*1.2);}" +
-    // El plazo se siembra en datosCli para que la ejecutiva ya no lo teclee:
-    // solo captura en qué pago va. NUNCA se pisa lo que ella ya escribió.
-    "var k=c.k||c.f;var d=datosCli[k]||(datosCli[k]={});" +
-    "if(v.plazo>0&&!d.plazo)d.plazo=v.plazo;" +
-    "if(v.unidad)d.unidad=v.unidad;" +
-    "});}" +
-    "for(var q in CENTROS)_p(CENTROS[q]);" +
-    "if(typeof INDIVIDUALES!=='undefined')_p(INDIVIDUALES);" +
-    "if(_tocadas&&typeof guardarDatosCli==='function')guardarDatosCli();" +
-    "if(typeof fillCentros==='function')try{fillCentros();}catch(e){}" +
-    "if(typeof render==='function')try{render();}catch(e){}" +
-    "if(typeof renderIndiv==='function')try{renderIndiv();}catch(e){}" +
-    "if(typeof recalc==='function')try{recalc();}catch(e){}" +
-    "}catch(e){}})();</script>"
-  ) : "";
-  const inyecciones = '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' + scriptAltas + scriptVivos;
+  // TODO EL PAQUETE VIVO EN UNO. Antes esto eran dos scripts escritos a mano
+  // aquí dentro; la lógica se mudó a `public/vivos.js`, que además lo vuelve a
+  // pedir cada minuto. El primer paquete viaja incrustado para que al abrir ya
+  // esté al día aunque el teléfono no tenga señal para el primer sondeo.
+  const inyecciones =
+    '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' +
+    "<script>window.__VIVOS0=" + JSON.stringify(paqueteVivo(req.usuario)) + ";</script>" +
+    '<script src="/vivos.js"></script>';
   let out = html.includes("</head>") ? html.replace("</head>", cabeza + "</head>") : cabeza + html;
   out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
   res.type("html").send(out);
