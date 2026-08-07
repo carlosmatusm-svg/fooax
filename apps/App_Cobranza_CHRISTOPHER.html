@@ -2190,7 +2190,19 @@ function preguntarPostCierre(){
   try{f=localStorage.getItem(KEYC);}catch(e){}
   if(!f)return;
   if(f!==hoyISO()){try{localStorage.removeItem(KEYC);}catch(e){}return;}
-  if(localStorage.getItem(STORE_KEY))return; // ya hay captura nueva en curso
+  // Solo se calla si YA HAY CAPTURA NUEVA DE VERDAD. Antes bastaba con que
+  // existiera el registro del dia, y varias funciones (calcArqueo, guardar) lo
+  // re-crean VACIO al abrir la app: con eso la pregunta no salia nunca y la
+  // ejecutiva se quedaba sin poder agregar nada (lo reporto Karina el 7-ago).
+  try{
+    var _g=localStorage.getItem(STORE_KEY);
+    if(_g){
+      var _d=JSON.parse(_g)||{};
+      var _hay=(_d.reg&&Object.keys(_d.reg).length)||(_d.regI&&Object.keys(_d.regI).length)
+              ||(_d.movs&&_d.movs.length)||(_d.arqueo&&Object.keys(_d.arqueo).length);
+      if(_hay)return;
+    }
+  }catch(e){}
   var o=document.createElement('div');o.id='fooax-postcierre';
   o.style.cssText='position:fixed;inset:0;z-index:100002;background:rgba(42,31,53,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px;font-family:inherit;overflow:auto';
   o.innerHTML='<div style="font:800 20px/1.3 inherit">Ya enviaste tu arqueo de hoy</div>'

@@ -69,6 +69,35 @@ const cargando = [...html.matchAll(/id="(\w+)"[^>]*>\s*<div class="rechint">Carg
 const sinPintor = cargando.filter((id) => !new RegExp('\\$\\("' + id + '"\\)').test(js));
 ok("cada 'Cargando…' tiene quien lo reemplace", !sinPintor.length, sinPintor.join(", "));
 
+// LAS APPS DE CAMPO: que su JavaScript compile y que la pregunta de después de
+// cerrar no dependa de un registro VACÍO. El 7-ago Julio cerró, volvió a entrar
+// y no le salía la opción de agregar: varias funciones re-crean el registro del
+// día vacío al abrir, y con eso la pregunta se callaba para siempre.
+console.log("\n═══ LAS APPS DE CAMPO ═══\n");
+const apps = fs.readdirSync(path.join(__dirname, "..", "apps"))
+  .filter((f) => /^App_Cobranza_.*\.html$/.test(f) && !f.includes(".bak"));
+ok("se encontraron las apps", apps.length >= 4, apps.length + " archivos");
+for (const a of apps) {
+  const h = fs.readFileSync(path.join(__dirname, "..", "apps", a), "utf8");
+  const jsa = (h.match(/<script>([\s\S]*?)<\/script>/g) || [])
+    .map((x) => x.replace(/^<script>/, "").replace(/<\/script>$/, "")).join("\n");
+  let c = true, e2 = "";
+  try { new vm.Script(jsa); } catch (er) { c = false; e2 = er.message; }
+  const nom = a.replace("App_Cobranza_", "").replace(".html", "");
+  ok(nom + ": su JavaScript compila", c, e2);
+  if (/function preguntarPostCierre\(\)/.test(jsa)) {
+    ok(nom + ": la pregunta de después de cerrar no se calla por un registro vacío",
+      !/if\(localStorage\.getItem\(STORE_KEY\)\)return;/.test(jsa),
+      "vuelve a depender de que el registro no exista");
+  }
+  // Un gasto de ruta no es de ninguna clienta (Ing. Monse, 6-ago).
+  if (/function toggleGasto\(\)/.test(jsa)) {
+    ok(nom + ": en un gasto se esconden centro y clienta",
+      /movQuienBox/.test(jsa), "no esconde el bloque");
+  }
+  ok(nom + ": no dice 'ahorro' en ningún lado", !/ahorro/i.test(h), "aparece la palabra");
+}
+
 console.log("\n══════════════════════════════════");
 console.log(FALLA === 0 ? "✅✅ TODO PASÓ: " + PASA + " verificaciones" : "❌ FALLARON " + FALLA + " de " + (PASA + FALLA));
 process.exit(FALLA === 0 ? 0 : 1);
