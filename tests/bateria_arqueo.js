@@ -1455,6 +1455,16 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const movApp = await j(await fetch(U + "/api/movimientos?fecha=" + D44g, { headers: H(cd) }));
   void movApp;
   const cat44g = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
+  // El DESEMBOLSO no va aquí (Karina, 6-ago): el crédito nuevo se abre con "Dar
+  // de alta" o "Re-dar crédito", que además le ponen su ancla y su plazo.
+  // Registrarlo como movimiento suelto sacaba el efectivo sin crear el crédito.
+  ok("el desembolso ya NO se puede registrar como movimiento",
+    !(cat44g.conceptos || []).some((c) => /desembolso \(/i.test(c.nombre)),
+    JSON.stringify((cat44g.conceptos || []).map((c) => c.nombre)));
+  const rDes = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Desembolso (crédito nuevo)", monto: 5000, concepto: "x",
+      metodo: "efectivo", fecha: D44g }) });
+  ok("y el servidor lo rechaza, no solo el menú", rDes.status === 400, "status " + rDes.status);
   ok("el catálogo separa lo que entra de lo que sale",
     (cat44g.conceptos || []).some((c) => c.nombre === "Liquidación" && c.entrada)
     && (cat44g.conceptos || []).some((c) => c.nombre === "Gasto operativo" && !c.entrada),

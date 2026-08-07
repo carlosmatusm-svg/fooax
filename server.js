@@ -2178,7 +2178,12 @@ const CONCEPTOS_DIR = {
   "Gasto operativo":             { entrada: false, categoria: "Gasto operativo" },
   "Retiro de dirección":         { entrada: false, categoria: "Retiro de dirección" },
   "Autorización / préstamo":     { entrada: false, categoria: "Autorización / préstamo" },
-  "Desembolso (crédito nuevo)":  { entrada: false, categoria: "Autorización / préstamo", clienta: "sugiere" },
+  // "Desembolso (crédito nuevo)" queda FUERA de esta lista (Karina, 6-ago): el
+  // crédito nuevo se abre con "Dar de alta" o "Re-dar crédito", que además le
+  // ponen su ancla y su plazo. Registrarlo aquí como movimiento suelto lo dejaba
+  // en la caja sin crear el crédito, y nadie lo usó nunca (0 de 303 movimientos
+  // en producción). Si hace falta sacar el efectivo, va como "Autorización /
+  // préstamo".
   "Otro":                        { entrada: false, categoria: "Otro" },
 };
 const METODOS = ["efectivo", "transferencia", "cheque"];
