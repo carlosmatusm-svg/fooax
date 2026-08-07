@@ -10135,13 +10135,14 @@
   "centro": "",
   "ejecutivo": "Julio",
   "saldo": 76212.0,
-  "cuota": 0.0,
+  "cuota": 3175.5,
   "mora": 0,
   "plazo": 24,
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-07-30",
-  "diaPago": "JUEVES"
+  "diaPago": "JUEVES",
+  "origen": "plantilla 2026-08-06 (Julio)"
  },
  {
   "id": "11113018033",
@@ -10552,14 +10553,14 @@
   "centro": "",
   "ejecutivo": "Julio",
   "saldo": 79166.65,
-  "cuota": 0.0,
+  "cuota": 6875.75,
   "mora": 0,
   "plazo": 24,
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-02-28",
   "diaPago": "2026-08-31 00:00:00",
-  "origen": "plantilla 2026-08-04"
+  "origen": "plantilla 2026-08-06 (Julio)"
  },
  {
   "id": "11113089148",
@@ -10568,14 +10569,14 @@
   "centro": "",
   "ejecutivo": "Julio",
   "saldo": 83333.32,
-  "cuota": 0.0,
+  "cuota": 7018.34,
   "mora": 0,
   "plazo": 24,
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-03-25",
   "diaPago": "2026-08-30 00:00:00",
-  "origen": "plantilla 2026-08-04"
+  "origen": "plantilla 2026-08-06 (Julio)"
  },
  {
   "id": "11112769851",
@@ -10584,14 +10585,14 @@
   "centro": "",
   "ejecutivo": "Julio",
   "saldo": 73333.34,
-  "cuota": 0.0,
+  "cuota": 5842.8,
   "mora": 0,
   "plazo": 24,
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-05-22",
   "diaPago": "2026-08-30 00:00:00",
-  "origen": "plantilla 2026-08-04"
+  "origen": "plantilla 2026-08-06 (Julio)"
  },
  {
   "id": "11112931059",
@@ -10600,14 +10601,14 @@
   "centro": "",
   "ejecutivo": "Julio",
   "saldo": 6272.5,
-  "cuota": 0.0,
+  "cuota": 1554.5,
   "mora": 0,
   "plazo": 12,
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-05-28",
   "diaPago": "JUEVES",
-  "origen": "plantilla 2026-08-04"
+  "origen": "plantilla 2026-08-06 (Julio)"
  },
  {
   "id": "11113014663",
@@ -10616,13 +10617,13 @@
   "centro": "",
   "ejecutivo": "Julio",
   "saldo": 16962.0,
-  "cuota": 0.0,
+  "cuota": 2827.0,
   "mora": 0,
   "plazo": 12,
   "semana": 0,
   "estatus": "ACTIVO RECUPERABLE",
   "desembolso": "2026-06-11",
   "diaPago": "JUEVES",
-  "origen": "plantilla 2026-08-04"
+  "origen": "plantilla 2026-08-06 (Julio)"
  }
 ]
