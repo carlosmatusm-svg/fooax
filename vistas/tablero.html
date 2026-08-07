@@ -1347,6 +1347,19 @@ async function cargarCartera() {
       + "</div>";
   }
   // Liquidaciones que entraron a caja pero no le bajaron el saldo a nadie.
+  if ((d.abonosNoAplicados || []).length) {
+    const totN = d.abonosNoAplicados.reduce((a, b) => a + (b.monto || 0), 0);
+    alto += aviso("alta", d.abonosNoAplicados.length + " abonos que no le bajaron a nadie", dinero(totN),
+      "Son liquidaciones o recuperaciones <b>anteriores al corte del " + hesc(d.corte) + "</b>. "
+      + "El sistema las ignora porque da por hecho que el saldo de la plantilla ya las trae — "
+      + "pero el saldo de estas clientas es <b>exactamente su monto original</b>, sin un solo pago aplicado, "
+      + "y el abono es posterior al desembolso. Ese dinero está en la caja y no bajó ningún saldo.",
+      d.abonosNoAplicados.map((x) => "<b>" + hesc(x.clienta) + "</b>"
+        + '<span class="av-monto" style="float:right;font-weight:800;color:#8E0019">' + dinero(x.monto) + "</span>"
+        + '<br><span class="sub">' + hesc(x.fecha) + " · " + hesc(x.ejecutivo || "—") + " · " + hesc(x.producto)
+        + " · saldo " + dinero(x.saldo) + " = " + x.plazo + " × " + dinero(x.cuota)
+        + " · desembolsado el " + hesc(x.desembolso) + "</span>"));
+  }
   if ((d.liquidacionesSinClienta || []).length) {
     const totL = d.liquidacionesSinClienta.reduce((a, b) => a + (b.monto || 0), 0);
     h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">🔴 ' + d.liquidacionesSinClienta.length
@@ -1396,6 +1409,19 @@ async function cargarCartera() {
         + "</span>"));
   }
 
+  if ((d.abonosNoAplicados || []).length) {
+    const totN = d.abonosNoAplicados.reduce((a, b) => a + (b.monto || 0), 0);
+    alto += aviso("alta", d.abonosNoAplicados.length + " abonos que no le bajaron a nadie", dinero(totN),
+      "Son liquidaciones o recuperaciones <b>anteriores al corte del " + hesc(d.corte) + "</b>. "
+      + "El sistema las ignora porque da por hecho que el saldo de la plantilla ya las trae — "
+      + "pero el saldo de estas clientas es <b>exactamente su monto original</b>, sin un solo pago aplicado, "
+      + "y el abono es posterior al desembolso. Ese dinero está en la caja y no bajó ningún saldo.",
+      d.abonosNoAplicados.map((x) => "<b>" + hesc(x.clienta) + "</b>"
+        + '<span class="av-monto" style="float:right;font-weight:800;color:#8E0019">' + dinero(x.monto) + "</span>"
+        + '<br><span class="sub">' + hesc(x.fecha) + " · " + hesc(x.ejecutivo || "—") + " · " + hesc(x.producto)
+        + " · saldo " + dinero(x.saldo) + " = " + x.plazo + " × " + dinero(x.cuota)
+        + " · desembolsado el " + hesc(x.desembolso) + "</span>"));
+  }
   if ((d.liquidacionesSinClienta || []).length) {
     const totL = d.liquidacionesSinClienta.reduce((a, b) => a + (b.monto || 0), 0);
     alto += aviso("alta", d.liquidacionesSinClienta.length + " liquidaciones sin clienta", dinero(totL),

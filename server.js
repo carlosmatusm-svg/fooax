@@ -909,6 +909,44 @@ function cobranzaSinCredito(usuario, desde) {
   }
   return out.sort((a, b) => b.pago - a.pago);
 }
+// ABONOS QUE NUNCA LE BAJARON A NADIE. Una liquidación o recuperación anterior
+// al corte se ignora a propósito: se da por hecho que el saldo de la plantilla
+// ya la trae. Pero si la plantilla se cortó ANTES de que la capturaran, ese
+// dinero entró a la caja y no bajó ningún saldo — en silencio, porque el
+// movimiento sí tiene clienta y ninguna alerta lo veía.
+//
+// Se detecta con una señal dura: el saldo de la plantilla es EXACTAMENTE
+// plazo × cuota, o sea el monto original sin un solo pago aplicado. Y el abono
+// es POSTERIOR al desembolso, así que tampoco pudo estar pagando un crédito
+// anterior. Lo destapó Karina el 7-ago con MARTHA PATRICIA ($23,814).
+function abonosNoAplicados(usuario) {
+  const corte = corteSaldos(), hoy = hoyMX();
+  const out = [];
+  const d0 = new Date(corte + "T12:00:00");
+  for (let i = 1; i <= 120; i++) {
+    const f = new Date(d0); f.setDate(d0.getDate() - i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) continue;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      if (m.anulado) continue;
+      if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m))) continue;
+      const soc = socioDeMov(m);
+      if (!soc) continue;                       // ese caso ya lo avisa otra alerta
+      for (const c of PADRON) {
+        if (String(c.id) !== String(soc)) continue;
+        if (c.activa === false || c.estatus === "BAJA") continue;
+        const s = Number(c.saldo) || 0, q = Number(c.cuota) || 0, pl = Number(c.plazo) || 0;
+        if (!(q > 0 && pl > 0) || Math.abs(pl * q - s) > 1) continue;   // ya trae pagos: ok
+        const des = String(c.desembolso || "").slice(0, 10);
+        if (!des || fISO < des) continue;       // pudo pagar el crédito anterior
+        out.push({ fecha: fISO, monto: Number(m.monto) || 0, socio: String(soc),
+          clienta: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo,
+          saldo: s, plazo: pl, cuota: q, desembolso: des, folio: m.folio });
+      }
+    }
+  }
+  return out.sort((a, b) => b.monto - a.monto);
+}
 function liquidacionesSinClienta(usuario, desde) {
   const hoy = hoyMX(), inicio = desde || lunesDeLaSemana(hoy);
   const d0 = new Date(inicio + "T12:00:00");
@@ -1776,6 +1814,9 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // Fichas cobradas que no empatan con ningún crédito: el dinero está en la
     // caja pero no le bajó el saldo a nadie.
     cobranzaSinCredito: cobranzaSinCredito(req.usuario, corteSaldos()),
+    // Abonos anteriores al corte que la plantilla NO trae: entraron a la caja
+    // y no le bajaron el saldo a nadie.
+    abonosNoAplicados: abonosNoAplicados(req.usuario),
     // ¿Todo lo cobrado bajó de algún saldo? Es el control que sustituye a pedir
     // el Excel de Monse para comparar.
     conciliacion: conciliacionDeSaldos(req.usuario),

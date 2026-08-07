@@ -1612,6 +1612,27 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("pero una RENOVACIÓN sí conserva su propio monto (la plantilla es el ciclo viejo)",
     ren45 && ren45.saldo === 20000 && ren45.recredito === true, JSON.stringify(ren45 && { s: ren45.saldo, r: ren45.recredito }));
 
+  console.log("\n— 45b. ABONOS ANTERIORES AL CORTE QUE LA PLANTILLA NO TRAE (Karina, 7-ago) —");
+  // Una liquidación anterior al corte se ignora a propósito: se da por hecho
+  // que el saldo de la plantilla ya la trae. Pero si la plantilla se cortó
+  // ANTES de que la capturaran, ese dinero entró a la caja y no bajó ningún
+  // saldo — y ninguna alerta lo veía, porque el movimiento SÍ tiene clienta.
+  // Caso real: MARTHA PATRICIA, $23,814 del 4-ago.
+  const cJ45 = await login("julio", "julio2026");
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJ45), body: JSON.stringify({ fecha: "2026-08-04",
+    snapshot: { reg: {}, movs: [{ folio: "MP45", concepto: "LIQUIDACION", monto: 23814, via: "T",
+      clienta: "MARTHA PATRICIA VASQUEZ HERNANDEZ", socio: "11113236921" }] }, ts: Date.now() }) });
+  const na = (await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).abonosNoAplicados || [];
+  const mp = na.find((x) => String(x.socio) === "11113236921");
+  ok("se detecta el abono que no le bajó el saldo a nadie", !!mp && mp.monto === 23814,
+    JSON.stringify(na.map((x) => x.clienta + " " + x.monto)));
+  ok("y se dice POR QUÉ se sabe: el saldo es su monto original completo",
+    !!mp && Math.abs(mp.plazo * mp.cuota - mp.saldo) < 1,
+    mp ? mp.saldo + " vs " + mp.plazo + "×" + mp.cuota : "—");
+  ok("no se marca cuando el abono es ANTERIOR al desembolso (pudo ser renovación)",
+    na.every((x) => x.fecha >= x.desembolso), JSON.stringify(na.map((x) => x.fecha + "/" + x.desembolso)));
+
   console.log("\n— 46. EL CIERRE DEL DÍA LLEGA DE VERDAD AL TABLERO (Karina, 7-ago) —");
   // Julio cerró su día y a Dirección le seguía apareciendo abierto. La causa:
   // si no había snapshot de esa fecha, marcarCierre() devolvía false y la ruta
