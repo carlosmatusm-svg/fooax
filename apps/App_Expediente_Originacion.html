@@ -46,6 +46,13 @@
   .firmas .btn{flex:1;min-width:140px}
   .firma-hecha{opacity:.55;pointer-events:none}
   small.help{display:block;color:var(--gris);font-size:11px;margin-top:4px}
+  .modo-toggle{display:flex;gap:8px;margin-bottom:4px}
+  .modo-toggle .btn{flex:1;margin-top:0;padding:8px}
+  .persona-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .persona-row .nm{font-size:13px;font-weight:700}
+  .persona-row .curp{font-size:11px;color:var(--gris);font-weight:400}
+  .persona-acciones{display:flex;align-items:center;gap:8px;flex:none}
+  .btn-mini{margin:0;padding:6px 12px;font-size:12px}
 </style>
 </head>
 <body>
@@ -118,6 +125,75 @@
     `;
   }
 
+  // Buscar y VINCULAR una responsable/aval que ya existe, o registrar una
+  // nueva — antes esta pantalla siempre creaba un registro nuevo en cada
+  // alta, así que el tope (2 responsable / 1 aval) nunca se ponía a prueba en
+  // uso real: cada vínculo partía de un id distinto. Con el buscador, la
+  // ejecutiva encuentra a la misma persona real y la reutiliza, y el pill
+  // "X/tope" le avisa ANTES de intentar vincular si ya llegó al máximo.
+  function PersonaVinculo({ etiqueta, tope, nota, buscarUrl, vincularUrl, campoId, onVinculado }) {
+    const [modo, setModo] = useState("buscar");
+    const [q, setQ] = useState("");
+    const [resultados, setResultados] = useState(null);
+    const [buscando, setBuscando] = useState(false);
+    const [nombre, setNombre] = useState("");
+    const [curp, setCurp] = useState("");
+    const [mensaje, setMensaje] = useState(null);
+
+    const buscar = async () => {
+      setBuscando(true);
+      const r = await j(await fetch(`${buscarUrl}?q=${encodeURIComponent(q)}`));
+      setResultados(r.resultados || []);
+      setBuscando(false);
+    };
+
+    const vincular = async (body) => {
+      const r = await j(await post(vincularUrl, body));
+      if (!r.ok) { setMensaje({ tipo: "mora", texto: r.error }); return; }
+      setMensaje({ tipo: "ok", texto: "Vinculada correctamente." });
+      setNombre(""); setCurp(""); setQ(""); setResultados(null);
+      onVinculado();
+    };
+
+    return html`
+      <div class="card">
+        <div class="sectitle">${etiqueta} (máx. ${tope} clienta${tope > 1 ? "s" : ""})</div>
+        ${nota && html`<small class="help" style="margin-top:0">${nota}</small>`}
+        ${mensaje && html`<${Aviso} tipo=${mensaje.tipo}>${mensaje.texto}<//>`}
+        <div class="modo-toggle">
+          <button class="btn ${modo === "buscar" ? "btn-primary" : "btn-light"}" onClick=${() => setModo("buscar")}>Buscar existente</button>
+          <button class="btn ${modo === "nueva" ? "btn-primary" : "btn-light"}" onClick=${() => setModo("nueva")}>Registrar nueva</button>
+        </div>
+
+        ${modo === "buscar" ? html`
+          <label>Nombre o CURP</label>
+          <input value=${q} onInput=${(e) => setQ(e.target.value)} placeholder="Escribe para buscar…" />
+          <button class="btn btn-light" onClick=${buscar} disabled=${!q}>Buscar</button>
+          ${buscando && html`<div class="muted" style="margin-top:8px">Buscando…</div>`}
+          ${resultados && resultados.length === 0 && html`<div class="muted" style="margin-top:8px">Sin resultados — puedes registrarla como nueva.</div>`}
+          ${resultados && resultados.map((p) => html`
+            <div class="checkrow" key=${p.id}>
+              <div class="persona-row">
+                <div class="nm">${p.nombre}${p.curp ? html` <span class="curp">· ${p.curp}</span>` : ""}</div>
+                <div class="persona-acciones">
+                  <span class="pill ${p.clientas_activas >= p.tope ? "falta" : "ok"}">${p.clientas_activas}/${p.tope}</span>
+                  <button class="btn btn-light btn-mini" disabled=${p.clientas_activas >= p.tope}
+                    onClick=${() => vincular({ [campoId]: p.id })}>Vincular</button>
+                </div>
+              </div>
+            </div>
+          `)}
+        ` : html`
+          <label>Nombre completo</label>
+          <input value=${nombre} onInput=${(e) => setNombre(e.target.value)} />
+          <label>CURP</label>
+          <input value=${curp} onInput=${(e) => setCurp(e.target.value)} placeholder="Ayuda a encontrarla la próxima vez sin duplicarla" />
+          <button class="btn btn-light" onClick=${() => vincular({ nombre, curp })} disabled=${!nombre}>Registrar y vincular</button>
+        `}
+      </div>
+    `;
+  }
+
   function App() {
     const [clientaId, setClientaId] = useState("");
     const [cargado, setCargado] = useState(false);
@@ -139,24 +215,8 @@
       setCargado(true);
     };
 
-    const [respNombre, setRespNombre] = useState("");
-    const agregarResponsable = async () => {
-      const r = await j(await post(`/api/expediente/${clientaId}/responsable`, { nombre: respNombre }));
-      if (!r.ok) { setMsg({ tipo: "mora", texto: r.error }); return; }
-      setMsg({ tipo: "ok", texto: "Responsable vinculada." });
-      setRespNombre("");
-      cargar(clientaId);
-    };
-
-    const [avalNombre, setAvalNombre] = useState("");
-    const agregarAval = async () => {
-      const r = await j(await post(`/api/expediente/${clientaId}/aval`, { nombre: avalNombre }));
-      if (!r.ok) { setMsg({ tipo: "mora", texto: r.error }); return; }
-      setMsg({ tipo: "ok", texto: "Aval vinculado." });
-      setAvalNombre("");
-      setRequiereAval(true);
-      cargar(clientaId);
-    };
+    const alVincularResponsable = () => cargar(clientaId);
+    const alVincularAval = () => { setRequiereAval(true); cargar(clientaId); };
 
     const [refNombre, setRefNombre] = useState("");
     const [refRelacion, setRefRelacion] = useState("");
@@ -219,20 +279,15 @@
             `}
           </div>
 
-          <div class="card">
-            <div class="sectitle">👩 Responsable (máx. 2 clientas por responsable)</div>
-            <label>Nombre completo</label>
-            <input value=${respNombre} onInput=${(e) => setRespNombre(e.target.value)} />
-            <button class="btn btn-light" onClick=${agregarResponsable} disabled=${!respNombre}>Vincular responsable</button>
-            <small class="help">Si la responsable ya respalda a otra clienta y llegó a su tope, el sistema lo rechaza aquí mismo.</small>
-          </div>
+          <${PersonaVinculo} etiqueta="👩 Responsable" tope=${2}
+            nota="Si la responsable ya respalda a otra clienta y llegó a su tope, el sistema lo rechaza aquí mismo."
+            buscarUrl="/api/responsables" vincularUrl=${`/api/expediente/${clientaId}/responsable`}
+            campoId="responsable_id" onVinculado=${alVincularResponsable} />
 
-          <div class="card">
-            <div class="sectitle">🧾 Aval (solo créditos mayores a $10,000 · máx. 1 clienta)</div>
-            <label>Nombre completo</label>
-            <input value=${avalNombre} onInput=${(e) => setAvalNombre(e.target.value)} />
-            <button class="btn btn-light" onClick=${agregarAval} disabled=${!avalNombre}>Vincular aval</button>
-          </div>
+          <${PersonaVinculo} etiqueta="🧾 Aval" tope=${1}
+            nota="Solo aplica en créditos mayores a $10,000."
+            buscarUrl="/api/avales" vincularUrl=${`/api/expediente/${clientaId}/aval`}
+            campoId="aval_id" onVinculado=${alVincularAval} />
 
           <div class="card">
             <div class="sectitle">👥 Referencia</div>

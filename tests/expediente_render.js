@@ -66,6 +66,19 @@ for (const clave of CHECKLIST) ok("conoce el documento " + clave, js.includes(cl
 for (const tipo of ["solicitud", "buro", "datos_sensibles"])
   ok("tiene botón de firma separado para " + tipo, new RegExp(`firmar\\("${tipo}"\\)`).test(js), "no está");
 
+// Buscar y REUTILIZAR responsable/aval — sin esto la pantalla siempre crea un
+// registro nuevo y el tope de vincularResponsable/vincularAval (servidor)
+// nunca se pone a prueba en uso real, porque cada alta parte de un id
+// distinto. Deben coincidir con las rutas nuevas de rutas_expediente.js.
+ok("busca responsables existentes en /api/responsables", /\/api\/responsables/.test(js), "no llama a /api/responsables");
+ok("busca avales existentes en /api/avales", /\/api\/avales/.test(js), "no llama a /api/avales");
+ok("permite alternar entre buscar existente y registrar nueva", /Buscar existente/.test(js) && /Registrar nueva/.test(js), "no está el selector de modo");
+ok("vincula por responsable_id (reutilizando el registro, no creando uno nuevo)", /responsable_id/.test(js), "no usa responsable_id");
+ok("vincula por aval_id (reutilizando el registro, no creando uno nuevo)", /aval_id/.test(js), "no usa aval_id");
+ok("muestra cuántas clientas ya respalda cada resultado antes de vincular (tope visible)",
+  /clientas_activas/.test(js) && /p\.tope/.test(js), "no se ve el conteo contra el tope");
+ok("deshabilita 'Vincular' cuando ya llegó al tope", /disabled=\$\{p\.clientas_activas >= p\.tope\}/.test(js), "el botón de vincular no respeta el tope en la pantalla");
+
 // La referencia no debe poder guardarse sin marcar su consentimiento.
 ok("la referencia exige su propio consentimiento antes de guardar",
   /if \(!refConsent\)/.test(js), "no valida refConsent antes de guardar");
