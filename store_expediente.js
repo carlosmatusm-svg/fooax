@@ -12,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const { cifrar, descifrar } = require("./cifrado");
+const motorReglas = require("./motor_reglas");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const usePg = !!process.env.DATABASE_URL;
@@ -38,6 +39,44 @@ const mem = {
 };
 
 function siguienteId() { return mem._seq++; }
+// Recalcula el contador de ids a partir de TODO lo ya cargado (todas las
+// entidades comparten el mismo mem._seq). Sin esto, cada reinicio del
+// servidor volvía a empezar en 1: el primer alta de cualquier tipo chocaba
+// con un id que ya existía en Postgres/archivo, el INSERT fallaba en
+// silencio (es fire-and-forget, solo hace console.error) y la fila quedaba
+// SOLO en memoria — "existía" para quien la acababa de crear, pero
+// desaparecía en el siguiente reinicio. Bug real, encontrado al construir el
+// motor de reglas; se corrige aquí de una vez.
+function recalcularSecuencia() {
+  const ids = [
+    ...mem.responsables.map((r) => r.id),
+    ...mem.avales.map((a) => a.id),
+    ...mem.clientas_responsables.map((v) => v.id),
+    ...mem.clientas_avales.map((v) => v.id),
+    ...mem.referencias.map((r) => r.id),
+    ...mem.documentos.map((d) => d.id),
+    ...mem.firmas.map((f) => f.id),
+    ...mem.bitacora.map((b) => b.id),
+  ];
+  mem._seq = ids.length ? Math.max(...ids) + 1 : 1;
+}
+// Los documentos, en modo archivo, NUNCA se guardaron en un JSON central
+// (cada uno vive en su propio .bin + .meta.json, ver guardarDocumento) — pero
+// tampoco se releían de vuelta a memoria al arrancar. Resultado: tras un
+// reinicio, mem.documentos quedaba vacío aunque los archivos cifrados
+// siguieran en disco, y el checklist volvía a marcar todo como faltante. Se
+// relee solo el .meta.json de cada uno (nunca el contenido cifrado, que no
+// hace falta en memoria hasta que alguien lo pida explícitamente).
+function cargarDocumentosDesdeDisco() {
+  const carpeta = path.join(DATA_DIR, "documentos");
+  if (!fs.existsSync(carpeta)) return [];
+  try {
+    return fs.readdirSync(carpeta)
+      .filter((f) => f.endsWith(".meta.json"))
+      .map((f) => { try { return JSON.parse(fs.readFileSync(path.join(carpeta, f), "utf8")); } catch { return null; } })
+      .filter(Boolean);
+  } catch (e) { console.error("[store_expediente] cargar documentos de disco:", e.message); return []; }
+}
 
 function escribirJSON(archivo, obj) {
   try {
@@ -154,7 +193,17 @@ async function init() {
     mem.firmas = f.rows;
     const dc = await pool.query("SELECT * FROM datos_clienta");
     for (const row of dc.rows) mem.datos_clienta[row.clienta_id] = row;
-    console.log(`[store_expediente] PostgreSQL listo · ${mem.responsables.length} responsables, ${mem.avales.length} avales`);
+    // Estas dos NO se cargaban antes (bug real, encontrado al construir el
+    // motor de reglas): sin esto, tras cada reinicio/redeploy en Railway la
+    // bitácora "olvidaba" todo lo previo, y los documentos ya subidos
+    // desaparecían del checklist (pudiendo bloquear un expediente que en
+    // realidad ya estaba completo).
+    const bit = await pool.query("SELECT * FROM bitacora_auditoria ORDER BY id");
+    mem.bitacora = bit.rows;
+    const doc = await pool.query("SELECT id, clienta_id, tipo, propietario, creado_ts, creado_por FROM documentos");
+    mem.documentos = doc.rows; // sin contenido_cifrado/iv/auth_tag: no hace falta en memoria solo para listar/contar
+    recalcularSecuencia();
+    console.log(`[store_expediente] PostgreSQL listo · ${mem.responsables.length} responsables, ${mem.avales.length} avales, ${mem.documentos.length} documentos, ${mem.bitacora.length} eventos de bitácora`);
   } else {
     mem.responsables = leerJSON("expediente_responsables.json", []);
     mem.avales = leerJSON("expediente_avales.json", []);
@@ -165,7 +214,9 @@ async function init() {
     mem.firmas = leerJSON("expediente_firmas.json", []);
     mem.bitacora = leerJSON("expediente_bitacora.json", []);
     mem.datos_clienta = leerJSON("expediente_datos_clienta.json", {});
-    console.log(`[store_expediente] archivos locales · ${mem.responsables.length} responsables, ${mem.avales.length} avales`);
+    mem.documentos = cargarDocumentosDesdeDisco(); // ver comentario en la función: antes quedaba vacío tras reiniciar
+    recalcularSecuencia();
+    console.log(`[store_expediente] archivos locales · ${mem.responsables.length} responsables, ${mem.avales.length} avales, ${mem.documentos.length} documentos`);
   }
 }
 
@@ -231,18 +282,20 @@ function obtenerAval(id) { return mem.avales.find((a) => a.id === Number(id)) ||
 // avisar ANTES de intentar vincular ("ya va en 2 de 2").
 function buscarResponsables(q) {
   const query = String(q || "").trim().toLowerCase();
+  const tope = motorReglas.obtenerConRespaldo("tope_responsable", motorReglas.VALORES_INICIALES.tope_responsable).valor.maximo;
   return mem.responsables
     .filter((r) => !query || r.nombre.toLowerCase().includes(query) || (r.curp || "").toLowerCase().includes(query))
     .map((r) => ({ id: r.id, nombre: r.nombre, curp: r.curp,
-      clientas_activas: contarClientasActivas(mem.clientas_responsables, "responsable_id", r.id), tope: 2 }))
+      clientas_activas: contarClientasActivas(mem.clientas_responsables, "responsable_id", r.id), tope }))
     .slice(0, 20);
 }
 function buscarAvales(q) {
   const query = String(q || "").trim().toLowerCase();
+  const tope = motorReglas.obtenerConRespaldo("tope_aval", motorReglas.VALORES_INICIALES.tope_aval).valor.maximo;
   return mem.avales
     .filter((a) => !query || a.nombre.toLowerCase().includes(query) || (a.curp || "").toLowerCase().includes(query))
     .map((a) => ({ id: a.id, nombre: a.nombre, curp: a.curp,
-      clientas_activas: contarClientasActivas(mem.clientas_avales, "aval_id", a.id), tope: 1 }))
+      clientas_activas: contarClientasActivas(mem.clientas_avales, "aval_id", a.id), tope }))
     .slice(0, 20);
 }
 
@@ -259,11 +312,19 @@ function crearAval(datos) {
   return row;
 }
 
-// Devuelve { ok:true, vinculo } o { ok:false, error } — SIEMPRE valida el tope
-// antes de vincular. El candado vive aquí, en el servidor, no en la pantalla.
+// Devuelve { ok:true, vinculo, regla } o { ok:false, error, regla } — SIEMPRE
+// valida el tope antes de vincular. El candado vive aquí, en el servidor, no
+// en la pantalla. El tope YA NO es un literal (2/1): se lee del motor de
+// reglas (motor_reglas.js) — así se puede cambiar el máximo permitido sin
+// tocar código ni redeployar, y cada decisión queda ligada a QUÉ VERSIÓN de
+// la regla se usó (regla.clave + regla.version), no solo al resultado.
 function vincularResponsable(clientaId, responsableId, creditoId) {
+  const regla = motorReglas.obtenerConRespaldo("tope_responsable", motorReglas.VALORES_INICIALES.tope_responsable);
+  const tope = regla.valor.maximo;
   const yaTiene = contarClientasActivas(mem.clientas_responsables, "responsable_id", responsableId);
-  if (yaTiene >= 2) return { ok: false, error: "Esta responsable ya respalda a 2 clientas — es el máximo permitido." };
+  if (yaTiene >= tope) {
+    return { ok: false, error: `Esta responsable ya respalda a ${tope} clienta${tope === 1 ? "" : "s"} — es el máximo permitido.`, regla };
+  }
   const row = { id: siguienteId(), clienta_id: String(clientaId), responsable_id: responsableId,
     credito_id: creditoId || null, activo: true, creado_ts: Date.now() };
   mem.clientas_responsables.push(row);
@@ -272,11 +333,15 @@ function vincularResponsable(clientaId, responsableId, creditoId) {
       [row.id, row.clienta_id, row.responsable_id, row.credito_id, row.activo, row.creado_ts])
       .catch((e) => console.error("[store_expediente] vínculo responsable:", e.message));
   } else persistirTodo();
-  return { ok: true, vinculo: row };
+  return { ok: true, vinculo: row, regla };
 }
 function vincularAval(clientaId, avalId, creditoId) {
+  const regla = motorReglas.obtenerConRespaldo("tope_aval", motorReglas.VALORES_INICIALES.tope_aval);
+  const tope = regla.valor.maximo;
   const yaTiene = contarClientasActivas(mem.clientas_avales, "aval_id", avalId);
-  if (yaTiene >= 1) return { ok: false, error: "Este aval ya respalda a otra clienta — es el máximo permitido." };
+  if (yaTiene >= tope) {
+    return { ok: false, error: `Este aval ya respalda a ${tope} clienta${tope === 1 ? "" : "s"} — es el máximo permitido.`, regla };
+  }
   const row = { id: siguienteId(), clienta_id: String(clientaId), aval_id: avalId,
     credito_id: creditoId || null, activo: true, creado_ts: Date.now() };
   mem.clientas_avales.push(row);
@@ -285,7 +350,7 @@ function vincularAval(clientaId, avalId, creditoId) {
       [row.id, row.clienta_id, row.aval_id, row.credito_id, row.activo, row.creado_ts])
       .catch((e) => console.error("[store_expediente] vínculo aval:", e.message));
   } else persistirTodo();
-  return { ok: true, vinculo: row };
+  return { ok: true, vinculo: row, regla };
 }
 
 // ---------- referencias (terceros — requieren su propio consentimiento) ----------
@@ -343,8 +408,15 @@ const CHECKLIST_BASE = [
 ];
 const CHECKLIST_AVAL = ["aval_ine", "aval_comprobante_domicilio"];
 
+// El checklist YA NO son constantes fijas: se leen del motor de reglas
+// (motor_reglas.js), con CHECKLIST_BASE/CHECKLIST_AVAL como respaldo de
+// fábrica si por lo que sea la regla no está disponible (falla ABIERTO al
+// último valor conocido-bueno, a propósito: un documento requerido no debe
+// simplemente desaparecer del checklist por una falla del motor de reglas).
 function checklistRequerido(requiereAval) {
-  return requiereAval ? [...CHECKLIST_BASE, ...CHECKLIST_AVAL] : CHECKLIST_BASE;
+  const base = motorReglas.obtenerConRespaldo("checklist_base", { documentos: CHECKLIST_BASE }).valor.documentos;
+  const aval = motorReglas.obtenerConRespaldo("checklist_aval", { documentos: CHECKLIST_AVAL }).valor.documentos;
+  return requiereAval ? [...base, ...aval] : base;
 }
 function calcularEstatus(clientaId, requiereAval) {
   const docs = new Set(documentosDeClienta(clientaId).map((d) => `${d.propietario}_${d.tipo}`));

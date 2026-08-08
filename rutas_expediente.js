@@ -56,10 +56,14 @@ module.exports = function montarRutasExpediente(app, { requiere, requierePuesto 
     }
     const vinc = storeExp.vincularResponsable(clientaId, responsable.id, credito_id);
     if (!vinc.ok) return res.status(409).json({ error: vinc.error }); // candado de tope — 409 Conflict, no 500
+    // detalle.regla: qué versión de la regla de tope se usó para dejar pasar
+    // este vínculo — trazabilidad del motor de reglas (motor_reglas.js), no
+    // solo "se vinculó", sino "con qué tope vigente en ese momento".
     storeExp.registrarBitacora({
       usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
       id_sucursal: req.usuario.id_sucursal, accion: "expediente.responsable.alta",
-      entidad: "clienta", entidad_id: clientaId, detalle: { responsable_id: responsable.id }, ip: ipDe(req),
+      entidad: "clienta", entidad_id: clientaId,
+      detalle: { responsable_id: responsable.id, regla: { clave: vinc.regla.clave, version: vinc.regla.version } }, ip: ipDe(req),
     });
     res.json({ ok: true, responsable, vinculo: vinc.vinculo });
   });
@@ -85,7 +89,8 @@ module.exports = function montarRutasExpediente(app, { requiere, requierePuesto 
     storeExp.registrarBitacora({
       usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
       id_sucursal: req.usuario.id_sucursal, accion: "expediente.aval.alta",
-      entidad: "clienta", entidad_id: clientaId, detalle: { aval_id: aval.id }, ip: ipDe(req),
+      entidad: "clienta", entidad_id: clientaId,
+      detalle: { aval_id: aval.id, regla: { clave: vinc.regla.clave, version: vinc.regla.version } }, ip: ipDe(req),
     });
     res.json({ ok: true, aval, vinculo: vinc.vinculo });
   });

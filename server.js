@@ -3827,7 +3827,14 @@ function repararCarteraJulio() {
 // iniciar, no debe tumbar el arranque de la cobranza (por eso su init() se
 // protege por separado, no dentro de la misma promesa que store.init()).
 const storeExpediente = require("./store_expediente");
+// Motor de reglas (motor_reglas.js) — reglas de negocio como filas
+// versionadas, no como constantes. store_expediente.js ya lo usa por dentro
+// (tope de responsable/aval, checklist); aquí solo se inicializa la tabla y
+// se monta la ruta de consulta/control (rutas_reglas.js). Mismo principio que
+// el expediente: si falla al iniciar, no debe tumbar la cobranza.
+const motorReglas = require("./motor_reglas");
 require("./rutas_expediente")(app, { requiere, requierePuesto });
+require("./rutas_reglas")(app, { requiere, requierePuesto });
 
 store.init().then(() => {
   refrescarPadron();
@@ -3840,6 +3847,16 @@ store.init().then(() => {
   aplicarCorteDeLaPlantilla();
   return storeExpediente.init().catch((e) => {
     console.error("[expediente] no se pudo iniciar — la cobranza sigue funcionando sin él:", e.message);
+  });
+}).then(() => {
+  // Se inicializa DESPUÉS de storeExpediente: éste llama a
+  // motorReglas.obtenerConRespaldo() en cuanto alguien vincula un
+  // responsable/aval o sube un documento, y ese ayudante ya trae su propio
+  // respaldo de fábrica si todavía no hay reglas cargadas — así que el orden
+  // no es estrictamente obligatorio, pero mantiene el arranque en la misma
+  // secuencia lógica (fundamentos → expediente → reglas del expediente).
+  return motorReglas.init().catch((e) => {
+    console.error("[motor_reglas] no se pudo iniciar — la cobranza y el expediente siguen funcionando con los valores de fábrica:", e.message);
   });
 }).then(() => {
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
