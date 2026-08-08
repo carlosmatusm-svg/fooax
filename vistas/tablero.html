@@ -161,6 +161,11 @@
   .hpago.hprevio b{color:var(--gris)}
   /* Corrección de Dirección: en rojo y arriba de todo. Un pago anulado ya no
      aparece abajo, así que este bloque es lo único que lo explica. */
+  /* Etiqueta de clasificación (Recuperación, Renovación…). No es un estado del
+     crédito, es una marca de Dirección: por eso va en morado y no en rojo. */
+  .rbadge-eti{display:inline-block;vertical-align:middle;font-size:10px;font-weight:800;
+    letter-spacing:.04em;padding:2px 7px;border-radius:999px;
+    background:#EDE6F7;color:#5B2E8C;border:1px solid #C9B3E4}
   .hcorr{padding:7px 10px;border-radius:8px;background:#FCEDEF;
     border-left:4px solid #8E0019;line-height:1.4}
   .hcorr>b{color:#8E0019;font-size:13px}
@@ -909,10 +914,12 @@ function tarjetaCredito(c, i) {
     acc = '<div class="credacc">'
       + '<button class="credbtn" onclick="verPagos(this,' + i + ')">Ver pagos</button>'
       + '<button class="credbtn" onclick="pedirAjuste(this,' + i + ')">Ajustar saldo</button>'
+      + '<button class="credbtn" onclick="pedirEtiqueta(this,' + i + ')">' + (c.etiqueta ? "Cambiar etiqueta" : "Etiquetar") + "</button>"
       + venc + reda + "</div>";
   }
   return '<div class="rcard">'
-    + '<div class="rn">' + hesc(c.nombre) + (badge ? " " + badge : "") + "</div>"
+    + '<div class="rn">' + hesc(c.nombre) + (badge ? " " + badge : "")
+      + (c.etiqueta ? ' <span class="rbadge-eti">' + hesc(c.etiqueta).toUpperCase() + "</span>" : "") + "</div>"
     + '<div class="rm">ID ' + hesc(c.id) + " · " + hesc(c.producto) + " · " + hesc(c.centro) + " · " + hesc(c.ejecutivo) + "</div>"
     + '<div class="rd"><span>saldo <b>' + dinero(saldoAct) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
@@ -985,6 +992,34 @@ async function verPagos(btn, i) {
           + '<div class="hres">Suma de lo anterior: <b>' + dinero(d.pagadoAntesDelCorte) + "</b></div>"
         : "")
     + '<button class="credno" onclick="refrescarLista()">Cerrar</button></div>';
+}
+// ETIQUETAR: clasificar a la clienta (Recuperación, Renovación…). Pedido por
+// Karina el 7-ago. No mueve un solo peso: es para saber de qué tipo es cada
+// crédito. Baja sola al teléfono de la ejecutiva.
+const ETIQUETAS_UI = ["Recuperación", "Renovación", "Reestructura", "Nueva", "Seguimiento especial"];
+function pedirEtiqueta(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  box.className = "credbox";
+  box.innerHTML = "<span>Clasificar a <b>" + hesc(c.nombre) + "</b>"
+      + (c.etiqueta ? " (hoy: <b>" + hesc(c.etiqueta) + "</b>)" : "") + ":</span>"
+    + '<select class="credin ancho" id="etiSel">'
+    + ETIQUETAS_UI.map((e) => '<option value="' + esc(e) + '"' + (c.etiqueta === e ? " selected" : "") + ">" + hesc(e) + "</option>").join("")
+    + '<option value="">— sin etiqueta —</option></select>'
+    + '<button class="credok" onclick="ponerEtiqueta(this,' + i + ')">Guardar</button>'
+    + '<button class="credno" onclick="refrescarLista()">Cancelar</button>';
+}
+async function ponerEtiqueta(btn, i) {
+  const c = credRow(i);
+  const etiqueta = document.getElementById("etiSel").value;
+  btn.disabled = true; btn.textContent = "Guardando…";
+  let d;
+  try {
+    d = await (await fetch("/api/creditos/etiqueta", { method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: c.id, producto: c.producto, etiqueta }) })).json();
+  } catch { alert("Sin conexión con el servidor."); btn.disabled = false; btn.textContent = "Guardar"; return; }
+  if (d.error) { alert(d.error); btn.disabled = false; btn.textContent = "Guardar"; return; }
+  refrescarLista();
 }
 function pedirAjuste(btn, i) {
   const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;

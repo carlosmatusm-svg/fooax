@@ -85,6 +85,13 @@ function aplicarCambios(base, cambios) {
         // venía: mover cartera deja huella (regla §6.1 del Complemento).
         if (k.ejecutivo) { cl.ejecutivo_anterior = cl.ejecutivo; cl.ejecutivo = k.ejecutivo; }
         if (k.centro) { cl.centro_anterior = cl.centro; cl.centro = k.centro; }
+        // Etiqueta (Recuperación, Renovación…). La cadena vacía SÍ cuenta: es
+        // como se quita. Por eso se compara contra undefined y no con un if
+        // truthy — con un truthy nunca se podría borrar.
+        if (k.etiqueta !== undefined) {
+          cl.etiqueta = k.etiqueta || null;
+          cl.etiqueta_por = c.por || null; cl.etiqueta_fecha = c.fecha || null;
+        }
         cl.ajuste_motivo = c.motivo || null; cl.ajuste_por = c.por || null; cl.ajuste_fecha = c.fecha || null;
       }
     }

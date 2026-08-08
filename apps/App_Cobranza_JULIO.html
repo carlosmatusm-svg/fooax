@@ -33,6 +33,8 @@
   .chk.on{background:var(--ok);border-color:var(--ok)}
   .ci{flex:1;min-width:0}
   .ci .nm{font-size:14px;font-weight:700;line-height:1.2}
+  .etitag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.03em;
+    padding:1px 6px;border-radius:999px;background:#EDE6F7;color:#5B2E8C;border:1px solid #C9B3E4}
   .prodtag{font-size:10px;font-weight:800;color:var(--rio);background:#E5EAFB;padding:1px 7px;border-radius:10px;margin-left:4px;white-space:nowrap}
   .ci .mt{font-size:11px;color:var(--gris);margin-top:2px}
   .ci .rowtot{font-size:13px;font-weight:800;color:var(--rio)}
@@ -906,7 +908,7 @@ function cliRow(centro,cl){
   return '<div class="cli '+open+(_err?' conerr':'')+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
     +'<div class="cli-head">'
       +'<div class="chk '+chk+'" onclick="palomear(\''+(centro||'')+'\',\''+key+'\','+cuota+')">'+chkc+'</div>'
-      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span></div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
+      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span>'+(cl.etiqueta?' <span class="etitag">'+cl.etiqueta+'</span>':'')+'</div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
         +(((cl.sub||'').toLowerCase().includes('micro')&&(cl.mora||0)>0)?'<div class="micromora">⚠ Micro con mora ('+fmt(cl.mora)+'). Producto de alto monto: prioriza recuperar.</div>':'')
         +fichaClienteDato(key)
         +'<div class="rowtot">'+(tot>0?('Total: '+fmt(tot)):'')+'</div></div>'

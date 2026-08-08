@@ -800,6 +800,26 @@ function claveCredito(socioOKey, producto) {
   // socio fuera el mismo. Se conservan los números (Individual 1 ≠ Individual 2).
   return norm(String(socioOKey).split("|")[0]) + "|" + nprod(producto);
 }
+
+// LA LLAVE CON LA QUE UN PAGO ENCUENTRA SU CRÉDITO.
+// `claveCredito` ya perdona la puntuación ("Foxi Plus 2" = "Foxi Plus - 2"),
+// pero NO un producto distinto. El 7-ago se perdieron $200 de MARIA MAGDALENA
+// (socio 11112908183): Julio la capturó a mano ANTES de que Monse la diera de
+// alta, escribió "Individual" y el crédito quedó como "Individual 1". Mismo
+// socio, distinto producto: el pago no le bajó el saldo a nadie y se fue a
+// "cobranza sin crédito", donde nadie lo vio.
+//
+// Regla: si la llave exacta no existe pero la socia tiene UN SOLO crédito
+// activo, el pago es de ese. Con dos o más NO se adivina — se queda en el aviso
+// de cobranza sin crédito, que para eso está.
+function claveDelPago(socioOKey, producto) {
+  const directa = claveCredito(socioOKey, producto);
+  const viva = (c) => c.activa !== false && c.estatus !== "BAJA";
+  if (PADRON.some((c) => viva(c) && claveCredito(c.id, c.producto) === directa)) return directa;
+  const socio = norm(String(socioOKey).split("|")[0]);
+  const suyos = PADRON.filter((c) => viva(c) && norm(c.id) === socio);
+  return suyos.length === 1 ? claveCredito(suyos[0].id, suyos[0].producto) : directa;
+}
 // usuario: para respetar la burbuja de pruebas. Sin él, cuenta solo a las
 // ejecutivas reales — así una captura de prueba nunca entra a los saldos.
 // Devuelve { pago, gar, detalle }:
@@ -825,7 +845,7 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
     const p = nodo.pago || 0, g = nodo.garantia || 0;
     if (p <= 0 && g <= 0) return;
     const partes = String(key).split("|");
-    const clave = claveCredito(partes[0], partes[1]);
+    const clave = claveDelPago(partes[0], partes[1]);
     if (p > 0) pago[clave] = (pago[clave] || 0) + p;
     if (g > 0) gar[clave] = (gar[clave] || 0) + g;
     // Desglose por DÍA: lo necesitan las renovaciones. Como la llave es
@@ -1846,7 +1866,7 @@ function seriesSemanales(usuario) {
         const p = nodo.pago || 0, g = nodo.garantia || 0;
         if (p <= 0 && g <= 0) return;
         const partes = String(key).split("|");
-        const clave = claveCredito(partes[0], partes[1]);
+        const clave = claveDelPago(partes[0], partes[1]);
         b.pago += p; b.gar += g;
         if (p > 0) { b.porClave[clave] = (b.porClave[clave] || 0) + p; b.clientas.add(partes[0]); }
       };
@@ -1989,7 +2009,7 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     const p = nodo.pago || 0, g = nodo.garantia || 0, s = nodo.solidario || 0;
     if (p <= 0 && g <= 0 && s <= 0) return;
     const partes = String(key).split("|");
-    if (claveCredito(partes[0], partes[1]) !== clave) return;
+    if (claveDelPago(partes[0], partes[1]) !== clave) return;
     filas.push({ fecha, tipo: "pago", ejecutivo: ejec, pago: p, garantia: g, solidario: s,
       forma: nodo.forma || "E", cuenta: fecha >= corte });
   };
@@ -2084,6 +2104,30 @@ app.post("/api/creditos/mora", soloAnelMonse, (req, res) => {
 });
 
 // Ajustar el SALDO (y opcionalmente la cuota) de un crédito, con motivo obligatorio.
+// ETIQUETA DE LA CLIENTA. Pedida por Karina el 7-ago: «meterle una etiqueta que
+// diga RECUPERACIÓN para que puedan clasificar mejor la clienta». No cambia un
+// solo peso — es una marca para saber de qué tipo es cada crédito, y viaja al
+// teléfono de la ejecutiva para que ella también la vea.
+const ETIQUETAS = ["Recuperación", "Renovación", "Reestructura", "Nueva", "Seguimiento especial"];
+app.get("/api/etiquetas", requiere("direccion", "admin"), (req, res) => res.json({ etiquetas: ETIQUETAS }));
+app.post("/api/creditos/etiqueta", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const cruda = String(b.etiqueta == null ? "" : b.etiqueta).trim();
+  // Vacío = quitar la etiqueta. Es la única forma de deshacerlo.
+  const etiqueta = cruda ? ETIQUETAS.find((e) => norm(e) === norm(cruda)) : "";
+  if (cruda && !etiqueta)
+    return res.status(400).json({ error: "Esa etiqueta no existe. Elige una de: " + ETIQUETAS.join(", ") });
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto, campos: { etiqueta },
+    motivo: etiqueta ? ("Etiqueta: " + etiqueta) : "Se le quitó la etiqueta",
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
 app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
   const b = req.body || {};
   const c = creditoActivo(b.id, b.producto);
@@ -3585,6 +3629,7 @@ function datosVivosParaApp(usuario) {
         dia: c.diaPago || "",
         importe: Number(c.importe) || 0,
         mora: Number(c.mora) || 0,
+        etiqueta: c.etiqueta || "",
       };
     });
 }

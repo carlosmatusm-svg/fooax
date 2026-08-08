@@ -1552,7 +1552,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     "capturado " + alta44.saldoCapturado + " · pagado " + alta44.yaLePagaron + " · queda " + alta44.saldoQuedaEn);
   ok("y se avisa cuánto le quedó, para cachar si se capturó el saldo equivocado",
     alta44.saldoCapturado === 5000 && alta44.saldoQuedaEn < alta44.saldoCapturado, JSON.stringify(alta44));
-  // Producto distinto al del cobro: el pago NO se aplica y hay que decirlo.
+  // Producto distinto al del cobro. REGLA NUEVA (Karina, 7-ago): si la socia
+  // tiene UN SOLO crédito activo, el pago es de ese aunque el producto se haya
+  // escrito distinto. Antes se quedaba suelto y así se perdieron los $200 de
+  // MARIA MAGDALENA. Con DOS créditos sí se queda suelto — ver sección 50.
   const reg44g = { "C-0": {} };
   reg44g["C-0"][S45 + "|Individual|OTRA DE PRUEBA 44|0"] = { pago: 300, forma: "E" };
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
@@ -1560,8 +1563,9 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const alta45 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
     body: JSON.stringify({ id: S45, nombre: "OTRA DE PRUEBA 44", producto: "Individual 2",
       centro: "C-0", ejecutivo: "Neri", saldo: 3000, cuota: 150 }) }));
-  ok("si el producto no empata, avisa que el cobro quedó suelto",
-    (alta45.cobrosQueSiguenSueltos || []).some((x) => x.monto === 300 && x.producto === "Individual"),
+  ok("aunque el producto se escriba distinto, el cobro le llega a su único crédito",
+    alta45.yaLePagaron === 300 && alta45.saldoQuedaEn === 2700
+      && !(alta45.cobrosQueSiguenSueltos || []).length,
     JSON.stringify(alta45));
   // El corte se deja en 2026-01-01 a propósito: es el que espera la sección
   // que sigue. Moverlo aquí le dejaba la ventana vacía y la tumbaba.
@@ -1950,6 +1954,61 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("queda el rastro de quién corrigió y por qué",
     (rastro49.ajustes || []).length >= 3 && rastro49.ajustes.every((a) => a.motivo && a.por),
     JSON.stringify((rastro49.ajustes || []).map((a) => a.motivo)));
+
+  console.log("\n— 50. EL PAGO ENCUENTRA SU CRÉDITO, Y LA ETIQUETA (Karina, 7-ago) —");
+  // «Monse dio de alta 11112908183 pero no se sincronizó el pago.» Julio le
+  // capturó $200 a MARIA MAGDALENA escribiéndola a mano ANTES del alta, con
+  // producto "Individual"; Monse la dio de alta como "Individual 1". Mismo
+  // socio, distinto producto: la llave no empataba, el dinero no le bajaba el
+  // saldo a nadie y se iba a "cobranza sin crédito", donde nadie lo vio.
+  const SOC50 = "11112908183";
+  const F50 = HOY;
+  const pagadoDe = async (prod) => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + SOC50, { headers: H(cm) }));
+    const c = (d.resultados || []).find((x) => String(x.id) === SOC50 && (!prod || x.producto === prod));
+    return c ? c.pagado : null;
+  };
+  // Se cuentan SOLO los de ESTE socio: la batería deja otros huérfanos a
+  // propósito en secciones anteriores, y contarlos todos daba un número que no
+  // decía nada de lo que aquí se está probando.
+  const huerfanos = async () =>
+    ((await j(await fetch(U + "/api/cartera", { headers: H(cm) }))).cobranzaSinCredito || [])
+      .filter((x) => String(x.socio) === SOC50).length;
+  // El orden EXACTO de producción: primero el pago, después el alta.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F50, snapshot: { regI: {
+      [SOC50 + "|Individual|MARIA MAGDALENA BAUTISTA|0"]: { pago: 200, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC50, nombre: "MARIA MAGDALENA BAUTISTA RAMIREZ", producto: "Individual 1",
+      centro: "C-0", ejecutivo: "Julio", saldo: 2725, cuota: 445, plazo: 16 }) });
+  ok("el pago capturado con otro producto SÍ le baja el saldo",
+    (await pagadoDe("Individual 1")) === 200, "pagado " + (await pagadoDe("Individual 1")));
+  ok("y ya no queda dinero colgado sin crédito", (await huerfanos()) === 0, "quedaron " + (await huerfanos()));
+
+  // Pero con DOS créditos activos NO se adivina: se queda en el aviso.
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC50, nombre: "MARIA MAGDALENA BAUTISTA RAMIREZ", producto: "Individual 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 5000, cuota: 500, plazo: 12 }) });
+  ok("con dos créditos activos NO le adivina a cuál",
+    (await pagadoDe("Individual 1")) === 0 && (await pagadoDe("Individual 2")) === 0,
+    "le asignó el pago a alguno");
+  ok("y lo vuelve a avisar como cobranza sin crédito", (await huerfanos()) === 1, "avisos " + (await huerfanos()));
+
+  // LA ETIQUETA. No mueve un peso: clasifica a la clienta y baja al teléfono.
+  const etiquetar = async (val) => (await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC50, producto: "Individual 1", etiqueta: val }) })).status;
+  const etiEnApp = async () => {
+    const d = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+    const v = (d.vivos || []).find((x) => String(x.id) === SOC50 && x.producto === "Individual 1");
+    return v ? v.etiqueta : null;
+  };
+  ok("se le puede poner la etiqueta de Recuperación", (await etiquetar("Recuperación")) === 200, "la rechazó");
+  ok("y le baja sola al teléfono de la ejecutiva", (await etiEnApp()) === "Recuperación", "app: " + (await etiEnApp()));
+  ok("aparece al buscar a la clienta",
+    ((await j(await fetch(U + "/api/clientes?q=" + SOC50, { headers: H(cm) }))).resultados || [])
+      .some((c) => c.etiqueta === "Recuperación"), "no viene en el buscador");
+  ok("no acepta una etiqueta inventada", (await etiquetar("loquesea")) === 400, "la aceptó");
+  ok("y se puede quitar", (await etiquetar("")) === 200 && (await etiEnApp()) === "", "no se quitó");
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
