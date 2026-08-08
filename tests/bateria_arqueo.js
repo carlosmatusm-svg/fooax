@@ -2010,6 +2010,71 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("no acepta una etiqueta inventada", (await etiquetar("loquesea")) === 400, "la aceptó");
   ok("y se puede quitar", (await etiquetar("")) === 200 && (await etiEnApp()) === "", "no se quitó");
 
+  console.log("\n— 51. EL REPORTE QUE NO DEPENDE DEL CORTE (Karina, 7-ago) —");
+  // «Un Excel que no tenga que ver con el corte, para tener mejor control de lo
+  // que se va, que se pueda ocupar de lunes a domingo.» El de saldos contesta
+  // "¿cuánto debe cada quien?" y para eso necesita el corte; este contesta
+  // "¿cuánto entró y cuánto salió?", y por eso NO lo mira.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  const K51 = "11112931059|COMADRE|BLANCA LUIS BERNAL|0";
+  // Se mide POR DIFERENCIA: en ese rango ya hay cobranza de otras secciones de
+  // la batería, así que comparar contra totales absolutos daba un número que no
+  // decía nada de lo que aquí se prueba (y hacía pasar o fallar por accidente).
+  const per0 = await j(await fetch(U + "/api/periodo?desde=2026-08-03&hasta=2026-08-09", { headers: H(cm) }));
+  // Un cobro ANTES del corte (el de saldos lo esconde) y otro DESPUÉS.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-03", snapshot: { regI: { [K51]: { pago: 1000, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K51]: { pago: 500, garantia: 200, forma: "T" } } }, ts: Date.now() + 1 }) });
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", concepto: "Gasolina de ruta", monto: 450,
+      metodo: "efectivo", ejecutivo: "julio", categoria: "Gasto operativo", fecha: "2026-08-06" }) });
+
+  const per = await j(await fetch(U + "/api/periodo?desde=2026-08-03&hasta=2026-08-09", { headers: H(cm) }));
+  ok("el reporte del periodo respeta el rango que se le pide",
+    per.desde === "2026-08-03" && per.hasta === "2026-08-09", JSON.stringify({ d: per.desde, h: per.hasta }));
+  // LO QUE IMPORTA: el cobro anterior al corte SÍ aparece aquí.
+  ok("incluye la cobranza ANTERIOR al corte (el de saldos la esconde)",
+    (per.cobranza || []).some((x) => x.fecha === "2026-08-03" && x.pago === 1000),
+    JSON.stringify((per.cobranza || []).map((x) => x.fecha + ":" + x.pago)));
+  ok("y también la posterior, con su garantía",
+    (per.cobranza || []).some((x) => x.fecha === "2026-08-06" && x.pago === 500 && x.garantia === 200),
+    "no vino la del 6");
+  ok("los gastos salen como salida, no como entrada",
+    (per.otros || []).some((x) => x.fecha === "2026-08-06" && x.monto === 450 && x.entrada === false),
+    JSON.stringify(per.otros || []));
+  const netoDe = (d, f) => { const x = (d.porDia || []).find((y) => y.fecha === f); return x ? x.neto : 0; };
+  ok("el resumen día por día sube exactamente lo que se capturó",
+    Math.round((netoDe(per, "2026-08-03") - netoDe(per0, "2026-08-03")) * 100) / 100 === 1000
+    && Math.round((netoDe(per, "2026-08-06") - netoDe(per0, "2026-08-06")) * 100) / 100 === 250,
+    JSON.stringify({ d3: netoDe(per, "2026-08-03") - netoDe(per0, "2026-08-03"),
+                     d6: netoDe(per, "2026-08-06") - netoDe(per0, "2026-08-06") }));
+  const sube = (k) => Math.round((per.total[k] - per0.total[k]) * 100) / 100;
+  ok("y el total del periodo también",
+    sube("pago") === 1500 && sube("garantia") === 200 && sube("salidas") === 450,
+    JSON.stringify({ pago: sube("pago"), garantia: sube("garantia"), salidas: sube("salidas") }));
+  // Y que NO le afecte mover el corte: es justo su razón de ser.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07" }) });
+  const per2 = await j(await fetch(U + "/api/periodo?desde=2026-08-03&hasta=2026-08-09", { headers: H(cm) }));
+  ok("mover el corte NO le cambia un solo peso a este reporte",
+    per2.total.pago === per.total.pago && per2.total.garantia === per.total.garantia
+      && per2.total.salidas === per.total.salidas,
+    JSON.stringify({ antes: per.total, despues: per2.total }));
+  // Y el Excel de verdad se genera.
+  const rx = await fetch(U + "/api/periodo/excel?desde=2026-08-03&hasta=2026-08-09", { headers: H(cm) });
+  const bufx = Buffer.from(await rx.arrayBuffer());
+  ok("el Excel del periodo se descarga y es un xlsx de verdad",
+    rx.status === 200 && bufx.length > 5000 && bufx[0] === 0x50 && bufx[1] === 0x4B,
+    "status " + rx.status + " · " + bufx.length + " bytes");
+  ok("y viene con nombre de archivo con el rango",
+    /Movimiento FOOAX 2026-08-03 al 2026-08-09/.test(rx.headers.get("content-disposition") || ""),
+    rx.headers.get("content-disposition") || "sin cabecera");
+  // Sin rango: la semana en curso, lunes a domingo (7 días).
+  const perDef = await j(await fetch(U + "/api/periodo", { headers: H(cm) }));
+  const diff = (Date.parse(perDef.hasta) - Date.parse(perDef.desde)) / 86400000;
+  ok("sin rango, toma la semana de lunes a domingo", diff === 6,
+    perDef.desde + " → " + perDef.hasta + " (" + diff + " días)");
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -163,6 +163,12 @@
      aparece abajo, así que este bloque es lo único que lo explica. */
   /* Etiqueta de clasificación (Recuperación, Renovación…). No es un estado del
      crédito, es una marca de Dirección: por eso va en morado y no en rojo. */
+  .perwrap{background:var(--lav);border-radius:12px;padding:12px 14px;margin:8px 0 14px}
+  .perttl{font-weight:800;color:var(--rio);font-size:13px}
+  .permeta{font-size:12px;color:var(--gris);margin-top:4px;line-height:1.45}
+  .perrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px}
+  .perrow label{font-size:12px;color:var(--gris);font-weight:700}
+  .perrow input{padding:7px 9px;border:1px solid #D9D2E6;border-radius:9px;font:inherit;font-size:13px}
   .rbadge-eti{display:inline-block;vertical-align:middle;font-size:10px;font-weight:800;
     letter-spacing:.04em;padding:2px 7px;border-radius:999px;
     background:#EDE6F7;color:#5B2E8C;border:1px solid #C9B3E4}
@@ -605,6 +611,20 @@
   <div class="segwrap" id="segWrap"></div>
 
   <h3>Descargas en Excel</h3>
+  <!-- MOVIMIENTO DEL PERIODO: el único reporte que NO depende del corte.
+       Pedido por Karina el 7-ago para tener control del dinero sin que dependa
+       de dónde esté parado el corte. Rango libre; por omisión lunes a domingo. -->
+  <div class="perwrap">
+    <div class="perttl">Movimiento del periodo — sin corte</div>
+    <div class="permeta">Todo lo que entró y salió entre dos fechas. No mira el corte, así que
+      la cobranza de los días anteriores tampoco se esconde. Por omisión, la semana en curso de lunes a domingo.</div>
+    <div class="perrow">
+      <label>Del</label><input type="date" id="perDesde">
+      <label>al</label><input type="date" id="perHasta">
+      <button class="dlbtn" onclick="descargarPeriodo()"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M3 12h18M3 19h18"/></svg><span>Descargar</span></button>
+    </div>
+    <div class="permeta" id="perResumen">Cargando…</div>
+  </div>
   <div class="descargas">
     <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg><span>Arqueo de caja del día</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg><span>Cierre de caja de la semana</span></button>
@@ -1950,6 +1970,38 @@ function descargar(base) {
   }, 6000);
 }
 
+// ---------- movimiento del periodo (sin corte) ----------
+function rangoPeriodoUI() {
+  const dd = document.getElementById("perDesde"), hh = document.getElementById("perHasta");
+  const q = [];
+  if (dd && dd.value) q.push("desde=" + dd.value);
+  if (hh && hh.value) q.push("hasta=" + hh.value);
+  return q.length ? "?" + q.join("&") : "";
+}
+function descargarPeriodo() { descargar("/api/periodo/excel" + rangoPeriodoUI()); }
+async function cargarPeriodo() {
+  const box = document.getElementById("perResumen");
+  if (!box) return;
+  let d;
+  try { d = await (await fetch("/api/periodo" + rangoPeriodoUI(), { credentials: "include" })).json(); }
+  catch { box.textContent = "Sin conexión con el servidor."; return; }
+  if (d.error) { box.textContent = d.error; return; }
+  // Se rellenan las fechas la primera vez, para que se vea el rango que trae.
+  const dd = document.getElementById("perDesde"), hh = document.getElementById("perHasta");
+  if (dd && !dd.value) dd.value = d.desde;
+  if (hh && !hh.value) hh.value = d.hasta;
+  const t = d.total, entra = t.pago + t.garantia + t.solidario + t.entradas;
+  box.innerHTML = "Del <b>" + hesc(d.desde) + "</b> al <b>" + hesc(d.hasta) + "</b>: "
+    + "entró <b>" + dinero(entra) + "</b> (cobranza " + dinero(t.pago)
+    + " · garantías " + dinero(t.garantia)
+    + (t.entradas ? " · otras entradas " + dinero(t.entradas) : "") + ")"
+    + " · salió <b style=\"color:#8E0019\">" + dinero(t.salidas) + "</b>"
+    + " · quedan <b>" + dinero(entra - t.salidas) + "</b>"
+    + "<br>" + d.cobranza.length + (d.cobranza.length === 1 ? " cobro" : " cobros")
+    + " en " + d.porDia.length + (d.porDia.length === 1 ? " día" : " días")
+    + (d.otros.length ? " · " + d.otros.length + (d.otros.length === 1 ? " entrada o salida" : " entradas y salidas") : "");
+}
+
 // ---------- recuperar cobranza de un día ----------
 // Muestra las versiones archivadas de cada ejecutiva y deja regresar la buena.
 // Las versiones vienen ordenadas por dinero y, si empatan, la MÁS RECIENTE
@@ -2107,8 +2159,14 @@ cargarYo();
 cargarCorte();
 cargarCartera();
 cargarTendencias();
+cargarPeriodo();
+// Al cambiar el rango se recalcula el resumen, para ver el número antes de bajar el Excel.
+["perDesde", "perHasta"].forEach((id) => {
+  const e = document.getElementById(id);
+  if (e) e.addEventListener("change", cargarPeriodo);
+});
 // 30s: se siente en vivo sin comerse los datos del celular (antes era cada 5s)
-setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); cargarCartera(); cargarTendencias(); }, 30000);
+setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); cargarCartera(); cargarTendencias(); cargarPeriodo(); }, 30000);
 </script>
 </body>
 </html>

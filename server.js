@@ -1166,6 +1166,224 @@ function infoCredito(cv, c) {
 // ---------- SALDOS ACTUALIZADOS de la semana en Excel ----------
 // La plantilla que Monse hace a mano: saldo inicial − pagado esta semana =
 // saldo actualizado, por crédito. Generada sola. Solo dirección/admin.
+// ===================================================================
+// MOVIMIENTO DEL PERIODO — el reporte que NO depende del corte.
+//
+// Pedido por Karina el 7-ago: «un Excel que no tenga que ver con el corte, para
+// que tengamos mejor control de lo que se va, que se pueda ocupar de lunes a
+// domingo».
+//
+// El Excel de saldos contesta «¿cuánto debe cada clienta?», y para eso el corte
+// es imprescindible: marca desde dónde descontar sin contar dos veces lo que la
+// plantilla ya traía. El problema es que ese mismo corte hace que la cobranza
+// de días anteriores desaparezca del reporte, y entonces no sirve para la otra
+// pregunta: «¿cuánto entró y cuánto salió esta semana?».
+//
+// Esto contesta la segunda, y NO MIRA EL CORTE NI UNA VEZ. Es dinero que se
+// movió entre dos fechas, punto. Cualquier rango: lunes a domingo, un día, un
+// mes. Así el control del dinero deja de depender de dónde esté parado el corte.
+// ===================================================================
+// Cómo se pagó, en palabras. La app guarda la letra (E/T/M/D) y Dirección
+// guarda el nombre completo; aquí se aceptan las dos.
+const FORMA_TXT = { E: "Efectivo", T: "Transferencia", M: "Mixto", D: "Depósito", CH: "Cheque",
+  efectivo: "Efectivo", transferencia: "Transferencia", deposito: "Depósito", cheque: "Cheque" };
+function movimientoDelPeriodo(usuario, desde, hasta) {
+  const permitidas = new Set(idsEjecutivos(usuario));
+  const snaps = store.respaldo().snapshots || {};      // ya con las correcciones aplicadas
+  const ajustes = store.ajustesCobranza();
+  const corregido = new Set(ajustes.map((a) => a.fecha + "|" + a.ejecutivo + "|" + a.clave));
+  const anulado = new Set(ajustes.filter((a) => a.anula).map((a) => a.fecha + "|" + a.ejecutivo + "|" + a.clave));
+  const porClave = {};
+  for (const c of PADRON) porClave[claveCredito(c.id, c.producto)] = c;
+
+  const cobranza = [];
+  for (const ej in snaps) {
+    if (!permitidas.has(ej)) continue;
+    for (const fecha in snaps[ej]) {
+      if (fecha < desde || fecha > hasta) continue;
+      let data = snaps[ej][fecha].snapshot;
+      if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
+      const meter = (nodo, key, centro) => {
+        if (!nodo || typeof nodo !== "object") return;
+        const p = nodo.pago || 0, g = nodo.garantia || 0, so = nodo.solidario || 0;
+        if (p <= 0 && g <= 0 && so <= 0) return;
+        const partes = String(key).split("|");
+        const cred = porClave[claveDelPago(partes[0], partes[1])];
+        const marca = fecha + "|" + ej + "|" + key;
+        cobranza.push({
+          fecha, ejecutivo: (USUARIOS[ej] || {}).nombre || ej,
+          socio: partes[0], clienta: partes[2] || (cred || {}).nombre || "—",
+          producto: partes[1] || "", centro: centro || (cred || {}).centro || "Individual",
+          pago: p, garantia: g, solidario: so, total: p + g + so,
+          forma: FORMA_TXT[nodo.forma] || nodo.forma || "Efectivo",
+          corregido: corregido.has(marca), anulado: anulado.has(marca),
+        });
+      };
+      for (const k in (data.regI || {})) meter(data.regI[k], k, null);
+      for (const cen in (data.reg || {}))
+        for (const k in (data.reg[cen] || {})) meter(data.reg[cen][k], k, cen);
+    }
+  }
+
+  // Otros movimientos: liquidaciones, recuperaciones, gastos, retiros. Se
+  // recorren por fecha porque `movsDeFecha` ya filtra anulados y burbuja.
+  const otros = [];
+  for (let f = new Date(desde + "T12:00:00"); f.toISOString().slice(0, 10) <= hasta; f.setDate(f.getDate() + 1)) {
+    const fISO = f.toISOString().slice(0, 10);
+    for (const m of movsDeFecha(fISO, usuario)) {
+      otros.push({
+        fecha: fISO, folio: m.folio, tipo: tipoDeMov(m) || m.categoria || "Otro",
+        entrada: !!m.entrada, concepto: m.concepto || "", monto: Number(m.monto) || 0,
+        metodo: m.metodo || "efectivo", socio: socioDeMov(m) || "",
+        clienta: (porClave[claveCredito(socioDeMov(m) || "", "")] || {}).nombre
+          || (PADRON.find((c) => String(c.id) === String(socioDeMov(m) || "")) || {}).nombre || "",
+        ejecutivo: (USUARIOS[ejecutivoDeMov(m)] || {}).nombre || "",
+        registradoPor: m.registradoPor || "",
+      });
+    }
+  }
+
+  // Día por día: lo que entró y lo que salió, sin mirar el corte.
+  const dias = {};
+  const dia = (f) => dias[f] || (dias[f] = { fecha: f, pago: 0, garantia: 0, solidario: 0,
+    entradas: 0, salidas: 0, clientas: new Set() });
+  for (const c of cobranza) {
+    const d = dia(c.fecha);
+    d.pago += c.pago; d.garantia += c.garantia; d.solidario += c.solidario;
+    if (c.total > 0) d.clientas.add(c.socio);
+  }
+  for (const m of otros) { const d = dia(m.fecha); if (m.entrada) d.entradas += m.monto; else d.salidas += m.monto; }
+  const porDia = Object.values(dias).sort((a, b) => a.fecha.localeCompare(b.fecha)).map((d) => ({
+    fecha: d.fecha, pago: d.pago, garantia: d.garantia, solidario: d.solidario,
+    entradas: d.entradas, salidas: d.salidas, clientas: d.clientas.size,
+    neto: d.pago + d.garantia + d.solidario + d.entradas - d.salidas,
+  }));
+
+  const suma = (arr, f) => Math.round(arr.reduce((s, x) => s + f(x), 0) * 100) / 100;
+  cobranza.sort((a, b) => a.fecha.localeCompare(b.fecha) || String(a.ejecutivo).localeCompare(String(b.ejecutivo)));
+  otros.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  return { desde, hasta, cobranza, otros, porDia, total: {
+    pago: suma(cobranza, (x) => x.pago), garantia: suma(cobranza, (x) => x.garantia),
+    solidario: suma(cobranza, (x) => x.solidario),
+    entradas: suma(otros.filter((x) => x.entrada), (x) => x.monto),
+    salidas: suma(otros.filter((x) => !x.entrada), (x) => x.monto),
+  } };
+}
+
+// Rango por omisión: la semana en curso, LUNES A DOMINGO (Karina lo pidió así:
+// el sábado y el domingo sí entra dinero — recuperaciones y atrasados).
+function rangoPeriodo(q) {
+  const fecha = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null);
+  let desde = fecha(q.desde), hasta = fecha(q.hasta);
+  if (!desde) desde = lunesDeLaSemana(hoyMX());
+  if (!hasta) {
+    const d = new Date(desde + "T12:00:00"); d.setDate(d.getDate() + 6);
+    hasta = d.toISOString().slice(0, 10);
+  }
+  if (hasta < desde) { const t = desde; desde = hasta; hasta = t; }
+  return { desde, hasta };
+}
+
+app.get("/api/periodo", requiere("direccion", "admin"), (req, res) => {
+  const { desde, hasta } = rangoPeriodo(req.query);
+  res.json(movimientoDelPeriodo(req.usuario, desde, hasta));
+});
+
+app.get("/api/periodo/excel", requiere("direccion", "admin"), async (req, res) => {
+  const { desde, hasta } = rangoPeriodo(req.query);
+  const d = movimientoDelPeriodo(req.usuario, desde, hasta);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF0B7247", ROJO = "FF8E0019";
+  const MONEDA = '"$"#,##0.00';
+  const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const nomDia = (f) => { const [y, m, dd] = f.split("-").map(Number);
+    return DIAS[new Date(Date.UTC(y, m - 1, dd)).getUTCDay()]; };
+
+  const hoja = (nombre, titulo, cols) => {
+    const s = wb.addWorksheet(nombre);
+    const ultima = String.fromCharCode(64 + cols.length);
+    s.mergeCells("A1:" + ultima + "1");
+    const t = s.getCell("A1");
+    t.value = titulo;
+    t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+    t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    t.alignment = { horizontal: "center", vertical: "middle" };
+    s.getRow(1).height = 24;
+    const hr = s.getRow(2);
+    cols.forEach(([h, w], i) => {
+      const c = hr.getCell(i + 1); c.value = h; s.getColumn(i + 1).width = w;
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    });
+    s.getRow(2).height = 22;
+    s.views = [{ state: "frozen", ySplit: 2 }];
+    return s;
+  };
+  const rotulo = "del " + desde + " al " + hasta;
+
+  // ---- 1. RESUMEN DÍA POR DÍA. Es la hoja que contesta "¿cuánto se fue?".
+  const r = hoja("Resumen por día", "FOOAX · MOVIMIENTO " + rotulo.toUpperCase() + " · SIN CORTE",
+    [["Día", 12], ["Fecha", 12], ["Clientas", 10], ["Cobranza", 14], ["Garantías", 13],
+     ["Solidario", 13], ["Otras entradas", 15], ["Salidas", 14], ["Neto del día", 15]]);
+  let f = 3;
+  for (const x of d.porDia) {
+    const fila = r.getRow(f++);
+    fila.getCell(1).value = nomDia(x.fecha);
+    fila.getCell(2).value = x.fecha;
+    fila.getCell(3).value = x.clientas;
+    [x.pago, x.garantia, x.solidario, x.entradas, x.salidas, x.neto].forEach((v, i) => {
+      const c = fila.getCell(4 + i); c.value = v; c.numFmt = MONEDA;
+    });
+    fila.getCell(8).font = { color: { argb: ROJO } };
+    fila.getCell(9).font = { bold: true, color: { argb: x.neto < 0 ? ROJO : VERDE } };
+  }
+  const tot = r.getRow(f + 1);
+  tot.getCell(1).value = "TOTAL";
+  tot.getCell(1).font = { bold: true };
+  [d.total.pago, d.total.garantia, d.total.solidario, d.total.entradas, d.total.salidas,
+   d.total.pago + d.total.garantia + d.total.solidario + d.total.entradas - d.total.salidas]
+    .forEach((v, i) => { const c = tot.getCell(4 + i); c.value = v; c.numFmt = MONEDA; c.font = { bold: true }; });
+
+  // ---- 2. COBRANZA CLIENTA POR CLIENTA, con su día.
+  const c2 = hoja("Cobranza", "FOOAX · COBRANZA CLIENTA POR CLIENTA " + rotulo,
+    [["Fecha", 12], ["Día", 11], ["Ejecutivo", 13], ["Centro", 20], ["Clienta", 30], ["Socio", 15],
+     ["Producto", 16], ["Pago", 13], ["Garantía", 12], ["Solidario", 12], ["Total", 13],
+     ["Forma", 14], ["Corregido por Dirección", 20]]);
+  f = 3;
+  for (const x of d.cobranza) {
+    const fila = c2.getRow(f++);
+    [x.fecha, nomDia(x.fecha), x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (fila.getCell(i + 1).value = v));
+    [x.pago, x.garantia, x.solidario, x.total].forEach((v, i) => { const c = fila.getCell(8 + i); c.value = v; c.numFmt = MONEDA; });
+    fila.getCell(12).value = x.forma;
+    fila.getCell(13).value = x.anulado ? "ANULADA" : x.corregido ? "Corregida" : "";
+    if (x.corregido || x.anulado) fila.getCell(13).font = { bold: true, color: { argb: ROJO } };
+  }
+
+  // ---- 3. OTROS MOVIMIENTOS: lo que entra fuera de la ficha y todo lo que sale.
+  const c3 = hoja("Entradas y salidas", "FOOAX · ENTRADAS Y SALIDAS " + rotulo,
+    [["Fecha", 12], ["Día", 11], ["Entra/Sale", 11], ["Tipo", 24], ["Concepto", 34],
+     ["Clienta", 28], ["Socio", 15], ["Ejecutivo", 13], ["Monto", 14], ["Método", 14],
+     ["Registró", 14], ["Folio", 16]]);
+  f = 3;
+  for (const x of d.otros) {
+    const fila = c3.getRow(f++);
+    [x.fecha, nomDia(x.fecha), x.entrada ? "ENTRA" : "SALE", x.tipo, x.concepto,
+     x.clienta, x.socio, x.ejecutivo].forEach((v, i) => (fila.getCell(i + 1).value = v));
+    const c = fila.getCell(9); c.value = x.monto; c.numFmt = MONEDA;
+    c.font = { bold: true, color: { argb: x.entrada ? VERDE : ROJO } };
+    fila.getCell(3).font = { bold: true, color: { argb: x.entrada ? VERDE : ROJO } };
+    fila.getCell(10).value = x.metodo;
+    fila.getCell(11).value = x.registradoPor;
+    fila.getCell(12).value = x.folio;
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Movimiento FOOAX ${desde} al ${hasta}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
 app.get("/api/semana/excel", requiere("direccion", "admin"), async (req, res) => {
   // Los SALDOS descuentan TODO lo abonado desde el corte de plantillas (si solo
   // restaran la semana, cada lunes "rebotaban" al saldo viejo — el viernes de
