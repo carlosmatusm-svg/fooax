@@ -88,22 +88,6 @@
   .ejec .monto{font-weight:800;font-variant-numeric:tabular-nums}
   .ejec .pie{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;
     color:var(--gris);margin-top:9px;gap:8px}
-  .btncorr{border:1px solid #8E0019;background:#fff;color:#8E0019;cursor:pointer;display:inline-flex;
-    align-items:center;gap:4px;font-family:inherit}
-  .btncorr:hover{background:#8E0019;color:#fff}
-  .corrbox{margin-top:10px;border:2px solid #8E0019;border-radius:12px;padding:14px;background:#FFF7F8}
-  .corrbox h4{margin:0 0 4px;font-size:15px;color:#8E0019}
-  .corrfila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 10px;
-    border-bottom:1px solid #F0D8DC;flex-wrap:wrap}
-  .corrfila:last-child{border-bottom:0}
-  .corrfila .cn{font-weight:700;font-size:13px}
-  .corrfila .cm{font-variant-numeric:tabular-nums;font-weight:800}
-  .corrfila .anulada{text-decoration:line-through;opacity:.55}
-  .corrbtns{display:flex;gap:6px;flex-wrap:wrap}
-  .cbtn{font-size:11px;font-weight:700;padding:4px 9px;border-radius:8px;cursor:pointer;
-    border:1px solid #B9C2CC;background:#fff;font-family:inherit}
-  .cbtn.rojo{border-color:#8E0019;color:#8E0019}
-  .cbtn.rojo:hover{background:#8E0019;color:#fff}
   .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;white-space:nowrap;
     display:inline-flex;align-items:center;gap:4px}
   .pie .detpago{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
@@ -510,7 +494,6 @@
 
   <h3>Por ejecutivo · última sincronización</h3>
   <div id="ejecutivos"></div>
-  <div id="correccion"></div>
 
   </div>
 
@@ -612,8 +595,6 @@ const IC = {
   cash: SVG_OPEN + '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>',
   bank: SVG_OPEN + '<path d="M12 3 3 9h18z"/><line x1="4" y1="21" x2="20" y2="21"/><line x1="6" y1="9" x2="6" y2="21"/><line x1="10" y1="9" x2="10" y2="21"/><line x1="14" y1="9" x2="14" y2="21"/><line x1="18" y1="9" x2="18" y2="21"/></svg>',
   cloud: SVG_OPEN + '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><path d="M9 14l2 2 4-4"/></svg>',
-  check: SVG_OPEN + '<path d="M20 6 9 17l-5-5"/></svg>',
-  lapiz: SVG_OPEN + '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
 };
 
 // ---------- ver otro día + actualizado a las ----------
@@ -670,12 +651,7 @@ async function cargar() {
     const hora = ok ? new Date(e.ultimaSync).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "";
     // "cerró ✓" = tocó el botón de enviar arqueo/cerrar; sin eso, se lo saltó.
     const cerro = e.cierre ? " · cerró " + new Date(e.cierre).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) + " ✓" : "";
-    // EL CIERRE VA SIEMPRE, sincronice o no. Antes `cerro` colgaba de `ok`: una
-    // ejecutiva que cerraba su día sin que quedara registrada la última
-    // sincronización aparecía como "sin sincronizar", sin una palabra de que ya
-    // había cerrado. Reportado por Karina el 7-ago con el caso de Julio.
-    const est = ok ? (hora + cerro) : (e.cierre ? "sin sincronizar" + cerro : "sin sincronizar");
-    return '<span class="cs ' + (ok || e.cierre ? "ok" : "no") + '">' + (ok ? IC.cloud : "") + e.nombre + " · " + est + "</span>";
+    return '<span class="cs ' + (ok ? "ok" : "no") + '">' + (ok ? IC.cloud : "") + e.nombre + (ok ? " · " + hora + cerro : " · sin sincronizar") + "</span>";
   }).join("");
   const t = d.total;
   const totalDia = t.pago + t.garantias;
@@ -697,115 +673,15 @@ async function cargar() {
     const sync = e.ultimaSync
       ? '<span class="pill ok">' + IC.cloud + " " + new Date(e.ultimaSync).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) + "</span>"
       : '<span class="pill no">sin sincronizar</span>';
-    // La tarjeta NO decía si había cerrado — solo el chip de arriba, y ahí se
-    // perdía. Es lo primero que pregunta Dirección: ¿ya cerró?
-    const cerroPill = e.cierre
-      ? '<span class="pill ok">' + IC.check + " cerró " + new Date(e.cierre).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) + "</span>"
-      : '<span class="pill no">sin cerrar</span>';
     div.innerHTML =
       '<div class="f1"><span class="ava" style="background:' + (COLORES[id] || "#7A3EA8") + '">' + e.nombre[0] + "</span>" +
       '<span class="nom">' + e.nombre + "</span>" +
       '<span class="monto">' + dinero(e.pago + e.garantias) + "</span></div>" +
       '<div class="pie"><span class="detpago">' + IC.cash + " " + dinero(e.efectivo) + " · " + IC.bank + " " + dinero(e.transferencia) +
-      " · " + e.clientasPagaron + " pagos</span>" + sync + cerroPill +
-      '<button class="pill btncorr" onclick="abrirCorreccion(&quot;' + hesc(id) + "&quot;)\">" + IC.lapiz + " Corregir</button></div>";
+      " · " + e.clientasPagaron + " pagos</span>" + sync + "</div>";
     cont.appendChild(div);
   }
 }
-// ---------- CORREGIR LA CAPTURA DE UNA EJECUTIVA (Karina, 7-ago-2026) ----------
-// «Darle el poder a Monse de ajustar arqueos de ejecutivos, anular garantías y
-//  pagos de clientes.» Nada se borra: la corrección se guarda encima, con el
-//  motivo y con quién la hizo, y baja sola al teléfono de la ejecutiva.
-let CORR_ABIERTA = null;
-function cerrarCorreccion(){ CORR_ABIERTA = null; $("correccion").innerHTML = ""; }
-async function abrirCorreccion(id){
-  if (CORR_ABIERTA === id) return cerrarCorreccion();
-  CORR_ABIERTA = id;
-  const caja = $("correccion");
-  caja.innerHTML = '<div class="corrbox">Cargando la captura…</div>';
-  const fecha = FECHA_VISTA || FECHA_HOY;
-  let d;
-  try {
-    const r = await fetch("/api/captura?fecha=" + fecha + "&ejecutivo=" + encodeURIComponent(id),
-      { credentials: "include" });
-    if (!r.ok) { caja.innerHTML = '<div class="corrbox">No pude leer su captura.</div>'; return; }
-    d = await r.json();
-  } catch { caja.innerHTML = '<div class="corrbox">Sin conexión con el servidor.</div>'; return; }
-
-  const filas = (d.clientas || []).map((c) => {
-    const anul = c.anulado ? " anulada" : "";
-    return '<div class="corrfila">'
-      + '<span class="cn' + anul + '">' + hesc(c.nombre) + '<br>'
-      + '<span class="sub">' + hesc(c.centro || "Individual") + "</span></span>"
-      + '<span class="cm' + anul + '">' + dinero(c.pago) + (c.garantia > 0 ? " + gar " + dinero(c.garantia) : "") + "</span>"
-      + '<span class="corrbtns">'
-      + (c.pago > 0 ? '<button class="cbtn" onclick="corregirMonto(&quot;' + hesc(c.clave) + '&quot;,&quot;pago&quot;)">Corregir pago</button>' : "")
-      + (c.garantia > 0 ? '<button class="cbtn" onclick="corregirMonto(&quot;' + hesc(c.clave) + '&quot;,&quot;garantia&quot;)">Quitar garantía</button>' : "")
-      + '<button class="cbtn rojo" onclick="anularCaptura(&quot;' + hesc(c.clave) + '&quot;)">Anular todo</button>'
-      + "</span></div>";
-  }).join("");
-
-  const contado = (d.arqueo || []).reduce((a, x) => a + x.den * x.n, 0);
-  caja.innerHTML = '<div class="corrbox">'
-    + "<h4>Corregir la captura de " + hesc(d.nombre) + " · " + hesc(fecha) + "</h4>"
-    + '<div class="sub" style="margin-bottom:10px">Nada se borra: la corrección queda encima, con tu nombre y el motivo, '
-    + "y le baja sola al teléfono de " + hesc(d.nombre) + ".</div>"
-    + (filas || '<div class="sub">No capturó ninguna clienta ese día.</div>')
-    + '<div class="corrfila" style="border-top:2px solid #F0D8DC;margin-top:8px">'
-    + '<span class="cn">Efectivo contado (arqueo)</span>'
-    + '<span class="cm">' + dinero(contado) + "</span>"
-    + '<span class="corrbtns"><button class="cbtn rojo" onclick="corregirArqueo()">Corregir el conteo</button></span></div>'
-    + '<div style="margin-top:10px"><button class="cbtn" onclick="cerrarCorreccion()">Cerrar</button></div>'
-    + "</div>";
-}
-async function mandarCorreccion(url, cuerpo){
-  try {
-    const r = await fetch(url, { method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) { alert(d.error || "No se pudo guardar la corrección."); return false; }
-    return true;
-  } catch { alert("Sin conexión con el servidor."); return false; }
-}
-async function corregirMonto(clave, campo){
-  const que = campo === "garantia" ? "la garantía" : "el pago";
-  const nuevo = prompt("¿De cuánto queda " + que + "? (0 lo quita)", "0");
-  if (nuevo === null) return;
-  const monto = Number(nuevo);
-  if (!isFinite(monto) || monto < 0) return alert("Pon un monto válido.");
-  const motivo = prompt("¿Por qué se corrige? (queda en el registro)");
-  if (!motivo) return;
-  const ok = await mandarCorreccion("/api/cobranza/ajuste", {
-    fecha: FECHA_VISTA || FECHA_HOY, ejecutivo: CORR_ABIERTA, clave, campo, monto, motivo });
-  if (ok) { const id = CORR_ABIERTA; CORR_ABIERTA = null; await cargar(); abrirCorreccion(id); }
-}
-async function anularCaptura(clave){
-  const motivo = prompt("Se va a anular TODO lo capturado de esta clienta ese día.\n¿Por qué? (queda en el registro)");
-  if (!motivo) return;
-  const ok = await mandarCorreccion("/api/cobranza/ajuste", {
-    fecha: FECHA_VISTA || FECHA_HOY, ejecutivo: CORR_ABIERTA, clave, anula: true, motivo });
-  if (ok) { const id = CORR_ABIERTA; CORR_ABIERTA = null; await cargar(); abrirCorreccion(id); }
-}
-async function corregirArqueo(){
-  const dens = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5];
-  const txt = prompt("Escribe el conteo correcto, denominación:cantidad separadas por coma.\n"
-    + "Ejemplo:  500:3, 200:1, 50:2");
-  if (!txt) return;
-  const arqueo = {};
-  for (const par of txt.split(",")) {
-    const [d, n] = par.split(":").map((x) => Number(String(x).trim()));
-    if (!isFinite(d) || !isFinite(n)) return alert("No entendí «" + par.trim() + "». Usa 500:3");
-    if (!dens.includes(d)) return alert("$" + d + " no es una denominación válida.");
-    if (!Number.isInteger(n) || n < 0) return alert("La cantidad de $" + d + " tiene que ser un entero.");
-    if (n > 0) arqueo[d] = n;
-  }
-  const motivo = prompt("¿Por qué se corrige el conteo? (queda en el registro)");
-  if (!motivo) return;
-  const ok = await mandarCorreccion("/api/arqueo/ajuste", {
-    fecha: FECHA_VISTA || FECHA_HOY, ejecutivo: CORR_ABIERTA, arqueo, motivo });
-  if (ok) { const id = CORR_ABIERTA; CORR_ABIERTA = null; await cargar(); abrirCorreccion(id); }
-}
-
 // ---------- buscador de clientas ----------
 const q = $("q"), resultados = $("resultados");
 let tSearch;

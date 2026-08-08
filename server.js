@@ -434,7 +434,10 @@ app.post("/api/sync", requiere("ejecutivo"), (req, res) => {
   if (typeof snapshot === "string") { try { snapshot = JSON.parse(snapshot); } catch { snapshot = null; } }
   if (!fecha || !snapshot || typeof snapshot !== "object") return res.status(400).json({ error: "Faltan datos para sincronizar (la fecha o la captura)." });
   const hoy = hoyMX();
-  const previo = store.snapshotsDeFecha(fecha)[req.usuario.id];
+  // CRUDO a propósito: este blindaje compara captura contra captura. Con el
+  // snapshot ya corregido por Dirección, un pago anulado se vería como "menos
+  // pagos que antes" y rechazaría una sincronización perfectamente buena.
+  const previo = store.snapshotsDeFecha(fecha, true)[req.usuario.id];
   const antes = previo ? contarPagos(previo.snapshot) : null;
   const ahora = contarPagos(snapshot);
   // BLINDAJE: una captura VACÍA (0 pagos) nunca puede pisar una con cobranza.
@@ -2430,6 +2433,149 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
 // forma de quitarlo — el día quedaba marcando "sobran $100" para siempre. Los
 // movimientos que captura la ejecutiva se anulan solos al borrarlos en su app;
 // los que registra Dirección (folio DIR-…) no tenían salida.
+// ===================================================================
+// CORREGIR LA CAPTURA DE UNA EJECUTIVA (Karina, 7-ago-2026)
+// «Hay que darle el poder a Monse de ajustar arqueos de ejecutivos, también
+//  anular garantías y pagos de clientes, y que se sincronice con el tablero
+//  de ellos.»
+//
+// Hasta hoy la captura de la ejecutiva era intocable desde el tablero: si
+// registraba un pago que no fue, o una garantía de más, la única salida era
+// pedirle que lo borrara en su teléfono. Y si ya había cerrado, ni eso.
+//
+// La corrección NO borra ni pisa lo que ella capturó: se guarda como una capa
+// encima (`cobranza_ajustes`, append-only) con quién la hizo y por qué. Se
+// aplica en el store, así que la respeta TODO el sistema —arqueo, consolidado,
+// saldos, Excel— sin que haya que acordarse en cada cálculo.
+//
+// Y baja al teléfono: `/api/vivos` manda las correcciones del día y `vivos.js`
+// las aplica sobre la captura local de la ejecutiva.
+// ===================================================================
+const CAMPOS_COBRANZA = { pago: "el pago", garantia: "la garantía", solidario: "el solidario" };
+
+// LA CAPTURA DE UNA EJECUTIVA, clienta por clienta. Es lo que Dirección tiene
+// que ver ANTES de corregir: sin esto, corregiría a ciegas.
+app.get("/api/captura", requiere("direccion", "admin"), (req, res) => {
+  const fecha = req.query.fecha || hoyMX();
+  const ejec = String(req.query.ejecutivo || "").trim().toLowerCase();
+  const u = USUARIOS[ejec];
+  if (!u || u.rol !== "ejecutivo" || !!u.test !== !!req.usuario.test)
+    return res.status(404).json({ error: "Esa ejecutiva no existe." });
+  const rec = store.snapshotsDeFecha(fecha)[ejec];     // ya viene corregido
+  let data = rec && rec.snapshot;
+  if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
+  const clientas = [];
+  const meter = (nodo, centro) => {
+    for (const clave in (nodo || {})) {
+      const r = nodo[clave];
+      if (!r || typeof r !== "object") continue;
+      if (!("pago" in r) && !("forma" in r)) continue;
+      const total = (r.pago || 0) + (r.garantia || 0) + (r.solidario || 0);
+      if (total <= 0 && !r._anuladoPorDireccion) continue;
+      // El nombre viaja dentro de la llave (socio|producto|nombre|n). Si no,
+      // se busca en el padrón: nunca se le enseña una clave pelona a Dirección.
+      const partes = String(clave).split("|");
+      const enPadron = PADRON.find((c) => String(c.id) === partes[0]);
+      clientas.push({
+        clave, centro: centro || null,
+        nombre: partes[2] || (enPadron && enPadron.nombre) || partes[0],
+        producto: partes[1] || (enPadron && enPadron.producto) || "",
+        pago: r.pago || 0, garantia: r.garantia || 0, solidario: r.solidario || 0,
+        forma: r.forma || "", anulado: !!r._anuladoPorDireccion, ajustadoPor: r._ajustadoPor || null,
+      });
+    }
+  };
+  meter(data && data.regI, null);
+  for (const c in ((data && data.reg) || {})) meter(data.reg[c], c);
+  clientas.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+  const arq = (data && data.arqueo) || {};
+  const arqueo = Object.keys(arq).map((d) => ({ den: Number(d), n: Number(arq[d]) || 0 }))
+    .filter((x) => x.n > 0).sort((a, b) => b.den - a.den);
+  res.json({ fecha, ejecutivo: ejec, nombre: u.nombre, clientas, arqueo,
+    cierre: (rec && rec.cierre) || null,
+    ajustes: store.ajustesCobranza().filter((a) => a.fecha === fecha && a.ejecutivo === ejec) });
+});
+
+app.post("/api/cobranza/ajuste", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const fecha = String(b.fecha || "").trim();
+  const ejec = String(b.ejecutivo || "").trim().toLowerCase();
+  const clave = String(b.clave || "").trim();
+  const motivo = String(b.motivo || "").trim();
+  const anula = b.anula === true;
+  const campo = String(b.campo || "").trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
+  if (fecha > hoyMX()) return res.status(400).json({ error: "No se puede corregir una fecha futura." });
+  const u = USUARIOS[ejec];
+  if (!u || u.rol !== "ejecutivo" || !!u.test !== !!req.usuario.test)
+    return res.status(400).json({ error: "Esa ejecutiva no existe." });
+  if (!clave) return res.status(400).json({ error: "Falta la clienta." });
+  // El motivo es OBLIGATORIO: sin él, dentro de un mes nadie sabe por qué el
+  // arqueo de ese día no cuadra con lo que la ejecutiva juraba haber cobrado.
+  if (motivo.length < 4) return res.status(400).json({ error: "Escribe el motivo de la corrección." });
+  if (!anula && !CAMPOS_COBRANZA[campo])
+    return res.status(400).json({ error: "Elige qué corregir: el pago, la garantía o el solidario." });
+  const monto = Number(b.monto);
+  if (!anula && (!Number.isFinite(monto) || monto < 0))
+    return res.status(400).json({ error: "El monto debe ser un número válido (0 lo quita)." });
+
+  // Que la clienta EXISTA en la captura de ese día. Sin esta comprobación el
+  // ajuste se guardaba, no encontraba a nadie a quien aplicarse y el tablero
+  // decía "corregido" sin haber corregido nada.
+  const rec = store.snapshotsDeFecha(fecha, true)[ejec];
+  let data = rec && rec.snapshot;
+  if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
+  const estaEn = (nodo) => !!(nodo && typeof nodo === "object" && nodo[clave]);
+  let existe = estaEn(data && data.regI);
+  if (!existe) for (const c in ((data && data.reg) || {})) if (estaEn(data.reg[c])) { existe = true; break; }
+  if (!existe) return res.status(404).json({ error: "Esa clienta no aparece en la captura de " + u.nombre + " ese día." });
+
+  const aj = { fecha, ejecutivo: ejec, clave, campo: anula ? null : campo,
+    monto: anula ? 0 : monto, anula, motivo,
+    por: req.usuario.nombre, usuario: req.usuario.id, ts: Date.now() };
+  store.agregarAjusteCobranza(aj);
+  res.json({ ok: true, ajuste: aj });
+});
+
+// AJUSTAR EL ARQUEO: corregir el recuento de billetes de una ejecutiva.
+app.post("/api/arqueo/ajuste", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const fecha = String(b.fecha || "").trim();
+  const ejec = String(b.ejecutivo || "").trim().toLowerCase();
+  const motivo = String(b.motivo || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
+  if (fecha > hoyMX()) return res.status(400).json({ error: "No se puede corregir una fecha futura." });
+  const u = USUARIOS[ejec];
+  if (!u || u.rol !== "ejecutivo" || !!u.test !== !!req.usuario.test)
+    return res.status(400).json({ error: "Esa ejecutiva no existe." });
+  if (motivo.length < 4) return res.status(400).json({ error: "Escribe el motivo de la corrección." });
+  // El arqueo es {denominación: cuántas}. Se valida denominación por
+  // denominación: un dedazo aquí descuadra la caja del día entero.
+  const crudo = b.arqueo && typeof b.arqueo === "object" ? b.arqueo : null;
+  if (!crudo) return res.status(400).json({ error: "Manda el recuento de billetes." });
+  const arqueo = {};
+  for (const k in crudo) {
+    const den = Number(k), n = Number(crudo[k]);
+    if (!DENOMS_ARQUEO.includes(den)) return res.status(400).json({ error: "Denominación inválida: " + k });
+    if (!Number.isInteger(n) || n < 0) return res.status(400).json({ error: "La cantidad de $" + den + " debe ser un entero." });
+    if (n > 0) arqueo[den] = n;
+  }
+  if (!store.snapshotsDeFecha(fecha, true)[ejec])
+    return res.status(404).json({ error: u.nombre + " no tiene captura de ese día." });
+  const aj = { fecha, ejecutivo: ejec, arqueo, motivo,
+    por: req.usuario.nombre, usuario: req.usuario.id, ts: Date.now() };
+  store.agregarAjusteCobranza(aj);
+  res.json({ ok: true, ajuste: aj, contado: Object.entries(arqueo).reduce((a, [d, n]) => a + Number(d) * n, 0) });
+});
+
+// El historial de correcciones de un día: qué se tocó, quién y por qué.
+app.get("/api/cobranza/ajustes", requiere("direccion", "admin"), (req, res) => {
+  const fecha = req.query.fecha || hoyMX();
+  const ids = new Set(idsEjecutivos(req.usuario));
+  res.json({ fecha, ajustes: store.ajustesCobranza().filter((a) => a.fecha === fecha && ids.has(a.ejecutivo)) });
+});
+
 app.post("/api/movimiento/anular", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
   const folio = String(b.folio || "").trim();
@@ -3208,7 +3354,7 @@ app.post("/api/recuperar", requiere("direccion", "admin"), async (req, res) => {
   // Opción especial: restaurar la FOTO DEL CIERRE (la captura correcta antes de
   // re-entrar). Es la que arregla el descuadre por re-captura duplicada.
   if (String(b.archivado) === "alCerrar") {
-    const rec = store.snapshotsDeFecha(fecha)[ejec];
+    const rec = store.snapshotsDeFecha(fecha, true)[ejec];   // crudo: es la foto original
     const base = rec && rec.baseCerrada;
     const cif = base != null ? cifrasDeSnapshot(base) : null;
     if (!base || !cif || cif.total <= 0) return res.status(404).json({ error: "No hay foto del cierre para ese día." });
@@ -3414,7 +3560,36 @@ function datosVivosParaApp(usuario) {
 // que nadie tenga que regenerar el archivo de nadie.
 function paqueteVivo(usuario) {
   const { altas, centros, quitar } = altasParaApp(usuario);
-  return { altas, centros, quitar, vivos: datosVivosParaApp(usuario), ts: Date.now() };
+  return { altas, centros, quitar, vivos: datosVivosParaApp(usuario),
+    correcciones: correccionesParaApp(usuario), ts: Date.now() };
+}
+
+// LAS CORRECCIONES DE DIRECCIÓN, para que la ejecutiva las vea en su teléfono.
+// Si Monse le anula un pago, no basta con que el tablero cuadre: la ejecutiva
+// tiene que ver el renglón corregido, o al día siguiente vuelve a capturarlo.
+// Se mandan solo las de HOY: los días pasados ya están cerrados y su app
+// arranca limpia cada mañana.
+function correccionesParaApp(usuario) {
+  const fecha = hoyMX();
+  const rec = store.snapshotsDeFecha(fecha)[usuario.id];       // ya vienen corregidos
+  if (!rec) return [];
+  const hayAjuste = store.ajustesCobranza().some((a) => a.fecha === fecha && a.ejecutivo === usuario.id);
+  if (!hayAjuste) return [];
+  let data = rec.snapshot;
+  if (typeof data === "string") { try { data = JSON.parse(data); } catch { return []; } }
+  const out = [];
+  const meter = (nodo, centro) => {
+    for (const clave in (nodo || {})) {
+      const r = nodo[clave];
+      if (!r || typeof r !== "object") continue;
+      if (!r._ajustadoPor && !r._anuladoPorDireccion) continue;
+      out.push({ clave, centro: centro || null, pago: r.pago || 0, garantia: r.garantia || 0,
+        solidario: r.solidario || 0, anulado: !!r._anuladoPorDireccion, por: r._ajustadoPor || "Dirección" });
+    }
+  };
+  meter(data.regI, null);
+  for (const c in (data.reg || {})) meter(data.reg[c], c);
+  return out;
 }
 app.get("/api/vivos", requiere("ejecutivo"), (req, res) => {
   res.json(paqueteVivo(req.usuario));

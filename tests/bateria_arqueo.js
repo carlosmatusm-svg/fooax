@@ -1796,6 +1796,106 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     && !(conBaja48.vivos || []).some((v) => String(v.id) === "11199999048"),
     JSON.stringify(conBaja48.quitar || []).slice(0, 160));
 
+  console.log("\n— 49. DIRECCIÓN CORRIGE LA CAPTURA DE UNA EJECUTIVA (Karina, 7-ago) —");
+  // «Darle el poder a Monse de ajustar arqueos de ejecutivos, anular garantías
+  //  y pagos de clientes, y que se sincronice con el tablero de ellos.»
+  const F49 = "2026-03-11";
+  const KB49 = "11112931059|COMADRE|BLANCA LUIS BERNAL|0";
+  const KJ49 = "11113014663|COMADRE|JUANA RITA LUIS BERNAL|0";
+  const capturar49 = (gar) => fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F49, ts: Date.now(), snapshot: {
+      regI: { [KB49]: { pago: 1554.5, garantia: gar, forma: "E" }, [KJ49]: { pago: 2827, forma: "E" } },
+      arqueo: { 500: 9, 50: 1, 20: 1 } } }) });
+  await capturar49(200);
+  const cons49 = async () => ((await j(await fetch(U + "/api/consolidado?fecha=" + F49, { headers: H(cm) }))).ejecutivos || {}).julio || {};
+  const c49a = await cons49();
+  ok("arranca con la captura de la ejecutiva",
+    Math.abs(c49a.pago - 4381.5) < 0.01 && Math.abs(c49a.garantias - 200) < 0.01, JSON.stringify(c49a));
+
+  // Dirección ve la captura clienta por clienta antes de corregir.
+  const cap49 = await j(await fetch(U + "/api/captura?fecha=" + F49 + "&ejecutivo=julio", { headers: H(cm) }));
+  ok("Dirección puede ver su captura clienta por clienta",
+    (cap49.clientas || []).length === 2 && cap49.clientas.every((c) => c.nombre && !c.nombre.includes("|")),
+    JSON.stringify(cap49.clientas || []).slice(0, 200));
+
+  // (a) QUITAR UNA GARANTÍA.
+  const r49g = await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: F49, ejecutivo: "julio", clave: KB49, campo: "garantia", monto: 0,
+      motivo: "No dio garantía, fue dedazo" }) });
+  const c49g = await cons49();
+  ok("Dirección puede quitar una garantía", r49g.status === 200 && c49g.garantias === 0, "garantías " + c49g.garantias);
+
+  // (b) ANULAR UN PAGO COMPLETO.
+  await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: F49, ejecutivo: "julio", clave: KJ49, anula: true, motivo: "No pagó" }) });
+  const c49n = await cons49();
+  ok("y anular un pago que no fue",
+    Math.abs(c49n.pago - 1554.5) < 0.01 && c49n.clientasPagaron === 1, JSON.stringify(c49n));
+
+  // (c) CORREGIR EL ARQUEO.
+  await fetch(U + "/api/arqueo/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: F49, ejecutivo: "julio", arqueo: { 500: 3, 50: 1 },
+      motivo: "Recontamos el efectivo en oficina" }) });
+  const arq49 = await j(await fetch(U + "/api/arqueo?fecha=" + F49, { headers: H(cm) }));
+  ok("y corregir el conteo de billetes del arqueo",
+    Math.abs(((arq49.porEjec || {}).julio || {}).contado - 1550) < 0.01,
+    "contado " + (((arq49.porEjec || {}).julio || {}).contado));
+
+  // (d) LO MÁS IMPORTANTE: que la app de la ejecutiva NO deshaga la corrección.
+  // Su teléfono vuelve a subir la captura original —es lo que tiene guardado—
+  // y el sync REEMPLAZA el día. Si la corrección viviera dentro del snapshot,
+  // aquí se perdería y el descuadre volvería solo.
+  await capturar49(200);
+  const c49r = await cons49();
+  ok("una re-sincronización de la ejecutiva NO deshace la corrección",
+    Math.abs(c49r.pago - 1554.5) < 0.01 && c49r.garantias === 0, JSON.stringify(c49r));
+
+  // (e) Y EL SALDO DE LA CLIENTA REGRESA. Se mide sobre una fecha POSTERIOR al
+  // corte —antes del corte los abonos no descuentan, y la prueba no probaría
+  // nada—. Se toma el saldo, se captura, se comprueba que bajó, se anula y se
+  // comprueba que volvió: es la cadena completa, no una foto.
+  const MARTA49 = "11113236921";
+  const KM49 = MARTA49 + "|Foxi Plus - 2|MARTHA PATRICIA VASQUEZ HERNANDEZ|0";
+  const saldoMar = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=VASQUEZ%20HERNANDEZ", { headers: H(cm) }));
+    return (d.resultados.find((c) => c.ejecutivo === "Julio") || {}).saldoActual;
+  };
+  const sAntes = await saldoMar();
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: HOY, ts: Date.now(),
+      snapshot: { regI: { [KM49]: { pago: 3175.5, forma: "E" } } } }) });
+  const sConPago = await saldoMar();
+  ok("un pago capturado sí le baja el saldo",
+    Math.abs(sAntes - sConPago - 3175.5) < 0.01, sAntes + " → " + sConPago);
+  await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, ejecutivo: "julio", clave: KM49, anula: true,
+      motivo: "No pagó, se capturó por error" }) });
+  const sAnulado = await saldoMar();
+  ok("y al anularlo, el saldo de la clienta REGRESA",
+    Math.abs(sAnulado - sAntes) < 0.01, sConPago + " → " + sAnulado + " (debía volver a " + sAntes + ")");
+
+  // (f) Y baja al teléfono para que la ejecutiva lo vea.
+  const paq49 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+  ok("las correcciones bajan al teléfono de la ejecutiva",
+    Array.isArray(paq49.correcciones), JSON.stringify(paq49.correcciones || []).slice(0, 120));
+
+  // (g) Guardias: sin motivo no se corrige, y no se corrige a quien no capturó.
+  const sinMotivo49 = await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: F49, ejecutivo: "julio", clave: KB49, campo: "pago", monto: 0 }) });
+  ok("sin motivo no se puede corregir", sinMotivo49.status === 400, "status " + sinMotivo49.status);
+  const noEsta49 = await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: F49, ejecutivo: "julio", clave: "999|X|NADIE|0", anula: true, motivo: "prueba" }) });
+  ok("no deja corregir a una clienta que no capturó", noEsta49.status === 404, "status " + noEsta49.status);
+  const ejecNo49 = await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F49, ejecutivo: "julio", clave: KB49, anula: true, motivo: "prueba" }) });
+  ok("y una ejecutiva no puede corregirse a sí misma", ejecNo49.status === 403, "status " + ejecNo49.status);
+
+  // (h) El rastro49: quién y por qué.
+  const rastro49 = await j(await fetch(U + "/api/cobranza/ajustes?fecha=" + F49, { headers: H(cm) }));
+  ok("queda el rastro de quién corrigió y por qué",
+    (rastro49.ajustes || []).length >= 3 && rastro49.ajustes.every((a) => a.motivo && a.por),
+    JSON.stringify((rastro49.ajustes || []).map((a) => a.motivo)));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

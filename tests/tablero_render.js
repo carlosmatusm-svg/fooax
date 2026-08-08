@@ -98,6 +98,83 @@ for (const a of apps) {
   ok(nom + ": no dice 'ahorro' en ningún lado", !/ahorro/i.test(h), "aparece la palabra");
 }
 
+// PARIDAD ENTRE LAS APPS (Karina, 7-ago: «hay que volver a checar bien que
+// tenga las mismas configuraciones que los demás — no puede volver a suceder
+// eso»). Van dos veces que la app de Julio se queda atrás de las otras y solo
+// se descubre porque él lo reporta. Esto lo caza aquí.
+//
+// Se compara el CÓDIGO, no los datos: se quitan el padrón embebido, el nombre
+// de la ejecutiva y su meta, que sí son distintos a propósito. Lo que quede
+// distinto es una app que se quedó atrás.
+{
+  const APPS = ["NERI_GERENTE", "KARINA", "CHRISTOPHER", "JULIO"];
+  const soloCodigo = (nom) => fs.readFileSync(path.join(__dirname, "..", "apps", "App_Cobranza_" + nom + ".html"), "utf8")
+    .replace(/let CENTROS=\{[\s\S]*?\};/, "CENTROS")
+    .replace(/let INDIVIDUALES=\[[\s\S]*?\];/, "INDIVIDUALES")
+    .replace(/const (EJECUTIVO\w*|ES_GERENTE|META)\s*=[^\n]*/g, "$1")
+    .replace(/FOOAX · Cobranza [^<]*/g, "TITULO")
+    .replace(/<h1>[^<]*<\/h1>/g, "<h1>NOMBRE</h1>")
+    .replace(/Meta: \d+ centros · \d+ integrantes/g, "META");
+  // Cada función que existe en las demás tiene que existir en todas.
+  const fnsDe = (nom) => new Set((soloCodigo(nom).match(/function\s+(\w+)\s*\(/g) || [])
+    .map((x) => x.replace(/function\s+/, "").replace(/\s*\($/, "")));
+  const porApp = {}; APPS.forEach((a) => { porApp[a] = fnsDe(a); });
+  // La base se saca de LAS OTRAS, nunca de la que se está revisando: si se
+  // incluyera, quitarle una función también la quitaría de la base y la falta
+  // se volvería invisible. (Probado: sin esto, renombrar una función en Julio
+  // pasaba como si nada.)
+  // Neri tiene además su pestaña de gerente: sus extras no cuentan como falta.
+  for (const a of APPS) {
+    const otras = APPS.filter((x) => x !== a && x !== "NERI_GERENTE").map((x) => porApp[x]);
+    const base = new Set([...otras[0]].filter((f) => otras.every((s2) => s2.has(f))));
+    const faltan = [...base].filter((f) => !porApp[a].has(f));
+    ok(a + ": no le falta ninguna función que tengan las demás", faltan.length === 0, faltan.join(", "));
+  }
+  // Y la versión del padrón: si una se queda atrás, su teléfono no toma los
+  // montos nuevos. Todas tienen que ir en la MISMA.
+  const vers = {};
+  for (const a of APPS) {
+    const m = /PADRON_VERSION\s*=\s*(\d+)/.exec(soloCodigo(a));
+    vers[a] = m ? m[1] : "(sin versión)";
+  }
+  const distintas = [...new Set(Object.values(vers))];
+  ok("todas las apps van en la misma PADRON_VERSION", distintas.length === 1, JSON.stringify(vers));
+  // Los arreglos que tienen que estar en TODAS, no solo en la que se reportó.
+  const OBLIGATORIOS = [
+    ["preguntarPostCierre", /function preguntarPostCierre\(/],
+    ["el guardia de re-entrada", /_hay=\(_d\.reg/],
+    ["gasto sin centro ni clienta", /movQuienBox/],
+    ["plazo en meses o semanas", /function unidadDe\(/],
+    ["nunca dice 'ahorro'", /^(?!.*ahorro).*$/is],
+  ];
+  for (const a of APPS) {
+    const src = fs.readFileSync(path.join(__dirname, "..", "apps", "App_Cobranza_" + a + ".html"), "utf8");
+    for (const [que, re] of OBLIGATORIOS)
+      ok(a + ": tiene " + que, re.test(src), "le falta");
+  }
+}
+
+// EL CIERRE TIENE QUE VERSE SIEMPRE (Karina, 7-ago: «lo de Julio no queda, no
+// nos dice cuándo cerró»). El chip colgaba el texto del cierre de que hubiera
+// sincronización registrada: una ejecutiva que cerraba y no tenía última sync
+// aparecía como "sin sincronizar", sin una palabra de que ya había cerrado. Y
+// la tarjeta de cada ejecutiva no decía nada del cierre, ni una vez.
+{
+  const t = fs.readFileSync(path.join(__dirname, "..", "vistas", "tablero.html"), "utf8");
+  ok("la tarjeta de cada ejecutiva dice si cerró", /cerroPill/.test(t), "no aparece el dato del cierre");
+  ok("y dice 'sin cerrar' cuando no ha cerrado", /sin cerrar/.test(t), "no avisa cuando falta");
+  // El texto del cierre no puede volver a depender de la sincronización.
+  ok("el cierre ya no se esconde si no hay sincronización",
+    !/\(ok \? " · " \+ hora \+ cerro :/.test(t), "el cierre sigue colgando de `ok`");
+  ok("Dirección puede corregir la captura desde la tarjeta",
+    /abrirCorreccion\(/.test(t) && /\/api\/captura/.test(t), "falta el botón de corregir");
+  for (const f of ["corregirMonto", "anularCaptura", "corregirArqueo"])
+    ok("existe " + f + "()", new RegExp("function " + f + "\\(").test(t), "no está");
+  // Corregir sin motivo no debe ser posible ni por descuido en la pantalla.
+  ok("la pantalla exige motivo en cada corrección",
+    (t.match(/¿Por qué/g) || []).length >= 3, "alguna corrección no lo pide");
+}
+
 // LOS SCRIPTS QUE SE LE INYECTAN A LA APP. Viven fuera del HTML, así que las
 // pruebas de las apps no los tocaban: un error de sintaxis aquí deja el
 // teléfono con los montos viejos y nadie se entera (el servidor contesta 200).

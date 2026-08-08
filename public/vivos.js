@@ -130,6 +130,38 @@
     if (typeof recalc === "function") try { recalc(); } catch (e) { }
   }
 
+  // ---- 4. CORRECCIONES DE DIRECCIÓN sobre la captura de HOY ----
+  // Si Monse le anula un pago o le quita una garantía, la ejecutiva tiene que
+  // verlo en su pantalla. Si no, el tablero cuadra y su teléfono no, y al día
+  // siguiente vuelve a capturar lo mismo.
+  function correcciones(lista) {
+    if (!lista || !lista.length) return 0;
+    if (typeof reg === "undefined" && typeof regI === "undefined") return 0;
+    var tocadas = 0;
+    lista.forEach(function (c) {
+      var nodo = null;
+      if (c.centro && typeof reg !== "undefined" && reg[c.centro]) nodo = reg[c.centro];
+      else if (typeof regI !== "undefined" && regI[c.clave]) nodo = regI;
+      else if (typeof reg !== "undefined") {
+        for (var k in reg) if (reg[k] && reg[k][c.clave]) { nodo = reg[k]; break; }
+      }
+      if (!nodo || !nodo[c.clave]) return;
+      var r = nodo[c.clave];
+      if ((r.pago || 0) === c.pago && (r.garantia || 0) === c.garantia
+        && (r.solidario || 0) === c.solidario && !!r._dir === !!c.anulado) return;
+      r.pago = c.pago; r.garantia = c.garantia; r.solidario = c.solidario;
+      r._dir = c.anulado ? "anulado" : "corregido";
+      r._dirPor = c.por;
+      if (c.anulado) r.forma = "";
+      tocadas++;
+    });
+    // Se guarda para que no se pierda al recargar, pero NO se marca pendiente
+    // de subir: la corrección ya vive en el servidor y volver a subirla sería
+    // devolverle la pelota.
+    if (tocadas && typeof guardar === "function") try { guardar(); } catch (e) { }
+    return tocadas;
+  }
+
   // Aplica un paquete completo. Devuelve cuántas cosas cambiaron.
   function aplicar(d) {
     if (!d) return 0;
@@ -137,6 +169,7 @@
     try { t += quitar(d.quitar); } catch (e) { }
     try { t += altas(d.altas, d.centros); } catch (e) { }
     try { t += montos(d.vivos); } catch (e) { }
+    try { t += correcciones(d.correcciones); } catch (e) { }
     return t;
   }
   window.__aplicarVivos = aplicar;

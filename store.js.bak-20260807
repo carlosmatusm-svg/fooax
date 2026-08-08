@@ -16,7 +16,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;
-const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [] };
+const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {} };
 
 // Aplica las altas y bajas (capa de cambios) sobre el padrón base del archivo.
 // Alta: agrega la clienta. Baja: la marca inactiva (estatus BAJA) sin borrar su
@@ -109,10 +109,6 @@ async function init() {
     );
     await pool.query("CREATE TABLE IF NOT EXISTS padron (id text, data jsonb)");
     await pool.query("CREATE TABLE IF NOT EXISTS padron_cambios (id text, data jsonb, ts bigint)");
-    // Correcciones de Dirección sobre la captura de una ejecutiva (pagos,
-    // garantías, arqueo). Append-only: nunca se borra nada, se agrega la
-    // corrección encima y queda quién la hizo y por qué.
-    await pool.query("CREATE TABLE IF NOT EXISTS cobranza_ajustes (id serial PRIMARY KEY, data jsonb, ts bigint)");
     // Historial de snapshots: cada vez que un sync REEMPLAZA la foto de un día,
     // la versión anterior se archiva aquí (append-only). Así una captura con
     // fecha equivocada nunca destruye cobranza real: siempre es recuperable.
@@ -139,8 +135,6 @@ async function init() {
     // Carga primero lo que haya en la base (arranque garantizado). Luego intenta
     // refrescar desde el archivo en lotes; si algo falla, se queda con lo de la
     // base y NUNCA tumba el arranque.
-    const aj = await pool.query("SELECT data FROM cobranza_ajustes ORDER BY ts");
-    mem.ajustes = aj.rows.map((r) => r.data);
     const cb = await pool.query("SELECT data FROM padron_cambios ORDER BY ts");
     mem.cambios = cb.rows.map((r) => r.data);
 
@@ -168,7 +162,6 @@ async function init() {
     try { mem.movimientos = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "movimientos.json"), "utf8")); } catch { mem.movimientos = []; }
     try { mem.padronBase = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8")); } catch { mem.padronBase = []; }
     try { mem.cambios = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron_cambios.json"), "utf8")); } catch { mem.cambios = []; }
-    try { mem.ajustes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "cobranza_ajustes.json"), "utf8")); } catch { mem.ajustes = []; }
     try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
@@ -176,56 +169,6 @@ async function init() {
 }
 
 // ---------- persistencia ----------
-// Aplica las correcciones de Dirección a los snapshots de un día. Devuelve
-// COPIAS: la captura original de la ejecutiva se conserva intacta en memoria y
-// en disco, por si hay que revisar qué capturó ella de verdad.
-//
-// Un ajuste se ve así:
-//   { fecha, ejecutivo, clave, campo: "pago"|"garantia"|"solidario",
-//     monto: 0, anula: true, motivo, por, ts }
-//   { fecha, ejecutivo, arqueo: {500:2,...} }            ← recuento corregido
-// El ÚLTIMO ajuste de cada (clave, campo) es el que manda.
-function conAjustes(snapsDelDia, fecha) {
-  const mios = mem.ajustes.filter((a) => a && a.fecha === fecha);
-  if (!mios.length) return snapsDelDia;
-  const out = {};
-  for (const ej in snapsDelDia) {
-    const rec = snapsDelDia[ej];
-    const suyos = mios.filter((a) => a.ejecutivo === ej);
-    if (!suyos.length) { out[ej] = rec; continue; }
-    let data = rec.snapshot;
-    if (typeof data === "string") { try { data = JSON.parse(data); } catch { out[ej] = rec; continue; } }
-    data = JSON.parse(JSON.stringify(data || {}));
-    for (const a of suyos) {
-      if (a.arqueo && typeof a.arqueo === "object") { data.arqueo = a.arqueo; continue; }
-      if (!a.clave) continue;
-      // La clienta puede estar en un centro (reg[centro][clave]) o suelta
-      // (regI[clave]). Se busca en las dos, no se adivina.
-      const tocar = (nodo) => {
-        if (!nodo || typeof nodo !== "object") return false;
-        if (nodo[a.clave] && typeof nodo[a.clave] === "object") {
-          const r = nodo[a.clave];
-          if (a.anula) { r.pago = 0; r.garantia = 0; r.solidario = 0; r._anuladoPorDireccion = true; }
-          else if (a.campo) r[a.campo] = Number(a.monto) || 0;
-          r._ajustadoPor = a.por || "Dirección";
-          return true;
-        }
-        return false;
-      };
-      let ok = tocar(data.regI);
-      if (!ok) for (const c in (data.reg || {})) if (tocar(data.reg[c])) { ok = true; break; }
-    }
-    out[ej] = Object.assign({}, rec, { snapshot: data });
-  }
-  return out;
-}
-
-function persistAjuste(a) {
-  if (usePg) {
-    pool.query("INSERT INTO cobranza_ajustes (data, ts) VALUES ($1,$2)", [a, a.ts])
-      .catch((e) => console.error("[store] ajuste cobranza:", e.message));
-  } else escribirJSON("cobranza_ajustes.json", mem.ajustes);
-}
 function escribirJSON(file, obj) {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -317,23 +260,10 @@ module.exports = {
     persistSnapshot(ejecutivo, fecha, rec);
     return rec;
   },
-  // CORRECCIONES DE DIRECCIÓN sobre la captura de una ejecutiva.
-  // Monse puede anular un pago mal capturado, quitar una garantía que no fue, o
-  // corregir el efectivo contado de un arqueo. Va como CAPA ENCIMA, append-only:
-  // la captura original nunca se toca y queda el rastro de quién corrigió y por
-  // qué. Y va aquí abajo, en el store, a propósito: si viviera en el servidor
-  // habría que acordarse de aplicarla en cada cálculo — y tarde o temprano se
-  // olvida uno. Así, TODO lo que lea un snapshot ya lo lee corregido.
-  ajustesCobranza() { return mem.ajustes; },
-  agregarAjusteCobranza(a) {
-    mem.ajustes.push(a);
-    persistAjuste(a);
-    return a;
-  },
-  snapshotsDeFecha(fecha, crudo) {
+  snapshotsDeFecha(fecha) {
     const out = {};
     for (const ej in mem.snapshots) if (mem.snapshots[ej][fecha]) out[ej] = mem.snapshots[ej][fecha];
-    return crudo ? out : conAjustes(out, fecha);
+    return out;
   },
   // Todas las versiones archivadas de un día (para rescate). Cada vez que un
   // snapshot se sobrescribe, la versión anterior queda aquí — así se puede
@@ -370,18 +300,7 @@ module.exports = {
       return fs.readFileSync(p, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l)).slice(-tope);
     } catch { return []; }
   },
-  respaldo(crudo) {
-    if (crudo) return { snapshots: mem.snapshots, movimientos: mem.movimientos };
-    const snapshots = {};
-    for (const ej in mem.snapshots) {
-      snapshots[ej] = {};
-      for (const f in mem.snapshots[ej]) {
-        const uno = conAjustes({ [ej]: mem.snapshots[ej][f] }, f);
-        snapshots[ej][f] = uno[ej];
-      }
-    }
-    return { snapshots, movimientos: mem.movimientos };
-  },
+  respaldo() { return { snapshots: mem.snapshots, movimientos: mem.movimientos }; },
 
   // Append-only: nunca se borra ni se edita un movimiento (rastro auditable).
   agregarMovimiento(mov) {
