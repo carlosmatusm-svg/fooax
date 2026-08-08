@@ -6,10 +6,19 @@ const path = require("path");
 const fs = require("fs");
 const store = require("./store");
 const { verificarPassword } = require("./cifrado");
+const helmet = require("helmet");
 // Misma carpeta de datos que usa el store (DATA_DIR la cambia en pruebas).
 const DATA_DIR_APP = process.env.DATA_DIR || path.join(__dirname, "data");
 
 const app = express();
+// Cabeceras de seguridad HTTP básicas (X-Content-Type-Options, X-Frame-Options,
+// HSTS, etc.) — pendiente desde el informe técnico original. La política de
+// Content-Security-Policy de helmet viene DESACTIVADA a propósito: todas las
+// apps de cobranza y la de expediente usan <script> y onclick="..." inline
+// (sin build ni bundler, por diseño — ver CLAUDE.md), y el CSP por defecto de
+// helmet bloquea justo eso. Activar CSP de verdad requiere primero mover esos
+// scripts a nonces o hashes, que es un cambio aparte, no de una línea.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "2mb" }));
 
 // ---------- usuarios ----------

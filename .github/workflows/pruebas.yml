@@ -1,0 +1,24 @@
+name: Pruebas FOOAX
+
+# Corre en cada push y cada Pull Request, contra CUALQUIER branch — no solo
+# main. No afecta el despliegue: Railway despliega por su cuenta al hacer
+# push a main, sin importar lo que diga este workflow. Esto solo dice "las
+# pruebas siguen pasando", no decide si algo se publica.
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - name: Lint (solo errores reales, no de estilo)
+        run: npm run lint
+      - name: Batería completa (cobranza + expediente + motor de reglas + reinicio)
+        run: npm test
