@@ -93,6 +93,16 @@
     responsable_ine: "INE de la responsable", responsable_comprobante_domicilio: "Comprobante de domicilio (responsable)",
     aval_ine: "INE del aval", aval_comprobante_domicilio: "Comprobante de domicilio (aval)",
   };
+  // El checklist ahora también puede traer "dato:<campo>" (candado PLD —
+  // LFPIORPI: CURP, RFC, domicilio, actividad, origen de recursos de la
+  // clienta) además de documentos — sin este mapa, la ejecutiva vería un
+  // código críptico como "dato:curp" en vez de "CURP de la clienta".
+  const ETIQUETAS_DATO = {
+    curp: "CURP de la clienta", rfc: "RFC de la clienta", identificacion_folio: "Folio de identificación (INE)",
+    domicilio_calle: "Calle del domicilio", domicilio_numero: "Número del domicilio", domicilio_colonia: "Colonia del domicilio",
+    domicilio_cp: "C.P. del domicilio", domicilio_estado: "Estado del domicilio",
+    actividad_economica_pld: "Actividad económica (catálogo PLD)", origen_recursos: "Origen de los recursos",
+  };
 
   function Aviso({ tipo, children }) { return html`<div class="aviso ${tipo}">${children}</div>`; }
 
@@ -388,13 +398,33 @@
         </div>
         ${d.es_pep && html`
           <div class="row2">
-            <div><label>Cargo</label><input ...${campo("pep_cargo")} /></div>
-            <div><label>Dependencia</label><input ...${campo("pep_dependencia")} /></div>
+            <div>
+              <label>Tipo de PEP</label>
+              <select ...${campo("pep_tipo")}>
+                <option value="">Selecciona…</option>
+                <option>Nacional</option><option>Extranjero</option><option>Organismo internacional</option>
+              </select>
+            </div>
+            <div>
+              <label>Parentesco con la clienta</label>
+              <select ...${campo("pep_parentesco")}>
+                <option value="">Selecciona…</option>
+                <option>La propia clienta</option>
+                <option>Cónyuge o concubino(a)</option>
+                <option>Padre o madre</option>
+                <option>Hijo(a)</option>
+                <option>Hermano(a)</option>
+                <option>Otro pariente en línea recta</option>
+              </select>
+            </div>
           </div>
           <div class="row2">
-            <div><label>Periodo</label><input ...${campo("pep_periodo")} /></div>
-            <div><label>Parentesco (si aplica)</label><input ...${campo("pep_parentesco")} /></div>
+            <div><label>Cargo (específico)</label><input ...${campo("pep_cargo")} /></div>
+            <div><label>Dependencia</label><input ...${campo("pep_dependencia")} /></div>
           </div>
+          <label>Periodo</label>
+          <input ...${campo("pep_periodo")} />
+          <small class="help">Tipo y parentesco son catálogo cerrado (Art. 95 Bis LGOAAC) — el cargo específico sigue en texto libre, sujeto a confirmar con Cumplimiento si conviene un catálogo también para ese campo.</small>
         `}
 
         <button class="btn btn-primary" onClick=${guardar} disabled=${guardando}>${guardando ? "Guardando…" : "Guardar datos de la clienta"}</button>
@@ -535,6 +565,14 @@
             ${expediente
               ? html`<div class="pill ${expediente.estatus === "completo" ? "ok" : "falta"}">${expediente.estatus === "completo" ? "Completo" : "Incompleto"}</div>`
               : html`<div class="muted">Aún no hay expediente — sube el primer documento para crearlo.</div>`}
+            ${expediente && expediente.estatus !== "completo" && (() => {
+              const faltanDatos = (expediente.checklist.faltantes || []).filter((f) => f.startsWith("dato:")).map((f) => f.slice(5));
+              return faltanDatos.length > 0 && html`
+                <div class="muted" style="margin-top:8px">
+                  Faltan datos de la clienta (además de documentos, si aplica): ${faltanDatos.map((c) => ETIQUETAS_DATO[c] || c).join(", ")}.
+                </div>
+              `;
+            })()}
             ${candado && html`
               <div style="margin-top:10px">
                 <${Aviso} tipo=${candado.bloquea ? "mora" : "ok"}>

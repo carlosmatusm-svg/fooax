@@ -94,10 +94,22 @@ const CAMPOS_CLIENTA = [
   "vivienda_tipo", "vivienda_superficie", "vivienda_niveles", "vivienda_habitaciones",
   "vivienda_paredes", "vivienda_piso", "vivienda_techo",
   "dependientes_economicos", "hijos_menores", "alguien_mas_aporta_ingreso", "ingreso_total_hogar",
-  "origen_recursos", "es_pep", "pep_cargo", "pep_dependencia", "pep_periodo", "pep_parentesco",
+  "origen_recursos", "es_pep", "pep_cargo", "pep_dependencia", "pep_periodo", "pep_parentesco", "pep_tipo",
 ];
 for (const campo of CAMPOS_CLIENTA) ok("captura el campo de la clienta " + campo, js.includes(`"${campo}"`), "falta");
 ok("usa geolocalización para el GPS del domicilio de la clienta", /domicilio_gps.*getCurrentPosition|getCurrentPosition[\s\S]*?domicilio_gps/.test(js), "no arma el GPS del domicilio");
+
+// Art. 95 Bis LGOAAC: tipo y parentesco del PEP deben ser catálogo cerrado
+// (<select>), no texto libre — antes eran <input> de texto libre.
+ok("pep_tipo y pep_parentesco son catálogo cerrado (<select>), no texto libre",
+  /<select[\s\S]{0,40}campo\("pep_tipo"\)/.test(js) && /<select[\s\S]{0,40}campo\("pep_parentesco"\)/.test(js),
+  "pep_tipo o pep_parentesco siguen siendo <input>");
+
+// Candado PLD (LFPIORPI) — el checklist ahora también puede traer
+// "dato:<campo>", no solo documentos; sin traducirlo a una etiqueta legible,
+// la ejecutiva vería un código críptico en vez de saber qué le falta llenar.
+ok("traduce los 'dato:xxx' del checklist a una etiqueta legible (no un código críptico)",
+  /ETIQUETAS_DATO/.test(js) && /startsWith\("dato:"\)/.test(js), "no traduce los faltantes de datos PLD");
 
 // Domicilio institucional (social/fiscal) — de solo lectura, viene del
 // servidor, la pantalla no debe tener un formulario para editarlo.
