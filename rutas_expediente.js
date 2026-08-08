@@ -22,6 +22,20 @@ module.exports = function montarRutasExpediente(app, { requiere, requierePuesto 
   const r = express.Router();
   r.use(jsonGrande);
 
+  // ---- Buscar responsable/aval YA existente (por nombre o CURP) ----
+  // Rutas en /api/responsables y /api/avales — a propósito FUERA de
+  // /api/expediente/:clientaId/..., porque si viviera ahí chocaría con la ruta
+  // GET /api/expediente/:clientaId (Express la tomaría como si "responsables"
+  // fuera un id de clienta). Sin este buscador la pantalla no tiene forma de
+  // reutilizar un registro, y el tope de vincularResponsable/vincularAval
+  // nunca se pone a prueba en uso real.
+  r.get("/api/responsables", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    res.json({ resultados: storeExp.buscarResponsables(req.query.q) });
+  });
+  r.get("/api/avales", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    res.json({ resultados: storeExp.buscarAvales(req.query.q) });
+  });
+
   // ---- Responsable (tope: máximo 2 clientas activas) ----
   // Se puede mandar responsable_id para VINCULAR a una responsable que ya
   // existe (la misma persona real respaldando a una segunda clienta) — el

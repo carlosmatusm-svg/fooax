@@ -70,6 +70,22 @@ const cid = (n) => "EXP-" + RUN + "-" + n; // ids de clienta de prueba, solo par
   const rAval2Body = await j(rAval2);
   ok("el MISMO aval NO se puede vincular a una 2ª clienta (tope de 1 excedido → 409)", rAval2.status === 409, "status " + rAval2.status + " · " + JSON.stringify(rAval2Body).slice(0, 90));
 
+  console.log("\n— C2. BUSCAR responsable/aval existente (para reutilizar, no duplicar) —");
+  const rBuscaResp = await j(await fetch(U + "/api/responsables?q=" + encodeURIComponent("Responsable Prueba " + RUN), { headers: H(cEje) }));
+  const encontradaResp = (rBuscaResp.resultados || []).find((x) => x.id === respId);
+  ok("la búsqueda por nombre encuentra a la responsable ya creada", !!encontradaResp, JSON.stringify(rBuscaResp).slice(0, 120));
+  ok("la búsqueda trae cuántas clientas ya respalda (2 de 2 — llegó al tope)", encontradaResp && encontradaResp.clientas_activas === 2 && encontradaResp.tope === 2, JSON.stringify(encontradaResp));
+
+  const rBuscaRespCurp = await j(await fetch(U + "/api/responsables?q=" + encodeURIComponent("RESP" + RUN), { headers: H(cEje) }));
+  ok("la búsqueda por CURP también la encuentra", (rBuscaRespCurp.resultados || []).some((x) => x.id === respId), JSON.stringify(rBuscaRespCurp).slice(0, 120));
+
+  const rBuscaAval = await j(await fetch(U + "/api/avales?q=" + encodeURIComponent("Aval Prueba " + RUN), { headers: H(cEje) }));
+  const encontradoAval = (rBuscaAval.resultados || []).find((x) => x.id === avalId);
+  ok("la búsqueda de avales encuentra al aval ya creado, con su tope (1 de 1)", encontradoAval && encontradoAval.clientas_activas === 1 && encontradoAval.tope === 1, JSON.stringify(encontradoAval));
+
+  const rBuscaVacia = await j(await fetch(U + "/api/responsables?q=NombreQueNoExiste" + RUN, { headers: H(cEje) }));
+  ok("una búsqueda sin coincidencias regresa vacío, no error", Array.isArray(rBuscaVacia.resultados) && rBuscaVacia.resultados.length === 0, JSON.stringify(rBuscaVacia));
+
   console.log("\n— D. REFERENCIAS — exigen su propio consentimiento —");
   const rRefSin = await fetch(U + "/api/expediente/" + c1 + "/referencia", { method: "POST", headers: H(cEje), body: JSON.stringify({ nombre: "Ref Prueba", relacion: "vecina" }) });
   ok("sin consentimiento se rechaza (400)", rRefSin.status === 400);

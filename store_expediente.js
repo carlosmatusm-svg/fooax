@@ -199,6 +199,29 @@ function crearResponsable(datos) {
 function obtenerResponsable(id) { return mem.responsables.find((r) => r.id === Number(id)) || null; }
 function obtenerAval(id) { return mem.avales.find((a) => a.id === Number(id)) || null; }
 
+// Buscar por nombre o CURP — es lo que le falta a la pantalla para poder
+// REUTILIZAR una responsable/aval en vez de crear una fila nueva cada vez
+// (sin esto, el tope de vincularResponsable/vincularAval nunca se activa en
+// uso real, porque cada alta parte de un id distinto). Trae de una vez
+// cuántas clientas activas ya respalda cada una, para que la pantalla pueda
+// avisar ANTES de intentar vincular ("ya va en 2 de 2").
+function buscarResponsables(q) {
+  const query = String(q || "").trim().toLowerCase();
+  return mem.responsables
+    .filter((r) => !query || r.nombre.toLowerCase().includes(query) || (r.curp || "").toLowerCase().includes(query))
+    .map((r) => ({ id: r.id, nombre: r.nombre, curp: r.curp,
+      clientas_activas: contarClientasActivas(mem.clientas_responsables, "responsable_id", r.id), tope: 2 }))
+    .slice(0, 20);
+}
+function buscarAvales(q) {
+  const query = String(q || "").trim().toLowerCase();
+  return mem.avales
+    .filter((a) => !query || a.nombre.toLowerCase().includes(query) || (a.curp || "").toLowerCase().includes(query))
+    .map((a) => ({ id: a.id, nombre: a.nombre, curp: a.curp,
+      clientas_activas: contarClientasActivas(mem.clientas_avales, "aval_id", a.id), tope: 1 }))
+    .slice(0, 20);
+}
+
 function crearAval(datos) {
   const row = { id: siguienteId(), id_sucursal: datos.id_sucursal || null, nombre: datos.nombre,
     curp: datos.curp || null, telefono: datos.telefono || null, domicilio: datos.domicilio || null,
@@ -371,7 +394,8 @@ function tieneFirma(clientaId, tipo) {
 module.exports = {
   init,
   registrarBitacora, bitacora,
-  crearResponsable, crearAval, obtenerResponsable, obtenerAval, vincularResponsable, vincularAval, contarClientasActivas,
+  crearResponsable, crearAval, obtenerResponsable, obtenerAval, buscarResponsables, buscarAvales,
+  vincularResponsable, vincularAval, contarClientasActivas,
   crearReferencia,
   guardarDocumento, documentosDeClienta,
   checklistRequerido, calcularEstatus, obtenerExpediente, actualizarExpediente,
