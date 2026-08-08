@@ -481,10 +481,20 @@ function actualizarExpediente(clientaId, { id_sucursal, requiereAval } = {}) {
     folio_fisico: anterior.folio_fisico || null, ubicacion_fisica: anterior.ubicacion_fisica || null };
   mem.expedientes[String(clientaId)] = row;
   if (usePg) {
+    // El UPDATE debe tocar TODAS las columnas que `row` puede cambiar,
+    // incluyendo validado_por/validado_ts/motivo_rechazo (que este mismo
+    // objeto resetea a null arriba cuando llega un documento nuevo). Antes
+    // este UPDATE solo tocaba 4 columnas: en Postgres, mem quedaba
+    // "invalidado" pero la fila en la base seguía con el validado_por
+    // anterior — un redeploy de Railway habría recargado el candado como si
+    // siguiera validado, aunque el checklist ya había cambiado.
     pool.query(
-      "INSERT INTO expedientes (clienta_id, id_sucursal, checklist, estatus, requiere_aval, folio_fisico, ubicacion_fisica) VALUES ($1,$2,$3,$4,$5,$6,$7) " +
-      "ON CONFLICT (clienta_id) DO UPDATE SET id_sucursal=$2, checklist=$3, estatus=$4, requiere_aval=$5",
-      [row.clienta_id, row.id_sucursal, row.checklist, row.estatus, row.requiere_aval, row.folio_fisico, row.ubicacion_fisica]
+      "INSERT INTO expedientes (clienta_id, id_sucursal, checklist, estatus, requiere_aval, folio_fisico, ubicacion_fisica, validado_por, validado_ts, motivo_rechazo) " +
+      "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) " +
+      "ON CONFLICT (clienta_id) DO UPDATE SET id_sucursal=$2, checklist=$3, estatus=$4, requiere_aval=$5, " +
+      "folio_fisico=$6, ubicacion_fisica=$7, validado_por=$8, validado_ts=$9, motivo_rechazo=$10",
+      [row.clienta_id, row.id_sucursal, row.checklist, row.estatus, row.requiere_aval, row.folio_fisico, row.ubicacion_fisica,
+        row.validado_por, row.validado_ts, row.motivo_rechazo]
     ).catch((e) => console.error("[store_expediente] expediente:", e.message));
   } else persistirTodo();
   return row;
