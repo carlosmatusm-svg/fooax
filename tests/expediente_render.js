@@ -79,6 +79,38 @@ ok("muestra cuántas clientas ya respalda cada resultado antes de vincular (tope
   /clientas_activas/.test(js) && /p\.tope/.test(js), "no se ve el conteo contra el tope");
 ok("deshabilita 'Vincular' cuando ya llegó al tope", /disabled=\$\{p\.clientas_activas >= p\.tope\}/.test(js), "el botón de vincular no respeta el tope en la pantalla");
 
+// Datos de la clienta (CU-009 §3) — identidad, domicilio, negocio, capacidad
+// de pago, vivienda, familia, PLD/PEP. Si alguno de estos campos se cae de la
+// pantalla, esa parte del alta de la clienta deja de poder capturarse.
+ok("llama a /api/expediente/${clientaId}/datos", /\/api\/expediente\/\$\{clientaId\}\/datos/.test(js), "no guarda los datos de la clienta");
+const CAMPOS_CLIENTA = [
+  "nombre_completo", "curp", "rfc", "fecha_nacimiento", "lugar_nacimiento", "nacionalidad", "estado_civil", "genero",
+  "telefono_movil", "telefono_fijo", "correo", "identificacion_folio",
+  "domicilio_calle", "domicilio_numero", "domicilio_colonia", "domicilio_cp", "domicilio_municipio",
+  "domicilio_ciudad", "domicilio_estado", "domicilio_gps", "domicilio_tiempo_residencia",
+  "negocio_giro", "negocio_antiguedad", "negocio_ingreso_declarado", "actividad_economica_pld",
+  "ingreso_semanal", "gastos_negocio", "gastos_hogar", "mes_ingreso_mas_bajo",
+  "tiene_otros_creditos", "otros_creditos_detalle",
+  "vivienda_tipo", "vivienda_superficie", "vivienda_niveles", "vivienda_habitaciones",
+  "vivienda_paredes", "vivienda_piso", "vivienda_techo",
+  "dependientes_economicos", "hijos_menores", "alguien_mas_aporta_ingreso", "ingreso_total_hogar",
+  "origen_recursos", "es_pep", "pep_cargo", "pep_dependencia", "pep_periodo", "pep_parentesco",
+];
+for (const campo of CAMPOS_CLIENTA) ok("captura el campo de la clienta " + campo, js.includes(`"${campo}"`), "falta");
+ok("usa geolocalización para el GPS del domicilio de la clienta", /domicilio_gps.*getCurrentPosition|getCurrentPosition[\s\S]*?domicilio_gps/.test(js), "no arma el GPS del domicilio");
+
+// Domicilio institucional (social/fiscal) — de solo lectura, viene del
+// servidor, la pantalla no debe tener un formulario para editarlo.
+ok("muestra el domicilio institucional (solo lectura)", /DomicilioInstitucional/.test(js), "no está el componente");
+
+// Ubicación física del papel (CU-010 §3).
+ok("llama a /api/expediente/${clientaId}/ubicacion-fisica", /\/api\/expediente\/\$\{clientaId\}\/ubicacion-fisica/.test(js), "no guarda la ubicación física");
+
+// Referencias: exactamente 2, con lista visible y contador — antes se podían
+// crear pero nunca se veían ni se sabía cuántas llevaba la ejecutiva.
+ok("muestra cuántas referencias lleva la clienta (de las 2 requeridas)", /referencias\.length/.test(js), "no cuenta las referencias capturadas");
+ok("la referencia también captura CURP y teléfono", /refCurp/.test(js) && /refTelefono/.test(js), "solo pide nombre y relación");
+
 // La referencia no debe poder guardarse sin marcar su consentimiento.
 ok("la referencia exige su propio consentimiento antes de guardar",
   /if \(!refConsent\)/.test(js), "no valida refConsent antes de guardar");

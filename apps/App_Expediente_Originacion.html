@@ -53,6 +53,10 @@
   .persona-row .curp{font-size:11px;color:var(--gris);font-weight:400}
   .persona-acciones{display:flex;align-items:center;gap:8px;flex:none}
   .btn-mini{margin:0;padding:6px 12px;font-size:12px}
+  .subgrupo{font-size:11px;font-weight:800;color:var(--rio);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 2px;padding-top:10px;border-top:1px dashed var(--linea)}
+  .subgrupo.primero{margin-top:2px;padding-top:0;border-top:0}
+  .kv-row{font-size:13px;margin:4px 0}
+  .kv-row b{color:var(--rio)}
 </style>
 </head>
 <body>
@@ -138,6 +142,10 @@
     const [buscando, setBuscando] = useState(false);
     const [nombre, setNombre] = useState("");
     const [curp, setCurp] = useState("");
+    const [telefono, setTelefono] = useState("");
+    const [domicilio, setDomicilio] = useState("");
+    const [ocupacion, setOcupacion] = useState("");
+    const [identificacion, setIdentificacion] = useState("");
     const [mensaje, setMensaje] = useState(null);
 
     const buscar = async () => {
@@ -147,11 +155,15 @@
       setBuscando(false);
     };
 
+    const limpiarNueva = () => {
+      setNombre(""); setCurp(""); setTelefono(""); setDomicilio(""); setOcupacion(""); setIdentificacion("");
+    };
+
     const vincular = async (body) => {
       const r = await j(await post(vincularUrl, body));
       if (!r.ok) { setMensaje({ tipo: "mora", texto: r.error }); return; }
       setMensaje({ tipo: "ok", texto: "Vinculada correctamente." });
-      setNombre(""); setCurp(""); setQ(""); setResultados(null);
+      limpiarNueva(); setQ(""); setResultados(null);
       onVinculado();
     };
 
@@ -186,10 +198,252 @@
         ` : html`
           <label>Nombre completo</label>
           <input value=${nombre} onInput=${(e) => setNombre(e.target.value)} />
-          <label>CURP</label>
-          <input value=${curp} onInput=${(e) => setCurp(e.target.value)} placeholder="Ayuda a encontrarla la próxima vez sin duplicarla" />
-          <button class="btn btn-light" onClick=${() => vincular({ nombre, curp })} disabled=${!nombre}>Registrar y vincular</button>
+          <div class="row2">
+            <div><label>CURP</label><input value=${curp} onInput=${(e) => setCurp(e.target.value)} placeholder="Para encontrarla después sin duplicarla" /></div>
+            <div><label>Teléfono</label><input value=${telefono} onInput=${(e) => setTelefono(e.target.value)} /></div>
+          </div>
+          <label>Domicilio</label>
+          <input value=${domicilio} onInput=${(e) => setDomicilio(e.target.value)} />
+          <div class="row2">
+            <div><label>Ocupación</label><input value=${ocupacion} onInput=${(e) => setOcupacion(e.target.value)} /></div>
+            <div><label>Identificación (folio)</label><input value=${identificacion} onInput=${(e) => setIdentificacion(e.target.value)} /></div>
+          </div>
+          <button class="btn btn-light" onClick=${() => vincular({ nombre, curp, telefono, domicilio, ocupacion, identificacion })} disabled=${!nombre}>Registrar y vincular</button>
         `}
+      </div>
+    `;
+  }
+
+  // Identidad, domicilio, negocio, capacidad de pago, vivienda, familia y
+  // PLD/PEP de la clienta (CU-009 §3) — la parte más grande que le faltaba a
+  // esta pantalla: antes solo cubría expediente/responsable/aval/documentos,
+  // pero CU-009 es sobre todo el ALTA de la clienta, con estos campos.
+  // guardarDatosClienta hace merge en el servidor, así que mandar el objeto
+  // completo cada vez (como se hace aquí) es seguro incluso si en el futuro
+  // se guarda por secciones desde otra pantalla.
+  function DatosClienta({ clientaId, datos, onGuardado }) {
+    const [d, setD] = useState(datos || {});
+    useEffect(() => { setD(datos || {}); }, [datos]);
+    const [mensaje, setMensaje] = useState(null);
+    const [guardando, setGuardando] = useState(false);
+
+    const campo = (key) => ({ value: d[key] || "", onInput: (e) => setD({ ...d, [key]: e.target.value }) });
+    const campoCheck = (key) => ({ checked: !!d[key], onChange: (e) => setD({ ...d, [key]: e.target.checked }) });
+
+    const usarGPS = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (p) => setD({ ...d, domicilio_gps: `${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}` }),
+        () => {}, { timeout: 5000 }
+      );
+    };
+
+    const guardar = async () => {
+      setGuardando(true);
+      const r = await j(await post(`/api/expediente/${clientaId}/datos`, d));
+      setGuardando(false);
+      if (!r.ok) { setMensaje({ tipo: "mora", texto: r.error || "No se pudo guardar." }); return; }
+      setMensaje({ tipo: "ok", texto: "Datos de la clienta guardados." });
+      onGuardado();
+    };
+
+    return html`
+      <div class="card">
+        <div class="sectitle">🧍 Datos de la clienta</div>
+        <small class="help" style="margin-top:0">Basado en la Solicitud de Crédito FOOAX 2026, todavía en validación con Legal — estos campos pueden ajustarse.</small>
+        ${mensaje && html`<${Aviso} tipo=${mensaje.tipo}>${mensaje.texto}<//>`}
+
+        <div class="subgrupo primero">Identidad</div>
+        <label>Nombre completo</label>
+        <input ...${campo("nombre_completo")} />
+        <div class="row2">
+          <div><label>CURP</label><input ...${campo("curp")} maxlength="18" /></div>
+          <div><label>RFC</label><input ...${campo("rfc")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Fecha de nacimiento</label><input type="date" ...${campo("fecha_nacimiento")} /></div>
+          <div><label>Lugar de nacimiento</label><input ...${campo("lugar_nacimiento")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Nacionalidad</label><input ...${campo("nacionalidad")} /></div>
+          <div>
+            <label>Estado civil</label>
+            <select ...${campo("estado_civil")}>
+              <option value="">Selecciona…</option>
+              <option>Soltera</option><option>Casada</option><option>Unión libre</option>
+              <option>Divorciada</option><option>Viuda</option>
+            </select>
+          </div>
+        </div>
+        <label>Género</label>
+        <select ...${campo("genero")}>
+          <option value="">Selecciona…</option>
+          <option>Femenino</option><option>Masculino</option><option>Otro</option>
+        </select>
+        <div class="row2">
+          <div><label>Teléfono móvil</label><input type="tel" ...${campo("telefono_movil")} /></div>
+          <div><label>Teléfono fijo</label><input type="tel" ...${campo("telefono_fijo")} /></div>
+        </div>
+        <label>Correo electrónico</label>
+        <input type="email" ...${campo("correo")} />
+        <label>Folio de identificación (INE)</label>
+        <input ...${campo("identificacion_folio")} />
+
+        <div class="subgrupo">Domicilio</div>
+        <div class="row2">
+          <div><label>Calle</label><input ...${campo("domicilio_calle")} /></div>
+          <div><label>Número</label><input ...${campo("domicilio_numero")} /></div>
+        </div>
+        <label>Colonia</label>
+        <input ...${campo("domicilio_colonia")} />
+        <div class="row2">
+          <div><label>C.P.</label><input ...${campo("domicilio_cp")} /></div>
+          <div><label>Municipio</label><input ...${campo("domicilio_municipio")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Ciudad</label><input ...${campo("domicilio_ciudad")} /></div>
+          <div><label>Estado</label><input ...${campo("domicilio_estado")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>GPS del domicilio</label><input ...${campo("domicilio_gps")} placeholder="lat,lng" /></div>
+          <div><label>&nbsp;</label><button class="btn btn-light" style="margin-top:0" onClick=${usarGPS}>Usar mi ubicación</button></div>
+        </div>
+        <small class="help">Croquis y las 4 fotos del domicilio: súbelas como documento en la sección de Documentos, más abajo.</small>
+        <label>Tiempo de residencia (años)</label>
+        <input type="number" min="0" ...${campo("domicilio_tiempo_residencia")} />
+
+        <div class="subgrupo">Negocio</div>
+        <label>Giro del negocio</label>
+        <input ...${campo("negocio_giro")} />
+        <div class="row2">
+          <div><label>Antigüedad (años)</label><input type="number" min="0" ...${campo("negocio_antiguedad")} /></div>
+          <div><label>Ingreso declarado ($)</label><input type="number" min="0" ...${campo("negocio_ingreso_declarado")} /></div>
+        </div>
+        <label>Actividad económica (catálogo PLD)</label>
+        <select ...${campo("actividad_economica_pld")}>
+          <option value="">Selecciona…</option>
+          <option>Comercio</option><option>Servicios</option><option>Manufactura o producción</option>
+          <option>Agropecuario</option><option>Otro</option>
+        </select>
+        <small class="help">Catálogo provisional — falta confirmar el catálogo oficial PLD (Art. 95 Bis LGOAAC) con Contaduría.</small>
+
+        <div class="subgrupo">Capacidad de pago</div>
+        <div class="row2">
+          <div><label>Ingreso semanal ($)</label><input type="number" min="0" ...${campo("ingreso_semanal")} /></div>
+          <div><label>Gastos del negocio ($)</label><input type="number" min="0" ...${campo("gastos_negocio")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Gastos del hogar ($)</label><input type="number" min="0" ...${campo("gastos_hogar")} /></div>
+          <div><label>Mes de ingreso más bajo</label><input ...${campo("mes_ingreso_mas_bajo")} placeholder="Ej. diciembre" /></div>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="otroscred" ...${campoCheck("tiene_otros_creditos")} />
+          <label for="otroscred" style="margin:0">Tiene créditos vigentes con otra institución o prestamista</label>
+        </div>
+        ${d.tiene_otros_creditos && html`
+          <label>Detalle (institución, monto, deuda actual, pago semanal)</label>
+          <input ...${campo("otros_creditos_detalle")} />
+        `}
+
+        <div class="subgrupo">Vivienda</div>
+        <div class="row2">
+          <div>
+            <label>Tipo</label>
+            <select ...${campo("vivienda_tipo")}>
+              <option value="">Selecciona…</option>
+              <option>Propia</option><option>Rentada</option><option>Prestada</option><option>Familiar</option>
+            </select>
+          </div>
+          <div><label>Superficie (m²)</label><input type="number" min="0" ...${campo("vivienda_superficie")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Niveles</label><input type="number" min="0" ...${campo("vivienda_niveles")} /></div>
+          <div><label>Habitaciones</label><input type="number" min="0" ...${campo("vivienda_habitaciones")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Paredes</label><input ...${campo("vivienda_paredes")} /></div>
+          <div><label>Piso</label><input ...${campo("vivienda_piso")} /></div>
+        </div>
+        <label>Techo</label>
+        <input ...${campo("vivienda_techo")} />
+
+        <div class="subgrupo">Información familiar</div>
+        <div class="row2">
+          <div><label>Dependientes económicos</label><input type="number" min="0" ...${campo("dependientes_economicos")} /></div>
+          <div><label>Hijos menores</label><input type="number" min="0" ...${campo("hijos_menores")} /></div>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="otroaporta" ...${campoCheck("alguien_mas_aporta_ingreso")} />
+          <label for="otroaporta" style="margin:0">Alguien más en el hogar aporta ingreso</label>
+        </div>
+        <label>Ingreso total del hogar ($)</label>
+        <input type="number" min="0" ...${campo("ingreso_total_hogar")} />
+
+        <div class="subgrupo">Cumplimiento PLD/FT</div>
+        <label>Origen de los recursos con los que pagará el crédito</label>
+        <input ...${campo("origen_recursos")} />
+        <div class="checkbox-line">
+          <input type="checkbox" id="pep" ...${campoCheck("es_pep")} />
+          <label for="pep" style="margin:0">La clienta o un familiar cercano es Persona Políticamente Expuesta (PEP)</label>
+        </div>
+        ${d.es_pep && html`
+          <div class="row2">
+            <div><label>Cargo</label><input ...${campo("pep_cargo")} /></div>
+            <div><label>Dependencia</label><input ...${campo("pep_dependencia")} /></div>
+          </div>
+          <div class="row2">
+            <div><label>Periodo</label><input ...${campo("pep_periodo")} /></div>
+            <div><label>Parentesco (si aplica)</label><input ...${campo("pep_parentesco")} /></div>
+          </div>
+        `}
+
+        <button class="btn btn-primary" onClick=${guardar} disabled=${guardando}>${guardando ? "Guardando…" : "Guardar datos de la clienta"}</button>
+      </div>
+    `;
+  }
+
+  // Domicilio SOCIAL/FISCAL institucionales — de solo lectura, nunca el
+  // domicilio de la clienta (CU-010 §3).
+  function DomicilioInstitucional({ datos }) {
+    if (!datos) return null;
+    return html`
+      <div class="card">
+        <div class="sectitle">🏢 Domicilio institucional</div>
+        <div class="kv-row"><b>Social:</b> ${datos.social}</div>
+        <div class="kv-row"><b>Fiscal (SAT):</b> ${datos.fiscal}</div>
+        <small class="help">Nunca es el domicilio de la clienta — evita litigar o facturar en la jurisdicción equivocada.</small>
+      </div>
+    `;
+  }
+
+  // Dónde quedó resguardado el original en papel (CU-010 §3) — trazabilidad
+  // de Control Operativo, no un candado.
+  function UbicacionFisica({ clientaId, expediente, onGuardado }) {
+    const [folio, setFolio] = useState((expediente && expediente.folio_fisico) || "");
+    const [ubicacion, setUbicacion] = useState((expediente && expediente.ubicacion_fisica) || "");
+    useEffect(() => {
+      setFolio((expediente && expediente.folio_fisico) || "");
+      setUbicacion((expediente && expediente.ubicacion_fisica) || "");
+    }, [expediente]);
+    const [mensaje, setMensaje] = useState(null);
+
+    const guardar = async () => {
+      const r = await j(await post(`/api/expediente/${clientaId}/ubicacion-fisica`, { folio_fisico: folio, ubicacion_fisica: ubicacion }));
+      if (!r.ok) { setMensaje({ tipo: "mora", texto: r.error }); return; }
+      setMensaje({ tipo: "ok", texto: "Ubicación física guardada." });
+      onGuardado();
+    };
+
+    return html`
+      <div class="card">
+        <div class="sectitle">🗄️ Resguardo del original en papel</div>
+        <small class="help" style="margin-top:0">Para que el expediente físico y el digital se puedan rastrear juntos.</small>
+        ${mensaje && html`<${Aviso} tipo=${mensaje.tipo}>${mensaje.texto}<//>`}
+        <div class="row2">
+          <div><label>Folio</label><input value=${folio} onInput=${(e) => setFolio(e.target.value)} /></div>
+          <div><label>Ubicación (archivero, gaveta, sucursal)</label><input value=${ubicacion} onInput=${(e) => setUbicacion(e.target.value)} /></div>
+        </div>
+        <button class="btn btn-light" onClick=${guardar}>Guardar ubicación</button>
       </div>
     `;
   }
@@ -203,6 +457,9 @@
     const [candado, setCandado] = useState(null);
     const [requiereAval, setRequiereAval] = useState(false);
     const [msg, setMsg] = useState(null);
+    const [referencias, setReferencias] = useState([]);
+    const [datosClienta, setDatosClienta] = useState({});
+    const [domicilioInstitucional, setDomicilioInstitucional] = useState(null);
 
     const cargar = async (id) => {
       if (!id) return;
@@ -210,6 +467,9 @@
       setExpediente(r.expediente || null);
       setDocumentos(r.documentos || []);
       setFirmas(r.firmas || []);
+      setReferencias(r.referencias || []);
+      setDatosClienta(r.datos || {});
+      setDomicilioInstitucional(r.domicilio_institucional || null);
       const c = await j(await fetch(`/api/expediente/${id}/candado`));
       setCandado(c);
       setCargado(true);
@@ -220,13 +480,18 @@
 
     const [refNombre, setRefNombre] = useState("");
     const [refRelacion, setRefRelacion] = useState("");
+    const [refCurp, setRefCurp] = useState("");
+    const [refTelefono, setRefTelefono] = useState("");
     const [refConsent, setRefConsent] = useState(false);
     const agregarReferencia = async () => {
       if (!refConsent) { setMsg({ tipo: "mora", texto: "La referencia debe dar su consentimiento antes de guardar sus datos." }); return; }
-      const r = await j(await post(`/api/expediente/${clientaId}/referencia`, { nombre: refNombre, relacion: refRelacion, consentimiento: true }));
+      const r = await j(await post(`/api/expediente/${clientaId}/referencia`, {
+        nombre: refNombre, relacion: refRelacion, curp: refCurp, telefono: refTelefono, consentimiento: true,
+      }));
       if (!r.ok) { setMsg({ tipo: "mora", texto: r.error }); return; }
       setMsg({ tipo: "ok", texto: "Referencia guardada." });
-      setRefNombre(""); setRefRelacion(""); setRefConsent(false);
+      setRefNombre(""); setRefRelacion(""); setRefCurp(""); setRefTelefono(""); setRefConsent(false);
+      cargar(clientaId);
     };
 
     const validar = async (aprobado) => {
@@ -279,6 +544,8 @@
             `}
           </div>
 
+          <${DatosClienta} clientaId=${clientaId} datos=${datosClienta} onGuardado=${() => cargar(clientaId)} />
+
           <${PersonaVinculo} etiqueta="👩 Responsable" tope=${2}
             nota="Si la responsable ya respalda a otra clienta y llegó a su tope, el sistema lo rechaza aquí mismo."
             buscarUrl="/api/responsables" vincularUrl=${`/api/expediente/${clientaId}/responsable`}
@@ -290,20 +557,39 @@
             campoId="aval_id" onVinculado=${alVincularAval} />
 
           <div class="card">
-            <div class="sectitle">👥 Referencia</div>
-            <div class="row2">
-              <div><label>Nombre</label><input value=${refNombre} onInput=${(e) => setRefNombre(e.target.value)} /></div>
-              <div><label>Relación</label><input value=${refRelacion} onInput=${(e) => setRefRelacion(e.target.value)} /></div>
-            </div>
-            <div class="checkbox-line">
-              <input type="checkbox" id="consent" checked=${refConsent} onChange=${(e) => setRefConsent(e.target.checked)} />
-              <label for="consent" style="margin:0">La referencia dio su consentimiento para guardar sus datos</label>
-            </div>
-            <button class="btn btn-light" onClick=${agregarReferencia} disabled=${!refNombre}>Guardar referencia</button>
+            <div class="sectitle">👥 Referencias (${referencias.length} de 2)</div>
+            ${referencias.map((r) => html`
+              <div class="checkrow" key=${r.id}>
+                <div class="persona-row">
+                  <div class="nm">${r.nombre}${r.relacion ? html` <span class="curp">· ${r.relacion}</span>` : ""}</div>
+                  <span class="pill ok">Guardada</span>
+                </div>
+              </div>
+            `)}
+            ${referencias.length >= 2
+              ? html`<div class="muted" style="margin-top:8px">Ya se capturaron las 2 referencias que exige la Solicitud.</div>`
+              : html`
+                <div class="row2">
+                  <div><label>Nombre</label><input value=${refNombre} onInput=${(e) => setRefNombre(e.target.value)} /></div>
+                  <div><label>Relación</label><input value=${refRelacion} onInput=${(e) => setRefRelacion(e.target.value)} /></div>
+                </div>
+                <div class="row2">
+                  <div><label>CURP</label><input value=${refCurp} onInput=${(e) => setRefCurp(e.target.value)} /></div>
+                  <div><label>Teléfono</label><input value=${refTelefono} onInput=${(e) => setRefTelefono(e.target.value)} /></div>
+                </div>
+                <div class="checkbox-line">
+                  <input type="checkbox" id="consent" checked=${refConsent} onChange=${(e) => setRefConsent(e.target.checked)} />
+                  <label for="consent" style="margin:0">La referencia dio su consentimiento para guardar sus datos</label>
+                </div>
+                <button class="btn btn-light" onClick=${agregarReferencia} disabled=${!refNombre}>Guardar referencia</button>
+              `}
           </div>
 
           <${Documentos} clientaId=${clientaId} expediente=${expediente} documentos=${documentos}
             requiereAval=${requiereAval} onCambio=${() => cargar(clientaId)} />
+
+          <${DomicilioInstitucional} datos=${domicilioInstitucional} />
+          <${UbicacionFisica} clientaId=${clientaId} expediente=${expediente} onGuardado=${() => cargar(clientaId)} />
 
           <div class="card">
             <div class="sectitle">✍️ Firmas (siempre separadas)</div>
