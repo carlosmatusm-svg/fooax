@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
 const store = require("./store");
+const { verificarPassword } = require("./cifrado");
 // Misma carpeta de datos que usa el store (DATA_DIR la cambia en pruebas).
 const DATA_DIR_APP = process.env.DATA_DIR || path.join(__dirname, "data");
 
@@ -16,18 +17,31 @@ app.use(express.json({ limit: "2mb" }));
 // guardan como hash scrypt en la base. rol: ejecutivo | direccion | admin
 // Las contraseñas se pueden fijar por variables de entorno en Railway
 // (PASS_NERI, PASS_KARINA, …). Si no, usan las de prueba — CÁMBIALAS en producción.
+// `puesto` e `id_sucursal` — capa añadida para el módulo de expediente y
+// originación (CU-009 a CU-013), siguiendo el principio de arquitectura del
+// Requerimiento Maestro: "el sistema conoce puestos, no personas". No cambia
+// el `rol` clásico (ejecutivo/direccion/admin) que ya usan las rutas de
+// cobranza — solo lo complementa para los candados nuevos por puesto.
+// Sucursal 1 = San Lorenzo Cacaotepec (matriz / domicilio fiscal) — la única
+// sucursal hoy; el campo ya existe para cuando abra la Sucursal 2.
 const USUARIOS = {
-  neri:        { nombre: "Neri",        rol: "ejecutivo", app: "App_Cobranza_NERI_GERENTE.html", pass: process.env.PASS_NERI        || "neri2026" },
-  karina:      { nombre: "Karina",      rol: "ejecutivo", app: "App_Cobranza_KARINA.html",       pass: process.env.PASS_KARINA      || "karina2026" },
-  christopher: { nombre: "Christopher", rol: "ejecutivo", app: "App_Cobranza_CHRISTOPHER.html",  pass: process.env.PASS_CHRISTOPHER || "chris2026" },
+  neri:        { nombre: "Neri",        rol: "ejecutivo", puesto: "gerente_campo",              id_sucursal: "1", app: "App_Cobranza_NERI_GERENTE.html", pass: process.env.PASS_NERI        || "neri2026" },
+  karina:      { nombre: "Karina",      rol: "ejecutivo", puesto: "control_operativo_sucursal",  id_sucursal: "1", app: "App_Cobranza_KARINA.html",       pass: process.env.PASS_KARINA      || "karina2026" },
+  christopher: { nombre: "Christopher", rol: "ejecutivo", puesto: "ejecutivo_credito_cobranza",  id_sucursal: "1", app: "App_Cobranza_CHRISTOPHER.html",  pass: process.env.PASS_CHRISTOPHER || "chris2026" },
   // Alta 28-jul: cartera de Comadre (semanal) y Magnus (mensual, cuota
   // decreciente — apartada de la mora hasta el módulo de intereses).
-  julio:       { nombre: "Julio",       rol: "ejecutivo", app: "App_Cobranza_JULIO.html",        pass: process.env.PASS_JULIO       || "julio2026" },
-  monse:       { nombre: "Monserrat",   rol: "admin",     pass: process.env.PASS_MONSE      || "monse2026" },
-  anel:        { nombre: "Anel",        rol: "direccion", pass: process.env.PASS_ANEL       || "anel2026" },
-  alejandra:   { nombre: "Alejandra",   rol: "admin",     pass: process.env.PASS_ALEJANDRA  || "alejandra2026" },
-  prueba:      { nombre: "Prueba",      rol: "ejecutivo", test: true, app: "App_Cobranza_PRUEBA.html", pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
-  pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", test: true, pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
+  julio:       { nombre: "Julio",       rol: "ejecutivo", puesto: "ejecutivo_credito_cobranza",  id_sucursal: "1", app: "App_Cobranza_JULIO.html",        pass: process.env.PASS_JULIO       || "julio2026" },
+  monse:       { nombre: "Monserrat",   rol: "admin",     puesto: "administracion_finanzas",     id_sucursal: "1", pass: process.env.PASS_MONSE      || "monse2026" },
+  anel:        { nombre: "Anel",        rol: "direccion", puesto: "direccion_general",           id_sucursal: "1", pass: process.env.PASS_ANEL       || "anel2026" },
+  // Cubre temporalmente a Monse (regla de suplencia, Requerimiento Maestro §5):
+  // el puesto sigue siendo de la titular, Alejandra solo lo ocupa mientras dure.
+  alejandra:   { nombre: "Alejandra",   rol: "admin",     puesto: "administracion_finanzas",     id_sucursal: "1", pass: process.env.PASS_ALEJANDRA  || "alejandra2026" },
+  prueba:      { nombre: "Prueba",      rol: "ejecutivo", puesto: "ejecutivo_credito_cobranza",  id_sucursal: "1", test: true, app: "App_Cobranza_PRUEBA.html", pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
+  pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", puesto: "direccion_general",            id_sucursal: "1", test: true, pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
+  // Cuenta de prueba para el candado de Administración y Finanzas — sin ella
+  // no se puede probar la validación de expediente (CU-010) en la burbuja de
+  // prueba sin usar una cuenta real.
+  pruebaadmin: { nombre: "Prueba Admin", rol: "admin",    puesto: "administracion_finanzas",      id_sucursal: "1", test: true, pass: process.env.PASS_PRUEBAADMIN || "PruebaFOOAX2026" },
 };
 
 // Quiénes cuentan como ejecutivas para consolidado/arqueo/resumen.
@@ -84,6 +98,22 @@ function requiere(...roles) {
     next();
   };
 }
+// Candado por PUESTO (no por rol clásico) — para las reglas de segregación
+// del módulo de expediente/originación: "quien concilia no dispersa", "solo
+// Administración y Finanzas valida el expediente", etc. Es un candado
+// TÉCNICO: si el puesto no coincide, la API responde 403 sin importar qué
+// botones muestre la pantalla.
+function requierePuesto(...puestos) {
+  return (req, res, next) => {
+    const u = usuarioDe(req);
+    if (!u) return res.status(401).json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." });
+    if (puestos.length && !puestos.includes(u.puesto)) {
+      return res.status(403).json({ error: "Tu puesto no tiene permiso para esta acción." });
+    }
+    req.usuario = u;
+    next();
+  };
+}
 // Guardián para PÁGINAS: si la sesión no sirve, manda al login — nunca
 // muestra el JSON de error crudo en el navegador (pasaba al recargar /app).
 function paginaRequiere(...roles) {
@@ -126,7 +156,10 @@ app.post("/api/login", (req, res) => {
   if (reg && Date.now() - reg.desde >= 10 * 60 * 1000) intentosLogin.delete(ip);
   const { usuario, password } = req.body || {};
   const u = USUARIOS[(usuario || "").toLowerCase().trim()];
-  if (!u || u.pass !== password) {
+  // verificarPassword acepta tanto el hash nuevo (scrypt$...) como la
+  // contraseña heredada en texto plano, para migrar sin romper logins el día
+  // del despliegue. Ver cifrado.js y scripts/hash-password.js.
+  if (!u || !verificarPassword(password, u.pass)) {
     const r = intentosLogin.get(ip) || { n: 0, desde: Date.now() };
     r.n++; intentosLogin.set(ip, r);
     return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
@@ -3788,6 +3821,14 @@ function repararCarteraJulio() {
   }
 }
 
+// Módulo de expediente y originación (CU-009 a CU-013) — en su propio
+// archivo, montado aquí con el mínimo de líneas posible para no arriesgar la
+// cobranza que ya está en producción. Si este módulo llegara a fallar al
+// iniciar, no debe tumbar el arranque de la cobranza (por eso su init() se
+// protege por separado, no dentro de la misma promesa que store.init()).
+const storeExpediente = require("./store_expediente");
+require("./rutas_expediente")(app, { requiere, requierePuesto });
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
@@ -3797,5 +3838,9 @@ store.init().then(() => {
   reasignarMarthaPatricia30jul();
   repararCarteraJulio();
   aplicarCorteDeLaPlantilla();
+  return storeExpediente.init().catch((e) => {
+    console.error("[expediente] no se pudo iniciar — la cobranza sigue funcionando sin él:", e.message);
+  });
+}).then(() => {
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
 }).catch((e) => { console.error("Error al iniciar el store:", e); process.exit(1); });
