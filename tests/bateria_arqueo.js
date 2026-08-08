@@ -1890,7 +1890,31 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     body: JSON.stringify({ fecha: F49, ejecutivo: "julio", clave: KB49, anula: true, motivo: "prueba" }) });
   ok("y una ejecutiva no puede corregirse a sí misma", ejecNo49.status === 403, "status " + ejecNo49.status);
 
-  // (h) El rastro49: quién y por qué.
+  // (g bis) ANEL TAMBIÉN (Karina, 7-ago: «también Anel»). Entra por rol
+  // `direccion`, así que ya tenía el poder — pero eso nadie lo estaba
+  // vigilando: bastaba con que alguien apretara un permiso a `admin` para
+  // dejarla fuera, y no se sabría hasta que ella lo intentara.
+  const cAnel = await login("anel", "anel2026");
+  const puedeAnel = async (url, cuerpo) =>
+    (await fetch(U + url, { method: "POST", headers: H(cAnel), body: JSON.stringify(cuerpo) })).status;
+  ok("Anel ve la captura de una ejecutiva",
+    (await fetch(U + "/api/captura?fecha=" + F49 + "&ejecutivo=julio", { headers: H(cAnel) })).status === 200,
+    "no la deja ver");
+  ok("Anel puede corregir un monto",
+    (await puedeAnel("/api/cobranza/ajuste", { fecha: F49, ejecutivo: "julio", clave: KB49,
+      campo: "pago", monto: 1000, motivo: "Corrección de Anel" })) === 200, "la rechazó");
+  ok("Anel puede anular una captura",
+    (await puedeAnel("/api/cobranza/ajuste", { fecha: F49, ejecutivo: "julio", clave: KB49,
+      anula: true, motivo: "Anulación de Anel" })) === 200, "la rechazó");
+  ok("Anel puede corregir el arqueo",
+    (await puedeAnel("/api/arqueo/ajuste", { fecha: F49, ejecutivo: "julio",
+      arqueo: { 200: 2 }, motivo: "Reconteo de Anel" })) === 200, "la rechazó");
+  const rastroAnel = await j(await fetch(U + "/api/cobranza/ajustes?fecha=" + F49, { headers: H(cAnel) }));
+  ok("y sus correcciones quedan a SU nombre, no al de Monse",
+    (rastroAnel.ajustes || []).some((a) => a.por === "Anel" && a.usuario === "anel"),
+    JSON.stringify((rastroAnel.ajustes || []).map((a) => a.por)));
+
+  // (h) El rastro: quién y por qué.
   const rastro49 = await j(await fetch(U + "/api/cobranza/ajustes?fecha=" + F49, { headers: H(cm) }));
   ok("queda el rastro de quién corrigió y por qué",
     (rastro49.ajustes || []).length >= 3 && rastro49.ajustes.every((a) => a.motivo && a.por),
