@@ -25,6 +25,7 @@ const ok = (nombre, cond, detalle) => {
   else { FAIL_N++; console.log("  ❌ " + nombre + (detalle ? "  → " + detalle : "")); }
 };
 const j = async (r) => { try { return await r.json(); } catch { return {}; } };
+const post = (url, body, cookie) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Cookie: cookie }, body: JSON.stringify(body || {}) });
 
 const SEG = Math.floor(Date.now() / 1000);
 const RUN = String(SEG % 100000);  // sufijo único por corrida — no se pisa con otra
@@ -89,8 +90,9 @@ const cid = (n) => "EXP-" + RUN + "-" + n; // ids de clienta de prueba, solo par
   console.log("\n— D. REFERENCIAS — exigen su propio consentimiento —");
   const rRefSin = await fetch(U + "/api/expediente/" + c1 + "/referencia", { method: "POST", headers: H(cEje), body: JSON.stringify({ nombre: "Ref Prueba", relacion: "vecina" }) });
   ok("sin consentimiento se rechaza (400)", rRefSin.status === 400);
-  const rRefCon = await j(await fetch(U + "/api/expediente/" + c1 + "/referencia", { method: "POST", headers: H(cEje), body: JSON.stringify({ nombre: "Ref Prueba", relacion: "vecina", consentimiento: true }) }));
-  ok("con consentimiento se guarda", rRefCon.ok === true, JSON.stringify(rRefCon).slice(0, 90));
+  const rRefCon = await j(await fetch(U + "/api/expediente/" + c1 + "/referencia", { method: "POST", headers: H(cEje), body: JSON.stringify({ nombre: "Ref Prueba 1", relacion: "vecina", curp: "REFA" + RUN, telefono: "9511234567", consentimiento: true }) }));
+  ok("con consentimiento se guarda, con CURP y teléfono", rRefCon.ok === true && rRefCon.referencia.curp === "REFA" + RUN, JSON.stringify(rRefCon).slice(0, 120));
+  await j(await fetch(U + "/api/expediente/" + c1 + "/referencia", { method: "POST", headers: H(cEje), body: JSON.stringify({ nombre: "Ref Prueba 2", relacion: "compañera", consentimiento: true }) }));
 
   console.log("\n— E. DOCUMENTOS — cifrado, tipos válidos y checklist —");
   const b64 = Buffer.from("contenido de prueba " + RUN).toString("base64");
@@ -111,6 +113,34 @@ const cid = (n) => "EXP-" + RUN + "-" + n; // ids de clienta de prueba, solo par
 
   const rDocs = await j(await fetch(U + "/api/expediente/" + c1, { headers: H(cEje) }));
   ok("el detalle del expediente lista documentos SOLO con metadatos (nunca el contenido)", Array.isArray(rDocs.documentos) && rDocs.documentos.length === docs.length && !rDocs.documentos.some((d) => "contenido" in d || "contenido_cifrado" in d), "documentos " + JSON.stringify(rDocs.documentos).slice(0, 120));
+  ok("el detalle trae las 2 referencias que exige la Solicitud (Sección 8)", Array.isArray(rDocs.referencias) && rDocs.referencias.length === 2, "referencias " + JSON.stringify(rDocs.referencias).slice(0, 120));
+  ok("el detalle trae el domicilio institucional (social y fiscal) fijo, no editable", rDocs.domicilio_institucional && /Oaxaca de Juárez/.test(rDocs.domicilio_institucional.social) && /San Lorenzo Cacaotepec/.test(rDocs.domicilio_institucional.fiscal), JSON.stringify(rDocs.domicilio_institucional));
+
+  console.log("\n— E2. DATOS DE LA CLIENTA — identidad, domicilio, negocio, PLD/PEP (CU-009 §3) —");
+  const rDatos1 = await j(await post(U + "/api/expediente/" + c1 + "/datos", { nombre_completo: "Clienta de Prueba " + RUN, curp: "CLIE" + RUN, telefono_movil: "9511111111" }, cEje));
+  ok("guarda la primera tanda de datos de identidad", rDatos1.ok === true && rDatos1.datos.datos.nombre_completo === "Clienta de Prueba " + RUN, JSON.stringify(rDatos1).slice(0, 150));
+
+  const rDatos2 = await j(await post(U + "/api/expediente/" + c1 + "/datos", { domicilio_calle: "Calle Falsa", domicilio_cp: "68000", negocio_giro: "Abarrotes", es_pep: false }, cEje));
+  ok("guardar una SEGUNDA tanda no borra la primera (merge, no reemplazo)",
+    rDatos2.ok === true && rDatos2.datos.datos.nombre_completo === "Clienta de Prueba " + RUN && rDatos2.datos.datos.domicilio_calle === "Calle Falsa",
+    JSON.stringify(rDatos2).slice(0, 200));
+
+  const rDetalleConDatos = await j(await fetch(U + "/api/expediente/" + c1, { headers: H(cEje) }));
+  ok("el detalle del expediente trae los datos de la clienta acumulados",
+    rDetalleConDatos.datos && rDetalleConDatos.datos.curp === "CLIE" + RUN && rDetalleConDatos.datos.negocio_giro === "Abarrotes",
+    JSON.stringify(rDetalleConDatos.datos));
+
+  console.log("\n— E3. UBICACIÓN FÍSICA del papel (CU-010 §3 — trazabilidad, no candado) —");
+  const rUbiSinExp = await post(U + "/api/expediente/" + cid("sin_expediente") + "/ubicacion-fisica", { folio_fisico: "F-1", ubicacion_fisica: "Archivero A" }, cEje);
+  ok("no se puede anotar ubicación física de un expediente que no existe (400)", rUbiSinExp.status === 400);
+
+  const rUbi = await j(await post(U + "/api/expediente/" + c1 + "/ubicacion-fisica", { folio_fisico: "EXP-" + RUN, ubicacion_fisica: "Archivero A, gaveta 3, Sucursal 1" }, cEje));
+  ok("se guarda el folio y la ubicación del original en papel", rUbi.ok === true && rUbi.expediente.folio_fisico === "EXP-" + RUN, JSON.stringify(rUbi).slice(0, 150));
+
+  const rExpTrasSubirOtroDoc = await j(await fetch(U + "/api/expediente/" + c1 + "/documento", { method: "POST", headers: H(cEje), body: JSON.stringify({ tipo: "curp", propietario: "solicitante", contenido_base64: b64, requiere_aval: false }) }));
+  ok("subir OTRO documento después NO borra la ubicación física ya anotada",
+    rExpTrasSubirOtroDoc.expediente && rExpTrasSubirOtroDoc.expediente.folio_fisico === "EXP-" + RUN,
+    JSON.stringify(rExpTrasSubirOtroDoc.expediente));
 
   console.log("\n— F. CANDADO CU-010 — expediente completo pero SIN validar bloquea desembolso —");
   const cand1 = await j(await fetch(U + "/api/expediente/" + c1 + "/candado", { headers: H(cEje) }));

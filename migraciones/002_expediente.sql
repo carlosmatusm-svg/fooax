@@ -79,6 +79,9 @@ CREATE TABLE IF NOT EXISTS documentos (
 -- candado de validación. `estatus` = 'completo' solo cuando no falta ningún
 -- documento requerido; `validado_por` solo lo llena Administración y
 -- Finanzas (candado por puesto, ver rutas_expediente.js).
+-- folio_fisico/ubicacion_fisica: CU-010 §3 — dónde quedó resguardado el
+-- original en papel, para que el expediente físico y el digital se puedan
+-- rastrear juntos. Es trazabilidad, no un candado.
 CREATE TABLE IF NOT EXISTS expedientes (
   clienta_id text PRIMARY KEY,
   id_sucursal text,
@@ -86,8 +89,15 @@ CREATE TABLE IF NOT EXISTS expedientes (
   estatus text NOT NULL DEFAULT 'incompleto',
   validado_por text,
   validado_ts bigint,
-  motivo_rechazo text
+  motivo_rechazo text,
+  folio_fisico text,
+  ubicacion_fisica text
 );
+-- Nota de despliegue: si esta tabla ya existía en Railway ANTES de este
+-- cambio, agregar las dos columnas nuevas a mano (CREATE TABLE IF NOT
+-- EXISTS no las agrega a una tabla que ya existe):
+--   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS folio_fisico text;
+--   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS ubicacion_fisica text;
 
 -- Las TRES firmas, siempre separadas (LFPDPPP 2025 + Art. 28 LRSIC). Nunca
 -- una casilla de verificación — cada firma lleva su propio sello.
@@ -99,4 +109,18 @@ CREATE TABLE IF NOT EXISTS firmas (
   gps text,
   dispositivo text,
   version_aviso text
+);
+
+-- Identidad, domicilio, negocio, capacidad de pago, vivienda, familia y
+-- PLD/PEP de la clienta (CU-009 §3). Se guarda como UN bloque jsonb, no como
+-- columnas fijas por campo: la Solicitud de Crédito que define estos campos
+-- sigue en validación con el Lic. César Cáceres (CU-009 §10) y puede cambiar
+-- de forma; con jsonb se puede ajustar el detalle sin migrar el esquema cada
+-- vez. Ver DOMICILIO_INSTITUCIONAL en store_expediente.js para el domicilio
+-- social/fiscal — ese SÍ es fijo (no cambia por clienta), y por eso no vive
+-- en esta tabla ni en ninguna otra: es una constante de código.
+CREATE TABLE IF NOT EXISTS datos_clienta (
+  clienta_id text PRIMARY KEY,
+  datos jsonb NOT NULL DEFAULT '{}',
+  actualizado_ts bigint NOT NULL
 );

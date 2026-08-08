@@ -24,9 +24,16 @@ const mem = {
   clientas_avales: [],       // { clienta_id, aval_id, credito_id, activo, creado_ts }
   referencias: [],         // { id, clienta_id, nombre, relacion, curp, telefono, consentimiento, creado_ts }
   documentos: [],          // { id, clienta_id, tipo, propietario, contenido_cifrado, iv, auth_tag, creado_ts, creado_por }
-  expedientes: {},         // clienta_id -> { id_sucursal, checklist, estatus, validado_por, validado_ts, motivo_rechazo }
+  expedientes: {},         // clienta_id -> { id_sucursal, checklist, estatus, validado_por, validado_ts, motivo_rechazo, folio_fisico, ubicacion_fisica }
   firmas: [],              // { id, clienta_id, tipo, ts, gps, dispositivo, version_aviso }
   bitacora: [],            // { id, ts, usuario, rol, puesto, id_sucursal, accion, entidad, entidad_id, detalle, ip }
+  // Identidad/domicilio/negocio/PLD de la clienta (CU-009 §3) — se guarda como
+  // un solo bloque flexible (jsonb / JSON) a propósito, NO como columnas fijas:
+  // la Solicitud de Crédito que define estos campos sigue en validación con el
+  // Lic. César Cáceres (CU-009 §10), así que conviene poder ajustar el detalle
+  // sin migrar el esquema cada vez. Las piezas ya validadas y estables
+  // (responsables, avales, documentos, firmas) sí son columnas normales.
+  datos_clienta: {},       // clienta_id -> { clienta_id, datos: {...}, actualizado_ts }
   _seq: 1,
 };
 
@@ -56,6 +63,7 @@ function persistirTodo() {
   escribirJSON("expediente_expedientes.json", mem.expedientes);
   escribirJSON("expediente_firmas.json", mem.firmas);
   escribirJSON("expediente_bitacora.json", mem.bitacora);
+  escribirJSON("expediente_datos_clienta.json", mem.datos_clienta);
 }
 
 // ---------- arranque ----------
@@ -114,11 +122,24 @@ async function init() {
     )`);
     await pool.query(`CREATE TABLE IF NOT EXISTS expedientes (
       clienta_id text PRIMARY KEY, id_sucursal text, checklist jsonb NOT NULL DEFAULT '{}',
-      estatus text NOT NULL DEFAULT 'incompleto', validado_por text, validado_ts bigint, motivo_rechazo text
+      estatus text NOT NULL DEFAULT 'incompleto', validado_por text, validado_ts bigint, motivo_rechazo text,
+      folio_fisico text, ubicacion_fisica text
     )`);
+    // Nota de despliegue: si esta tabla ya existía ANTES de este cambio (con
+    // Railway ya corriendo), CREATE TABLE IF NOT EXISTS no le agrega las
+    // columnas nuevas — hay que correr a mano:
+    //   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS folio_fisico text;
+    //   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS ubicacion_fisica text;
+    // Como este módulo aún no se ha desplegado, hoy no aplica — se deja la
+    // nota para quien lo despliegue después de que ya esté en producción.
     await pool.query(`CREATE TABLE IF NOT EXISTS firmas (
       id serial PRIMARY KEY, clienta_id text NOT NULL, tipo text NOT NULL, ts bigint NOT NULL,
       gps text, dispositivo text, version_aviso text
+    )`);
+    // Identidad/domicilio/negocio/PLD de la clienta (CU-009 §3) — un bloque
+    // jsonb, no columnas fijas (ver comentario en mem.datos_clienta arriba).
+    await pool.query(`CREATE TABLE IF NOT EXISTS datos_clienta (
+      clienta_id text PRIMARY KEY, datos jsonb NOT NULL DEFAULT '{}', actualizado_ts bigint NOT NULL
     )`);
 
     // Carga a memoria para lecturas síncronas (mismo patrón que store.js).
@@ -131,6 +152,8 @@ async function init() {
     for (const row of exp.rows) mem.expedientes[row.clienta_id] = row;
     const f = await pool.query("SELECT id, clienta_id, tipo, ts, gps, dispositivo, version_aviso FROM firmas");
     mem.firmas = f.rows;
+    const dc = await pool.query("SELECT * FROM datos_clienta");
+    for (const row of dc.rows) mem.datos_clienta[row.clienta_id] = row;
     console.log(`[store_expediente] PostgreSQL listo · ${mem.responsables.length} responsables, ${mem.avales.length} avales`);
   } else {
     mem.responsables = leerJSON("expediente_responsables.json", []);
@@ -141,6 +164,7 @@ async function init() {
     mem.expedientes = leerJSON("expediente_expedientes.json", {});
     mem.firmas = leerJSON("expediente_firmas.json", []);
     mem.bitacora = leerJSON("expediente_bitacora.json", []);
+    mem.datos_clienta = leerJSON("expediente_datos_clienta.json", {});
     console.log(`[store_expediente] archivos locales · ${mem.responsables.length} responsables, ${mem.avales.length} avales`);
   }
 }
@@ -277,6 +301,9 @@ function crearReferencia(datos) {
   } else persistirTodo();
   return row;
 }
+function referenciasDeClienta(clientaId) {
+  return mem.referencias.filter((r) => r.clienta_id === String(clientaId));
+}
 
 // ---------- documentos (cifrados en reposo) ----------
 function guardarDocumento({ clienta_id, tipo, propietario, contenido, creado_por }) {
@@ -330,18 +357,72 @@ function obtenerExpediente(clientaId) {
 }
 function actualizarExpediente(clientaId, { id_sucursal, requiereAval }) {
   const { estatus, faltantes } = calcularEstatus(clientaId, requiereAval);
-  const row = { clienta_id: String(clientaId), id_sucursal: id_sucursal || null,
+  // Se preserva folio_fisico/ubicacion_fisica del registro anterior: esta
+  // función se llama cada vez que se sube un documento, y si reconstruyera el
+  // registro desde cero perdería lo que Karina Merced ya haya anotado sobre
+  // dónde quedó resguardado el papel (CU-010 §3).
+  const anterior = mem.expedientes[String(clientaId)] || {};
+  const row = { clienta_id: String(clientaId), id_sucursal: id_sucursal || anterior.id_sucursal || null,
     checklist: { requeridos: checklistRequerido(requiereAval), faltantes }, estatus,
-    validado_por: null, validado_ts: null, motivo_rechazo: null };
+    validado_por: null, validado_ts: null, motivo_rechazo: null,
+    folio_fisico: anterior.folio_fisico || null, ubicacion_fisica: anterior.ubicacion_fisica || null };
   mem.expedientes[String(clientaId)] = row;
   if (usePg) {
     pool.query(
-      "INSERT INTO expedientes (clienta_id, id_sucursal, checklist, estatus) VALUES ($1,$2,$3,$4) " +
+      "INSERT INTO expedientes (clienta_id, id_sucursal, checklist, estatus, folio_fisico, ubicacion_fisica) VALUES ($1,$2,$3,$4,$5,$6) " +
       "ON CONFLICT (clienta_id) DO UPDATE SET id_sucursal=$2, checklist=$3, estatus=$4",
-      [row.clienta_id, row.id_sucursal, row.checklist, row.estatus]
+      [row.clienta_id, row.id_sucursal, row.checklist, row.estatus, row.folio_fisico, row.ubicacion_fisica]
     ).catch((e) => console.error("[store_expediente] expediente:", e.message));
   } else persistirTodo();
   return row;
+}
+// Dónde quedó resguardado el original en papel (CU-010 §3: "el expediente
+// físico y el digital deben poder rastrearse juntos"). Lo llena Control
+// Operativo (Karina Merced) al armar el expediente; no bloquea nada por sí
+// mismo, es trazabilidad.
+function registrarUbicacionFisica(clientaId, { folio_fisico, ubicacion_fisica }) {
+  const exp = mem.expedientes[String(clientaId)];
+  if (!exp) return { ok: false, error: "No existe expediente para esta clienta todavía — sube al menos un documento primero." };
+  exp.folio_fisico = folio_fisico || null;
+  exp.ubicacion_fisica = ubicacion_fisica || null;
+  if (usePg) {
+    pool.query("UPDATE expedientes SET folio_fisico=$2, ubicacion_fisica=$3 WHERE clienta_id=$1",
+      [exp.clienta_id, exp.folio_fisico, exp.ubicacion_fisica])
+      .catch((e) => console.error("[store_expediente] ubicación física:", e.message));
+  } else persistirTodo();
+  return { ok: true, expediente: exp };
+}
+// Domicilio SOCIAL (jurisdicción legal) y FISCAL (SAT) — datos
+// INSTITUCIONALES fijos, nunca el domicilio de la clienta (CU-010 §3: "evita
+// litigar en la jurisdicción equivocada, o facturar con el domicilio
+// incorrecto ante el SAT"). Es de solo lectura desde la pantalla — no vive en
+// una tabla porque no cambia por clienta ni por expediente.
+const DOMICILIO_INSTITUCIONAL = {
+  social: "Oaxaca de Juárez, Oaxaca — domicilio social / jurisdicción legal de FOOAX, S.A. de C.V.",
+  fiscal: "San Lorenzo Cacaotepec, Oaxaca — domicilio fiscal ante el SAT (Sucursal 1 / matriz)",
+};
+
+// ---------- datos de la clienta: identidad, domicilio, negocio, capacidad de
+// pago, vivienda, familia, PLD/PEP (CU-009 §3) ----------
+// guardarDatosClienta hace MERGE, no reemplaza: la pantalla puede guardar por
+// secciones (identidad, domicilio, negocio...) sin tener que reenviar todo el
+// formulario cada vez.
+function guardarDatosClienta(clientaId, datosNuevos) {
+  const existente = mem.datos_clienta[String(clientaId)];
+  const datos = { ...(existente ? existente.datos : {}), ...(datosNuevos || {}) };
+  const row = { clienta_id: String(clientaId), datos, actualizado_ts: Date.now() };
+  mem.datos_clienta[row.clienta_id] = row;
+  if (usePg) {
+    pool.query(
+      "INSERT INTO datos_clienta (clienta_id, datos, actualizado_ts) VALUES ($1,$2,$3) " +
+      "ON CONFLICT (clienta_id) DO UPDATE SET datos=$2, actualizado_ts=$3",
+      [row.clienta_id, row.datos, row.actualizado_ts]
+    ).catch((e) => console.error("[store_expediente] datos_clienta:", e.message));
+  } else persistirTodo();
+  return row;
+}
+function obtenerDatosClienta(clientaId) {
+  return mem.datos_clienta[String(clientaId)] || null;
 }
 // CANDADO — CU-010: expediente incompleto = desembolso cancelado, sin
 // excepciones. Cualquier ruta que prepare un desembolso debe llamar esto
@@ -396,11 +477,13 @@ module.exports = {
   registrarBitacora, bitacora,
   crearResponsable, crearAval, obtenerResponsable, obtenerAval, buscarResponsables, buscarAvales,
   vincularResponsable, vincularAval, contarClientasActivas,
-  crearReferencia,
+  crearReferencia, referenciasDeClienta,
   guardarDocumento, documentosDeClienta,
   checklistRequerido, calcularEstatus, obtenerExpediente, actualizarExpediente,
+  registrarUbicacionFisica, DOMICILIO_INSTITUCIONAL,
   expedienteBloqueaDesembolso, validarExpediente,
   registrarFirma, firmasDeClienta, tieneFirma,
+  guardarDatosClienta, obtenerDatosClienta,
   // expuesto para pruebas / diagnóstico, nunca para lógica de negocio nueva:
   _mem: mem,
 };

@@ -140,13 +140,50 @@ module.exports = function montarRutasExpediente(app, { requiere, requierePuesto 
     res.json({ ok: true, documento: meta, expediente });
   });
 
-  // ---- Estatus del expediente (checklist, firmas, documentos — sin contenido) ----
+  // ---- Datos de la clienta: identidad, domicilio, negocio, capacidad de
+  // pago, vivienda, familia, PLD/PEP (CU-009 §3). guardarDatosClienta hace
+  // MERGE — la pantalla puede mandar solo la sección que llenó, sin perder
+  // lo que ya se había guardado antes. ----
+  r.post("/api/expediente/:clientaId/datos", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const datos = storeExp.guardarDatosClienta(clientaId, req.body || {});
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.datos_clienta.guardar",
+      entidad: "clienta", entidad_id: clientaId, detalle: { campos: Object.keys(req.body || {}) }, ip: ipDe(req),
+    });
+    res.json({ ok: true, datos });
+  });
+
+  // ---- Ubicación física del original en papel (CU-010 §3) — la llena
+  // Control Operativo al armar el expediente; es trazabilidad, no candado. ----
+  r.post("/api/expediente/:clientaId/ubicacion-fisica", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const { folio_fisico, ubicacion_fisica } = req.body || {};
+    const resultado = storeExp.registrarUbicacionFisica(clientaId, { folio_fisico, ubicacion_fisica });
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.ubicacion_fisica.guardar",
+      entidad: "clienta", entidad_id: clientaId, detalle: { folio_fisico, ubicacion_fisica }, ip: ipDe(req),
+    });
+    res.json({ ok: true, expediente: resultado.expediente });
+  });
+
+  // ---- Estatus del expediente (checklist, firmas, documentos, referencias,
+  // datos de la clienta, domicilio institucional — sin contenido de docs) ----
   r.get("/api/expediente/:clientaId", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
     const { clientaId } = req.params;
     const expediente = storeExp.obtenerExpediente(clientaId);
     const documentos = storeExp.documentosDeClienta(clientaId);
     const firmas = storeExp.firmasDeClienta(clientaId);
-    res.json({ expediente, documentos, firmas });
+    const referencias = storeExp.referenciasDeClienta(clientaId);
+    const datosClienta = storeExp.obtenerDatosClienta(clientaId);
+    res.json({
+      expediente, documentos, firmas, referencias,
+      datos: datosClienta ? datosClienta.datos : {},
+      domicilio_institucional: storeExp.DOMICILIO_INSTITUCIONAL,
+    });
   });
 
   // ---- Firmas (las tres, siempre separadas — CU-009, Requerimiento Maestro §8) ----
