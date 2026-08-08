@@ -1914,6 +1914,37 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     (rastroAnel.ajustes || []).some((a) => a.por === "Anel" && a.usuario === "anel"),
     JSON.stringify((rastroAnel.ajustes || []).map((a) => a.por)));
 
+  // (g ter) Y QUE SE VEA AL BUSCAR A LA CLIENTA (Karina, 7-ago). Un pago
+  // anulado DESAPARECE del historial —queda en cero y deja de sumar—, así que
+  // sin esto la clienta se ve como si nunca hubiera pagado y nadie puede
+  // explicar por qué le bajó (o no le bajó) el saldo.
+  const histDe = async (id, prod) => j(await fetch(U + "/api/credito/historial?id=" + id
+    + "&producto=" + encodeURIComponent(prod), { headers: H(cm) }));
+  const hB49 = await histDe("11112931059", "COMADRE");
+  const corB = (hB49.correcciones || [])[0] || {};
+  ok("al buscar a la clienta aparece la corrección",
+    (hB49.correcciones || []).length > 0, "no vino ninguna");
+  ok("y dice qué capturó la ejecutiva y en qué quedó",
+    corB.capturo && corB.quedo && corB.capturo.pago !== corB.quedo.pago,
+    JSON.stringify({ capturo: corB.capturo, quedo: corB.quedo }));
+  ok("con el motivo y el nombre de quien la hizo",
+    !!corB.motivo && !!corB.por, JSON.stringify({ motivo: corB.motivo, por: corB.por }));
+  // El caso que de verdad importa: anulada, ya no aparece en la lista de pagos.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F49, snapshot: { regI: { [KJ49]: { pago: 2827, garantia: 150, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: F49, ejecutivo: "julio", clave: KJ49, anula: true,
+      motivo: "Se capturó en la clienta equivocada" }) });
+  const hJ49 = await histDe("11113014663", "COMADRE");
+  ok("un pago anulado ya no cuenta en su historial",
+    !(hJ49.historial || []).some((x) => x.fecha === F49 && x.pago > 0), "sigue contando");
+  const corJ = (hJ49.correcciones || []).find((x) => x.anula) || {};
+  ok("pero la anulación SÍ se ve, con lo que se le quitó",
+    !!corJ.capturo && (corJ.capturo.pago + corJ.capturo.garantia) === 2977,
+    JSON.stringify(corJ.capturo));
+  ok("y con su motivo, para que nadie tenga que adivinar",
+    corJ.motivo === "Se capturó en la clienta equivocada", corJ.motivo || "sin motivo");
+
   // (h) El rastro: quién y por qué.
   const rastro49 = await j(await fetch(U + "/api/cobranza/ajustes?fecha=" + F49, { headers: H(cm) }));
   ok("queda el rastro de quién corrigió y por qué",

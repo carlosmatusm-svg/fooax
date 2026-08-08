@@ -159,6 +159,13 @@
   .hpago span{font-size:12px;color:var(--gris)}
   .hpago.hprevio{background:var(--lav);opacity:.75}
   .hpago.hprevio b{color:var(--gris)}
+  /* Corrección de Dirección: en rojo y arriba de todo. Un pago anulado ya no
+     aparece abajo, así que este bloque es lo único que lo explica. */
+  .hcorr{padding:7px 10px;border-radius:8px;background:#FCEDEF;
+    border-left:4px solid #8E0019;line-height:1.4}
+  .hcorr>b{color:#8E0019;font-size:13px}
+  .hcorrm{font-size:12px;color:var(--gris);margin-top:2px}
+  .hcorrm b{color:var(--tinta)}
   .credacc{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
   .credbtn{font:inherit;font-size:12px;font-weight:700;background:none;border-radius:99px;
     border:1.5px solid var(--rio,#324AB6);color:var(--rio,#324AB6);padding:5px 12px;cursor:pointer}
@@ -937,8 +944,35 @@ async function verPagos(btn, i) {
     + "<b>" + dinero(h.pago) + "</b>"
     + (h.garantia ? "<span>+ gar. " + dinero(h.garantia) + "</span>" : "")
     + "<span>" + hesc(h.ejecutivo || "—") + "</span></div>";
+  // LO QUE LE CORRIGIÓ DIRECCIÓN. Va ARRIBA de todo y en rojo: un pago anulado
+  // ya no aparece en la lista de abajo —quedó en cero—, así que si esto no se
+  // dijera aquí, la clienta se vería como si nunca hubiera pagado y nadie
+  // sabría por qué.
+  const cor = (d.correcciones || []).map((x) => {
+    const cap = x.capturo || { pago: 0, garantia: 0, solidario: 0 };
+    const qed = x.quedo || { pago: 0, garantia: 0, solidario: 0 };
+    const qué = x.anula ? "Se anuló toda la captura"
+      : x.campo === "garantia" ? "Se corrigió la garantía"
+      : x.campo === "solidario" ? "Se corrigió el solidario" : "Se corrigió el pago";
+    const antes = x.campo === "garantia" ? cap.garantia : x.campo === "solidario" ? cap.solidario : cap.pago;
+    const ahora = x.campo === "garantia" ? qed.garantia : x.campo === "solidario" ? qed.solidario : qed.pago;
+    return '<div class="hcorr">'
+      + "<b>" + hesc(qué) + "</b> · " + hesc(x.fecha)
+      + '<div class="hcorrm">'
+      + (x.anula
+          ? "Se le quitaron " + dinero(cap.pago + cap.garantia + cap.solidario)
+            + " que había capturado " + hesc(x.ejecutivo)
+          : hesc(x.ejecutivo) + " capturó <b>" + dinero(antes) + "</b> y quedó en <b>" + dinero(ahora) + "</b>")
+      + "</div>"
+      + '<div class="hcorrm">Motivo: <b>' + hesc(x.motivo || "—") + "</b>"
+      + " · lo hizo <b>" + hesc(x.por) + "</b>"
+      + " el " + new Date(x.ts).toLocaleString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+      + "</div></div>";
+  }).join("");
+
   box.innerHTML = '<div class="hcaja">'
     + "<b>" + hesc(d.nombre) + " · " + hesc(d.producto) + "</b>"
+    + (cor ? '<div class="hsec">Correcciones de Dirección</div>' + cor : "")
     + '<div class="hres">Saldo de la plantilla <b>' + dinero(d.saldoPlantilla) + "</b>"
     + " − pagado desde el corte <b>" + dinero(d.pagadoDesdeElCorte + d.liquidado) + "</b>"
     + " = <b>" + dinero(d.saldoActual) + "</b></div>"

@@ -2013,6 +2013,40 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
       pago: m.monto, garantia: 0, solidario: 0, forma: m.metodo || "efectivo",
       cuenta: String(m.fecha) >= corte, folio: m.folio });
   }
+  // LO QUE LE CORRIGIÓ DIRECCIÓN, con su motivo (Karina, 7-ago). Un pago
+  // anulado desaparece del historial —queda en cero y deja de sumar—, así que
+  // sin esto la clienta se veía como si nunca hubiera pagado y nadie podía
+  // explicar por qué. Aquí queda dicho: qué capturó la ejecutiva, en qué quedó,
+  // quién lo cambió y por qué.
+  const correcciones = [];
+  for (const a of store.ajustesCobranza()) {
+    if (!permitidas.has(a.ejecutivo)) continue;
+    const p = String(a.clave).split("|");
+    if (claveCredito(p[0], p[1]) !== clave) continue;
+    const buscar = (d) => {
+      if (!d) return null;
+      if (d.regI && d.regI[a.clave]) return d.regI[a.clave];
+      for (const cc in (d.reg || {})) if (d.reg[cc] && d.reg[cc][a.clave]) return d.reg[cc][a.clave];
+      return null;
+    };
+    const leer = (crudo) => {
+      const rec = store.snapshotsDeFecha(a.fecha, crudo)[a.ejecutivo];
+      let d = rec && rec.snapshot;
+      if (typeof d === "string") { try { d = JSON.parse(d); } catch { d = null; } }
+      const n = buscar(d);
+      return n ? { pago: n.pago || 0, garantia: n.garantia || 0, solidario: n.solidario || 0 } : null;
+    };
+    correcciones.push({
+      fecha: a.fecha,
+      ejecutivo: USUARIOS[a.ejecutivo] ? USUARIOS[a.ejecutivo].nombre : a.ejecutivo,
+      anula: !!a.anula, campo: a.campo, monto: a.monto,
+      capturo: leer(true),    // lo que capturó ella en su teléfono
+      quedo: leer(false),     // en qué quedó ya con todas las correcciones
+      motivo: a.motivo, por: a.por, ts: a.ts,
+    });
+  }
+  correcciones.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
   filas.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   const info = infoCredito(carteraViva(req.usuario), c);
   res.json({
@@ -2024,6 +2058,7 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     // la plantilla. Se devuelve aparte para poder decirlo con todas sus letras.
     pagadoAntesDelCorte: Math.round(filas.filter((x) => !x.cuenta).reduce((s, x) => s + x.pago, 0) * 100) / 100,
     historial: filas,
+    correcciones,
   });
 });
 
