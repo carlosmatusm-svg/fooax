@@ -85,6 +85,41 @@ const VALORES_INICIALES = {
     documentos: ["aval_ine", "aval_comprobante_domicilio"],
     nota: "Documentos adicionales cuando el crédito requiere aval.",
   },
+  // Campos de datos_clienta que deben estar llenos para que el expediente
+  // cuente como íntegro (LFPIORPI — diagrama "Integración del Expediente":
+  // identificación oficial, CURP, RFC, domicilio, actividad, origen de
+  // recursos). Antes de esta regla, calcularEstatus() en store_expediente.js
+  // solo revisaba documentos subidos — un expediente podía marcarse
+  // "completo" con estos campos de texto vacíos.
+  campos_pld_obligatorios: {
+    campos: [
+      "curp", "rfc", "identificacion_folio",
+      "domicilio_calle", "domicilio_numero", "domicilio_colonia", "domicilio_cp", "domicilio_estado",
+      "actividad_economica_pld", "origen_recursos",
+    ],
+    nota: "LFPIORPI por habitualidad — campos obligatorios del expediente antes de considerarlo íntegro.",
+  },
+  // Días de gracia antes de que empiece a correr la mora (R H.2 del diagrama
+  // de ciclo de vida del crédito). Sembrada en 0 porque así opera el sistema
+  // HOY (la mora corre desde el día 1) — cambiar este valor todavía NO
+  // TIENE EFECTO: ninguna parte del cálculo de mora en store.js lo lee
+  // todavía. Se deja preparada a propósito (mismo patrón ya probado con
+  // tope_responsable/checklist) para conectarla el día que Contaduría
+  // confirme el valor real — no antes, porque ese cálculo ya opera con
+  // dinero real de clientas todos los días.
+  dias_gracia: {
+    dias: 0,
+    nota: "AÚN NO CONECTADA a store.js — ver comentario en VALORES_INICIALES.dias_gracia en este archivo.",
+  },
+  // Cuántos años se conservan los datos del expediente antes de que un
+  // expediente sea candidato a anonimización (LFPIORPI: retención física
+  // obligatoria, con borrado LÓGICO — nunca DELETE). Ver
+  // reporteRetencionPLD() en store_expediente.js: es un reporte de solo
+  // lectura para revisión humana, nunca un borrado automático.
+  retencion_pld_anios: {
+    anios: 10,
+    nota: "Diagrama, box 4 'Liquidación y nueva solicitud' — retención física obligatoria por 10 años, borrado lógico.",
+  },
 };
 
 async function init() {

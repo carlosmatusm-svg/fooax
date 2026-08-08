@@ -152,12 +152,18 @@ module.exports = function montarRutasExpediente(app, { requiere, requierePuesto 
   r.post("/api/expediente/:clientaId/datos", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
     const { clientaId } = req.params;
     const datos = storeExp.guardarDatosClienta(clientaId, req.body || {});
+    // Recalcula el estatus del expediente: los campos PLD obligatorios
+    // (CURP, RFC, domicilio, actividad, origen de recursos) ahora forman
+    // parte del candado de "expediente íntegro", no solo los documentos. Si
+    // todavía no existe expediente (nunca se subió ni un documento), no hay
+    // nada que recalcular todavía — eso es normal, no un error.
+    const expediente = storeExp.recalcularExpediente(clientaId);
     storeExp.registrarBitacora({
       usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
       id_sucursal: req.usuario.id_sucursal, accion: "expediente.datos_clienta.guardar",
       entidad: "clienta", entidad_id: clientaId, detalle: { campos: Object.keys(req.body || {}) }, ip: ipDe(req),
     });
-    res.json({ ok: true, datos });
+    res.json({ ok: true, datos, expediente });
   });
 
   // ---- Ubicación física del original en papel (CU-010 §3) — la llena
@@ -227,6 +233,48 @@ module.exports = function montarRutasExpediente(app, { requiere, requierePuesto 
   r.get("/api/expediente/:clientaId/candado", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
     const { clientaId } = req.params;
     res.json(storeExp.expedienteBloqueaDesembolso(clientaId));
+  });
+
+  // ---- Derechos ARCO (LFPDPPP) — exportar o anonimizar los datos de una
+  // persona a solicitud. "Cancelación" aquí SIEMPRE es anonimización (nunca
+  // DELETE): mismo principio de "nunca se borra" que ya rige movimientos y
+  // bitácora en el resto del sistema. Exportar: Dirección/Administración
+  // pueden verlo. Anonimizar: SOLO Dirección General, y exige motivo — es
+  // irreversible sobre esos campos, aunque el renglón nunca desaparece. ----
+  r.get("/api/arco/:entidad/:entidadId/exportar", requiere("direccion", "admin"), (req, res) => {
+    const { entidad, entidadId } = req.params;
+    const resultado = storeExp.exportarPersona(entidad, entidadId);
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    storeExp.registrarSolicitudArco({ tipo: "exportar", entidad, entidad_id: entidadId, atendido_por: req.usuario.id });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "arco.exportar", entidad, entidad_id: entidadId, ip: ipDe(req),
+    });
+    res.json({ ok: true, datos: resultado.datos });
+  });
+  r.post("/api/arco/:entidad/:entidadId/anonimizar", requierePuesto("direccion_general"), (req, res) => {
+    const { entidad, entidadId } = req.params;
+    const { motivo } = req.body || {};
+    if (!motivo) return res.status(400).json({ error: "Anonimizar exige un motivo — queda en el historial de solicitudes ARCO." });
+    const resultado = storeExp.anonimizarPersona(entidad, entidadId);
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    storeExp.registrarSolicitudArco({ tipo: "anonimizar", entidad, entidad_id: entidadId, atendido_por: req.usuario.id, motivo, resultado });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "arco.anonimizar", entidad, entidad_id: entidadId, detalle: { motivo }, ip: ipDe(req),
+    });
+    res.json({ ok: true, ...resultado }); // aplana ok/responsable|aval|referencia|datos_clienta, no anida "resultado.resultado"
+  });
+  r.get("/api/arco/historial", requiere("direccion", "admin"), (req, res) => {
+    res.json({ solicitudes: storeExp.historialArco() });
+  });
+
+  // ---- Retención PLD — reporte de solo lectura de expedientes que ya
+  // cumplieron el plazo de retención (LFPIORPI, 10 años por defecto, ver
+  // motor_reglas.js). NUNCA borra ni anonimiza nada por sí solo: es para que
+  // Dirección/Administración decidan caso por caso. ----
+  r.get("/api/retencion/pld", requiere("direccion", "admin"), (req, res) => {
+    res.json(storeExp.reporteRetencionPLD());
   });
 
   // ---- Bitácora única — solo lectura, solo Dirección/Administración.

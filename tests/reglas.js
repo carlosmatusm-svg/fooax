@@ -105,8 +105,17 @@ const cid = (n) => "REGLA-" + RUN + "-" + n;
 
   const cChecklist = cid("checklist");
   const b64 = Buffer.from("doc de prueba " + RUN).toString("base64");
+  // Desde que existe el candado de campos PLD (store_expediente.js,
+  // datosClientaFaltantes), el checklist de DOCUMENTOS ya no es lo único que
+  // determina "completo" — para aislar esta prueba (que es sobre el
+  // checklist, no sobre los datos de la clienta) se llenan esos campos antes.
+  await post(U + "/api/expediente/" + cChecklist + "/datos", {
+    curp: "CHK" + RUN, rfc: "CHK" + RUN, identificacion_folio: "ID" + RUN,
+    domicilio_calle: "Calle", domicilio_numero: "1", domicilio_colonia: "Centro", domicilio_cp: "68000", domicilio_estado: "Oaxaca",
+    actividad_economica_pld: "Comercio", origen_recursos: "Negocio propio",
+  }, cEje);
   const rDoc = await j(await fetch(U + "/api/expediente/" + cChecklist + "/documento", { method: "POST", headers: { "Content-Type": "application/json", Cookie: cEje }, body: JSON.stringify({ tipo: "ine", propietario: "solicitante", contenido_base64: b64 }) }));
-  ok("con el checklist reducido a un solo documento, subir SOLO ese documento ya deja el expediente 'completo'",
+  ok("con el checklist reducido a un solo documento (y los datos PLD ya completos), subir SOLO ese documento ya deja el expediente 'completo'",
     rDoc.ok === true && rDoc.expediente && rDoc.expediente.estatus === "completo", JSON.stringify(rDoc.expediente));
 
   console.log("\n— G. SE REVIERTEN LOS CAMBIOS — para no afectar otras pruebas ni quedar como valor 'de prueba' —");

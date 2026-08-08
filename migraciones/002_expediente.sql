@@ -91,13 +91,19 @@ CREATE TABLE IF NOT EXISTS expedientes (
   validado_ts bigint,
   motivo_rechazo text,
   folio_fisico text,
-  ubicacion_fisica text
+  ubicacion_fisica text,
+  requiere_aval boolean NOT NULL DEFAULT false
 );
 -- Nota de despliegue: si esta tabla ya existía en Railway ANTES de este
--- cambio, agregar las dos columnas nuevas a mano (CREATE TABLE IF NOT
+-- cambio, agregar las columnas nuevas a mano (CREATE TABLE IF NOT
 -- EXISTS no las agrega a una tabla que ya existe):
 --   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS folio_fisico text;
 --   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS ubicacion_fisica text;
+--   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS requiere_aval boolean NOT NULL DEFAULT false;
+-- requiere_aval es "pegajoso": recalcularExpediente() (store_expediente.js)
+-- lo reutiliza cuando algo distinto de subir un documento dispara un
+-- recálculo del checklist (ej. guardar datos de la clienta) — sin esto, ese
+-- recálculo no sabría si el crédito llevaba aval o no.
 
 -- Las TRES firmas, siempre separadas (LFPDPPP 2025 + Art. 28 LRSIC). Nunca
 -- una casilla de verificación — cada firma lleva su propio sello.

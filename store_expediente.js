@@ -11,7 +11,10 @@
 // no acoplar los dos módulos — el costo (una conexión extra) es mínimo.
 const fs = require("fs");
 const path = require("path");
-const { cifrar, descifrar } = require("./cifrado");
+const { cifrar } = require("./cifrado");
+// descifrar existe en cifrado.js para cuando se construya una función real de
+// "ver/descargar documento" — hoy nada lo necesita (documentosDeClienta nunca
+// regresa el contenido), así que no se importa para no dejar un import muerto.
 const motorReglas = require("./motor_reglas");
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
@@ -35,6 +38,7 @@ const mem = {
   // sin migrar el esquema cada vez. Las piezas ya validadas y estables
   // (responsables, avales, documentos, firmas) sí son columnas normales.
   datos_clienta: {},       // clienta_id -> { clienta_id, datos: {...}, actualizado_ts }
+  solicitudes_arco: [],    // { id, tipo, entidad, entidad_id, solicitado_por, atendido_por, motivo, ts_solicitud, resultado }
   _seq: 1,
 };
 
@@ -57,6 +61,7 @@ function recalcularSecuencia() {
     ...mem.documentos.map((d) => d.id),
     ...mem.firmas.map((f) => f.id),
     ...mem.bitacora.map((b) => b.id),
+    ...mem.solicitudes_arco.map((s) => s.id),
   ];
   mem._seq = ids.length ? Math.max(...ids) + 1 : 1;
 }
@@ -103,6 +108,7 @@ function persistirTodo() {
   escribirJSON("expediente_firmas.json", mem.firmas);
   escribirJSON("expediente_bitacora.json", mem.bitacora);
   escribirJSON("expediente_datos_clienta.json", mem.datos_clienta);
+  escribirJSON("expediente_solicitudes_arco.json", mem.solicitudes_arco);
 }
 
 // ---------- arranque ----------
@@ -162,15 +168,24 @@ async function init() {
     await pool.query(`CREATE TABLE IF NOT EXISTS expedientes (
       clienta_id text PRIMARY KEY, id_sucursal text, checklist jsonb NOT NULL DEFAULT '{}',
       estatus text NOT NULL DEFAULT 'incompleto', validado_por text, validado_ts bigint, motivo_rechazo text,
-      folio_fisico text, ubicacion_fisica text
+      folio_fisico text, ubicacion_fisica text, requiere_aval boolean NOT NULL DEFAULT false
     )`);
     // Nota de despliegue: si esta tabla ya existía ANTES de este cambio (con
     // Railway ya corriendo), CREATE TABLE IF NOT EXISTS no le agrega las
     // columnas nuevas — hay que correr a mano:
     //   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS folio_fisico text;
     //   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS ubicacion_fisica text;
+    //   ALTER TABLE expedientes ADD COLUMN IF NOT EXISTS requiere_aval boolean NOT NULL DEFAULT false;
     // Como este módulo aún no se ha desplegado, hoy no aplica — se deja la
     // nota para quien lo despliegue después de que ya esté en producción.
+    // Solicitudes de Derechos ARCO (exportar/anonimizar) — trazabilidad de
+    // quién pidió qué y quién lo atendió, aparte de la bitácora general
+    // (aquí se agrupa todo lo de una misma solicitud en un solo renglón).
+    await pool.query(`CREATE TABLE IF NOT EXISTS solicitudes_arco (
+      id serial PRIMARY KEY, tipo text NOT NULL, entidad text NOT NULL, entidad_id text NOT NULL,
+      solicitado_por text, atendido_por text NOT NULL, motivo text,
+      ts_solicitud bigint NOT NULL, resultado jsonb
+    )`);
     await pool.query(`CREATE TABLE IF NOT EXISTS firmas (
       id serial PRIMARY KEY, clienta_id text NOT NULL, tipo text NOT NULL, ts bigint NOT NULL,
       gps text, dispositivo text, version_aviso text
@@ -202,6 +217,8 @@ async function init() {
     mem.bitacora = bit.rows;
     const doc = await pool.query("SELECT id, clienta_id, tipo, propietario, creado_ts, creado_por FROM documentos");
     mem.documentos = doc.rows; // sin contenido_cifrado/iv/auth_tag: no hace falta en memoria solo para listar/contar
+    const arco = await pool.query("SELECT * FROM solicitudes_arco ORDER BY id");
+    mem.solicitudes_arco = arco.rows;
     recalcularSecuencia();
     console.log(`[store_expediente] PostgreSQL listo · ${mem.responsables.length} responsables, ${mem.avales.length} avales, ${mem.documentos.length} documentos, ${mem.bitacora.length} eventos de bitácora`);
   } else {
@@ -214,6 +231,7 @@ async function init() {
     mem.firmas = leerJSON("expediente_firmas.json", []);
     mem.bitacora = leerJSON("expediente_bitacora.json", []);
     mem.datos_clienta = leerJSON("expediente_datos_clienta.json", {});
+    mem.solicitudes_arco = leerJSON("expediente_solicitudes_arco.json", []);
     mem.documentos = cargarDocumentosDesdeDisco(); // ver comentario en la función: antes quedaba vacío tras reiniciar
     recalcularSecuencia();
     console.log(`[store_expediente] archivos locales · ${mem.responsables.length} responsables, ${mem.avales.length} avales, ${mem.documentos.length} documentos`);
@@ -418,35 +436,67 @@ function checklistRequerido(requiereAval) {
   const aval = motorReglas.obtenerConRespaldo("checklist_aval", { documentos: CHECKLIST_AVAL }).valor.documentos;
   return requiereAval ? [...base, ...aval] : base;
 }
+// Campos de datos_clienta (identidad, domicilio, actividad, origen de
+// recursos) que la LFPIORPI exige antes de considerar íntegro el expediente
+// (diagrama "Integración del Expediente"). Antes de esto, el checklist solo
+// revisaba documentos — un expediente podía marcarse "completo" con estos
+// campos de texto vacíos.
+function datosClientaFaltantes(clientaId) {
+  const regla = motorReglas.obtenerConRespaldo("campos_pld_obligatorios", motorReglas.VALORES_INICIALES.campos_pld_obligatorios);
+  const datos = (obtenerDatosClienta(clientaId) || {}).datos || {};
+  const faltantes = regla.valor.campos.filter((c) => datos[c] === undefined || datos[c] === null || String(datos[c]).trim() === "");
+  return { faltantes, regla };
+}
 function calcularEstatus(clientaId, requiereAval) {
   const docs = new Set(documentosDeClienta(clientaId).map((d) => `${d.propietario}_${d.tipo}`));
   const requeridos = checklistRequerido(requiereAval);
-  const faltantes = requeridos.filter((k) => !docs.has(k));
+  const faltantesDocs = requeridos.filter((k) => !docs.has(k));
+  const { faltantes: faltantesDatos } = datosClientaFaltantes(clientaId);
+  // Se distinguen con el prefijo "dato:" para que quien lea el checklist (la
+  // pantalla, la bitácora, estas mismas pruebas) sepa si lo que falta es
+  // subir un documento o llenar un campo — son acciones distintas.
+  const faltantes = [...faltantesDocs, ...faltantesDatos.map((c) => `dato:${c}`)];
   return { estatus: faltantes.length === 0 ? "completo" : "incompleto", faltantes };
 }
 function obtenerExpediente(clientaId) {
   return mem.expedientes[String(clientaId)] || null;
 }
-function actualizarExpediente(clientaId, { id_sucursal, requiereAval }) {
-  const { estatus, faltantes } = calcularEstatus(clientaId, requiereAval);
-  // Se preserva folio_fisico/ubicacion_fisica del registro anterior: esta
-  // función se llama cada vez que se sube un documento, y si reconstruyera el
-  // registro desde cero perdería lo que Karina Merced ya haya anotado sobre
-  // dónde quedó resguardado el papel (CU-010 §3).
+function actualizarExpediente(clientaId, { id_sucursal, requiereAval } = {}) {
   const anterior = mem.expedientes[String(clientaId)] || {};
+  // requiereAval es "pegajoso": si no se manda explícitamente (ej. al
+  // recalcular por un cambio de datos_clienta, no por subir un documento), se
+  // reutiliza el último valor conocido — así ningún recálculo "olvida" que un
+  // crédito llevaba aval solo porque quien lo disparó no lo sabía.
+  const requiereAvalFinal = requiereAval !== undefined ? !!requiereAval : !!anterior.requiere_aval;
+  const { estatus, faltantes } = calcularEstatus(clientaId, requiereAvalFinal);
+  // Se preserva folio_fisico/ubicacion_fisica del registro anterior: esta
+  // función se llama cada vez que se sube un documento (o se editan los datos
+  // de la clienta), y si reconstruyera el registro desde cero perdería lo que
+  // Karina Merced ya haya anotado sobre dónde quedó resguardado el papel
+  // (CU-010 §3).
   const row = { clienta_id: String(clientaId), id_sucursal: id_sucursal || anterior.id_sucursal || null,
-    checklist: { requeridos: checklistRequerido(requiereAval), faltantes }, estatus,
+    checklist: { requeridos: checklistRequerido(requiereAvalFinal), faltantes }, estatus,
+    requiere_aval: requiereAvalFinal,
     validado_por: null, validado_ts: null, motivo_rechazo: null,
     folio_fisico: anterior.folio_fisico || null, ubicacion_fisica: anterior.ubicacion_fisica || null };
   mem.expedientes[String(clientaId)] = row;
   if (usePg) {
     pool.query(
-      "INSERT INTO expedientes (clienta_id, id_sucursal, checklist, estatus, folio_fisico, ubicacion_fisica) VALUES ($1,$2,$3,$4,$5,$6) " +
-      "ON CONFLICT (clienta_id) DO UPDATE SET id_sucursal=$2, checklist=$3, estatus=$4",
-      [row.clienta_id, row.id_sucursal, row.checklist, row.estatus, row.folio_fisico, row.ubicacion_fisica]
+      "INSERT INTO expedientes (clienta_id, id_sucursal, checklist, estatus, requiere_aval, folio_fisico, ubicacion_fisica) VALUES ($1,$2,$3,$4,$5,$6,$7) " +
+      "ON CONFLICT (clienta_id) DO UPDATE SET id_sucursal=$2, checklist=$3, estatus=$4, requiere_aval=$5",
+      [row.clienta_id, row.id_sucursal, row.checklist, row.estatus, row.requiere_aval, row.folio_fisico, row.ubicacion_fisica]
     ).catch((e) => console.error("[store_expediente] expediente:", e.message));
   } else persistirTodo();
   return row;
+}
+// Recalcula el estatus SIN cambiar si requiere aval o no (reutiliza el valor
+// ya guardado) — la usa cualquier ruta que edite el expediente sin ser "subir
+// un documento" (por ahora, guardar datos de la clienta). Si todavía no
+// existe expediente (nunca se subió ni un documento), no hay nada que
+// recalcular: null, no error.
+function recalcularExpediente(clientaId) {
+  if (!mem.expedientes[String(clientaId)]) return null;
+  return actualizarExpediente(clientaId, {});
 }
 // Dónde quedó resguardado el original en papel (CU-010 §3: "el expediente
 // físico y el digital deben poder rastrearse juntos"). Lo llena Control
@@ -544,6 +594,114 @@ function tieneFirma(clientaId, tipo) {
   return firmasDeClienta(clientaId).some((f) => f.tipo === tipo);
 }
 
+// ---------- Derechos ARCO (Acceso, Rectificación, Cancelación, Oposición) ----------
+// "Cancelación" aquí SIEMPRE es anonimización, nunca DELETE — mismo principio
+// de "nunca se borra" que ya rige movimientos y bitácora en todo el sistema.
+const ENTIDADES_ARCO = ["clienta", "responsable", "aval", "referencia"];
+const MARCADOR_ANONIMIZADO = "[ANONIMIZADO]";
+
+function exportarPersona(entidad, entidadId) {
+  if (!ENTIDADES_ARCO.includes(entidad)) return { ok: false, error: "Entidad no reconocida: " + entidad };
+  if (entidad === "clienta") {
+    const clientaId = String(entidadId);
+    return { ok: true, datos: {
+      expediente: obtenerExpediente(clientaId), datos_clienta: obtenerDatosClienta(clientaId),
+      documentos: documentosDeClienta(clientaId), firmas: firmasDeClienta(clientaId), referencias: referenciasDeClienta(clientaId),
+      vinculos_responsable: mem.clientas_responsables.filter((v) => v.clienta_id === clientaId),
+      vinculos_aval: mem.clientas_avales.filter((v) => v.clienta_id === clientaId),
+    } };
+  }
+  if (entidad === "responsable") {
+    const row = obtenerResponsable(entidadId);
+    if (!row) return { ok: false, error: "No existe esa responsable." };
+    return { ok: true, datos: { responsable: row, clientas_respaldadas: mem.clientas_responsables.filter((v) => v.responsable_id === row.id) } };
+  }
+  if (entidad === "aval") {
+    const row = obtenerAval(entidadId);
+    if (!row) return { ok: false, error: "No existe ese aval." };
+    return { ok: true, datos: { aval: row, clientas_respaldadas: mem.clientas_avales.filter((v) => v.aval_id === row.id) } };
+  }
+  const row = mem.referencias.find((r) => r.id === Number(entidadId));
+  if (!row) return { ok: false, error: "No existe esa referencia." };
+  return { ok: true, datos: { referencia: row } };
+}
+
+function anonimizarFilaPersona(row, tabla) {
+  row.nombre = MARCADOR_ANONIMIZADO; row.curp = null; row.telefono = null;
+  row.domicilio = null; row.ocupacion = null; row.identificacion = null;
+  if (usePg) {
+    pool.query(`UPDATE ${tabla} SET nombre=$2, curp=NULL, telefono=NULL, domicilio=NULL, ocupacion=NULL, identificacion=NULL WHERE id=$1`,
+      [row.id, MARCADOR_ANONIMIZADO]).catch((e) => console.error(`[store_expediente] anonimizar ${tabla}:`, e.message));
+  } else persistirTodo();
+}
+function anonimizarDatosClienta(clientaId) {
+  const row = { clienta_id: String(clientaId), datos: { anonimizado: true, anonimizado_ts: Date.now() }, actualizado_ts: Date.now() };
+  mem.datos_clienta[row.clienta_id] = row;
+  if (usePg) {
+    pool.query("INSERT INTO datos_clienta (clienta_id, datos, actualizado_ts) VALUES ($1,$2,$3) ON CONFLICT (clienta_id) DO UPDATE SET datos=$2, actualizado_ts=$3",
+      [row.clienta_id, row.datos, row.actualizado_ts]).catch((e) => console.error("[store_expediente] anonimizar datos_clienta:", e.message));
+  } else persistirTodo();
+  return row;
+}
+function anonimizarPersona(entidad, entidadId) {
+  if (!ENTIDADES_ARCO.includes(entidad)) return { ok: false, error: "Entidad no reconocida: " + entidad };
+  if (entidad === "clienta") return { ok: true, datos_clienta: anonimizarDatosClienta(entidadId) };
+  if (entidad === "responsable") {
+    const row = obtenerResponsable(entidadId);
+    if (!row) return { ok: false, error: "No existe esa responsable." };
+    anonimizarFilaPersona(row, "responsables");
+    return { ok: true, responsable: row };
+  }
+  if (entidad === "aval") {
+    const row = obtenerAval(entidadId);
+    if (!row) return { ok: false, error: "No existe ese aval." };
+    anonimizarFilaPersona(row, "avales");
+    return { ok: true, aval: row };
+  }
+  const row = mem.referencias.find((r) => r.id === Number(entidadId));
+  if (!row) return { ok: false, error: "No existe esa referencia." };
+  row.nombre = MARCADOR_ANONIMIZADO; row.curp = null; row.telefono = null;
+  if (usePg) {
+    pool.query("UPDATE referencias SET nombre=$2, curp=NULL, telefono=NULL WHERE id=$1", [row.id, MARCADOR_ANONIMIZADO])
+      .catch((e) => console.error("[store_expediente] anonimizar referencia:", e.message));
+  } else persistirTodo();
+  return { ok: true, referencia: row };
+}
+function registrarSolicitudArco({ tipo, entidad, entidad_id, solicitado_por, atendido_por, motivo, resultado }) {
+  const row = { id: siguienteId(), tipo, entidad, entidad_id: String(entidad_id), solicitado_por: solicitado_por || null,
+    atendido_por, motivo: motivo || null, ts_solicitud: Date.now(), resultado: resultado || null };
+  mem.solicitudes_arco.push(row);
+  if (usePg) {
+    pool.query("INSERT INTO solicitudes_arco (id, tipo, entidad, entidad_id, solicitado_por, atendido_por, motivo, ts_solicitud, resultado) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+      [row.id, row.tipo, row.entidad, row.entidad_id, row.solicitado_por, row.atendido_por, row.motivo, row.ts_solicitud, row.resultado])
+      .catch((e) => console.error("[store_expediente] solicitud ARCO:", e.message));
+  } else persistirTodo();
+  return row;
+}
+function historialArco() { return mem.solicitudes_arco; }
+
+// ---------- retención PLD (reporte de solo lectura, NUNCA borra ni anonimiza) ----------
+// LFPIORPI: retención física obligatoria (10 años por defecto — ver
+// motor_reglas.js "retencion_pld_anios") con borrado lógico. Esta función
+// solo SEÑALA candidatos para que Dirección/Administración decida caso por
+// caso — nunca actúa por sí sola.
+function reporteRetencionPLD() {
+  const regla = motorReglas.obtenerConRespaldo("retencion_pld_anios", motorReglas.VALORES_INICIALES.retencion_pld_anios);
+  const limiteMs = regla.valor.anios * 365.25 * 24 * 60 * 60 * 1000;
+  const ahora = Date.now();
+  const candidatos = [];
+  for (const clientaId of Object.keys(mem.expedientes)) {
+    const fechas = [...firmasDeClienta(clientaId).map((f) => f.ts), ...documentosDeClienta(clientaId).map((d) => d.creado_ts)];
+    if (!fechas.length) continue;
+    const masReciente = Math.max(...fechas);
+    if (ahora - masReciente >= limiteMs) {
+      candidatos.push({ clienta_id: clientaId, ultima_actividad_ts: masReciente,
+        anios_desde_ultima_actividad: Math.floor((ahora - masReciente) / (365.25 * 24 * 60 * 60 * 1000)) });
+    }
+  }
+  return { regla: { clave: regla.clave, version: regla.version, anios: regla.valor.anios }, candidatos };
+}
+
 module.exports = {
   init,
   registrarBitacora, bitacora,
@@ -551,11 +709,13 @@ module.exports = {
   vincularResponsable, vincularAval, contarClientasActivas,
   crearReferencia, referenciasDeClienta,
   guardarDocumento, documentosDeClienta,
-  checklistRequerido, calcularEstatus, obtenerExpediente, actualizarExpediente,
+  checklistRequerido, calcularEstatus, datosClientaFaltantes, obtenerExpediente, actualizarExpediente, recalcularExpediente,
   registrarUbicacionFisica, DOMICILIO_INSTITUCIONAL,
   expedienteBloqueaDesembolso, validarExpediente,
   registrarFirma, firmasDeClienta, tieneFirma,
   guardarDatosClienta, obtenerDatosClienta,
+  exportarPersona, anonimizarPersona, registrarSolicitudArco, historialArco,
+  reporteRetencionPLD,
   // expuesto para pruebas / diagnóstico, nunca para lógica de negocio nueva:
   _mem: mem,
 };

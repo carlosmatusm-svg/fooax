@@ -109,7 +109,13 @@ const cid = (n) => "EXP-" + RUN + "-" + n; // ids de clienta de prueba, solo par
     ok("se guarda documento " + propietario + "_" + tipo, r.ok === true, JSON.stringify(r).slice(0, 90));
     expDespues = r.expediente;
   }
-  ok("el checklist queda COMPLETO tras subir todo lo requerido (sin aval)", expDespues && expDespues.estatus === "completo", JSON.stringify(expDespues && expDespues.checklist));
+  // Candado de campos PLD (LFPIORPI, diagrama "Integración del Expediente"):
+  // subir todos los documentos YA NO basta — el expediente sigue incompleto
+  // mientras falten CURP, RFC, domicilio, actividad y origen de recursos de
+  // la clienta (calcularEstatus / datosClientaFaltantes en store_expediente.js).
+  ok("los documentos NO bastan por sí solos: el expediente sigue INCOMPLETO por faltar datos PLD de la clienta",
+    expDespues && expDespues.estatus === "incompleto" && (expDespues.checklist.faltantes || []).some((f) => f.startsWith("dato:")),
+    JSON.stringify(expDespues && expDespues.checklist));
 
   const rDocs = await j(await fetch(U + "/api/expediente/" + c1, { headers: H(cEje) }));
   ok("el detalle del expediente lista documentos SOLO con metadatos (nunca el contenido)", Array.isArray(rDocs.documentos) && rDocs.documentos.length === docs.length && !rDocs.documentos.some((d) => "contenido" in d || "contenido_cifrado" in d), "documentos " + JSON.stringify(rDocs.documentos).slice(0, 120));
@@ -119,11 +125,20 @@ const cid = (n) => "EXP-" + RUN + "-" + n; // ids de clienta de prueba, solo par
   console.log("\n— E2. DATOS DE LA CLIENTA — identidad, domicilio, negocio, PLD/PEP (CU-009 §3) —");
   const rDatos1 = await j(await post(U + "/api/expediente/" + c1 + "/datos", { nombre_completo: "Clienta de Prueba " + RUN, curp: "CLIE" + RUN, telefono_movil: "9511111111" }, cEje));
   ok("guarda la primera tanda de datos de identidad", rDatos1.ok === true && rDatos1.datos.datos.nombre_completo === "Clienta de Prueba " + RUN, JSON.stringify(rDatos1).slice(0, 150));
+  ok("con solo CURP lleno, el expediente sigue incompleto (faltan más campos PLD)", rDatos1.expediente && rDatos1.expediente.estatus === "incompleto", JSON.stringify(rDatos1.expediente));
 
   const rDatos2 = await j(await post(U + "/api/expediente/" + c1 + "/datos", { domicilio_calle: "Calle Falsa", domicilio_cp: "68000", negocio_giro: "Abarrotes", es_pep: false }, cEje));
   ok("guardar una SEGUNDA tanda no borra la primera (merge, no reemplazo)",
     rDatos2.ok === true && rDatos2.datos.datos.nombre_completo === "Clienta de Prueba " + RUN && rDatos2.datos.datos.domicilio_calle === "Calle Falsa",
     JSON.stringify(rDatos2).slice(0, 200));
+
+  const rDatos3 = await j(await post(U + "/api/expediente/" + c1 + "/datos", {
+    rfc: "RFCX" + RUN, identificacion_folio: "ID" + RUN, domicilio_numero: "123", domicilio_colonia: "Centro",
+    domicilio_estado: "Oaxaca", actividad_economica_pld: "Comercio al por menor", origen_recursos: "Venta de abarrotes",
+  }, cEje));
+  ok("al completar TODOS los campos PLD obligatorios, el expediente pasa a COMPLETO sin subir más documentos",
+    rDatos3.ok === true && rDatos3.expediente && rDatos3.expediente.estatus === "completo",
+    JSON.stringify(rDatos3.expediente));
 
   const rDetalleConDatos = await j(await fetch(U + "/api/expediente/" + c1, { headers: H(cEje) }));
   ok("el detalle del expediente trae los datos de la clienta acumulados",
@@ -174,6 +189,47 @@ const cid = (n) => "EXP-" + RUN + "-" + n; // ids de clienta de prueba, solo par
   ok("dirección SÍ puede leer la bitácora", Array.isArray(rBitSi.eventos), JSON.stringify(rBitSi).slice(0, 90));
   ok("la bitácora tiene un evento por cada acción relevante de esta corrida", (rBitSi.eventos || []).length >= docs.length + 3, "eventos " + (rBitSi.eventos || []).length);
   ok("la bitácora registra QUIÉN hizo cada acción", (rBitSi.eventos || []).every((e) => !!e.usuario), "faltó usuario en algún evento");
+
+  console.log("\n— J. DERECHOS ARCO (LFPDPPP) — exportar y anonimizar, NUNCA borrar —");
+  const rArcoNoLee = await fetch(U + "/api/arco/clienta/" + c1 + "/exportar", { headers: H(cEje) });
+  ok("la ejecutiva NO puede exportar datos ARCO (403)", rArcoNoLee.status === 403, "status " + rArcoNoLee.status);
+
+  const rArcoExport = await j(await fetch(U + "/api/arco/clienta/" + c1 + "/exportar", { headers: H(cDir) }));
+  ok("dirección puede exportar todo lo guardado de una clienta (datos, documentos, firmas, referencias)",
+    rArcoExport.ok === true && rArcoExport.datos.datos_clienta.datos.curp === "CLIE" + RUN
+    && Array.isArray(rArcoExport.datos.documentos) && Array.isArray(rArcoExport.datos.firmas) && Array.isArray(rArcoExport.datos.referencias),
+    JSON.stringify(Object.keys(rArcoExport.datos || {})));
+
+  const rArcoExportResp = await j(await fetch(U + "/api/arco/responsable/" + respId + "/exportar", { headers: H(cAdmin) }));
+  ok("administración/finanzas puede exportar los datos de una responsable", rArcoExportResp.ok === true && rArcoExportResp.datos.responsable.id === respId, JSON.stringify(rArcoExportResp).slice(0, 120));
+
+  const rAnonimSinMotivo = await post(U + "/api/arco/responsable/" + respId + "/anonimizar", {}, cDir);
+  ok("anonimizar SIN motivo se rechaza (400 — el motivo queda en el historial)", rAnonimSinMotivo.status === 400, "status " + rAnonimSinMotivo.status);
+
+  const rAnonimNoPuesto = await post(U + "/api/arco/responsable/" + respId + "/anonimizar", { motivo: "prueba" }, cAdmin);
+  ok("administración/finanzas NO puede anonimizar (403 — solo Dirección General)", rAnonimNoPuesto.status === 403, "status " + rAnonimNoPuesto.status);
+
+  const rAnonim = await j(await post(U + "/api/arco/responsable/" + respId + "/anonimizar", { motivo: "prueba automatizada tests/expediente.js" }, cDir));
+  ok("Dirección General SÍ puede anonimizar (nombre/CURP/teléfono se sustituyen, el renglón NO se borra)",
+    rAnonim.ok === true && rAnonim.responsable.id === respId && rAnonim.responsable.nombre === "[ANONIMIZADO]" && rAnonim.responsable.curp === null,
+    JSON.stringify(rAnonim).slice(0, 150));
+
+  const rBuscaRespTrasAnonim = await j(await fetch(U + "/api/responsables?q=" + encodeURIComponent("Responsable Prueba " + RUN), { headers: H(cEje) }));
+  ok("tras anonimizar, ya no se encuentra por su nombre anterior (pero el id sigue vivo para el tope)",
+    !(rBuscaRespTrasAnonim.resultados || []).some((x) => x.id === respId), JSON.stringify(rBuscaRespTrasAnonim));
+
+  const rHistArco = await j(await fetch(U + "/api/arco/historial", { headers: H(cDir) }));
+  ok("el historial de solicitudes ARCO registra la exportación y la anonimización",
+    Array.isArray(rHistArco.solicitudes) && rHistArco.solicitudes.some((s) => s.tipo === "exportar") && rHistArco.solicitudes.some((s) => s.tipo === "anonimizar" && s.motivo),
+    JSON.stringify(rHistArco).slice(0, 200));
+
+  console.log("\n— K. RETENCIÓN PLD — reporte de solo lectura, nunca borra nada —");
+  const rRetNoLee = await fetch(U + "/api/retencion/pld", { headers: H(cEje) });
+  ok("la ejecutiva no puede ver el reporte de retención (403)", rRetNoLee.status === 403, "status " + rRetNoLee.status);
+  const rRet = await j(await fetch(U + "/api/retencion/pld", { headers: H(cDir) }));
+  ok("el reporte trae la regla vigente (10 años por defecto)", rRet.regla && rRet.regla.anios === 10, JSON.stringify(rRet.regla));
+  ok("una clienta recién capturada NO aparece como candidata (su actividad es de hoy, no de hace 10 años)",
+    Array.isArray(rRet.candidatos) && !rRet.candidatos.some((c) => c.clienta_id === c1), JSON.stringify(rRet.candidatos).slice(0, 150));
 
   console.log("\n— RESULTADO —");
   console.log(`  ${PASS_N} pruebas OK, ${FAIL_N} fallidas.`);
