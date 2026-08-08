@@ -3628,6 +3628,15 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
   res.type("html").send(out);
 });
+// Módulo nuevo de expediente y originación (CU-009, CU-010) — página propia,
+// separada de /app (cobranza) y /tablero (dirección). Usa la MISMA
+// paginaRequiere ya existente; no depende de nada del branch de backend.
+app.get("/expediente", paginaRequiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const archivo = path.join(__dirname, "apps", "App_Expediente_Originacion.html");
+  if (!fs.existsSync(archivo)) return res.status(404).send("Aún no existe la pantalla de expediente.");
+  res.sendFile(archivo);
+});
+
 app.get("/tablero", paginaRequiere("direccion", "admin"), (req, res) => {
   // El tablero vive FUERA de public/: express.static servía /tablero.html a
   // cualquiera sin sesión (fuga del código y la estructura del panel de
