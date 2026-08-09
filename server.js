@@ -4186,6 +4186,48 @@ function repararCarteraJulio() {
   }
 }
 
+// Reparación ÚNICA del sábado 8-ago-2026. Ese día entraron liquidaciones que no
+// dijeron a qué crédito iban (el movimiento sólo guardaba el socio), así que el
+// sistema las repartió entre los créditos de la socia en orden fijo y se las
+// comió el primero. Resultado: un crédito ya pagado seguía debiendo, y otro
+// aparecía rebajado de más.
+//
+// El crédito correcto NO se adivina: se dedujo con la cuenta que empata al peso
+//   saldo del crédito − cuota que pagó esa semana = monto de la liquidación
+// y en las dos de aquí abajo el resultado es único (ningún otro crédito suyo da
+// ese número). Las que NO empatan solas se dejan fuera a propósito: las contesta
+// la ejecutiva que cobró, no una corazonada.
+//
+// No se mueve un peso: el monto es el mismo. Sólo se dice a qué crédito
+// pertenece, que era el dato que faltaba. Corre una sola vez (centinela).
+function repararLiquidacionesDel8ago() {
+  const CENTINELA = "MIGR-LIQ-CREDITO-2026-08-08";
+  if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;   // ya aplicada
+  const FIX = [
+    // folio,                          socio,          crédito al que iba,   comprobación
+    ["EJE-CHRISTOPHER-CHR-0808-01", "11112847319", "Micro-Especial",  "12,968 − 1,621 = 11,347"],
+    ["EJE-CHRISTOPHER-CHR-0808-02", "11113102023", "Grupal-Micro",    "3,520 − 320 = 3,200"],
+  ];
+  let n = 0;
+  for (const [folio, socio, producto, cuenta] of FIX) {
+    const m = store.todosMovimientos().find((x) => x.folio === folio);
+    if (!m) { console.error("[reparación 8-ago] no encuentro el movimiento " + folio); continue; }
+    if (String(m.socio || "") !== socio) { console.error("[reparación 8-ago] " + folio + " no es de la socia " + socio); continue; }
+    if (m.producto) continue;                        // ya tiene crédito: no se pisa
+    // El crédito tiene que existir y ser de ella: si el padrón cambió, mejor no tocar nada.
+    const cred = PADRON.find((c) => String(c.id).split("|")[0] === socio
+      && norm(c.producto) === norm(producto) && c.activa !== false && c.estatus !== "BAJA");
+    if (!cred) { console.error("[reparación 8-ago] " + socio + " ya no tiene activo un \"" + producto + "\""); continue; }
+    store.corregirMovimiento(folio, { producto: cred.producto,
+      productoPor: "Karina (desarrollo) · autorizado por Karina el 8-ago",
+      productoMotivo: "La liquidación era de este crédito y el sistema se la aplicó a otro. " + cuenta });
+    n++;
+  }
+  store.agregarMovimiento({ folio: CENTINELA, fecha: "2000-01-01", monto: 0,
+    concepto: "migración", anulado: true, usuario: "karina", ts: Date.now() });
+  console.log(`[reparación] liquidaciones del 8-ago: ${n} movimientos ligados a su crédito`);
+}
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
@@ -4193,6 +4235,7 @@ store.init().then(() => {
   repararAnuladosFalsos();
   repararCapturaKarina24jul();
   reasignarMarthaPatricia30jul();
+  repararLiquidacionesDel8ago();
   repararCarteraJulio();
   aplicarCorteDeLaPlantilla();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));

@@ -490,6 +490,17 @@ module.exports = {
     if (!m) return false;
     if ("metodo" in campos && campos.metodo) m.metodo = campos.metodo;
     if ("cheque" in campos) m.cheque = campos.cheque || null;
+    // A QUÉ CRÉDITO va una liquidación. Se puede corregir después porque los
+    // movimientos anteriores al 8-ago-2026 no lo traen: se guardaba sólo el
+    // socio y el abono acababa en el crédito equivocado. Queda con quién y por
+    // qué lo corrigió — el monto no se toca, sólo se dice a dónde pertenece.
+    if ("producto" in campos) {
+      m.productoAnterior = m.producto || null;
+      m.producto = campos.producto || null;
+      if (campos.productoPor) m.productoPor = campos.productoPor;
+      if (campos.productoMotivo) m.productoMotivo = campos.productoMotivo;
+      m.productoTs = Date.now();
+    }
     if (usePg) {
       pool.query("UPDATE movimientos SET data=$2 WHERE folio=$1", [folio, m])
         .catch((e) => console.error("[store] corregir:", e.message));
