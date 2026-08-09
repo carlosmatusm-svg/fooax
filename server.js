@@ -313,6 +313,13 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
       // socio: para poder ligar una LIQUIDACIÓN al crédito de esa clienta y
       // bajarle el saldo. Antes sólo iba dentro del texto del concepto.
       socio: m.socio ? String(m.socio) : null,
+      // producto: CUÁL de sus créditos. La llave de un crédito es socio+producto
+      // y ~146 socias tienen más de uno. La app SIEMPRE mostró el crédito en el
+      // selector ("NOMBRE (Grupal-Micro)"), pero al guardar se quedaba solo con
+      // el socio y tiraba `sub`: la liquidación se repartía al primer crédito en
+      // orden alfabético, no al que la clienta liquidó. El sábado 8-ago entraron
+      // así y le bajaron el saldo al crédito equivocado (lo cachó Karina).
+      producto: m.producto ? String(m.producto) : null,
       autorizadoA: m.clienta || null,
       registradoPor: usuario.nombre, rol: usuario.rol, usuario: usuario.id, ts: Date.now(),
     };
@@ -1072,6 +1079,11 @@ function carteraViva(usuario) {
   const { pago: pagos, gar: garantias, porFecha } = pagosDeLaSemana(usuario, corte);
   const fechasLiq = {};   // socio → día → monto liquidado/recuperado
   const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario, corte, fechasLiq));
+  // LO QUE YA DICE A QUÉ CRÉDITO VA. Desde el 8-ago-2026 el movimiento guarda el
+  // producto, así que la liquidación le baja al crédito que la clienta liquidó y
+  // no al primero de la lista. Lo de antes (sin producto) se sigue repartiendo
+  // igual que siempre: cambiarles la regla movería saldos de toda la cartera.
+  const ligadas = liquidacionesLigadas(usuario, corte);
   const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
     .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) ||
       String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
@@ -1095,9 +1107,15 @@ function carteraViva(usuario) {
     // fijo. Lo que ya consumió el ciclo cerrado se aparta antes de repartir.
     const usado = liqRestante["__usado__" + soc] || (liqRestante["__usado__" + soc] = 0);
     const bolsa = Object.values(fechasLiq[soc] || {}).reduce((a, b) => a + b, 0);
-    const disp = Math.max(0, bolsa - usado - (prev ? (prev.liq || 0) : 0));
-    const liquidado = Math.min(disp, Math.max(0, (c.saldo || 0) - pagado));
-    if (liquidado > 0) liqRestante["__usado__" + soc] = usado + liquidado;
+    // Lo que ya tiene crédito escrito sale del reparto: es de ESE crédito. Sin
+    // apartarlo se contaría dos veces (una en su crédito y otra en la bolsa).
+    const bolsaLibre = Math.max(0, bolsa - (ligadas.porSocio[soc] || 0));
+    const disp = Math.max(0, bolsaLibre - usado - (prev ? (prev.liq || 0) : 0));
+    const tope = Math.max(0, (c.saldo || 0) - pagado);
+    const exacto = Math.min(ligadas.porClave[clave] || 0, tope);
+    const repartido = Math.min(disp, Math.max(0, tope - exacto));
+    const liquidado = exacto + repartido;
+    if (repartido > 0) liqRestante["__usado__" + soc] = usado + repartido;
     porCredito.set(clave, { pagado, liquidado, garantia: garan,
       saldoActual: Math.max(0, (c.saldo || 0) - pagado - liquidado),
       // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo.
@@ -2019,6 +2037,10 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
+    // Las que SÍ traen clienta pero no dicen de cuál de sus créditos: el sistema
+    // las reparte en orden y le baja el saldo al que no es. Son las de antes del
+    // 8-ago; se listan para corregirlas una por una (Karina, 8-ago).
+    liquidacionesSinCredito: liquidacionesSinCredito(req.usuario, corteSaldos()),
     // Abonos capturados DESPUÉS del corte pero con fecha anterior a él. Ya
     // descuentan (antes se perdían en silencio), pero se avisan: mueven saldos
     // de días que la plantilla daba por cerrados, y eso Monse tiene que verlo.
@@ -2643,6 +2665,63 @@ function socioDeMov(m) {
   const mm = String(m.concepto || "").match(/·\s*(\d{6,})/);
   return mm ? mm[1] : null;
 }
+// CUÁL de los créditos de esa socia. Los movimientos nuevos lo traen; los de
+// antes del 8-ago-2026 no, y por eso su liquidación se repartía entre todos sus
+// créditos en orden fijo en vez de bajarle al que la clienta liquidó.
+function productoDeMov(m) {
+  return m && m.producto ? String(m.producto) : null;
+}
+// Liquidaciones/recuperaciones LIGADAS a un crédito exacto (socio+producto).
+// Devuelve { porClave: {clave: monto}, porSocio: {socio: monto} } — el segundo
+// sirve para apartar del reparto lo que ya tiene dueño y que no se cuente doble.
+function liquidacionesLigadas(usuario, desde) {
+  const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
+  const porClave = {}, porSocio = {};
+  const sumar = (m) => {
+    if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) return;
+    const soc = socioDeMov(m), prod = productoDeMov(m);
+    if (!soc || !prod) return;                      // sin crédito: va al reparto viejo
+    const clave = claveCredito(soc, prod);
+    porClave[clave] = (porClave[clave] || 0) + m.monto;
+    porSocio[soc] = (porSocio[soc] || 0) + m.monto;
+  };
+  const d0 = new Date(lunes + "T12:00:00");
+  for (let i = 0; i < (desde ? 400 : 7); i++) {
+    const f = new Date(d0); f.setDate(d0.getDate() + i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) break;
+    for (const m of movsDeFecha(fISO, usuario)) sumar(m);
+  }
+  for (const m of movsAtrasadosQueSiCuentan(usuario, desde)) sumar(m);
+  return { porClave, porSocio };
+}
+// Liquidaciones de socias que tienen MÁS DE UN crédito y llegaron SIN decir cuál.
+// Son las que el sistema tiene que adivinar, y adivina mal: le baja el saldo al
+// primer crédito en orden, no al que la clienta liquidó. Se listan para que el
+// tablero las pueda señalar y se corrijan una por una.
+function liquidacionesSinCredito(usuario, desde) {
+  const hoy = hoyMX(), inicio = desde || lunesDeLaSemana(hoy);
+  const d0 = new Date(inicio + "T12:00:00");
+  const out = [];
+  for (let i = 0; i < (desde ? 400 : 7); i++) {
+    const f = new Date(d0); f.setDate(d0.getDate() + i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+      const soc = socioDeMov(m);
+      if (!soc || productoDeMov(m)) continue;        // sin socia ya se avisa aparte
+      const suyos = PADRON.filter((c) => String(c.id).split("|")[0] === String(soc)
+        && c.activa !== false && c.estatus !== "BAJA");
+      if (suyos.length < 2) continue;                // con un solo crédito no hay duda
+      out.push({ folio: m.folio, fecha: m.fecha, monto: m.monto, socio: soc,
+        clienta: suyos[0].nombre, concepto: m.concepto,
+        registradoPor: m.registradoPor || m.usuario || "",
+        candidatos: suyos.map((c) => c.producto) });
+    }
+  }
+  return out;
+}
 function movsDeFecha(fecha, usuario, conAnulados) {
   const enPruebas = !!(usuario && usuario.test);
   return store.movimientosDeFecha(fecha).filter((m) => {
@@ -2705,16 +2784,37 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // que la clienta quede en cero y desaparezca de la app de su ejecutiva
   // (pedido de Karina, 5-ago).
   const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim() || null;
+  let producto = String(b.producto || "").trim() || null;
   if (socio) {
-    const cred = PADRON.filter((c) => String(c.id) === socio && c.activa !== false && c.estatus !== "BAJA");
+    const cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
     if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
+    // DE CUÁL DE SUS CRÉDITOS. Una liquidación baja el saldo de UN crédito, no de
+    // la clienta: ~146 socias tienen más de uno. Sin este dato el sistema se lo
+    // aplicaba al primero de la lista — el sábado 8-ago le bajó el saldo al
+    // crédito equivocado a cuatro clientas. Se exige igual que la clienta.
+    if (tipo && tipo.clienta === "obliga") {
+      // Con UN solo crédito no hay nada que elegir: se resuelve solo y de todos
+      // modos queda escrito en el movimiento. Se exige únicamente cuando la
+      // socia tiene varios, que es el caso en que el sistema tendría que adivinar.
+      if (!producto && cred.length === 1) producto = cred[0].producto;
+      if (!producto)
+        return res.status(400).json({ error: "Elige CUÁL de sus créditos se está liquidando. " + cred[0].nombre
+          + " tiene " + cred.length + ": " + cred.map((c) => c.producto).join(", ")
+          + ". Sin eso el abono le baja el saldo al que no es." });
+      const exacto = cred.find((c) => norm(c.producto) === norm(producto));
+      if (!exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto
+        + "\" activo. Los suyos son: " + cred.map((c) => c.producto).join(", ") + "." });
+      producto = exacto.producto;      // se guarda con el nombre canónico del padrón
+    }
+  } else {
+    producto = null;                   // sin clienta no hay crédito que ligar
   }
 
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
   const folio = "DIR-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
   const mov = {
-    folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec, socio,
+    folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec, socio, producto,
     // ENTRADA o SALIDA. Sin esto todo se guardaba como salida.
     tipo: tipo ? String(b.tipo).trim() : null, entrada: tipo ? !!tipo.entrada : false,
     autorizadoA: (b.autorizadoA || "").trim() || null,

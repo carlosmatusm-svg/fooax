@@ -1403,14 +1403,21 @@ function agregarMov(){
       if(!confirm('No pusiste la fecha de desembolso o la del primer pago.\n\nEstas fechas le sirven a Monse para que su Excel las jale solo. ¿Agregar el desembolso sin ellas de todos modos?'))return;
     }
   }
-  let clienta='',socio='';
+  let clienta='',socio='',producto='';
   if(clk){
     const arr=(cen==='INDIVIDUAL')?INDIVIDUALES:(CENTROS[cen]||[]);
     const cl=arr.find(x=>(x.k||x.f)===clk);
-    if(cl){clienta=cl.n;socio=cl.f;}
+    if(cl){clienta=cl.n;socio=cl.f;producto=cl.sub||'';}
+  }
+  // Una liquidación baja el saldo de UN crédito, no de la clienta. Si la socia
+  // tiene varios y no se resolvió cuál, no se registra: antes se guardaba igual
+  // y el sistema se lo aplicaba al primero de su lista (8-ago-2026).
+  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !producto){
+    alert('No pude identificar de cual de sus creditos es este movimiento.\n\nVuelve a elegir a la clienta en la lista: cada renglon es un credito distinto.');
+    return;
   }
   const tipoGasto=(concepto==='GASTO')?(document.getElementById('movTipoGasto')||{}).value||'Otro':'';
-  movs.push({folio:nuevoFolio(),concepto,centro:cen,clienta,socio,monto,via,cheque,nota,tipoGasto,fechaDesem,fechaPrimerPago});
+  movs.push({folio:nuevoFolio(),concepto,centro:cen,clienta,socio,producto,monto,via,cheque,nota,tipoGasto,fechaDesem,fechaPrimerPago});
   document.getElementById('movMonto').value='';document.getElementById('movNota').value='';
   if(document.getElementById('movCheque'))document.getElementById('movCheque').value='';
   if(document.getElementById('movFechaDesem'))document.getElementById('movFechaDesem').value='';

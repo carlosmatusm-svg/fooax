@@ -1446,15 +1446,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const x = (d.resultados || []).filter((y) => y.activa !== false)[0]; return x ? x.saldoActual : null;
   };
   const sl0 = await salLibre();
+  // Esta socia tiene DOS créditos, así que desde el 8-ago hay que decir a cuál
+  // va (ver bloque 52). Se manda el mismo que el sistema le aplicaba antes por
+  // orden, para que la prueba siga midiendo lo suyo: que manda el TIPO y no la nota.
   await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
     body: JSON.stringify({ tipo: "Liquidación", monto: 200, concepto: "el pago que trajo su hija",
-      metodo: "efectivo", socio: "11113131595", fecha: D44g }) });
+      metodo: "efectivo", socio: "11113131595", producto: "Grupal-Basico 2", fecha: D44g }) });
   ok("una liquidación con la nota escrita LIBRE también baja el saldo",
     (await salLibre()) === sl0 - 200, sl0 + " → " + (await salLibre()));
   const sl1 = await salLibre();
   await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
     body: JSON.stringify({ tipo: "Recuperación / adelanto", monto: 100, concepto: "abono suelto",
-      metodo: "efectivo", socio: "11113131595", fecha: D44g }) });
+      metodo: "efectivo", socio: "11113131595", producto: "Grupal-Basico 2", fecha: D44g }) });
   ok("y una recuperación con nota libre, igual",
     (await salLibre()) === sl1 - 100, sl1 + " → " + (await salLibre()));
   // La app de la ejecutiva manda su propio tipo: las dos vías igual de firmes.
@@ -2074,6 +2077,74 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const diff = (Date.parse(perDef.hasta) - Date.parse(perDef.desde)) / 86400000;
   ok("sin rango, toma la semana de lunes a domingo", diff === 6,
     perDef.desde + " → " + perDef.hasta + " (" + diff + " días)");
+
+  console.log("\n— 52. LA LIQUIDACIÓN DICE A QUÉ CRÉDITO VA (Karina, 8-ago) —");
+  // El sábado 8-ago entraron 6 liquidaciones y a cuatro clientas les bajaron el
+  // saldo del crédito EQUIVOCADO. La app siempre mostró un renglón por crédito
+  // ("NOMBRE (Grupal-Micro)") y la ejecutiva sí elegía, pero al guardar sólo se
+  // conservaba el socio: el sistema repartía el abono entre sus créditos en
+  // orden fijo y se lo comía el primero. A SOCORRO MIGUEL le liquidó de más el
+  // Grupal-Basico y dejó el Grupal-Micro debiendo, ya pagado.
+  const cenLQ = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
+  const SL = "70000000955";
+  const altaL = (prod, saldo, cuota) => fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: SL, nombre: "DOS CREDITOS LIQ", producto: prod, centro: cenLQ,
+      ejecutivo: "Neri", saldo, cuota, plazo: 24 }) });
+  await altaL("Grupal-Basico", 9000, 500);
+  await altaL("Grupal-Micro", 2000, 250);
+  const saldosL = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + SL, { headers: H(cm) }));
+    const o = {};
+    for (const x of (d.resultados || []).filter((y) => y.activa !== false)) o[x.producto] = x.saldoActual;
+    return o;
+  };
+  const LQ0 = await saldosL();
+  // 1) Sin decir el crédito, el servidor NO lo acepta: es el candado.
+  const rSinProd = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 2000, concepto: "liquida", metodo: "efectivo",
+      socio: SL, fecha: HOY }) });
+  const eSinProd = await j(rSinProd);
+  ok("con dos créditos, una liquidación SIN decir cuál se rechaza",
+    rSinProd.status === 400 && /cu[áa]l de sus cr[ée]ditos/i.test(eSinProd.error || ""),
+    "status " + rSinProd.status + " · " + (eSinProd.error || ""));
+  ok("y el error nombra los dos créditos, para poder elegir",
+    /Grupal-Basico/.test(eSinProd.error || "") && /Grupal-Micro/.test(eSinProd.error || ""),
+    eSinProd.error || "");
+  ok("no le movió el saldo a ninguno de los dos",
+    JSON.stringify(await saldosL()) === JSON.stringify(LQ0), JSON.stringify(await saldosL()));
+  // 2) Un crédito que no es suyo tampoco pasa.
+  const rOtro = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 100, concepto: "x", metodo: "efectivo",
+      socio: SL, producto: "Grupal-Inventado", fecha: HOY }) });
+  ok("un crédito que esa clienta no tiene se rechaza", rOtro.status === 400, "status " + rOtro.status);
+  // 3) Con el crédito, le baja SOLO a ese. El otro queda intacto — es justo lo
+  //    que pidió Karina: «Grupal-Basico tienes que dejarlo ahí».
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 2000, concepto: "liquida su micro",
+      metodo: "efectivo", socio: SL, producto: "Grupal-Micro", fecha: HOY }) });
+  const LQ1 = await saldosL();
+  ok("con el crédito escrito, el Grupal-Micro queda LIQUIDADO en cero",
+    LQ1["Grupal-Micro"] === 0, "micro " + LQ0["Grupal-Micro"] + " → " + LQ1["Grupal-Micro"]);
+  ok("y el Grupal-Basico NO se movió ni un peso",
+    LQ1["Grupal-Basico"] === LQ0["Grupal-Basico"],
+    "basico " + LQ0["Grupal-Basico"] + " → " + LQ1["Grupal-Basico"]);
+  // 4) Con UN solo crédito no se estorba a nadie: se resuelve solo.
+  const SU = "70000000956";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: SU, nombre: "UN SOLO CREDITO", producto: "Grupal-Basico", centro: cenLQ,
+      ejecutivo: "Neri", saldo: 800, cuota: 200, plazo: 24 }) });
+  const rUno = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 800, concepto: "liquida", metodo: "efectivo",
+      socio: SU, fecha: HOY }) });
+  const dUno = await j(rUno);
+  ok("con un solo crédito no se exige elegir: se resuelve solo",
+    rUno.status === 200 && dUno.movimiento && dUno.movimiento.producto === "Grupal-Basico",
+    "status " + rUno.status + " · producto " + ((dUno.movimiento || {}).producto || "(ninguno)"));
+  // 5) Y el tablero puede señalar las viejas, las que llegaron sin crédito.
+  const carLC = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("el tablero expone las liquidaciones sin crédito para poder corregirlas",
+    Array.isArray(carLC.liquidacionesSinCredito),
+    "es " + typeof carLC.liquidacionesSinCredito);
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

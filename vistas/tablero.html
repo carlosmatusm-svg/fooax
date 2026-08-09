@@ -1247,7 +1247,9 @@ async function registrarMov(e) {
   const body = {
     fecha: $("mFecha").value || undefined,
     monto: $("mMonto").value, metodo: $("mMetodo").value, ejecutivo: $("mEjec").value,
-    socio: $("mSocio").value,
+    // El selector manda "socio|producto": el crédito exacto al que le baja el saldo.
+    socio: String($("mSocio").value || "").split("|")[0],
+    producto: String($("mSocio").value || "").split("|").slice(1).join("|"),
     tipo: $("mTipo").value, concepto: $("mConcepto").value, autorizadoA: $("mAut").value,
   };
   // La liquidación y la recuperación SIN clienta las rechaza el servidor: ese
@@ -1310,14 +1312,16 @@ function armarBuscadorClienta() {
       try { d = await (await fetch("/api/clientes?q=" + encodeURIComponent(q), { credentials: "include" })).json(); }
       catch { return; }
       const con = (d.resultados || []).filter((c) => (c.saldoActual != null ? c.saldoActual : c.saldo) > 0.009);
+      // El valor lleva SOCIO y PRODUCTO. Antes era sólo el socio: la lista
+      // mostraba un renglón por crédito, así que Dirección creía estar eligiendo
+      // uno, pero los dos renglones de una misma clienta mandaban lo mismo y el
+      // abono acababa en el primer crédito de la lista (8-ago-2026).
       sel.innerHTML = '<option value="">— Sin clienta —</option>'
-        + con.map((c) => '<option value="' + hesc(c.id) + '">' + hesc(c.nombre) + " · " + hesc(c.producto)
+        + con.map((c) => '<option value="' + hesc(c.id + "|" + c.producto) + '">' + hesc(c.nombre) + " · " + hesc(c.producto)
             + " · debe " + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</option>").join("");
       if (con.length === 1) sel.selectedIndex = 1;
-      // El abono se guarda POR SOCIA: si tiene varios créditos, el sistema lo
-      // reparte entre ellos. Por eso el texto no promete elegir uno.
       $("mCliHint").textContent = con.length
-        ? "Elige a la clienta. Si tiene varios créditos, el abono se le aplica a los suyos en orden."
+        ? "Elige el CRÉDITO, no sólo a la clienta: el abono le baja el saldo a ese y a ningún otro."
         : "No hay clientas activas con saldo que empaten con “" + q + "”.";
     }, 250);
   });
