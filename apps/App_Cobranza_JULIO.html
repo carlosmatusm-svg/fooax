@@ -283,9 +283,13 @@
       <div><label>Centro</label>
         <select id="movCentro"><option value="">— Centro —</option></select>
       </div>
-      <div><label>Clienta (opcional)</label>
-        <select id="movClienta"><option value="">— Si aplica —</option></select>
+      <div><label id="labelClienta">Clienta (opcional)</label>
+        <select id="movClienta" onchange="fillMovCreditos()"><option value="">— Si aplica —</option></select>
       </div>
+    </div>
+    <div style="margin-top:9px" id="movCreditoBox">
+      <label id="labelCredito">¿Cuál de sus créditos?</label>
+      <select id="movCredito"><option value="">— Elige el crédito —</option></select>
     </div>
     <div class="row2" style="margin-top:9px">
       <div><label>Cantidad</label><input type="text" inputmode="decimal" id="movMonto" placeholder="0"></div>
@@ -1320,7 +1324,36 @@ function fillMovClientas(){
   let lista=[];
   if(cen==='INDIVIDUAL')lista=INDIVIDUALES;
   else if(cen&&CENTROS[cen])lista=CENTROS[cen];
-  lista.forEach(cl=>{const o=document.createElement('option');o.value=(cl.k||cl.f);o.textContent=cl.n+' ('+cl.sub+')';scl.appendChild(o);});
+  /* UNA CLIENTA, UN RENGLON. Antes la lista traia un renglon por CREDITO, asi
+     que la misma senora salia dos veces y no se distinguia cual era cual: se
+     elegia "a la clienta" creyendo elegir el credito. Ahora el credito se
+     escoge aparte, abajo, con su saldo a la vista para poder empatarlo con lo
+     que la clienta esta pagando (Karina, 9-ago-2026). */
+  const vistos={};
+  lista.forEach(cl=>{
+    if(vistos[cl.f])return; vistos[cl.f]=1;
+    const o=document.createElement('option');o.value=cl.f;o.textContent=cl.n;scl.appendChild(o);
+  });
+  fillMovCreditos();
+}
+function fillMovCreditos(){
+  const cen=document.getElementById('movCentro').value;
+  const soc=document.getElementById('movClienta').value;
+  const scr=document.getElementById('movCredito'); if(!scr)return;
+  scr.innerHTML='<option value="">— Elige el credito —</option>';
+  let lista=[];
+  if(cen==='INDIVIDUAL')lista=INDIVIDUALES;
+  else if(cen&&CENTROS[cen])lista=CENTROS[cen];
+  const suyos=lista.filter(x=>String(x.f)===String(soc));
+  suyos.forEach(cl=>{
+    const o=document.createElement('option');o.value=cl.sub;
+    o.textContent=cl.sub+' · saldo '+fmt(cl.saldo||0);
+    scr.appendChild(o);
+  });
+  /* Con un solo credito no hay nada que elegir: se pone solo. */
+  if(suyos.length===1)scr.value=suyos[0].sub;
+  const box=document.getElementById('movCreditoBox');
+  if(box)box.style.display=suyos.length?'':'none';
 }
 /* LIQUIDACIONES — una liquidación BAJA el saldo de la clienta por el monto
    registrado. Si con eso su saldo llega a cero, queda marcada como LIQUIDADO y
@@ -1390,6 +1423,11 @@ function agregarMov(){
     alert('Elige a la CLIENTA de este movimiento.\n\nLa liquidación y la recuperación le bajan el saldo a esa clienta, así que sin clienta no se pueden registrar.');
     return;
   }
+  /* Y CUAL DE SUS CREDITOS: es al unico al que se le baja el saldo. */
+  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !((document.getElementById('movCredito')||{}).value||'')){
+    alert('Elige CUAL de sus creditos se esta pagando.\n\nUna clienta puede tener varios y el abono le baja el saldo SOLO al que elijas. Fijate en el saldo de cada uno para saber cual es.');
+    return;
+  }
   if(via==='CH' && !cheque){alert('Escribe el número de cheque.');return;}
   // Un GASTO tiene que decir en qué se fue: esa nota es el comprobante que
   // Monse va a buscar en el arqueo. Sin ella el gasto no se puede justificar.
@@ -1409,8 +1447,10 @@ function agregarMov(){
   let clienta='',socio='',producto='';
   if(clk){
     const arr=(cen==='INDIVIDUAL')?INDIVIDUALES:(CENTROS[cen]||[]);
-    const cl=arr.find(x=>(x.k||x.f)===clk);
-    if(cl){clienta=cl.n;socio=cl.f;producto=cl.sub||'';}
+    const prod=(document.getElementById('movCredito')||{}).value||'';
+    const cl=arr.find(x=>String(x.f)===String(clk)&&(!prod||String(x.sub)===prod))
+           ||arr.find(x=>(x.k||x.f)===clk);
+    if(cl){clienta=cl.n;socio=cl.f;producto=prod||cl.sub||'';}
   }
   // Una liquidación baja el saldo de UN crédito, no de la clienta. Si la socia
   // tiene varios y no se resolvió cuál, no se registra: antes se guardaba igual
@@ -1441,9 +1481,20 @@ function toggleGasto(){
   // (Ing. Monse, 6-ago). Se esconden y se limpian para que no se cuelen.
   const quien=document.getElementById('movQuienBox');
   if(quien)quien.style.display=esGasto?'none':'';
+  /* OBLIGATORIO cuando el movimiento le baja el saldo a alguien. El texto lo
+     dice: antes decia "(opcional)" y por eso se mandaban sin credito. */
+  const cc=document.getElementById('movConcepto').value;
+  const obliga=(cc==='LIQUIDACION'||cc==='RECUPERACION');
+  const lc=document.getElementById('labelClienta');
+  if(lc)lc.textContent=obliga?'Clienta (OBLIGATORIO)':'Clienta (opcional)';
+  const lcr=document.getElementById('labelCredito');
+  if(lcr)lcr.textContent=obliga?'¿Cuál de sus créditos? (OBLIGATORIO · es al que se le baja el saldo)':'¿Cuál de sus créditos?';
+  const cbox=document.getElementById('movCreditoBox');
+  if(cbox&&esGasto)cbox.style.display='none';
   if(esGasto){
     const c=document.getElementById('movCentro'), cl=document.getElementById('movClienta');
     if(c)c.value=''; if(cl)cl.value='';
+    const cr=document.getElementById('movCredito'); if(cr)cr.value='';
   }
   // En un gasto la nota NO es opcional: es el comprobante que Dirección
   // lee para autorizarlo. El texto del campo lo tiene que decir.
