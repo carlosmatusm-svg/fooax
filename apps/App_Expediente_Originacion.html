@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FOOAX · Expediente y Originación</title>
+<style>
+  /* Misma paleta que las apps de cobranza (App_Cobranza_*.html) — este módulo
+     es nuevo, pero no debe verse como una app distinta. */
+  :root{
+    --aurora:#F1228E; --atardecer:#FD6E29; --rio:#324AB6; --cielo:#ADE6ED;
+    --riqueza:#F2BB06; --llama:#F44C5D; --tinta:#1A1730; --gris:#6B6880;
+    --bg:#F7F8FC; --card:#FFFFFF; --linea:#E7E8F0; --ok:#13A463; --mora:#F44C5D;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:'Century Gothic','Poppins',system-ui,sans-serif;background:var(--bg);color:var(--tinta);padding-bottom:40px}
+  header{background:linear-gradient(120deg,var(--rio),var(--aurora));color:#fff;padding:16px 18px 14px;position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(50,74,182,.22)}
+  header .brand{font-size:13px;letter-spacing:3px;opacity:.85;font-weight:700}
+  header h1{margin:2px 0 0;font-size:20px;font-weight:800}
+  .wrap{padding:14px;max-width:640px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--linea);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(26,23,48,.04)}
+  .sectitle{font-size:15px;font-weight:800;margin:2px 0 10px;display:flex;align-items:center;gap:8px}
+  label{font-size:12px;font-weight:700;color:var(--gris);display:block;margin-bottom:5px;margin-top:8px}
+  select,input{width:100%;padding:11px;border:1.5px solid var(--linea);border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:var(--tinta)}
+  select:focus,input:focus{outline:none;border-color:var(--rio)}
+  .row2{display:flex;gap:10px}.row2>div{flex:1}
+  .btn{border:0;border-radius:11px;font-weight:800;font-size:14px;padding:11px 16px;font-family:inherit;cursor:pointer;margin-top:10px}
+  .btn-primary{background:var(--rio);color:#fff}
+  .btn-ok{background:var(--ok);color:#fff}
+  .btn-light{background:#EEF0F8;color:var(--rio)}
+  .btn-warn{background:var(--llama);color:#fff}
+  .muted{color:var(--gris);font-size:12px}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px}
+  .pill.ok{background:#EAF7EF;color:var(--ok)}
+  .pill.falta{background:#FDECEC;color:var(--mora)}
+  .checkrow{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--linea)}
+  .checkrow:last-child{border-bottom:0}
+  .checkrow .nm{font-size:13px;font-weight:700}
+  .aviso{font-size:12px;font-weight:700;padding:9px 11px;border-radius:10px;margin-bottom:10px}
+  .aviso.ok{background:#EAF7EF;color:var(--ok)}
+  .aviso.mora{background:#FDECEC;color:var(--mora)}
+  .aviso.info{background:#E5EAFB;color:var(--rio)}
+  .checkbox-line{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .checkbox-line input{width:auto}
+  .firmas{display:flex;gap:8px;flex-wrap:wrap}
+  .firmas .btn{flex:1;min-width:140px}
+  .firma-hecha{opacity:.55;pointer-events:none}
+  small.help{display:block;color:var(--gris);font-size:11px;margin-top:4px}
+  .modo-toggle{display:flex;gap:8px;margin-bottom:4px}
+  .modo-toggle .btn{flex:1;margin-top:0;padding:8px}
+  .persona-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .persona-row .nm{font-size:13px;font-weight:700}
+  .persona-row .curp{font-size:11px;color:var(--gris);font-weight:400}
+  .persona-acciones{display:flex;align-items:center;gap:8px;flex:none}
+  .btn-mini{margin:0;padding:6px 12px;font-size:12px}
+  .subgrupo{font-size:11px;font-weight:800;color:var(--rio);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 2px;padding-top:10px;border-top:1px dashed var(--linea)}
+  .subgrupo.primero{margin-top:2px;padding-top:0;border-top:0}
+  .kv-row{font-size:13px;margin:4px 0}
+  .kv-row b{color:var(--rio)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">FOOAX</div>
+  <h1>Expediente y Originación</h1>
+</header>
+<div id="app" class="wrap"><div class="card muted">Cargando…</div></div>
+
+<!-- Sin build ni bundler, igual que el resto de la app: Preact + htm por CDN,
+     como módulos ES cargados con import() dinámico (así el bloque de código
+     de abajo sigue siendo un script clásico, no type="module", y una
+     pantalla vieja sin soporte de módulos al menos no rompe el resto de la
+     página). -->
+<script>
+(async function () {
+  const { h, render, Component } = await import("https://esm.sh/preact@10.22.0");
+  const { useState, useEffect } = await import("https://esm.sh/preact@10.22.0/hooks");
+  const htm = (await import("https://esm.sh/htm@3.1.1")).default;
+  const html = htm.bind(h);
+
+  const j = async (r) => { try { return await r.json(); } catch { return {}; } };
+  const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const fileToBase64 = (file) => new Promise((res, rej) => {
+    const rd = new FileReader();
+    rd.onload = () => res(String(rd.result).split(",")[1] || "");
+    rd.onerror = rej;
+    rd.readAsDataURL(file);
+  });
+
+  const TIPOS_DOC = {
+    solicitante_ine: "INE de la solicitante", solicitante_comprobante_domicilio: "Comprobante de domicilio (solicitante)",
+    solicitante_curp: "CURP de la solicitante", solicitante_foto_negocio: "Foto del negocio",
+    responsable_ine: "INE de la responsable", responsable_comprobante_domicilio: "Comprobante de domicilio (responsable)",
+    aval_ine: "INE del aval", aval_comprobante_domicilio: "Comprobante de domicilio (aval)",
+  };
+  // El checklist ahora también puede traer "dato:<campo>" (candado PLD —
+  // LFPIORPI: CURP, RFC, domicilio, actividad, origen de recursos de la
+  // clienta) además de documentos — sin este mapa, la ejecutiva vería un
+  // código críptico como "dato:curp" en vez de "CURP de la clienta".
+  const ETIQUETAS_DATO = {
+    curp: "CURP de la clienta", rfc: "RFC de la clienta", identificacion_folio: "Folio de identificación (INE)",
+    domicilio_calle: "Calle del domicilio", domicilio_numero: "Número del domicilio", domicilio_colonia: "Colonia del domicilio",
+    domicilio_cp: "C.P. del domicilio", domicilio_estado: "Estado del domicilio",
+    actividad_economica_pld: "Actividad económica (catálogo PLD)", origen_recursos: "Origen de los recursos",
+  };
+
+  function Aviso({ tipo, children }) { return html`<div class="aviso ${tipo}">${children}</div>`; }
+
+  function Documentos({ clientaId, expediente, documentos, requiereAval, onCambio }) {
+    const requeridos = (expediente && expediente.checklist && expediente.checklist.requeridos) || [];
+    const faltan = new Set((expediente && expediente.checklist && expediente.checklist.faltantes) || []);
+    const subir = async (clave, file) => {
+      const [propietario, ...resto] = clave.split("_");
+      const tipo = resto.join("_");
+      const b64 = await fileToBase64(file);
+      const r = await j(await post(`/api/expediente/${clientaId}/documento`, {
+        tipo, propietario, contenido_base64: b64, requiere_aval: requiereAval,
+      }));
+      if (!r.ok) { alert(r.error || "No se pudo guardar el documento."); return; }
+      onCambio();
+    };
+    return html`
+      <div class="card">
+        <div class="sectitle">📄 Documentos del expediente</div>
+        ${requeridos.length === 0 && html`<div class="muted">Sube al menos un documento para saber qué falta.</div>`}
+        ${requeridos.map((clave) => html`
+          <div class="checkrow" key=${clave}>
+            <div class="nm">${TIPOS_DOC[clave] || clave}</div>
+            ${faltan.has(clave)
+              ? html`<label class="btn btn-light" style="margin:0;padding:6px 12px;font-size:12px">
+                  Subir
+                  <input type="file" accept="image/*" capture="environment" style="display:none"
+                    onChange=${(e) => e.target.files[0] && subir(clave, e.target.files[0])} />
+                </label>`
+              : html`<span class="pill ok">Completo</span>`}
+          </div>
+        `)}
+      </div>
+    `;
+  }
+
+  // Buscar y VINCULAR una responsable/aval que ya existe, o registrar una
+  // nueva — antes esta pantalla siempre creaba un registro nuevo en cada
+  // alta, así que el tope (2 responsable / 1 aval) nunca se ponía a prueba en
+  // uso real: cada vínculo partía de un id distinto. Con el buscador, la
+  // ejecutiva encuentra a la misma persona real y la reutiliza, y el pill
+  // "X/tope" le avisa ANTES de intentar vincular si ya llegó al máximo.
+  function PersonaVinculo({ etiqueta, tope, nota, buscarUrl, vincularUrl, campoId, onVinculado }) {
+    const [modo, setModo] = useState("buscar");
+    const [q, setQ] = useState("");
+    const [resultados, setResultados] = useState(null);
+    const [buscando, setBuscando] = useState(false);
+    const [nombre, setNombre] = useState("");
+    const [curp, setCurp] = useState("");
+    const [telefono, setTelefono] = useState("");
+    const [domicilio, setDomicilio] = useState("");
+    const [ocupacion, setOcupacion] = useState("");
+    const [identificacion, setIdentificacion] = useState("");
+    const [mensaje, setMensaje] = useState(null);
+
+    const buscar = async () => {
+      setBuscando(true);
+      const r = await j(await fetch(`${buscarUrl}?q=${encodeURIComponent(q)}`));
+      setResultados(r.resultados || []);
+      setBuscando(false);
+    };
+
+    const limpiarNueva = () => {
+      setNombre(""); setCurp(""); setTelefono(""); setDomicilio(""); setOcupacion(""); setIdentificacion("");
+    };
+
+    const vincular = async (body) => {
+      const r = await j(await post(vincularUrl, body));
+      if (!r.ok) { setMensaje({ tipo: "mora", texto: r.error }); return; }
+      setMensaje({ tipo: "ok", texto: "Vinculada correctamente." });
+      limpiarNueva(); setQ(""); setResultados(null);
+      onVinculado();
+    };
+
+    return html`
+      <div class="card">
+        <div class="sectitle">${etiqueta} (máx. ${tope} clienta${tope > 1 ? "s" : ""})</div>
+        ${nota && html`<small class="help" style="margin-top:0">${nota}</small>`}
+        ${mensaje && html`<${Aviso} tipo=${mensaje.tipo}>${mensaje.texto}<//>`}
+        <div class="modo-toggle">
+          <button class="btn ${modo === "buscar" ? "btn-primary" : "btn-light"}" onClick=${() => setModo("buscar")}>Buscar existente</button>
+          <button class="btn ${modo === "nueva" ? "btn-primary" : "btn-light"}" onClick=${() => setModo("nueva")}>Registrar nueva</button>
+        </div>
+
+        ${modo === "buscar" ? html`
+          <label>Nombre o CURP</label>
+          <input value=${q} onInput=${(e) => setQ(e.target.value)} placeholder="Escribe para buscar…" />
+          <button class="btn btn-light" onClick=${buscar} disabled=${!q}>Buscar</button>
+          ${buscando && html`<div class="muted" style="margin-top:8px">Buscando…</div>`}
+          ${resultados && resultados.length === 0 && html`<div class="muted" style="margin-top:8px">Sin resultados — puedes registrarla como nueva.</div>`}
+          ${resultados && resultados.map((p) => html`
+            <div class="checkrow" key=${p.id}>
+              <div class="persona-row">
+                <div class="nm">${p.nombre}${p.curp ? html` <span class="curp">· ${p.curp}</span>` : ""}</div>
+                <div class="persona-acciones">
+                  <span class="pill ${p.clientas_activas >= p.tope ? "falta" : "ok"}">${p.clientas_activas}/${p.tope}</span>
+                  <button class="btn btn-light btn-mini" disabled=${p.clientas_activas >= p.tope}
+                    onClick=${() => vincular({ [campoId]: p.id })}>Vincular</button>
+                </div>
+              </div>
+            </div>
+          `)}
+        ` : html`
+          <label>Nombre completo</label>
+          <input value=${nombre} onInput=${(e) => setNombre(e.target.value)} />
+          <div class="row2">
+            <div><label>CURP</label><input value=${curp} onInput=${(e) => setCurp(e.target.value)} placeholder="Para encontrarla después sin duplicarla" /></div>
+            <div><label>Teléfono</label><input value=${telefono} onInput=${(e) => setTelefono(e.target.value)} /></div>
+          </div>
+          <label>Domicilio</label>
+          <input value=${domicilio} onInput=${(e) => setDomicilio(e.target.value)} />
+          <div class="row2">
+            <div><label>Ocupación</label><input value=${ocupacion} onInput=${(e) => setOcupacion(e.target.value)} /></div>
+            <div><label>Identificación (folio)</label><input value=${identificacion} onInput=${(e) => setIdentificacion(e.target.value)} /></div>
+          </div>
+          <button class="btn btn-light" onClick=${() => vincular({ nombre, curp, telefono, domicilio, ocupacion, identificacion })} disabled=${!nombre}>Registrar y vincular</button>
+        `}
+      </div>
+    `;
+  }
+
+  // Identidad, domicilio, negocio, capacidad de pago, vivienda, familia y
+  // PLD/PEP de la clienta (CU-009 §3) — la parte más grande que le faltaba a
+  // esta pantalla: antes solo cubría expediente/responsable/aval/documentos,
+  // pero CU-009 es sobre todo el ALTA de la clienta, con estos campos.
+  // guardarDatosClienta hace merge en el servidor, así que mandar el objeto
+  // completo cada vez (como se hace aquí) es seguro incluso si en el futuro
+  // se guarda por secciones desde otra pantalla.
+  function DatosClienta({ clientaId, datos, onGuardado }) {
+    const [d, setD] = useState(datos || {});
+    useEffect(() => { setD(datos || {}); }, [datos]);
+    const [mensaje, setMensaje] = useState(null);
+    const [guardando, setGuardando] = useState(false);
+
+    const campo = (key) => ({ value: d[key] || "", onInput: (e) => setD({ ...d, [key]: e.target.value }) });
+    const campoCheck = (key) => ({ checked: !!d[key], onChange: (e) => setD({ ...d, [key]: e.target.checked }) });
+
+    const usarGPS = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (p) => setD({ ...d, domicilio_gps: `${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}` }),
+        () => {}, { timeout: 5000 }
+      );
+    };
+
+    const guardar = async () => {
+      setGuardando(true);
+      const r = await j(await post(`/api/expediente/${clientaId}/datos`, d));
+      setGuardando(false);
+      if (!r.ok) { setMensaje({ tipo: "mora", texto: r.error || "No se pudo guardar." }); return; }
+      setMensaje({ tipo: "ok", texto: "Datos de la clienta guardados." });
+      onGuardado();
+    };
+
+    return html`
+      <div class="card">
+        <div class="sectitle">🧍 Datos de la clienta</div>
+        <small class="help" style="margin-top:0">Basado en la Solicitud de Crédito FOOAX 2026, todavía en validación con Legal — estos campos pueden ajustarse.</small>
+        ${mensaje && html`<${Aviso} tipo=${mensaje.tipo}>${mensaje.texto}<//>`}
+
+        <div class="subgrupo primero">Identidad</div>
+        <label>Nombre completo</label>
+        <input ...${campo("nombre_completo")} />
+        <div class="row2">
+          <div><label>CURP</label><input ...${campo("curp")} maxlength="18" /></div>
+          <div><label>RFC</label><input ...${campo("rfc")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Fecha de nacimiento</label><input type="date" ...${campo("fecha_nacimiento")} /></div>
+          <div><label>Lugar de nacimiento</label><input ...${campo("lugar_nacimiento")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Nacionalidad</label><input ...${campo("nacionalidad")} /></div>
+          <div>
+            <label>Estado civil</label>
+            <select ...${campo("estado_civil")}>
+              <option value="">Selecciona…</option>
+              <option>Soltera</option><option>Casada</option><option>Unión libre</option>
+              <option>Divorciada</option><option>Viuda</option>
+            </select>
+          </div>
+        </div>
+        <label>Género</label>
+        <select ...${campo("genero")}>
+          <option value="">Selecciona…</option>
+          <option>Femenino</option><option>Masculino</option><option>Otro</option>
+        </select>
+        <div class="row2">
+          <div><label>Teléfono móvil</label><input type="tel" ...${campo("telefono_movil")} /></div>
+          <div><label>Teléfono fijo</label><input type="tel" ...${campo("telefono_fijo")} /></div>
+        </div>
+        <label>Correo electrónico</label>
+        <input type="email" ...${campo("correo")} />
+        <label>Folio de identificación (INE)</label>
+        <input ...${campo("identificacion_folio")} />
+
+        <div class="subgrupo">Domicilio</div>
+        <div class="row2">
+          <div><label>Calle</label><input ...${campo("domicilio_calle")} /></div>
+          <div><label>Número</label><input ...${campo("domicilio_numero")} /></div>
+        </div>
+        <label>Colonia</label>
+        <input ...${campo("domicilio_colonia")} />
+        <div class="row2">
+          <div><label>C.P.</label><input ...${campo("domicilio_cp")} /></div>
+          <div><label>Municipio</label><input ...${campo("domicilio_municipio")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Ciudad</label><input ...${campo("domicilio_ciudad")} /></div>
+          <div><label>Estado</label><input ...${campo("domicilio_estado")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>GPS del domicilio</label><input ...${campo("domicilio_gps")} placeholder="lat,lng" /></div>
+          <div><label>&nbsp;</label><button class="btn btn-light" style="margin-top:0" onClick=${usarGPS}>Usar mi ubicación</button></div>
+        </div>
+        <small class="help">Croquis y las 4 fotos del domicilio: súbelas como documento en la sección de Documentos, más abajo.</small>
+        <label>Tiempo de residencia (años)</label>
+        <input type="number" min="0" ...${campo("domicilio_tiempo_residencia")} />
+
+        <div class="subgrupo">Negocio</div>
+        <label>Giro del negocio</label>
+        <input ...${campo("negocio_giro")} />
+        <div class="row2">
+          <div><label>Antigüedad (años)</label><input type="number" min="0" ...${campo("negocio_antiguedad")} /></div>
+          <div><label>Ingreso declarado ($)</label><input type="number" min="0" ...${campo("negocio_ingreso_declarado")} /></div>
+        </div>
+        <label>Actividad económica (catálogo PLD)</label>
+        <select ...${campo("actividad_economica_pld")}>
+          <option value="">Selecciona…</option>
+          <option>Comercio</option><option>Servicios</option><option>Manufactura o producción</option>
+          <option>Agropecuario</option><option>Otro</option>
+        </select>
+        <small class="help">Catálogo provisional — falta confirmar el catálogo oficial PLD (Art. 95 Bis LGOAAC) con Contaduría.</small>
+
+        <div class="subgrupo">Capacidad de pago</div>
+        <div class="row2">
+          <div><label>Ingreso semanal ($)</label><input type="number" min="0" ...${campo("ingreso_semanal")} /></div>
+          <div><label>Gastos del negocio ($)</label><input type="number" min="0" ...${campo("gastos_negocio")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Gastos del hogar ($)</label><input type="number" min="0" ...${campo("gastos_hogar")} /></div>
+          <div><label>Mes de ingreso más bajo</label><input ...${campo("mes_ingreso_mas_bajo")} placeholder="Ej. diciembre" /></div>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="otroscred" ...${campoCheck("tiene_otros_creditos")} />
+          <label for="otroscred" style="margin:0">Tiene créditos vigentes con otra institución o prestamista</label>
+        </div>
+        ${d.tiene_otros_creditos && html`
+          <label>Detalle (institución, monto, deuda actual, pago semanal)</label>
+          <input ...${campo("otros_creditos_detalle")} />
+        `}
+
+        <div class="subgrupo">Vivienda</div>
+        <div class="row2">
+          <div>
+            <label>Tipo</label>
+            <select ...${campo("vivienda_tipo")}>
+              <option value="">Selecciona…</option>
+              <option>Propia</option><option>Rentada</option><option>Prestada</option><option>Familiar</option>
+            </select>
+          </div>
+          <div><label>Superficie (m²)</label><input type="number" min="0" ...${campo("vivienda_superficie")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Niveles</label><input type="number" min="0" ...${campo("vivienda_niveles")} /></div>
+          <div><label>Habitaciones</label><input type="number" min="0" ...${campo("vivienda_habitaciones")} /></div>
+        </div>
+        <div class="row2">
+          <div><label>Paredes</label><input ...${campo("vivienda_paredes")} /></div>
+          <div><label>Piso</label><input ...${campo("vivienda_piso")} /></div>
+        </div>
+        <label>Techo</label>
+        <input ...${campo("vivienda_techo")} />
+
+        <div class="subgrupo">Información familiar</div>
+        <div class="row2">
+          <div><label>Dependientes económicos</label><input type="number" min="0" ...${campo("dependientes_economicos")} /></div>
+          <div><label>Hijos menores</label><input type="number" min="0" ...${campo("hijos_menores")} /></div>
+        </div>
+        <div class="checkbox-line">
+          <input type="checkbox" id="otroaporta" ...${campoCheck("alguien_mas_aporta_ingreso")} />
+          <label for="otroaporta" style="margin:0">Alguien más en el hogar aporta ingreso</label>
+        </div>
+        <label>Ingreso total del hogar ($)</label>
+        <input type="number" min="0" ...${campo("ingreso_total_hogar")} />
+
+        <div class="subgrupo">Cumplimiento PLD/FT</div>
+        <label>Origen de los recursos con los que pagará el crédito</label>
+        <input ...${campo("origen_recursos")} />
+        <div class="checkbox-line">
+          <input type="checkbox" id="pep" ...${campoCheck("es_pep")} />
+          <label for="pep" style="margin:0">La clienta o un familiar cercano es Persona Políticamente Expuesta (PEP)</label>
+        </div>
+        ${d.es_pep && html`
+          <div class="row2">
+            <div>
+              <label>Tipo de PEP</label>
+              <select ...${campo("pep_tipo")}>
+                <option value="">Selecciona…</option>
+                <option>Nacional</option><option>Extranjero</option><option>Organismo internacional</option>
+              </select>
+            </div>
+            <div>
+              <label>Parentesco con la clienta</label>
+              <select ...${campo("pep_parentesco")}>
+                <option value="">Selecciona…</option>
+                <option>La propia clienta</option>
+                <option>Cónyuge o concubino(a)</option>
+                <option>Padre o madre</option>
+                <option>Hijo(a)</option>
+                <option>Hermano(a)</option>
+                <option>Otro pariente en línea recta</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2">
+            <div><label>Cargo (específico)</label><input ...${campo("pep_cargo")} /></div>
+            <div><label>Dependencia</label><input ...${campo("pep_dependencia")} /></div>
+          </div>
+          <label>Periodo</label>
+          <input ...${campo("pep_periodo")} />
+          <small class="help">Tipo y parentesco son catálogo cerrado (Art. 95 Bis LGOAAC) — el cargo específico sigue en texto libre, sujeto a confirmar con Cumplimiento si conviene un catálogo también para ese campo.</small>
+        `}
+
+        <button class="btn btn-primary" onClick=${guardar} disabled=${guardando}>${guardando ? "Guardando…" : "Guardar datos de la clienta"}</button>
+      </div>
+    `;
+  }
+
+  // Domicilio SOCIAL/FISCAL institucionales — de solo lectura, nunca el
+  // domicilio de la clienta (CU-010 §3).
+  function DomicilioInstitucional({ datos }) {
+    if (!datos) return null;
+    return html`
+      <div class="card">
+        <div class="sectitle">🏢 Domicilio institucional</div>
+        <div class="kv-row"><b>Social:</b> ${datos.social}</div>
+        <div class="kv-row"><b>Fiscal (SAT):</b> ${datos.fiscal}</div>
+        <small class="help">Nunca es el domicilio de la clienta — evita litigar o facturar en la jurisdicción equivocada.</small>
+      </div>
+    `;
+  }
+
+  // Dónde quedó resguardado el original en papel (CU-010 §3) — trazabilidad
+  // de Control Operativo, no un candado.
+  function UbicacionFisica({ clientaId, expediente, onGuardado }) {
+    const [folio, setFolio] = useState((expediente && expediente.folio_fisico) || "");
+    const [ubicacion, setUbicacion] = useState((expediente && expediente.ubicacion_fisica) || "");
+    useEffect(() => {
+      setFolio((expediente && expediente.folio_fisico) || "");
+      setUbicacion((expediente && expediente.ubicacion_fisica) || "");
+    }, [expediente]);
+    const [mensaje, setMensaje] = useState(null);
+
+    const guardar = async () => {
+      const r = await j(await post(`/api/expediente/${clientaId}/ubicacion-fisica`, { folio_fisico: folio, ubicacion_fisica: ubicacion }));
+      if (!r.ok) { setMensaje({ tipo: "mora", texto: r.error }); return; }
+      setMensaje({ tipo: "ok", texto: "Ubicación física guardada." });
+      onGuardado();
+    };
+
+    return html`
+      <div class="card">
+        <div class="sectitle">🗄️ Resguardo del original en papel</div>
+        <small class="help" style="margin-top:0">Para que el expediente físico y el digital se puedan rastrear juntos.</small>
+        ${mensaje && html`<${Aviso} tipo=${mensaje.tipo}>${mensaje.texto}<//>`}
+        <div class="row2">
+          <div><label>Folio</label><input value=${folio} onInput=${(e) => setFolio(e.target.value)} /></div>
+          <div><label>Ubicación (archivero, gaveta, sucursal)</label><input value=${ubicacion} onInput=${(e) => setUbicacion(e.target.value)} /></div>
+        </div>
+        <button class="btn btn-light" onClick=${guardar}>Guardar ubicación</button>
+      </div>
+    `;
+  }
+
+  function App() {
+    const [clientaId, setClientaId] = useState("");
+    const [cargado, setCargado] = useState(false);
+    const [expediente, setExpediente] = useState(null);
+    const [documentos, setDocumentos] = useState([]);
+    const [firmas, setFirmas] = useState([]);
+    const [candado, setCandado] = useState(null);
+    const [requiereAval, setRequiereAval] = useState(false);
+    const [msg, setMsg] = useState(null);
+    const [referencias, setReferencias] = useState([]);
+    const [datosClienta, setDatosClienta] = useState({});
+    const [domicilioInstitucional, setDomicilioInstitucional] = useState(null);
+
+    const cargar = async (id) => {
+      if (!id) return;
+      const r = await j(await fetch(`/api/expediente/${id}`));
+      setExpediente(r.expediente || null);
+      setDocumentos(r.documentos || []);
+      setFirmas(r.firmas || []);
+      setReferencias(r.referencias || []);
+      setDatosClienta(r.datos || {});
+      setDomicilioInstitucional(r.domicilio_institucional || null);
+      const c = await j(await fetch(`/api/expediente/${id}/candado`));
+      setCandado(c);
+      setCargado(true);
+    };
+
+    const alVincularResponsable = () => cargar(clientaId);
+    const alVincularAval = () => { setRequiereAval(true); cargar(clientaId); };
+
+    const [refNombre, setRefNombre] = useState("");
+    const [refRelacion, setRefRelacion] = useState("");
+    const [refCurp, setRefCurp] = useState("");
+    const [refTelefono, setRefTelefono] = useState("");
+    const [refConsent, setRefConsent] = useState(false);
+    const agregarReferencia = async () => {
+      if (!refConsent) { setMsg({ tipo: "mora", texto: "La referencia debe dar su consentimiento antes de guardar sus datos." }); return; }
+      const r = await j(await post(`/api/expediente/${clientaId}/referencia`, {
+        nombre: refNombre, relacion: refRelacion, curp: refCurp, telefono: refTelefono, consentimiento: true,
+      }));
+      if (!r.ok) { setMsg({ tipo: "mora", texto: r.error }); return; }
+      setMsg({ tipo: "ok", texto: "Referencia guardada." });
+      setRefNombre(""); setRefRelacion(""); setRefCurp(""); setRefTelefono(""); setRefConsent(false);
+      cargar(clientaId);
+    };
+
+    const validar = async (aprobado) => {
+      const motivo = aprobado ? undefined : prompt("¿Por qué se rechaza el expediente?") || "";
+      const r = await j(await post(`/api/expediente/${clientaId}/validar`, { aprobado, motivo }));
+      if (!r.ok) { setMsg({ tipo: "mora", texto: r.error || "Tu puesto no tiene permiso para validar expedientes." }); return; }
+      setMsg({ tipo: "ok", texto: aprobado ? "Expediente validado." : "Expediente rechazado." });
+      cargar(clientaId);
+    };
+
+    const firmar = async (tipo) => {
+      const gps = await new Promise((res) => {
+        if (!navigator.geolocation) return res(null);
+        navigator.geolocation.getCurrentPosition(
+          (p) => res(`${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`),
+          () => res(null), { timeout: 5000 }
+        );
+      });
+      const r = await j(await post(`/api/expediente/${clientaId}/firma`, {
+        tipo, gps, dispositivo: navigator.userAgent, version_aviso: "2026-08",
+      }));
+      if (!r.ok) { setMsg({ tipo: "mora", texto: r.error }); return; }
+      cargar(clientaId);
+    };
+
+    const yaFirmado = (tipo) => firmas.some((f) => f.tipo === tipo);
+
+    return html`
+      <div>
+        ${msg && html`<${Aviso} tipo=${msg.tipo}>${msg.texto}<//>`}
+        <div class="card">
+          <div class="sectitle">🔎 Clienta</div>
+          <label>ID de la clienta (según el padrón / la solicitud)</label>
+          <input value=${clientaId} onInput=${(e) => setClientaId(e.target.value)} placeholder="Ej. 70000000123" />
+          <button class="btn btn-primary" onClick=${() => cargar(clientaId)}>Cargar expediente</button>
+        </div>
+
+        ${cargado && html`
+          <div class="card">
+            <div class="sectitle">🚦 Estatus del expediente</div>
+            ${expediente
+              ? html`<div class="pill ${expediente.estatus === "completo" ? "ok" : "falta"}">${expediente.estatus === "completo" ? "Completo" : "Incompleto"}</div>`
+              : html`<div class="muted">Aún no hay expediente — sube el primer documento para crearlo.</div>`}
+            ${expediente && expediente.estatus !== "completo" && (() => {
+              const faltanDatos = (expediente.checklist.faltantes || []).filter((f) => f.startsWith("dato:")).map((f) => f.slice(5));
+              return faltanDatos.length > 0 && html`
+                <div class="muted" style="margin-top:8px">
+                  Faltan datos de la clienta (además de documentos, si aplica): ${faltanDatos.map((c) => ETIQUETAS_DATO[c] || c).join(", ")}.
+                </div>
+              `;
+            })()}
+            ${candado && html`
+              <div style="margin-top:10px">
+                <${Aviso} tipo=${candado.bloquea ? "mora" : "ok"}>
+                  ${candado.bloquea ? ("Desembolso BLOQUEADO: " + candado.motivo) : "Expediente listo para desembolso."}
+                <//>
+              </div>
+            `}
+          </div>
+
+          <${DatosClienta} clientaId=${clientaId} datos=${datosClienta} onGuardado=${() => cargar(clientaId)} />
+
+          <${PersonaVinculo} etiqueta="👩 Responsable" tope=${2}
+            nota="Si la responsable ya respalda a otra clienta y llegó a su tope, el sistema lo rechaza aquí mismo."
+            buscarUrl="/api/responsables" vincularUrl=${`/api/expediente/${clientaId}/responsable`}
+            campoId="responsable_id" onVinculado=${alVincularResponsable} />
+
+          <${PersonaVinculo} etiqueta="🧾 Aval" tope=${1}
+            nota="Solo aplica en créditos mayores a $10,000."
+            buscarUrl="/api/avales" vincularUrl=${`/api/expediente/${clientaId}/aval`}
+            campoId="aval_id" onVinculado=${alVincularAval} />
+
+          <div class="card">
+            <div class="sectitle">👥 Referencias (${referencias.length} de 2)</div>
+            ${referencias.map((r) => html`
+              <div class="checkrow" key=${r.id}>
+                <div class="persona-row">
+                  <div class="nm">${r.nombre}${r.relacion ? html` <span class="curp">· ${r.relacion}</span>` : ""}</div>
+                  <span class="pill ok">Guardada</span>
+                </div>
+              </div>
+            `)}
+            ${referencias.length >= 2
+              ? html`<div class="muted" style="margin-top:8px">Ya se capturaron las 2 referencias que exige la Solicitud.</div>`
+              : html`
+                <div class="row2">
+                  <div><label>Nombre</label><input value=${refNombre} onInput=${(e) => setRefNombre(e.target.value)} /></div>
+                  <div><label>Relación</label><input value=${refRelacion} onInput=${(e) => setRefRelacion(e.target.value)} /></div>
+                </div>
+                <div class="row2">
+                  <div><label>CURP</label><input value=${refCurp} onInput=${(e) => setRefCurp(e.target.value)} /></div>
+                  <div><label>Teléfono</label><input value=${refTelefono} onInput=${(e) => setRefTelefono(e.target.value)} /></div>
+                </div>
+                <div class="checkbox-line">
+                  <input type="checkbox" id="consent" checked=${refConsent} onChange=${(e) => setRefConsent(e.target.checked)} />
+                  <label for="consent" style="margin:0">La referencia dio su consentimiento para guardar sus datos</label>
+                </div>
+                <button class="btn btn-light" onClick=${agregarReferencia} disabled=${!refNombre}>Guardar referencia</button>
+              `}
+          </div>
+
+          <${Documentos} clientaId=${clientaId} expediente=${expediente} documentos=${documentos}
+            requiereAval=${requiereAval} onCambio=${() => cargar(clientaId)} />
+
+          <${DomicilioInstitucional} datos=${domicilioInstitucional} />
+          <${UbicacionFisica} clientaId=${clientaId} expediente=${expediente} onGuardado=${() => cargar(clientaId)} />
+
+          <div class="card">
+            <div class="sectitle">✍️ Firmas (siempre separadas)</div>
+            <div class="firmas">
+              <button class="btn ${yaFirmado("solicitud") ? "btn-light firma-hecha" : "btn-primary"}" onClick=${() => firmar("solicitud")}>
+                ${yaFirmado("solicitud") ? "✓ Solicitud firmada" : "Firmar solicitud"}
+              </button>
+              <button class="btn ${yaFirmado("buro") ? "btn-light firma-hecha" : "btn-primary"}" onClick=${() => firmar("buro")}>
+                ${yaFirmado("buro") ? "✓ Buró firmado" : "Firmar autorización de Buró"}
+              </button>
+              <button class="btn ${yaFirmado("datos_sensibles") ? "btn-light firma-hecha" : "btn-primary"}" onClick=${() => firmar("datos_sensibles")}>
+                ${yaFirmado("datos_sensibles") ? "✓ Datos sensibles firmado" : "Firmar consentimiento de datos sensibles"}
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="sectitle">✅ Validación (Administración y Finanzas)</div>
+            <div class="muted">Solo el puesto de Administración y Finanzas puede validar — si no te corresponde, el servidor lo va a rechazar aunque el botón se vea aquí.</div>
+            <button class="btn btn-ok" onClick=${() => validar(true)}>Validar expediente</button>
+            <button class="btn btn-warn" onClick=${() => validar(false)}>Rechazar expediente</button>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  render(html`<${App} />`, document.getElementById("app"));
+})();
+</script>
+</body>
+</html>
