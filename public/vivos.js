@@ -1,3 +1,7 @@
+/* eslint-disable no-undef -- este archivo es un PARCHE que se inyecta dentro
+   del contexto de otra página ya cargada (CENTROS, INDIVIDUALES, datosCli,
+   render, recalc... los define esa página anfitriona, no este archivo). Son
+   falsos positivos de ESLint, no variables realmente indefinidas. */
 // ===================================================================
 // DATOS VIVOS — el teléfono de la ejecutiva sigue al padrón del servidor.
 //
