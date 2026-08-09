@@ -207,30 +207,6 @@
       <label>Centro</label>
       <select id="selCentro" onchange="render()"><option value="">— Elige un centro —</option></select>
     </div>
-    <button class="btn btn-light" style="width:100%;margin-top:10px" onclick="toggleAltaClienta()">+ Agregar clienta nueva</button>
-    <div id="formAlta" class="hidden" style="margin-top:10px;border-top:1px solid var(--linea);padding-top:10px">
-      <div class="meta" style="margin-bottom:8px">Agrega una clienta a tu padrón. Queda guardada en tu celular. Avisa a Monse para que también la registre en la base.</div>
-      <div class="row2">
-        <div><label>Centro</label>
-          <select id="altaCentro"><option value="">— Centro —</option></select>
-        </div>
-        <div><label>Producto</label>
-          <select id="altaProd">
-            <option value="Grupal-Basico">Grupal-Básico</option>
-            <option value="Grupal-Micro">Grupal-Micro</option>
-            <option value="Grupal-Adicional">Grupal-Adicional</option>
-            <option value="Individual">Individual</option>
-            <option value="Foxi Plus - 1">Foxi Plus</option>
-          </select>
-        </div>
-      </div>
-      <div style="margin-top:8px"><label>Nombre completo</label><input type="text" id="altaNombre" placeholder="Nombre de la clienta"></div>
-      <div class="row2" style="margin-top:8px">
-        <div><label>No. Socio</label><input type="number" inputmode="numeric" id="altaSocio" placeholder="11113000000"></div>
-        <div><label>Saldo</label><input type="text" inputmode="decimal" id="altaSaldo" placeholder="0"></div>
-      </div>
-      <button class="btn btn-wa" style="width:100%;margin-top:10px" onclick="agregarClienta()">Guardar clienta</button>
-    </div>
   </div>
   <div id="listaClientas"></div>
 </div>
@@ -398,13 +374,6 @@
     <div class="meta">Al terminar tu día, envía el arqueo: primero SUBE todo al sistema y, solo cuando el servidor confirma, se limpia este celular.</div>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       <button class="btn btn-wa" style="flex:1" onclick="enviarArqueoYCerrar()">Enviar arqueo y cerrar captura</button>
-    </div>
-    <div class="meta" style="margin-top:14px">Cuando Monse mande un padrón nuevo (altas/bajas), impórtalo aquí sin cambiar de app:</div>
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
-      <label class="btn btn-light" style="flex:1;text-align:center;cursor:pointer">Actualizar padrón
-        <input type="file" accept=".csv,text/csv" style="display:none" onchange="importarPadron(this)">
-      </label>
-      <button class="btn btn-light" onclick="restablecerPadron()">Restablecer</button>
     </div>
   </div>
 </div>
