@@ -2400,6 +2400,35 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     body: JSON.stringify({ id: S55, producto: P55, motivo: "No renovó" }) });
   ok("de baja, la clienta desaparece de la app de su ejecutiva",
     (await enApp55()) === null, "le sigue apareciendo");
+  // Y QUE LA APP DE VERDAD LA SAQUE. Que el servidor deje de mandarla no basta:
+  // la lista viene ESCRITA en el HTML, así que si el `quitar` no la borra, se le
+  // queda en pantalla y se le sigue cobrando. Se corre el vivos.js REAL.
+  const sacaDeLaApp = async () => {
+    const html = await (await fetch(U + "/app", { headers: H(cJul) })).text();
+    const mC = html.match(/let CENTROS=(\{.*?\});/s);
+    const mI = html.match(/let INDIVIDUALES=(\[.*?\]);/s);
+    const paq = JSON.parse(html.match(/window\.__VIVOS0=(\{.*?\});<\/script>/s)[1]);
+    const CEN = mC ? JSON.parse(mC[1]) : {};
+    const IND = mI ? JSON.parse(mI[1]) : [];
+    // Se mete a mano, como la tenía la ejecutiva antes de la baja.
+    IND.push({ n: "SOCORRO DE PRUEBA 55", f: S55, sub: P55, k: K55, saldo: 3520, esp: 320 });
+    const nop = () => {};
+    const w = { __VIVOS0: paq, addEventListener: nop };
+    new Function("CENTROS", "INDIVIDUALES", "datosCli", "guardarDatosCli", "window",
+      "navigator", "document", "setInterval", "setTimeout", "fetch",
+      require("fs").readFileSync(require("path").join(__dirname, "..", "public", "vivos.js"), "utf8"))(
+      CEN, IND, {}, nop, w, { onLine: false }, { hidden: true, addEventListener: nop }, nop, nop, nop);
+    const sigue = [].concat(...Object.values(CEN), IND)
+      .some((c) => String(c.f) === S55 && (c.sub || "") === P55);
+    let mueve = 0;
+    for (let k = 0; k < 3; k++) if (w.__aplicarVivos(paq) > 0) mueve++;
+    return { sigue, mueve };
+  };
+  const trasBaja = await sacaDeLaApp();
+  ok("y la app SÍ la borra de su lista, no solo deja de recibirla",
+    trasBaja.sigue === false, "se le quedó en pantalla");
+  ok("sin repintarle la pantalla en cada sondeo",
+    trasBaja.mueve === 0, trasBaja.mueve + " de 3 sondeos la movían");
 
   // LO QUE PIDIÓ: re-dar el crédito aunque esté de baja.
   const rr55 = await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
