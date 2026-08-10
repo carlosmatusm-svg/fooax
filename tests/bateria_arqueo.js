@@ -2262,6 +2262,44 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !!n52b && n52b.saldoActual === 20000, JSON.stringify(n52b));
   await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
 
+  console.log("\n— 54. RENOVAR DEJA DOS REGISTROS: NO SE PUEDEN MEZCLAR (Karina, 10-ago) —");
+  // La tarjeta de BLANCA VERONICA decía el disparate «saldo de la plantilla
+  // $288 − pagado desde el corte $288 = $2,712», y el crédito YA DADO DE BAJA
+  // decía «pagó $288 esta sem.». Causa: al renovar quedan DOS registros con el
+  // mismo socio y el mismo producto, y como la llave de la cartera es
+  // socio+producto, el viejo heredaba los números del nuevo.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  const S54 = "70000000954", P54 = "Grupal-Basico 2";
+  const K54 = S54 + "|" + P54 + "|BLANCA DE PRUEBA 54|0";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54, nombre: "BLANCA DE PRUEBA 54", producto: P54, centro: "C-0",
+      ejecutivo: "Julio", saldo: 288, cuota: 288, plazo: 18 }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K54]: { pago: 288, garantia: 52, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54, producto: P54, saldo: 3000, cuota: 200, plazo: 18, motivo: "Renovación" }) });
+
+  const tarj54 = (await j(await fetch(U + "/api/clientes?q=" + S54, { headers: H(cm) }))).resultados || [];
+  const viejo54 = tarj54.find((c) => c.activa === false || c.estatus === "BAJA");
+  const nuevo54 = tarj54.find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("después de renovar quedan los dos registros, viejo y nuevo",
+    !!viejo54 && !!nuevo54, JSON.stringify(tarj54.map((c) => c.estatus)));
+  ok("el crédito de BAJA ya no presume los abonos del nuevo",
+    !!viejo54 && viejo54.pagado === 0 && viejo54.saldoActual === 288,
+    JSON.stringify(viejo54));
+  ok("y el nuevo nace con su saldo completo",
+    !!nuevo54 && nuevo54.saldoActual === 3000, JSON.stringify(nuevo54));
+
+  const h54 = await j(await fetch(U + "/api/credito/historial?id=" + S54
+    + "&producto=" + encodeURIComponent(P54), { headers: H(cm) }));
+  // El renglón que se leía imposible: el saldo salía del registro viejo y lo
+  // abonado del vivo, así que la resta no cerraba por ningún lado.
+  ok("«Ver pagos» toma el crédito ACTIVO, no el de baja",
+    h54.saldoPlantilla === 3000, "saldoPlantilla " + h54.saldoPlantilla);
+  ok("y su resta por fin cierra",
+    Math.abs(h54.saldoPlantilla - (h54.pagadoDesdeElCorte + h54.liquidado) - h54.saldoActual) < 0.01,
+    h54.saldoPlantilla + " − " + (h54.pagadoDesdeElCorte + h54.liquidado) + " ≠ " + h54.saldoActual);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

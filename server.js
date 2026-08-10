@@ -1675,6 +1675,13 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
     const heno = norm(c.nombre) + " " + c.id;
     return terminos.every(t => heno.includes(t));
   }).slice(0, 40).map(c => {
+    // `carteraViva` solo calcula los créditos ACTIVOS, y la llave es
+    // socio+producto: al renovar, el crédito viejo comparte llave con el nuevo
+    // y heredaba SUS números. Por eso el 10-ago la tarjeta del crédito de baja
+    // de BLANCA VERONICA decía «pagó $288 esta sem.» de un ciclo ya cerrado.
+    // Un crédito de baja no tiene abonos vivos: su historia va en «Ver pagos».
+    if (c.activa === false || c.estatus === "BAJA")
+      return { ...c, pagado: 0, liquidado: 0, saldoActual: c.saldo || 0 };
     const i = infoCredito(cv, c);
     return { ...c, pagado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual };
   });
@@ -2304,7 +2311,14 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
   const id = String(req.query.id || "").trim();
   const producto = String(req.query.producto || "").trim();
   if (!id) return res.status(400).json({ error: "Falta el número de socio." });
-  const c = PADRON.find((x) => String(x.id) === id && (!producto || x.producto === producto));
+  // EL ACTIVO MANDA. Al renovar quedan DOS registros con el mismo socio y el
+  // mismo producto —el viejo dado de baja y el nuevo—, y tomar el primero
+  // mezclaba los dos: el saldo salía del registro VIEJO y lo abonado del
+  // crédito VIVO. Por eso el 10-ago la tarjeta de BLANCA VERONICA decía el
+  // disparate «saldo de la plantilla $288 − pagado desde el corte $288 = $2,712».
+  const cand = PADRON.filter((x) => String(x.id) === id && (!producto || x.producto === producto));
+  const c = cand.find((x) => x.activa !== false && x.estatus !== "BAJA")
+    || cand.slice().sort((x, y) => String(y.alta_fecha || "").localeCompare(String(x.alta_fecha || "")))[0];
   if (!c) return res.status(404).json({ error: "No encuentro ese crédito." });
   const corte = corteSaldos();
   const clave = claveCredito(c.id, c.producto);
