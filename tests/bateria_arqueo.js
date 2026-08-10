@@ -2188,6 +2188,80 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     Array.isArray(carLC.liquidacionesSinCredito),
     "es " + typeof carLC.liquidacionesSinCredito);
 
+  console.log("\n— 53. RENOVAR NO ARRASTRA LOS ABONOS DEL CICLO VIEJO (Karina, 10-ago) —");
+  // El corte se fija aquí: secciones anteriores lo dejan donde les sirve, y sin
+  // esto los abonos de la prueba caían antes del corte y no contaban.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  // «Cuando intentan dar un nuevo crédito, le resta lo que ya pagaron.» Pasó con
+  // doña Alma Rosario: se renovó por $29,184, después se movió el corte al lunes
+  // y el crédito NUEVO amaneció con $5,440 descontados — los del ciclo que ella
+  // ya había liquidado. La causa: el apunte que protege la renovación venía
+  // sellado con el corte de ese día (`previo.corte === corte`) y al moverlo
+  // dejaba de valer. Ahora se recalcula contra el corte de hoy.
+  const S52 = "70000000952", P52 = "Grupal-Micro";
+  const K52 = S52 + "|" + P52 + "|ALMA DE PRUEBA 52|0";
+  const nuevo52 = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + S52, { headers: H(cm) }));
+    return (d.resultados || []).find((c) => c.activa && c.producto === P52) || null;
+  };
+  const conCorte = async (f) => {
+    await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: f }) });
+    return nuevo52();
+  };
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52, nombre: "ALMA DE PRUEBA 52", producto: P52, centro: "C-0",
+      ejecutivo: "Julio", saldo: 10000, cuota: 500, plazo: 20 }) });
+  // Abona $5,440 el jueves y liquida los $4,560 que le quedaban, ese mismo día.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K52]: { pago: 5440, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", concepto: "Liquida para renovar", monto: 4560,
+      metodo: "efectivo", socio: S52, producto: P52, ejecutivo: "julio", fecha: "2026-08-06" }) });
+  const rec52 = await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52, producto: P52, saldo: 29184, cuota: 912, plazo: 32, motivo: "Renovación" }) });
+  ok("se puede renovar después de liquidar", rec52.status === 200, "status " + rec52.status);
+  const recienRenovado = await nuevo52();
+  ok("el crédito nuevo nace limpio",
+    !!recienRenovado && recienRenovado.saldoActual === 29184, JSON.stringify(recienRenovado));
+
+  // ESTO es lo que fallaba: mover el corte le cargaba el ciclo viejo al nuevo.
+  let malos52 = [];
+  for (const f of ["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06"]) {
+    const c = await conCorte(f);
+    if (!c || c.saldoActual !== 29184) malos52.push(f + ":" + (c ? c.saldoActual : "?"));
+  }
+  ok("y mover el corte NO le carga los abonos del ciclo viejo",
+    malos52.length === 0, "falló con el corte en " + malos52.join(", "));
+
+  // Y el contrario, que es donde esto se puede pasar de listo: los abonos del
+  // crédito NUEVO sí tienen que contar.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: HOY, snapshot: { regI: { [K52]: { pago: 912, forma: "E" } } }, ts: Date.now() + 1 }) });
+  let malos52b = [];
+  for (const f of ["2026-08-03", "2026-08-05", "2026-08-06", HOY]) {
+    const c = await conCorte(f);
+    if (!c || Math.abs(c.saldoActual - (29184 - 912)) > 0.01) malos52b.push(f + ":" + (c ? c.saldoActual : "?"));
+  }
+  ok("pero el primer pago del crédito NUEVO sí le baja, con cualquier corte",
+    malos52b.length === 0, "falló con el corte en " + malos52b.join(", "));
+
+  // El caso feo: liquidar, renovar y pagar el crédito nuevo el MISMO día.
+  const S52b = "70000000953", K52b = S52b + "|" + P52 + "|BEATRIZ DE PRUEBA 52|0";
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52b, nombre: "BEATRIZ DE PRUEBA 52", producto: P52, centro: "C-0",
+      ejecutivo: "Julio", saldo: 8000, cuota: 400, plazo: 20 }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: HOY, snapshot: { regI: { [K52b]: { pago: 8000, forma: "E" } } }, ts: Date.now() + 2 }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52b, producto: P52, saldo: 20000, cuota: 625, plazo: 32, motivo: "Renovación mismo día" }) });
+  const d52b = await j(await fetch(U + "/api/clientes?q=" + S52b, { headers: H(cm) }));
+  const n52b = (d52b.resultados || []).find((c) => c.activa && c.producto === P52);
+  ok("liquidar, renovar y cobrar el mismo día no revuelve los dos ciclos",
+    !!n52b && n52b.saldoActual === 20000, JSON.stringify(n52b));
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -1072,6 +1072,58 @@ function aplicarCorteDeLaPlantilla() {
 // Con hora no se puede y no hace falta: las capturas guardan fecha, no hora, y
 // nadie captura después de cerrar su día.
 
+// CUÁNTO DEL CICLO CERRADO SIGUE VISIBLE BAJO EL CORTE DE HOY.
+//
+// Al renovar, el ciclo nuevo hereda la MISMA llave (socio+producto), así que los
+// abonos del ciclo viejo se le cargarían al nuevo. Por eso el recrédito anota en
+// `previo` cuánto llevaba abonado el que se cerró, para descontarlo.
+//
+// El problema era que ese apunte venía sellado con el corte de ese día: al mover
+// el corte dejaba de valer y el crédito nuevo amanecía con los abonos del viejo
+// encima (le pasó a doña Alma Rosario el 10-ago: $5,440 de más).
+//
+// Aquí se recalcula contra el corte de HOY, y la regla es la que sí se sostiene:
+// los abonos del ciclo cerrado son los que tienen FECHA ANTERIOR O IGUAL al día
+// de la renovación. Se recorren de más viejo a más nuevo y se toman hasta
+// completar lo que `previo` dice — nunca más, así que si el corte tapó parte de
+// esos abonos, tampoco se descuenta de más.
+function previoVigente(c, corte, porFecha, fechasLiq) {
+  const p = c && c.previo;
+  if (!p) return null;
+  const hasta = p.fecha || c.alta_fecha || null;
+  const tomar = (mapa, tope, leer) => {
+    if (!(tope > 0) || !mapa) return 0;
+    let queda = tope, suma = 0;
+    for (const f of Object.keys(mapa).sort()) {
+      if (queda <= 0) break;
+      if (f < corte) continue;              // ese día ya lo trae descontado la plantilla
+      if (hasta && f > hasta) break;        // de aquí en adelante ya es del ciclo NUEVO
+      const v = leer(mapa[f]);
+      const usa = Math.min(queda, v);
+      suma += usa; queda -= usa;
+    }
+    return Math.round(suma * 100) / 100;
+  };
+  // Con desglose por día no hay nada que adivinar: se suma lo que quedó dentro
+  // del corte de hoy. Es la vía de todos los recréditos desde el 10-ago.
+  if (p.dias || p.diasLiq) {
+    const suma = (mapa) => {
+      let t = 0;
+      for (const f in (mapa || {})) if (f >= corte) t += mapa[f] || 0;
+      return Math.round(t * 100) / 100;
+    };
+    return { pago: suma(p.dias), gar: suma(p.diasGar), liq: suma(p.diasLiq) };
+  }
+  // Apuntes viejos (sin desglose): se deduce por fecha. No es exacto el día de
+  // la renovación, pero es muchísimo mejor que perder la protección entera.
+  const clave = claveCredito(c.id, c.producto);
+  return {
+    pago: tomar(porFecha[clave], p.pago || 0, (x) => x.p || 0),
+    gar: tomar(porFecha[clave], p.gar || 0, (x) => x.g || 0),
+    liq: tomar(fechasLiq[String(c.id)], p.liq || 0, (x) => x || 0),
+  };
+}
+
 function carteraViva(usuario) {
   // Saldos = saldo de plantilla − TODO lo abonado desde el corte (no solo la
   // semana: los lunes la ventana semanal se vacía y los saldos "rebotaban").
@@ -1098,9 +1150,14 @@ function carteraViva(usuario) {
     // NO se resuelve por fecha: la clienta suele liquidar y renovar el MISMO día, y
     // las capturas solo guardan fecha, no hora. Se resuelve con lo exacto: al hacer
     // el recrédito se anota cuánto llevaba abonado el ciclo que se cerró (`previo`),
-    // y ese monto se descuenta aquí. Solo vale mientras no se mueva el corte —
-    // cuando se mueve, los acumulados arrancan de cero y el descuento ya no aplica.
-    const prev = (c.previo && c.previo.corte === corte) ? c.previo : null;
+    // y ese monto se descuenta aquí.
+    //
+    // ANTES ESTO SE CAÍA AL MOVER EL CORTE (`previo.corte === corte`), y el 7-ago
+    // pasó de verdad: Monse renovó a doña Alma Rosario por $29,184, después movió
+    // el corte al lunes, y el crédito NUEVO amaneció con $5,440 descontados — los
+    // del ciclo que ya había liquidado. Ahora el descuento se vuelve a calcular
+    // contra el corte de hoy, así que moverlo ya no lo desactiva.
+    const prev = previoVigente(c, corte, porFecha, fechasLiq);
     const pagado = Math.max(0, (pagos[clave] || 0) - (prev ? (prev.pago || 0) : 0));
     const garan = Math.max(0, (garantias[clave] || 0) - (prev ? (prev.gar || 0) : 0));
     // Las liquidaciones son por SOCIO y se reparten entre sus créditos en orden
@@ -2468,9 +2525,43 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   // esos abonos al crédito nuevo. Se guarda con el corte vigente porque los
   // acumulados se miden desde ahí: si el corte cambia, el descuento ya no aplica.
   const infoPrev = choca ? infoCredito(cv, choca) : null;
-  const previo = infoPrev
-    ? { pago: infoPrev.pagado || 0, gar: infoPrev.garantia || 0, liq: infoPrev.liquidado || 0, corte: corteSaldos() }
-    : null;
+  // `fecha` es el día de la renovación: es lo que permite separar los abonos del
+  // ciclo viejo (fecha <= ese día) de los del nuevo. `corte` se conserva solo
+  // para los apuntes que ya existían con el formato anterior.
+  // Se guarda el DESGLOSE POR DÍA de lo que abonó el ciclo que se cierra, no solo
+  // el total. Con el total había que adivinar después qué abono era de cuál
+  // ciclo, y el día de la renovación son indistinguibles (se liquida y se
+  // renueva el mismo día). Con el desglose no hay nada que adivinar: son los
+  // montos tal como estaban en este momento, y el ciclo nuevo nace en cero.
+  // La ventana se abre MUY atrás a propósito: el desglose no debe depender del
+  // corte, que es justo lo que se está arreglando.
+  let previo = null;
+  if (infoPrev) {
+    const atras = new Date(hoyMX() + "T12:00:00"); atras.setDate(atras.getDate() - 395);
+    const orig = atras.toISOString().slice(0, 10);
+    const { porFecha: pfTodo } = pagosDeLaSemana(req.usuario, orig);
+    const liqTodo = {};
+    liquidacionesDeLaSemana(req.usuario, orig, liqTodo);
+    const claveVieja = claveCredito((choca || previa).id, (choca || previa).producto);
+    const recorta = (mapa, tope, leer) => {
+      const out = {};
+      if (!(tope > 0) || !mapa) return out;
+      let queda = tope;
+      for (const f of Object.keys(mapa).sort()) {
+        if (queda <= 0) break;
+        const usa = Math.min(queda, leer(mapa[f]));
+        if (usa > 0) { out[f] = Math.round(usa * 100) / 100; queda -= usa; }
+      }
+      return out;
+    };
+    previo = {
+      pago: infoPrev.pagado || 0, gar: infoPrev.garantia || 0, liq: infoPrev.liquidado || 0,
+      corte: corteSaldos(), fecha: hoyMX(),
+      dias: recorta(pfTodo[claveVieja], infoPrev.pagado || 0, (x) => x.p || 0),
+      diasGar: recorta(pfTodo[claveVieja], infoPrev.garantia || 0, (x) => x.g || 0),
+      diasLiq: recorta(liqTodo[id], infoPrev.liquidado || 0, (x) => x || 0),
+    };
+  }
   const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
