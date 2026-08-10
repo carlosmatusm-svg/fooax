@@ -1939,6 +1939,37 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("Anel puede corregir el arqueo",
     (await puedeAnel("/api/arqueo/ajuste", { fecha: F49, ejecutivo: "julio",
       arqueo: { 200: 2 }, motivo: "Reconteo de Anel" })) === 200, "la rechazó");
+  // PARIDAD COMPLETA MONSE ↔ ANEL (Karina, 10-ago: «¿le pusiste ese mismo
+  // featured a Monse o solo es en el de Anel?»). No basta con probar a Anel en
+  // lo de hoy: lo que hay que sostener es que las DOS puedan exactamente lo
+  // mismo, para que nadie se quede fuera de una función sin que nos enteremos.
+  const MISMAS = [
+    ["GET", "/api/captura?fecha=" + F49 + "&ejecutivo=julio", null],
+    ["GET", "/api/cobranza/ajustes?fecha=" + F49, null],
+    ["GET", "/api/credito/historial?id=11112931059&producto=COMADRE", null],
+    ["GET", "/api/periodo", null],
+    ["GET", "/api/semana/caja", null],
+    ["GET", "/api/cartera", null],
+    ["GET", "/api/creditos?q=11112931059", null],
+    ["POST", "/api/creditos/etiqueta", { id: "11112931059", producto: "COMADRE", etiqueta: "Recuperación" }],
+    ["POST", "/api/creditos/ajuste", { id: "11112931059", producto: "COMADRE", cuota: 1554.5, motivo: "paridad" }],
+    ["POST", "/api/saldos/corte", { fecha: "2026-08-05" }],
+    // Este da 400 en las dos (el socio no existe): lo que se compara es que las
+    // DOS lleguen igual de lejos, no que funcione.
+    ["POST", "/api/creditos/recredito", { id: "70000000993", producto: "Individual 1",
+      saldo: 1000, cuota: 100, plazo: 10, ejecutivo: "Julio", motivo: "paridad" }],
+  ];
+  const distintas = [];
+  for (const [metodo, ruta, cuerpo] of MISMAS) {
+    const pide = (ck) => fetch(U + ruta, metodo === "GET"
+      ? { headers: H(ck) }
+      : { method: "POST", headers: H(ck), body: JSON.stringify(cuerpo) });
+    const [rm, ra] = [await pide(cm), await pide(cAnel)];
+    if (rm.status !== ra.status) distintas.push(ruta + " → Monse " + rm.status + " / Anel " + ra.status);
+  }
+  ok("Monse y Anel pueden EXACTAMENTE lo mismo, función por función",
+    distintas.length === 0, distintas.join(" · "));
+
   const rastroAnel = await j(await fetch(U + "/api/cobranza/ajustes?fecha=" + F49, { headers: H(cAnel) }));
   ok("y sus correcciones quedan a SU nombre, no al de Monse",
     (rastroAnel.ajustes || []).some((a) => a.por === "Anel" && a.usuario === "anel"),
