@@ -625,6 +625,20 @@
     </div>
     <div class="permeta" id="perResumen">Cargando…</div>
   </div>
+  <!-- MORA POR DÍA DE COBRO — el método de la Ing. Monse. Karina, 10-ago:
+       "ves que dice día lunes, martes, etc. de las plantillas, así quiero que
+       lo saques por ese approach". faltante = cuota − lo que abonó esa semana. -->
+  <div class="perwrap">
+    <div class="perttl">Mora de la semana, por día de cobro</div>
+    <div class="permeta">El método de la Ing. Monse: cada clienta bajo el día que le toca cobrar,
+      y lo que le faltó de su cuota esa semana. <b>No mira el corte</b> — por eso da un número
+      distinto al del semáforo de cartera, que mide el acumulado.</div>
+    <div class="perrow">
+      <label>Semana del lunes</label><input type="date" id="moraLunes">
+      <button class="dlbtn" onclick="descargarMora()"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10M12 17v.01"/><circle cx="12" cy="12" r="9"/></svg><span>Descargar</span></button>
+    </div>
+    <div class="permeta" id="moraResumen">Cargando…</div>
+  </div>
   <div class="descargas">
     <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg><span>Arqueo de caja del día</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg><span>Cierre de caja de la semana</span></button>
@@ -1993,6 +2007,31 @@ function descargar(base) {
   }, 6000);
 }
 
+// ---------- mora de la semana, por día de cobro ----------
+function descargarMora() {
+  const v = document.getElementById("moraLunes");
+  descargar("/api/mora/excel" + (v && v.value ? "?lunes=" + v.value : ""));
+}
+async function cargarMora() {
+  const box = document.getElementById("moraResumen");
+  if (!box) return;
+  const v = document.getElementById("moraLunes");
+  let d;
+  try { d = await (await fetch("/api/mora" + (v && v.value ? "?lunes=" + v.value : ""), { credentials: "include" })).json(); }
+  catch { box.textContent = "Sin conexión con el servidor."; return; }
+  if (d.error) { box.textContent = d.error; return; }
+  if (v && !v.value) v.value = d.lunes;
+  const fc = d.fueraDeCuenta || {};
+  const fuera = (fc.cuotaVariable || 0) + (fc.sinCuota || 0) + (fc.sinDia || 0);
+  box.innerHTML = "Semana del <b>" + hesc(d.lunes) + "</b>: falta cobrar <b style=\"color:#8E0019\">"
+    + dinero(d.total) + "</b> de <b>" + d.clientas + "</b> clientas."
+    + (d.dias || []).map((g) => "<br>" + hesc(g.dia) + " " + hesc(g.fecha)
+        + " · " + g.filas.length + " créditos · " + dinero(g.total)).join("")
+    + (fuera ? '<br><span style="color:#8E0019">Fuera de la cuenta: ' + fuera + " créditos ("
+        + (fc.cuotaVariable || 0) + " de cuota variable, " + (fc.sinCuota || 0) + " sin cuota, "
+        + (fc.sinDia || 0) + " sin día). Vienen dichos en el Excel.</span>" : "");
+}
+
 // ---------- movimiento del periodo (sin corte) ----------
 function rangoPeriodoUI() {
   const dd = document.getElementById("perDesde"), hh = document.getElementById("perHasta");
@@ -2183,6 +2222,8 @@ cargarCorte();
 cargarCartera();
 cargarTendencias();
 cargarPeriodo();
+cargarMora();
+{ const e = document.getElementById("moraLunes"); if (e) e.addEventListener("change", cargarMora); }
 // Al cambiar el rango se recalcula el resumen, para ver el número antes de bajar el Excel.
 ["perDesde", "perHasta"].forEach((id) => {
   const e = document.getElementById(id);

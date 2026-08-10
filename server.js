@@ -1396,6 +1396,160 @@ function rangoPeriodo(q) {
   return { desde, hasta };
 }
 
+// ===================================================================
+// MORA DE LA SEMANA, POR DÍA DE COBRO — el método de la Ing. Monse.
+//
+// Pedido por Karina el 10-ago con el archivo «MORA SEMANA 03 AL 07 DE AGOSTO»:
+// «la mora no nos dio la semana pasada; ves que dice día lunes, martes, etc.,
+// de las plantillas, así quiero que lo saques por ese approach».
+//
+// Su regla, sacada de cotejar SUS números contra las cuotas del padrón:
+//
+//     faltante = cuota − lo que pagó esa semana
+//
+// y las clientas se agrupan por el DÍA DE COBRO que trae la plantilla. Se
+// comprobó en los casos donde el faltante NO era la cuota entera: MARIA DEL
+// ROSARIO (cuota $576, faltante $126 → pagó $450) y LUCIA CASTRO (cuota $432,
+// faltante $132 → pagó $300). En los demás, faltante = cuota exacta = no pagó.
+//
+// NO MIRA EL CORTE. Es de la semana: lo que se abonó entre lunes y domingo. Por
+// eso da un número distinto al del semáforo de cartera, que mide otra cosa
+// (el acumulado desde el corte) — y por eso «no nos dio».
+// ===================================================================
+function moraDeLaSemana(usuario, lunesOpt) {
+  const lunes = /^\d{4}-\d{2}-\d{2}$/.test(String(lunesOpt || "")) ? lunesOpt : lunesDeLaSemana(hoyMX());
+  const dom = new Date(lunes + "T12:00:00"); dom.setDate(dom.getDate() + 6);
+  const domingo = dom.toISOString().slice(0, 10);
+  // Lo abonado ESA semana, crédito por crédito. Solo el pago: la garantía y el
+  // solidario no cubren la cuota.
+  const { porFecha } = pagosDeLaSemana(usuario, lunes, domingo);
+  const pagoSemana = {};
+  for (const clave in porFecha)
+    for (const f in porFecha[clave])
+      if (f >= lunes && f <= domingo) pagoSemana[clave] = (pagoSemana[clave] || 0) + (porFecha[clave][f].p || 0);
+
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const dias = {};
+  const fueraDeCuenta = { sinCuota: 0, cuotaVariable: 0, sinDia: 0, liquidados: 0 };
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    // Un crédito ya liquidado no debe nada esa semana.
+    if (infoCredito(cv, c).saldoActual <= 0.009) { fueraDeCuenta.liquidados++; continue; }
+    // MAGNUS y los de cuota decreciente quedan fuera: su cuota cambia cada
+    // periodo y la del padrón deja de servir al primer pago. Marcarles mora con
+    // ella sería inventarla. Se cuentan aparte para que no desaparezcan en silencio.
+    if (esCuotaVariable(c.producto)) { fueraDeCuenta.cuotaVariable++; continue; }
+    const cuota = Number(c.cuota) || 0;
+    if (cuota <= 0) { fueraDeCuenta.sinCuota++; continue; }
+    const dia = String(c.diaPago || "").trim().toUpperCase();
+    if (!idxDia(dia)) { fueraDeCuenta.sinDia++; continue; }
+    const clave = claveCredito(c.id, c.producto);
+    const pagado = Math.round((pagoSemana[clave] || 0) * 100) / 100;
+    const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
+    if (faltante <= 0) continue;
+    const g = dias[dia] || (dias[dia] = { dia, fecha: null, filas: [], total: 0 });
+    g.filas.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
+      socio: String(c.id), clienta: c.nombre, producto: c.producto,
+      cuota, pagado, faltante, saldo: infoCredito(cv, c).saldoActual });
+    g.total = Math.round((g.total + faltante) * 100) / 100;
+  }
+  // La fecha real de cada día dentro de esa semana, como la pone Monse.
+  const orden = ["LUNES", "MARTES", "MIERCOLES", "MIÉRCOLES", "JUEVES", "VIERNES", "SABADO", "SÁBADO", "DOMINGO"];
+  const lista = Object.values(dias).sort((a, b) => idxDia(a.dia) - idxDia(b.dia));
+  for (const g of lista) {
+    const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + (idxDia(g.dia) - 1));
+    g.fecha = d.toISOString().slice(0, 10);
+    g.filas.sort((a, b) => String(a.centro).localeCompare(String(b.centro))
+      || String(a.clienta).localeCompare(String(b.clienta)));
+  }
+  void orden;
+  return { lunes, domingo, dias: lista,
+    total: Math.round(lista.reduce((s, g) => s + g.total, 0) * 100) / 100,
+    clientas: new Set(lista.flatMap((g) => g.filas.map((f) => f.socio))).size,
+    fueraDeCuenta };
+}
+
+app.get("/api/mora", requiere("direccion", "admin"), (req, res) => {
+  res.json(moraDeLaSemana(req.usuario, req.query.lunes));
+});
+
+// El Excel con el MISMO acomodo que usa la Ing. Monse: un bloque por día, con
+// EJECUTIVO · CENTRO · ID · CLIENTE · PRODUCTO · FALTANTE DE PAGO, y su total.
+app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = moraDeLaSemana(req.usuario, req.query.lunes);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const s = wb.addWorksheet("Mora de la semana");
+  const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019", LAV = "FFF3F0FA";
+  const MONEDA = '"$"#,##0.00';
+  [14, 22, 15, 34, 18, 16, 13, 13].forEach((w, i) => (s.getColumn(i + 1).width = w));
+  s.mergeCells("A1:H1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · MORA DE LA SEMANA · del " + d.lunes + " al " + d.domingo;
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center", vertical: "middle" };
+  s.getRow(1).height = 24;
+  let f = 3;
+  for (const g of d.dias) {
+    // Renglón del día, como su archivo: DIA · LUNES · (fecha)
+    const rd = s.getRow(f++);
+    rd.getCell(1).value = "DIA";
+    rd.getCell(2).value = g.dia;
+    rd.getCell(3).value = g.fecha;
+    for (let i = 1; i <= 8; i++) {
+      rd.getCell(i).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      rd.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    }
+    const rh = s.getRow(f++);
+    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "FALTANTE DE PAGO", "Cuota", "Pagó"]
+      .forEach((h, i) => { const c = rh.getCell(i + 1); c.value = h;
+        c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } }; });
+    for (const x of g.filas) {
+      const r = s.getRow(f++);
+      [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+      const cf = r.getCell(6); cf.value = x.faltante; cf.numFmt = MONEDA;
+      cf.font = { bold: true, color: { argb: ROJO } };
+      const cc = r.getCell(7); cc.value = x.cuota; cc.numFmt = MONEDA;
+      const cp = r.getCell(8); cp.value = x.pagado; cp.numFmt = MONEDA;
+    }
+    const rt = s.getRow(f++);
+    rt.getCell(4).value = "TOTAL " + g.dia;
+    rt.getCell(4).font = { bold: true };
+    const ct = rt.getCell(6); ct.value = g.total; ct.numFmt = MONEDA;
+    ct.font = { bold: true, color: { argb: ROJO } };
+    f++;
+  }
+  const rg = s.getRow(f++);
+  rg.getCell(4).value = "TOTAL DE LA SEMANA";
+  rg.getCell(4).font = { bold: true, size: 12 };
+  const cg = rg.getCell(6); cg.value = d.total; cg.numFmt = MONEDA;
+  cg.font = { bold: true, size: 12, color: { argb: ROJO } };
+  // Lo que NO entró en la cuenta, dicho con todas sus letras: un reporte de mora
+  // que calla lo que dejó fuera se lee como si hubiera medido todo.
+  f++;
+  const fc = d.fueraDeCuenta;
+  const notas = [
+    "Fuera de esta cuenta:",
+    "· " + fc.cuotaVariable + " créditos de cuota variable (MAGNUS): su cuota cambia cada periodo y la del padrón deja de servir al primer pago.",
+    "· " + fc.sinCuota + " créditos sin cuota capturada en el padrón.",
+    "· " + fc.sinDia + " créditos sin día de cobro.",
+    "· " + fc.liquidados + " créditos ya liquidados (no deben nada esta semana).",
+    "Faltante = cuota de la semana − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
+  ];
+  for (const n of notas) {
+    const r = s.getRow(f++);
+    s.mergeCells("A" + r.number + ":H" + r.number);
+    r.getCell(1).value = n;
+    r.getCell(1).font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Mora FOOAX ${d.lunes} al ${d.domingo}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
 app.get("/api/periodo", requiere("direccion", "admin"), (req, res) => {
   const { desde, hasta } = rangoPeriodo(req.query);
   res.json(movimientoDelPeriodo(req.usuario, desde, hasta));

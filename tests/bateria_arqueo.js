@@ -2492,6 +2492,72 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y no le repinta la pantalla en cada sondeo",
     repintes55 === 0, repintes55 + " de 5 sondeos la movían");
 
+  console.log("\n— 56. MORA POR DÍA DE COBRO, EL MÉTODO DE MONSE (Karina, 10-ago) —");
+  // «La mora no nos dio la semana pasada; ves que dice día lunes, martes, etc.
+  // de las plantillas, así quiero que lo saques por ese approach.» Su regla,
+  // sacada de cotejar el archivo «MORA SEMANA 03 AL 07 DE AGOSTO» contra las
+  // cuotas del padrón: faltante = cuota − lo que abonó ESA semana, y cada
+  // clienta bajo su día de cobro. No mira el corte.
+  const L56 = "2026-08-03";
+  const mora56 = async () => j(await fetch(U + "/api/mora?lunes=" + L56, { headers: H(cm) }));
+  const buscaMora = (d, socio) => {
+    for (const g of d.dias || []) for (const x of g.filas) if (String(x.socio) === socio) return { g, x };
+    return null;
+  };
+  const m0 = await mora56();
+  ok("la mora se agrupa por día de cobro, como su archivo",
+    (m0.dias || []).length > 0 && (m0.dias || []).every((g) => !!g.dia && /^\d{4}-\d{2}-\d{2}$/.test(g.fecha)),
+    JSON.stringify((m0.dias || []).map((g) => g.dia + " " + g.fecha)));
+  ok("y cada día trae la fecha que le toca dentro de esa semana",
+    (m0.dias || []).every((g) => {
+      const dd = new Date(g.fecha + "T12:00:00").getDay();
+      const esperado = { LUNES: 1, MARTES: 2, MIERCOLES: 3, "MIÉRCOLES": 3, JUEVES: 4, VIERNES: 5, SABADO: 6, "SÁBADO": 6 }[g.dia];
+      return dd === esperado;
+    }), JSON.stringify((m0.dias || []).map((g) => g.dia + "=" + g.fecha)));
+
+  // EL CASO DE SU ARCHIVO. MARIA DEL ROSARIO: cuota $576, faltante $126 → pagó
+  // $450. Es el renglón que prueba que la regla es "cuota − lo abonado" y no
+  // "la cuota entera si no pagó completo".
+  const SOC56 = "11113058523";
+  const K56 = SOC56 + "|Grupal-Basico 2|MARIA DEL ROSARIO GUADALUPE CASTELLANOS RUIZ|0";
+  const antes56 = buscaMora(m0, SOC56);
+  ok("sin abonar, le falta su cuota completa",
+    !!antes56 && antes56.x.faltante === antes56.x.cuota, JSON.stringify((antes56 || {}).x));
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: L56, snapshot: { reg: { GHANIMA: { [K56]: { pago: 450, forma: "E" } } } }, ts: Date.now() }) });
+  const m1 = await mora56();
+  const post56 = buscaMora(m1, SOC56);
+  ok("con un abono PARCIAL, el faltante es la resta (el caso de su archivo: $126)",
+    !!post56 && post56.x.pagado === 450 && post56.x.faltante === 126,
+    JSON.stringify((post56 || {}).x));
+  ok("y sigue bajo el día que le toca cobrar",
+    !!post56 && post56.g.dia === "LUNES", (post56 || { g: {} }).g.dia);
+
+  // Si abona TODA su cuota, sale del reporte: no debe nada esa semana.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: L56, snapshot: { reg: { GHANIMA: { [K56]: { pago: 576, forma: "E" } } } }, ts: Date.now() + 1 }) });
+  ok("y al completar su cuota desaparece de la mora",
+    buscaMora(await mora56(), SOC56) === null, "le sigue apareciendo mora");
+
+  // NO DEPENDE DEL CORTE: es justo por lo que "no daba".
+  const totalConCorteA = (await mora56()).total;
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07" }) });
+  const totalConCorteB = (await mora56()).total;
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  ok("mover el corte NO le cambia un peso a la mora de la semana",
+    Math.abs(totalConCorteA - totalConCorteB) < 0.01, totalConCorteA + " vs " + totalConCorteB);
+
+  // Y que diga lo que dejó fuera, en vez de callarlo.
+  const fc56 = (await mora56()).fueraDeCuenta || {};
+  ok("dice cuántos créditos dejó fuera y por qué",
+    ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
+    JSON.stringify(fc56));
+  const rx56 = await fetch(U + "/api/mora/excel?lunes=" + L56, { headers: H(cm) });
+  const bx56 = Buffer.from(await rx56.arrayBuffer());
+  ok("el Excel de la mora se descarga y es un xlsx de verdad",
+    rx56.status === 200 && bx56.length > 5000 && bx56[0] === 0x50 && bx56[1] === 0x4B,
+    "status " + rx56.status + " · " + bx56.length + " bytes");
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
