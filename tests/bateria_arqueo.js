@@ -2374,6 +2374,40 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const alt55 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
   ok("y viaja como alta, para que le entre al teléfono sin recargar",
     (alt55.altas || []).some((a) => String(a.id) === S55), "no viene en las altas");
+  // Y QUE LA APP DE VERDAD LA PONGA. Que el servidor la mande no basta: se
+  // corre el `vivos.js` REAL contra la lista de la app, con la clienta fuera
+  // (que es como le quedó a la ejecutiva cuando la dieron de baja).
+  const htmlApp55 = await (await fetch(U + "/app", { headers: H(cJul) })).text();
+  const mC55 = htmlApp55.match(/let CENTROS=(\{.*?\});/s);
+  const mI55 = htmlApp55.match(/let INDIVIDUALES=(\[.*?\]);/s);
+  const paq55 = JSON.parse(htmlApp55.match(/window\.__VIVOS0=(\{.*?\});<\/script>/s)[1]);
+  const CEN55 = mC55 ? JSON.parse(mC55[1]) : {};
+  let IND55 = mI55 ? JSON.parse(mI55[1]) : [];
+  const fuera = (c) => !(String(c.f) === S55 && /micro/i.test(c.sub || ""));
+  for (const k in CEN55) CEN55[k] = CEN55[k].filter(fuera);
+  IND55 = IND55.filter(fuera);
+  const noop55 = () => {};
+  const win55 = { __VIVOS0: paq55, addEventListener: noop55 };
+  new Function("CENTROS", "INDIVIDUALES", "datosCli", "guardarDatosCli", "window",
+    "navigator", "document", "setInterval", "setTimeout", "fetch",
+    require("fs").readFileSync(require("path").join(__dirname, "..", "public", "vivos.js"), "utf8"))(
+    CEN55, IND55, {}, noop55, win55, { onLine: false }, { hidden: true, addEventListener: noop55 },
+    noop55, noop55, noop55);
+  const puesta = [].concat(...Object.values(CEN55), IND55)
+    .find((c) => String(c.f) === S55 && /micro/i.test(c.sub || ""));
+  ok("la app SÍ se la vuelve a poner en su lista",
+    !!puesta, "no apareció en CENTROS ni en INDIVIDUALES");
+  ok("y con el saldo, la cuota y el plazo del crédito nuevo",
+    !!puesta && puesta.saldo === 23040 && puesta.esp === 480 && puesta.plazo === 48,
+    JSON.stringify(puesta));
+  // Y QUE NO LE PARPADEE. El crédito viejo de baja comparte socio+producto con
+  // el nuevo, así que el "quitar" lo borraba y el "alta" lo reponía en CADA
+  // sondeo: la app decía "algo cambió" cada minuto y le repintaba la pantalla
+  // a la ejecutiva mientras capturaba.
+  let repintes55 = 0;
+  for (let k = 0; k < 5; k++) if (win55.__aplicarVivos(paq55) > 0) repintes55++;
+  ok("y no le repinta la pantalla en cada sondeo",
+    repintes55 === 0, repintes55 + " de 5 sondeos la movían");
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

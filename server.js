@@ -4068,8 +4068,18 @@ function altasParaApp(usuario) {
     return ((fechasLiq[String(c.id)] || {})[hoy] || 0) > 0;   // liquidó hoy por caja
   };
   const yaNoDebe = (c) => infoCredito(cv, c).saldoActual <= 0.009 && !cobroHoy(c);
+  // NO SE QUITA LO QUE SIGUE VIVO CON ESA MISMA LLAVE. Al renovar quedan dos
+  // registros con el mismo socio y producto: el viejo de baja y el nuevo. Como
+  // la app borra por socio+producto, el "quitar" del viejo alcanzaba también al
+  // nuevo, y en cada sondeo la app lo borraba y lo volvía a agregar. Efecto:
+  // decía "algo cambió" CADA MINUTO y le repintaba la pantalla a la ejecutiva
+  // mientras capturaba. El orden (quitar antes que altas) salvaba el dato, pero
+  // el parpadeo era real.
+  const vivasAhora = new Set(PADRON.filter((c) => mia(c) && viva(c) && !yaNoDebe(c))
+    .map((c) => claveCredito(c.id, c.producto)));
   const quitar = PADRON
     .filter((c) => mia(c) && (!viva(c) || yaNoDebe(c)))
+    .filter((c) => !vivasAhora.has(claveCredito(c.id, c.producto)))
     .map((c) => ({ id: String(c.id), producto: c.producto }));
   return { altas, centros, quitar };
 }
