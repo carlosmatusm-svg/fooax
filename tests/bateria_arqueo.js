@@ -560,9 +560,25 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const tend = await j(await fetch(U + "/api/tendencias", { headers: H(ca) }));
   const SS = {}; (tend.serie || []).forEach((x) => { SS[x.semana] = x; });
   ok("la serie es CONTINUA (rellena las semanas sin captura)", (tend.serie || []).length >= 5 && !!SS[W[2]], "filas " + (tend.serie || []).length);
-  ok("la cartera baja EXACTAMENTE lo abonado (−1,000 de una semana a otra)",
-     SS[W[1]] && SS[W[0]] && Math.abs((SS[W[1]].cartera - SS[W[0]].cartera) + 1000) < 0.01,
-     (SS[W[0]] || {}).cartera + " → " + (SS[W[1]] || {}).cartera);
+  // SE MIDE POR DIFERENCIA, NO CONTRA EL TOTAL. Antes se comparaba la cartera
+  // GLOBAL de una semana contra la de la otra y se exigía que la resta diera
+  // justo los $1,000 de esta clienta. Eso solo se sostenía mientras ninguna otra
+  // sección de la batería tuviera abonos en esas semanas — y en cuanto los tuvo,
+  // la prueba se puso roja marcando $40,430 de diferencia sin que nada estuviera
+  // mal. Ahora se toma la cartera, se abona UNA vez más, y se comprueba que baje
+  // exactamente ese abono.
+  const carteraDe = async (sem) => {
+    const t = await j(await fetch(U + "/api/tendencias", { headers: H(ca) }));
+    const f = (t.serie || []).find((x) => x.semana === sem);
+    return f ? f.cartera : null;
+  };
+  const diaDe = (f, n) => { const d = new Date(f + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const antesW = await carteraDe(W[1]);
+  await pagarW(diaDe(W[1], 2), 500);          // día propio, para no pisar otra captura
+  const despuesW = await carteraDe(W[1]);
+  ok("la cartera baja EXACTAMENTE lo abonado (−500 al capturar un abono más)",
+     antesW !== null && despuesW !== null && Math.abs((despuesW - antesW) + 500) < 0.01,
+     antesW + " → " + despuesW);
   // Antes se afirmaba que la semana W[2] salía en CERO. Era frágil: la ventana de
   // 4 semanas se mueve con el calendario y el 4-ago cayó sobre una semana que sí
   // tenía cobranza real, así que la prueba fallaba sin que nada estuviera mal.
@@ -1487,7 +1503,14 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // LA CAJA ARRANCA EN CERO CADA LUNES (regla Karina): queda = entró − salió.
   const car44f = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
   const L44 = car44f.lunes;
-  const dia44 = (n) => { const d = new Date(L44 + "T12:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  // Nunca pasar de HOY: el servidor rechaza movimientos con fecha futura, y
+  // corriendo la batería un LUNES, "lunes + 1" es mañana. Así la prueba fallaba
+  // solo los lunes y parecía un bug del cierre de caja — pasó el 10-ago.
+  const dia44 = (n) => {
+    const d = new Date(L44 + "T12:00"); d.setDate(d.getDate() + n);
+    const f = d.toISOString().slice(0, 10);
+    return f > HOY ? HOY : f;
+  };
   const regC = { "C-1": {} };
   regC["C-1"]["11112807346|Grupal-Basico|EMMA GUADALUPE EVANGELISTA MARTINEZ|0"] = { pago: 5000, forma: "E" };
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: dia44(0),

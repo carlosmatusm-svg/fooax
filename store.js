@@ -18,6 +18,23 @@ const usePg = !!process.env.DATABASE_URL;
 let pool = null;
 const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [] };
 
+// ¿ENTRA O SALE ESE DINERO? Desde el 6-ago el movimiento lo trae escrito
+// (`entrada`), porque el concepto se elige de un catálogo. Los ANTERIORES no lo
+// traen, y todo lo que no dijera "entrada" se trataba como SALIDA: una
+// liquidación vieja de $1,500 se RESTABA de la caja en vez de sumarse, y el
+// cierre de la semana quedaba mal por el DOBLE. Aquí se deduce del concepto,
+// que es lo único que traen esos movimientos.
+//
+// Se aplica al LEER: no se reescribe nada. Los movimientos son append-only y su
+// rastro queda tal como se guardó.
+const ENTRAN = /^(liquidaci|recuperaci|comisi|garant|abono|adelanto|reintegro)/;
+function conEntrada(m) {
+  if (!m || typeof m.entrada === "boolean") return m;
+  const txt = String(m.tipo || m.concepto || m.categoria || "")
+    .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  return Object.assign({}, m, { entrada: ENTRAN.test(txt) });
+}
+
 // Aplica las altas y bajas (capa de cambios) sobre el padrón base del archivo.
 // Alta: agrega la clienta. Baja: la marca inactiva (estatus BAJA) sin borrar su
 // historia. Devuelve un padrón NUEVO sin mutar el base.
@@ -278,6 +295,13 @@ function eliminarSesion(sid) {
 
 module.exports = {
   init,
+  // Para que el servidor use EXACTAMENTE la misma regla al guardar un
+  // movimiento que la que se usa al leerlo. Tenerla en dos lados fue justo lo
+  // que dejó una liquidación del lado equivocado.
+  entradaPorTexto(txt) {
+    return ENTRAN.test(String(txt || "").toLowerCase().normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "").trim());
+  },
   modo() { return usePg ? "postgres" : "archivos"; },
   conteos() {
     let snaps = 0;
@@ -387,7 +411,7 @@ module.exports = {
         snapshots[ej][f] = uno[ej];
       }
     }
-    return { snapshots, movimientos: mem.movimientos };
+    return { snapshots, movimientos: mem.movimientos.map(conEntrada) };
   },
 
   // Append-only: nunca se borra ni se edita un movimiento (rastro auditable).
@@ -404,9 +428,9 @@ module.exports = {
     return mov;
   },
   movimientosDeFecha(fecha) {
-    return mem.movimientos.filter((m) => m.fecha === fecha);
+    return mem.movimientos.filter((m) => m.fecha === fecha).map(conEntrada);
   },
-  todosMovimientos() { return mem.movimientos; },
+  todosMovimientos() { return mem.movimientos.map(conEntrada); },
   // Marca la hora en que la ejecutiva CERRÓ su día (botón "Enviar arqueo y
   // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
   // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.

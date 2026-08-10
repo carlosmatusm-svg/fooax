@@ -2997,7 +2997,11 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const mov = {
     folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec, socio, producto,
     // ENTRADA o SALIDA. Sin esto todo se guardaba como salida.
-    tipo: tipo ? String(b.tipo).trim() : null, entrada: tipo ? !!tipo.entrada : false,
+    // Sin tipo del catálogo NO se da por hecho que sale: se lee el concepto.
+    // Escribir `false` a secas mandaba una liquidación al lado de los gastos y
+    // el cierre de la semana quedaba mal por el DOBLE del monto.
+    tipo: tipo ? String(b.tipo).trim() : null,
+    entrada: tipo ? !!tipo.entrada : store.entradaPorTexto(concepto || categoria),
     autorizadoA: (b.autorizadoA || "").trim() || null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
