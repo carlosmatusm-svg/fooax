@@ -2296,6 +2296,30 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // abonado del vivo, así que la resta no cerraba por ningún lado.
   ok("«Ver pagos» toma el crédito ACTIVO, no el de baja",
     h54.saldoPlantilla === 3000, "saldoPlantilla " + h54.saldoPlantilla);
+  // EL ABONO DE LA SEMANA DEL CICLO VIEJO NO SE LE CARGA AL NUEVO. Le pasó a
+  // SOCORRO MIGUEL el 10-ago: pagó $320 el jueves, liquidó el sábado, le
+  // renovaron el lunes, y esos $320 se le restaron al crédito recién dado.
+  const S54b = "70000000991", P54b = "Grupal-Micro";
+  const K54b = S54b + "|" + P54b + "|SOCORRO DE PRUEBA 54|0";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54b, nombre: "SOCORRO DE PRUEBA 54", producto: P54b, centro: "C-0",
+      ejecutivo: "Julio", saldo: 3520, cuota: 320, plazo: 48 }) });
+  // Uno viejo (antes del corte) y uno de ESTA semana: el bug repartía el monto
+  // sobre el viejo y dejaba el de la semana suelto para que le cayera al nuevo.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-07-16", snapshot: { regI: { [K54b]: { pago: 320, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K54b]: { pago: 320, forma: "E" } } }, ts: Date.now() + 1 }) });
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", concepto: "Liquida para renovar", monto: 3200,
+      metodo: "efectivo", socio: S54b, producto: P54b, ejecutivo: "julio", fecha: "2026-08-08" }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54b, producto: P54b, saldo: 23040, cuota: 480, plazo: 48, motivo: "Renovación" }) });
+  const t54b = (await j(await fetch(U + "/api/clientes?q=" + S54b, { headers: H(cm) }))).resultados || [];
+  const n54c = t54b.find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el abono de ESTA semana del ciclo viejo no se le carga al crédito nuevo",
+    !!n54c && n54c.saldoActual === 23040, JSON.stringify(n54c));
+
   ok("y su resta por fin cierra",
     Math.abs(h54.saldoPlantilla - (h54.pagadoDesdeElCorte + h54.liquidado) - h54.saldoActual) < 0.01,
     h54.saldoPlantilla + " − " + (h54.pagadoDesdeElCorte + h54.liquidado) + " ≠ " + h54.saldoActual);

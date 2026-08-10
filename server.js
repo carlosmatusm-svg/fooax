@@ -1104,15 +1104,42 @@ function previoVigente(c, corte, porFecha, fechasLiq) {
     }
     return Math.round(suma * 100) / 100;
   };
-  // Con desglose por día no hay nada que adivinar: se suma lo que quedó dentro
-  // del corte de hoy. Es la vía de todos los recréditos desde el 10-ago.
+  // Con desglose por día no hay que adivinar: se suma lo que quedó dentro del
+  // corte de hoy.
+  //
+  // Y se COTEJA contra los abonos de verdad de esa llave hasta el día de la
+  // renovación, quedándose con el mayor de cada día. Dos razones: (1) repara
+  // los desgloses que quedaron mal escritos el 10-ago —le pegaban el monto a
+  // una fecha anterior al corte, que después se ignora, y por eso a SOCORRO
+  // MIGUEL se le volvieron a restar sus $320—, y (2) todo abono con fecha
+  // anterior o igual a la renovación es, por definición, del ciclo que se
+  // cerró: el nuevo nació ese día.
   if (p.dias || p.diasLiq) {
-    const suma = (mapa) => {
+    const clave0 = claveCredito(c.id, c.producto);
+    const real = porFecha[clave0] || {};
+    // El cotejo solo alcanza a los días ESTRICTAMENTE ANTERIORES a la renovación.
+    // El día mismo manda el desglose guardado y nada más: ahí conviven el último
+    // abono del ciclo viejo y el primero del nuevo, y si se cotejara también ese
+    // día, el primer pago del crédito nuevo se tomaría por del viejo y dejaría de
+    // bajarle el saldo. Lo cachó la prueba de la sección 53.
+    const suma = (mapa, leerReal) => {
       let t = 0;
-      for (const f in (mapa || {})) if (f >= corte) t += mapa[f] || 0;
+      const fechas = new Set(Object.keys(mapa || {}));
+      if (leerReal) for (const f in real) if (!hasta || f < hasta) fechas.add(f);
+      for (const f of fechas) {
+        if (f < corte) continue;                 // ya viene descontado en la plantilla
+        if (hasta && f > hasta) continue;        // de ahí en adelante es del ciclo NUEVO
+        const guardado = (mapa || {})[f] || 0;
+        const cotejo = (leerReal && hasta && f < hasta) ? leerReal(real[f] || {}) : 0;
+        t += Math.max(guardado, cotejo);
+      }
       return Math.round(t * 100) / 100;
     };
-    return { pago: suma(p.dias), gar: suma(p.diasGar), liq: suma(p.diasLiq) };
+    return {
+      pago: suma(p.dias, (x) => x.p || 0),
+      gar: suma(p.diasGar, (x) => x.g || 0),
+      liq: suma(p.diasLiq, null),   // van por socio: solo vale lo que se apartó
+    };
   }
   // Apuntes viejos (sin desglose): se deduce por fecha. No es exacto el día de
   // la renovación, pero es muchísimo mejor que perder la protección entera.
@@ -2557,11 +2584,30 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     const liqTodo = {};
     liquidacionesDeLaSemana(req.usuario, orig, liqTodo);
     const claveVieja = claveCredito((choca || previa).id, (choca || previa).producto);
+    // LOS ABONOS DE LA FICHA SON TODOS DEL CICLO VIEJO, SIN TOPE. El crédito
+    // nuevo nace en este momento, así que TODO lo que esa llave abonó hasta hoy
+    // es del ciclo que se cierra. El primer intento los recortaba al total que
+    // se veía bajo el corte de ese día y los repartía sobre la ventana ancha:
+    // el monto acababa pegado a la fecha equivocada —una anterior al corte, que
+    // luego se ignora— y el abono de ESTA semana volvía a caerle al crédito
+    // nuevo. Le pasó a SOCORRO MIGUEL el 10-ago: sus $320 del ciclo viejo se le
+    // restaron al crédito recién dado.
+    const todos = (mapa, leer) => {
+      const out = {};
+      for (const f in (mapa || {})) {
+        const v = leer(mapa[f]);
+        if (v > 0) out[f] = Math.round(v * 100) / 100;
+      }
+      return out;
+    };
+    // Las LIQUIDACIONES sí llevan tope: van por SOCIO y se reparten entre sus
+    // créditos, así que solo es del ciclo cerrado la parte que le tocó. Se
+    // toman de la MÁS RECIENTE hacia atrás, que es la que lo cerró.
     const recorta = (mapa, tope, leer) => {
       const out = {};
       if (!(tope > 0) || !mapa) return out;
       let queda = tope;
-      for (const f of Object.keys(mapa).sort()) {
+      for (const f of Object.keys(mapa).sort().reverse()) {
         if (queda <= 0) break;
         const usa = Math.min(queda, leer(mapa[f]));
         if (usa > 0) { out[f] = Math.round(usa * 100) / 100; queda -= usa; }
@@ -2571,8 +2617,8 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     previo = {
       pago: infoPrev.pagado || 0, gar: infoPrev.garantia || 0, liq: infoPrev.liquidado || 0,
       corte: corteSaldos(), fecha: hoyMX(),
-      dias: recorta(pfTodo[claveVieja], infoPrev.pagado || 0, (x) => x.p || 0),
-      diasGar: recorta(pfTodo[claveVieja], infoPrev.garantia || 0, (x) => x.g || 0),
+      dias: todos(pfTodo[claveVieja], (x) => x.p || 0),
+      diasGar: todos(pfTodo[claveVieja], (x) => x.g || 0),
       diasLiq: recorta(liqTodo[id], infoPrev.liquidado || 0, (x) => x || 0),
     };
   }
