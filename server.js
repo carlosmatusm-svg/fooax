@@ -4238,6 +4238,39 @@ function repararLiquidacionesDel8ago() {
   console.log(`[reparación] liquidaciones del 8-ago: ${n} movimientos ligados a su crédito`);
 }
 
+// ALMA ROSARIO CAMACHO GONZALEZ (11112919388), 10-ago-2026. Su liquidación del
+// sábado quedó sin crédito y por eso los $5,440 seguían SUELTOS: se le comían el
+// saldo a cualquier crédito que le abrieran. Ese lunes le intentaron re-dar
+// crédito tres veces y las tres nacieron en cero — no era el recrédito, era este
+// dato faltante.
+//
+// Karina confirmó que fue el GRUPAL-MICRO, y cuadra por los tres lados:
+//   · $5,440 = 10 cuotas exactas de $544, la cuota del Micro (la del Basico es $720)
+//   · el Micro debía $5,984; el Basico sólo $2,160 — nadie paga $5,440 por $2,160
+//   · el 8-ago ella misma lo puso en cero con motivo "LIQUIDO", y el 10-ago Anel
+//     le hizo recrédito a ese mismo crédito
+//
+// No se mueve un peso: sólo se dice a qué crédito pertenece. Con esto el
+// Grupal-Basico deja de aparecer liquidado y recupera su saldo real.
+function repararAlmaRosario10ago() {
+  const CENTINELA = "MIGR-LIQ-ALMAROSARIO-2026-08-10";
+  if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;   // ya aplicada
+  const FOLIO = "EJE-NERI-NER-0808-03", SOCIO = "11112919388", PROD = "Grupal-Micro";
+  const m = store.todosMovimientos().find((x) => x.folio === FOLIO);
+  if (!m) console.error("[reparación Alma Rosario] no encuentro " + FOLIO);
+  else if (String(m.socio || "") !== SOCIO) console.error("[reparación Alma Rosario] " + FOLIO + " no es de esa socia");
+  else if (m.producto) console.error("[reparación Alma Rosario] ya tenía crédito: " + m.producto);
+  else {
+    store.corregirMovimiento(FOLIO, { producto: PROD,
+      productoPor: "Karina (desarrollo) · confirmado por Karina el 10-ago",
+      productoMotivo: "La liquidación de $5,440 era del Grupal-Micro (10 cuotas de $544; debía $5,984). "
+        + "Sin crédito se la comía el Grupal-Basico y hacía nacer en cero cada recrédito." });
+    console.log("[reparación] Alma Rosario: la liquidación de $5,440 ligada al Grupal-Micro");
+  }
+  store.agregarMovimiento({ folio: CENTINELA, fecha: "2000-01-01", monto: 0,
+    concepto: "migración", anulado: true, usuario: "neri", ts: Date.now() });
+}
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
@@ -4246,6 +4279,7 @@ store.init().then(() => {
   repararCapturaKarina24jul();
   reasignarMarthaPatricia30jul();
   repararLiquidacionesDel8ago();
+  repararAlmaRosario10ago();
   repararCarteraJulio();
   aplicarCorteDeLaPlantilla();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
