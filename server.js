@@ -2576,14 +2576,24 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   // montos tal como estaban en este momento, y el ciclo nuevo nace en cero.
   // La ventana se abre MUY atrás a propósito: el desglose no debe depender del
   // corte, que es justo lo que se está arreglando.
+  // SE GUARDA SIEMPRE, HAYA O NO UN CRÉDITO ACTIVO QUE CERRAR. Cuando el ciclo
+  // anterior ya está dado de BAJA no hay `choca`, así que antes no se guardaba
+  // nada y los abonos de ese ciclo volvían a caerle al crédito nuevo — justo el
+  // caso de SOCORRO MIGUEL y BLANCA VERONICA, que quedaron con los dos créditos
+  // de baja. El razonamiento no depende de que exista el activo: el ciclo NUEVO
+  // nace hoy, así que todo lo que esa llave abonó antes es de un ciclo pasado.
   let previo = null;
-  if (infoPrev) {
+  {
     const atras = new Date(hoyMX() + "T12:00:00"); atras.setDate(atras.getDate() - 395);
     const orig = atras.toISOString().slice(0, 10);
     const { porFecha: pfTodo } = pagosDeLaSemana(req.usuario, orig);
     const liqTodo = {};
     liquidacionesDeLaSemana(req.usuario, orig, liqTodo);
-    const claveVieja = claveCredito((choca || previa).id, (choca || previa).producto);
+    // La llave del ciclo que se cierra es la MISMA que va a tener el nuevo
+    // (socio + producto). Se arma con el producto que se está re-dando, no con
+    // el del registro que se encontró: `previa` puede ser cualquier crédito de
+    // esa socia —hasta de otro producto— cuando ya no queda ninguno activo.
+    const claveVieja = claveCredito(id, producto);
     // LOS ABONOS DE LA FICHA SON TODOS DEL CICLO VIEJO, SIN TOPE. El crédito
     // nuevo nace en este momento, así que TODO lo que esa llave abonó hasta hoy
     // es del ciclo que se cierra. El primer intento los recortaba al total que
@@ -2614,12 +2624,22 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
       }
       return out;
     };
+    // Sin crédito activo que cerrar (el anterior ya estaba de baja) no hay
+    // `infoPrev`: la liquidación que lo cerró se toma de lo que quedó apuntado
+    // en ese registro, y si tampoco lo hay, de lo que la socia liquidó desde el
+    // corte. Los abonos de ficha no lo necesitan: se toman completos.
+    const cerrado = choca || PADRON.filter((c) => String(c.id) === id && nprod(c.producto) === nprod(producto))
+      .sort((a, b) => String(b.alta_fecha || "").localeCompare(String(a.alta_fecha || "")))[0] || null;
+    const liqPrev = infoPrev ? (infoPrev.liquidado || 0)
+      : (cerrado ? Number(cerrado.saldo) || 0 : 0);
     previo = {
-      pago: infoPrev.pagado || 0, gar: infoPrev.garantia || 0, liq: infoPrev.liquidado || 0,
+      pago: infoPrev ? (infoPrev.pagado || 0) : 0,
+      gar: infoPrev ? (infoPrev.garantia || 0) : 0,
+      liq: liqPrev,
       corte: corteSaldos(), fecha: hoyMX(),
       dias: todos(pfTodo[claveVieja], (x) => x.p || 0),
       diasGar: todos(pfTodo[claveVieja], (x) => x.g || 0),
-      diasLiq: recorta(liqTodo[id], infoPrev.liquidado || 0, (x) => x || 0),
+      diasLiq: recorta(liqTodo[id], liqPrev, (x) => x || 0),
     };
   }
   const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,

@@ -2324,6 +2324,57 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     Math.abs(h54.saldoPlantilla - (h54.pagadoDesdeElCorte + h54.liquidado) - h54.saldoActual) < 0.01,
     h54.saldoPlantilla + " − " + (h54.pagadoDesdeElCorte + h54.liquidado) + " ≠ " + h54.saldoActual);
 
+  console.log("\n— 55. RE-DAR CRÉDITO ESTANDO DE BAJA, Y QUE VUELVA A LA APP (Karina, 10-ago) —");
+  // «Si están en baja dame la opción de re-dar crédito, y que se vincule con
+  // los ejecutivos también porque desaparece.» A Socorro Miguel y a Blanca
+  // Verónica les quedaron TODOS los créditos de baja: no le aparecían a su
+  // ejecutiva y desde la tarjeta no había ningún botón para devolverles uno.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  const S55 = "70000000992", P55 = "Grupal-Micro";
+  const K55 = S55 + "|" + P55 + "|SOCORRO DE PRUEBA 55|0";
+  const enApp55 = async () => {
+    const d = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+    return (d.vivos || []).find((v) => String(v.id) === S55 && v.producto === P55) || null;
+  };
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S55, nombre: "SOCORRO DE PRUEBA 55", producto: P55, centro: "C-0",
+      ejecutivo: "Julio", saldo: 3520, cuota: 320, plazo: 48 }) });
+  // Abona esta semana y la dan de baja: así quedaron las dos clientas reales.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K55]: { pago: 320, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S55, producto: P55, motivo: "No renovó" }) });
+  ok("de baja, la clienta desaparece de la app de su ejecutiva",
+    (await enApp55()) === null, "le sigue apareciendo");
+
+  // LO QUE PIDIÓ: re-dar el crédito aunque esté de baja.
+  const rr55 = await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S55, producto: P55, saldo: 23040, cuota: 480, plazo: 48,
+      ejecutivo: "Julio", motivo: "Renovación estando de baja" }) });
+  ok("se le puede RE-DAR el crédito aunque esté de baja", rr55.status === 200, "status " + rr55.status);
+  const d55 = (await j(await fetch(U + "/api/clientes?q=" + S55, { headers: H(cm) }))).resultados || [];
+  const n55 = d55.find((c) => c.activa !== false && c.estatus !== "BAJA" && c.producto === P55);
+  // Sin crédito activo que cerrar no había apunte de protección, así que los
+  // abonos del ciclo viejo volvían a caerle al nuevo. Ahora se guarda siempre.
+  ok("y nace COMPLETO: los abonos del ciclo viejo no se le cargan",
+    !!n55 && n55.saldoActual === 23040, JSON.stringify(n55));
+
+  // Y lo otro que pidió: que se vincule con la ejecutiva, porque desaparecía.
+  const v55 = await enApp55();
+  ok("le vuelve a aparecer sola a su ejecutiva",
+    !!v55, "no le bajó a la app");
+  ok("con su saldo, su cuota y su plazo",
+    !!v55 && v55.saldo === 23040 && v55.cuota === 480 && v55.plazo === 48, JSON.stringify(v55));
+  // EL PLAZO. El formulario de re-dar crédito no lo pedía y el crédito nuevo
+  // nacía en cero, así que quedaba fuera del «pago 13 de 18», del esperado y del
+  // semáforo. Le pasó a SOCORRO MIGUEL. Si no se escribe, se deduce de
+  // monto ÷ cuota, que es exactamente el número de pagos.
+  ok("el crédito re-dado trae su plazo, no cero",
+    !!n55 && n55.plazo === 48, "plazo " + (n55 || {}).plazo);
+  const alt55 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+  ok("y viaja como alta, para que le entre al teléfono sin recargar",
+    (alt55.altas || []).some((a) => String(a.id) === S55), "no viene en las altas");
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

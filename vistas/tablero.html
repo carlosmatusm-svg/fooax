@@ -924,6 +924,17 @@ function tarjetaCredito(c, i) {
   else if (liquidado) badge = '<span class="rbadge-liq">LIQUIDADO</span>';
   else if (esVencidaUI(c)) badge = '<span class="rbadge-venc">VENCIDA</span>';
   let acc = "";
+  // UN CRÉDITO DE BAJA TAMBIÉN SE PUEDE RE-DAR (Karina, 10-ago). Antes la
+  // tarjeta de baja no traía ningún botón, así que si una clienta terminaba con
+  // TODOS sus créditos dados de baja —le pasó a Socorro Miguel y a Blanca
+  // Verónica— no había forma de devolverle uno desde aquí, y mientras tanto
+  // desaparecía de la app de su ejecutiva.
+  if (esBaja && window.__PUEDE_CREDITO) {
+    acc = '<div class="credacc">'
+      + '<button class="credbtn" onclick="verPagos(this,' + i + ')">Ver pagos</button>'
+      + '<button class="credbtn reda" onclick="pedirRecredito(this,' + i + ')">Re-dar crédito</button>'
+      + "</div>";
+  }
   if (!esBaja && window.__PUEDE_CREDITO) {
     const reda = saldoAct <= 0
       ? '<button class="credbtn reda" onclick="pedirRecredito(this,' + i + ')">Re-dar crédito</button>' : "";
@@ -1112,6 +1123,10 @@ function pedirRecredito(btn, i) {
     + '<input class="credin ancho" id="rcProdNuevo" style="display:none" placeholder="nombre del producto nuevo (ej. Grupal-Especial)">'
     + '<input class="credin" id="rcSaldo" inputmode="decimal" placeholder="monto $">'
     + '<input class="credin" id="rcCuota" inputmode="decimal" placeholder="cuota $">'
+    // EL PLAZO FALTABA. Sin él el crédito nuevo nacía con plazo 0 y se quedaba
+    // fuera del "pago 13 de 18", del esperado y del semáforo. Le pasó a SOCORRO
+    // MIGUEL el 10-ago. Se calcula solo (monto ÷ cuota) y se puede corregir.
+    + '<input class="credin" id="rcPlazo" inputmode="numeric" placeholder="plazo (n° de pagos)">'
     + '<span class="credlbl">Lo cobra:</span><select class="credin" id="rcEjec">' + opsEj + "</select>"
     + '<button class="credok" onclick="hacerRecredito(this,' + i + ')">Dar crédito</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1122,7 +1137,11 @@ async function hacerRecredito(btn, i) {
   const c = credRow(i), err = $("rcErr"); btn.disabled = true;
   const body = { id: c.id, nombre: c.nombre, centro: c.centro,
     ejecutivo: ($("rcEjec") && $("rcEjec").value) || c.ejecutivo,
-    producto: productoElegido("rcProd", "rcProdNuevo"), saldo: $("rcSaldo").value, cuota: $("rcCuota").value };
+    producto: productoElegido("rcProd", "rcProdNuevo"), saldo: $("rcSaldo").value, cuota: $("rcCuota").value,
+    // Si no lo escriben, se deduce de monto ÷ cuota: es exactamente el número de
+    // pagos del crédito. Vale más eso que dejarlo en cero, que era lo de antes.
+    plazo: ($("rcPlazo") && $("rcPlazo").value)
+      || (Number($("rcCuota").value) > 0 ? Math.round(Number($("rcSaldo").value) / Number($("rcCuota").value)) : "") };
   try {
     const r = await fetch("/api/creditos/recredito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
