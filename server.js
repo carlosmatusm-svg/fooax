@@ -1110,9 +1110,19 @@ function carteraViva(usuario) {
     // Lo que ya tiene crédito escrito sale del reparto: es de ESE crédito. Sin
     // apartarlo se contaría dos veces (una en su crédito y otra en la bolsa).
     const bolsaLibre = Math.max(0, bolsa - (ligadas.porSocio[soc] || 0));
-    const disp = Math.max(0, bolsaLibre - usado - (prev ? (prev.liq || 0) : 0));
     const tope = Math.max(0, (c.saldo || 0) - pagado);
-    const exacto = Math.min(ligadas.porClave[clave] || 0, tope);
+    // RENOVAR DESPUÉS DE LIQUIDAR. El ciclo nuevo hereda la MISMA llave
+    // (socio+producto), así que la liquidación con la que se cerró el ANTERIOR
+    // le caería encima y nacería liquidado. `prev.liq` dice cuánto se llevó ese
+    // ciclo; se descuenta PRIMERO de lo que está ligado a esta llave y sólo el
+    // resto se le pide a la bolsa del reparto. Sin esto, una clienta que liquidó
+    // $2,000 y renovó por $5,000 aparecía con $3,000 y se le caía de la app
+    // (lo reportó Karina el 9-ago, y era regresión del cambio del 8-ago).
+    const prevLiq = prev ? (prev.liq || 0) : 0;
+    const ligadoAqui = ligadas.porClave[clave] || 0;
+    const exacto = Math.min(Math.max(0, ligadoAqui - prevLiq), tope);
+    const prevRestante = Math.max(0, prevLiq - ligadoAqui);
+    const disp = Math.max(0, bolsaLibre - usado - prevRestante);
     const repartido = Math.min(disp, Math.max(0, tope - exacto));
     const liquidado = exacto + repartido;
     if (repartido > 0) liqRestante["__usado__" + soc] = usado + repartido;

@@ -2140,6 +2140,48 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("con un solo crédito no se exige elegir: se resuelve solo",
     rUno.status === 200 && dUno.movimiento && dUno.movimiento.producto === "Grupal-Basico",
     "status " + rUno.status + " · producto " + ((dUno.movimiento || {}).producto || "(ninguno)"));
+  // 4-bis) LIQUIDAR Y RENOVAR. El ciclo nuevo hereda la MISMA llave
+  //   (socio+producto), así que la liquidación con la que se cerró el ciclo
+  //   ANTERIOR no puede tocarlo: si lo toca, la clienta renueva y su crédito
+  //   nuevo nace liquidado y se le cae de la app (Karina, 9-ago).
+  const SR = "70000000957";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: SR, nombre: "LIQUIDA Y RENUEVA", producto: "Grupal-Basico",
+      centro: cenLQ, ejecutivo: "Neri", saldo: 2000, cuota: 250, plazo: 24 }) });
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 2000, concepto: "liquida para renovar",
+      metodo: "efectivo", socio: SR, producto: "Grupal-Basico", fecha: HOY }) });
+  const saldoRe = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + SR, { headers: H(cm) }));
+    const x = (d.resultados || []).filter((y) => y.activa !== false)[0];
+    return x ? x.saldoActual : null;
+  };
+  ok("el crédito liquidado llega a cero antes de renovar", (await saldoRe()) === 0,
+    "saldo " + (await saldoRe()));
+  const rRe = await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SR, producto: "Grupal-Basico", centro: cenLQ,
+      ejecutivo: "Neri", saldo: 5000, cuota: 400, plazo: 24 }) });
+  const dRe = await j(rRe);
+  ok("se puede RE-DAR el crédito con el mismo nombre después de liquidar",
+    rRe.status === 200, "status " + rRe.status + " · " + (dRe.error || "ok"));
+  ok("y el crédito NUEVO nace con su saldo completo, no liquidado",
+    (await saldoRe()) === 5000, "saldo " + (await saldoRe()) + " (debía ser 5000)");
+
+  // 4-ter) Y QUE SE VEA EN EL TELÉFONO. De nada sirve que el tablero lo tenga
+  //   bien si a la ejecutiva le sigue apareciendo el ciclo viejo o no le baja el
+  //   nuevo: los montos viven EMBEBIDOS en el HTML de su app, así que el crédito
+  //   renovado tiene que llegarle por `/api/vivos` (Karina, 9-ago).
+  const vivosRe = await j(await fetch(U + "/api/vivos", { headers: H(cnn) }));
+  const altaRe = (vivosRe.altas || []).find((a) => String(a.id) === SR);
+  ok("el crédito renovado LE BAJA a la app de su ejecutiva",
+    !!altaRe, "altas para Neri: " + JSON.stringify((vivosRe.altas || []).map((a) => a.id)));
+  ok("y le llega con el saldo del ciclo NUEVO, no el del viejo",
+    !!altaRe && altaRe.saldo === 5000 && altaRe.producto === "Grupal-Basico",
+    altaRe ? altaRe.producto + " $" + altaRe.saldo : "no llegó");
+  ok("y el ciclo viejo NO se le queda pegado en el teléfono",
+    !(vivosRe.quitar || []).some((q) => String(q.id) === SR && Number(q.saldo) === 5000),
+    "quitar: " + JSON.stringify((vivosRe.quitar || []).filter((q) => String(q.id) === SR)));
+
   // 5) Y el tablero puede señalar las viejas, las que llegaron sin crédito.
   const carLC = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
   ok("el tablero expone las liquidaciones sin crédito para poder corregirlas",
