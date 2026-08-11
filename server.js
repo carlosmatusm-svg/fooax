@@ -1432,10 +1432,21 @@ function moraDeLaSemana(usuario, lunesOpt) {
   // Lo abonado ESA semana, crédito por crédito. Solo el pago: la garantía y el
   // solidario no cubren la cuota.
   const { porFecha } = pagosDeLaSemana(usuario, lunes, domingo);
-  const pagoSemana = {};
-  for (const clave in porFecha)
+  // DOS MEDIDAS, NO UNA. `pagoSemana` es todo lo que abonó de lunes a domingo;
+  // `pagoDelDia` es lo que abonó EL DÍA QUE LE TOCA. Sin las dos no se puede
+  // contestar «¿cuántos pagaron el lunes?»: una clienta de lunes que paga el
+  // miércoles está al corriente en la semana pero NO pagó su día, y meterlas en
+  // el mismo saco esconde a las que van tarde aunque acaben pagando.
+  const pagoSemana = {}, porClaveFecha = {};
+  for (const clave in porFecha) {
+    porClaveFecha[clave] = porFecha[clave];
     for (const f in porFecha[clave])
       if (f >= lunes && f <= domingo) pagoSemana[clave] = (pagoSemana[clave] || 0) + (porFecha[clave][f].p || 0);
+  }
+  const fechaDelDia = (dia) => {
+    const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + (idxDia(dia) - 1));
+    return d.toISOString().slice(0, 10);
+  };
 
   const cv = carteraViva(usuario);
   const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
@@ -1456,18 +1467,27 @@ function moraDeLaSemana(usuario, lunesOpt) {
     if (!idxDia(dia)) { fueraDeCuenta.sinDia++; continue; }
     const clave = claveCredito(c.id, c.producto);
     const pagado = Math.round((pagoSemana[clave] || 0) * 100) / 100;
+    const suFecha = fechaDelDia(dia);
+    const pagadoSuDia = Math.round((((porClaveFecha[clave] || {})[suFecha] || {}).p || 0) * 100) / 100;
     const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
     // El día se abre SIEMPRE, pague o no: hace falta saber cuántas SÍ pagaron
     // para leer la mora. «$34,040 de mora» no dice nada sin «de 90 créditos».
     const g = dias[dia] || (dias[dia] = { dia, fecha: null, filas: [], total: 0,
-      creditos: 0, alCorriente: 0, pagaronAlgo: 0, cobrado: 0 });
+      creditos: 0, alCorriente: 0, alCorrienteSuDia: 0, pagaronAlgo: 0,
+      cobrado: 0, cobradoSuDia: 0 });
     g.creditos++;
     g.cobrado = Math.round((g.cobrado + pagado) * 100) / 100;
+    g.cobradoSuDia = Math.round((g.cobradoSuDia + pagadoSuDia) * 100) / 100;
     if (pagado > 0) g.pagaronAlgo++;
+    // Pagó COMPLETO el día que le tocaba: es el número que de verdad mide la
+    // disciplina del centro. Los que completan después también cuentan, pero
+    // aparte, porque no es lo mismo.
+    if (pagadoSuDia >= cuota - 0.009) g.alCorrienteSuDia++;
     if (faltante <= 0) { g.alCorriente++; continue; }
     g.filas.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
       socio: String(c.id), clienta: c.nombre, producto: c.producto,
-      cuota, pagado, faltante, saldo: infoCredito(cv, c).saldoActual });
+      cuota, pagado, pagadoSuDia, suFecha, faltante,
+      saldo: infoCredito(cv, c).saldoActual });
     g.total = Math.round((g.total + faltante) * 100) / 100;
   }
   // La fecha real de cada día dentro de esa semana, como la pone Monse.
@@ -1486,6 +1506,8 @@ function moraDeLaSemana(usuario, lunesOpt) {
     clientas: new Set(lista.flatMap((g) => g.filas.map((f) => f.socio))).size,
     creditos: sum((g) => g.creditos),
     alCorriente: sum((g) => g.alCorriente),
+    alCorrienteSuDia: sum((g) => g.alCorrienteSuDia),
+    cobradoSuDia: sum((g) => g.cobradoSuDia),
     pagaronAlgo: sum((g) => g.pagaronAlgo),
     cobrado: sum((g) => g.cobrado),
     fueraDeCuenta };
@@ -1503,8 +1525,8 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
   const s = wb.addWorksheet("Mora de la semana");
   const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019", LAV = "FFF3F0FA";
   const MONEDA = '"$"#,##0.00';
-  [14, 22, 15, 34, 18, 16, 13, 13].forEach((w, i) => (s.getColumn(i + 1).width = w));
-  s.mergeCells("A1:H1");
+  [14, 22, 15, 34, 18, 16, 13, 15, 17].forEach((w, i) => (s.getColumn(i + 1).width = w));
+  s.mergeCells("A1:I1");
   const t = s.getCell("A1");
   t.value = "FOOAX · MORA DE LA SEMANA · del " + d.lunes + " al " + d.domingo;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
@@ -1518,12 +1540,12 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     rd.getCell(1).value = "DIA";
     rd.getCell(2).value = g.dia;
     rd.getCell(3).value = g.fecha;
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= 9; i++) {
       rd.getCell(i).font = { bold: true, color: { argb: "FFFFFFFF" } };
       rd.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
     }
     const rh = s.getRow(f++);
-    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "FALTANTE DE PAGO", "Cuota", "Pagó"]
+    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "FALTANTE DE PAGO", "Cuota", "Pagó ese día", "Pagó en la semana"]
       .forEach((h, i) => { const c = rh.getCell(i + 1); c.value = h;
         c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } }; });
     for (const x of g.filas) {
@@ -1532,11 +1554,14 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
       const cf = r.getCell(6); cf.value = x.faltante; cf.numFmt = MONEDA;
       cf.font = { bold: true, color: { argb: ROJO } };
       const cc = r.getCell(7); cc.value = x.cuota; cc.numFmt = MONEDA;
-      const cp = r.getCell(8); cp.value = x.pagado; cp.numFmt = MONEDA;
+      const cd = r.getCell(8); cd.value = x.pagadoSuDia; cd.numFmt = MONEDA;
+      const cp = r.getCell(9); cp.value = x.pagado; cp.numFmt = MONEDA;
     }
     const rt = s.getRow(f++);
-    rt.getCell(4).value = "TOTAL " + g.dia + "  ·  " + g.alCorriente + " de " + g.creditos
-      + " pagaron completo  ·  cobrado " + g.cobrado.toFixed(2);
+    rt.getCell(4).value = "TOTAL " + g.dia + "  ·  " + g.alCorrienteSuDia + " de " + g.creditos
+      + " pagaron ESE DÍA"
+      + (g.alCorriente > g.alCorrienteSuDia ? "  (+" + (g.alCorriente - g.alCorrienteSuDia) + " completaron después)" : "")
+      + "  ·  cobrado ese día " + g.cobradoSuDia.toFixed(2);
     rt.getCell(4).font = { bold: true };
     const ct = rt.getCell(6); ct.value = g.total; ct.numFmt = MONEDA;
     ct.font = { bold: true, color: { argb: ROJO } };
@@ -1557,11 +1582,13 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     "· " + fc.sinCuota + " créditos sin cuota capturada en el padrón.",
     "· " + fc.sinDia + " créditos sin día de cobro.",
     "· " + fc.liquidados + " créditos ya liquidados (no deben nada esta semana).",
-    "Faltante = cuota de la semana − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
+    "Faltante = cuota − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
+    "«Pagó ese día» es lo que abonó EL DÍA que le toca; «pagó en la semana» incluye lo que completó después. "
+      + "El faltante se calcula con la SEMANA: si completó el jueves, ya no debe. La columna del día es para ver quién va tarde aunque acabe pagando.",
   ];
   for (const n of notas) {
     const r = s.getRow(f++);
-    s.mergeCells("A" + r.number + ":H" + r.number);
+    s.mergeCells("A" + r.number + ":I" + r.number);
     r.getCell(1).value = n;
     r.getCell(1).font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
   }

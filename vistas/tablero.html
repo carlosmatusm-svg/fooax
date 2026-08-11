@@ -2025,12 +2025,15 @@ async function cargarMora() {
   const fuera = (fc.cuotaVariable || 0) + (fc.sinCuota || 0) + (fc.sinDia || 0);
   box.innerHTML = "Semana del <b>" + hesc(d.lunes) + "</b>: falta cobrar <b style=\"color:#8E0019\">"
     + dinero(d.total) + "</b> de <b>" + d.clientas + "</b> clientas."
-    + " De <b>" + (d.creditos || 0) + "</b> créditos que tocaban, <b>" + (d.alCorriente || 0)
-    + "</b> pagaron completo."
+    + " De <b>" + (d.creditos || 0) + "</b> créditos que tocaban, <b>" + (d.alCorrienteSuDia || 0)
+    + "</b> pagaron completo EL DÍA que les tocaba y <b>" + ((d.alCorriente || 0) - (d.alCorrienteSuDia || 0))
+    + "</b> completaron después, entre semana."
     + (d.dias || []).map((g) => "<br><b>" + hesc(g.dia) + "</b> " + hesc(g.fecha)
-        + " · " + g.alCorriente + " de " + g.creditos + " pagaron completo"
+        + " · <b>" + g.alCorrienteSuDia + " de " + g.creditos + "</b> pagaron ese día"
+        + (g.alCorriente > g.alCorrienteSuDia ? " (+" + (g.alCorriente - g.alCorrienteSuDia) + " después)" : "")
         + " · deben <b style=\"color:#8E0019\">" + dinero(g.total) + "</b>"
-        + " · cobrado " + dinero(g.cobrado)).join("")
+        + " · cobrado ese día " + dinero(g.cobradoSuDia)
+        + (g.cobrado > g.cobradoSuDia ? " (en la semana " + dinero(g.cobrado) + ")" : "")).join("")
     + (fuera ? '<br><span style="color:#8E0019">Fuera de la cuenta: ' + fuera + " créditos ("
         + (fc.cuotaVariable || 0) + " de cuota variable, " + (fc.sinCuota || 0) + " sin cuota, "
         + (fc.sinDia || 0) + " sin día). Vienen dichos en el Excel.</span>" : "");

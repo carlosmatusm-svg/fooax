@@ -2584,6 +2584,28 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     && m2.alCorriente === (m2.dias || []).reduce((x, g) => x + g.alCorriente, 0),
     JSON.stringify({ creditos: m2.creditos, alCorriente: m2.alCorriente }));
 
+  // «¿CÓMO DETECTA QUE FUE EL LUNES EN TODA LA SEMANA?» (Karina, 10-ago). El
+  // faltante se calcula con la SEMANA completa —si completó el jueves, ya no
+  // debe—, pero eso solo escondería a las que van tarde. Por eso se miden las
+  // dos: lo que abonó EL DÍA que le toca y lo que abonó en la semana.
+  const K56b = "11113095058|Grupal-Basico 2|HILDA ARACELY RODRIGUEZ LOPEZ|0";
+  const lunAntes = ((await mora56()).dias || []).find((g) => g.dia === "LUNES") || {};
+  // Paga completo, pero el MIÉRCOLES: se pone al corriente tarde.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: "2026-08-05", snapshot: { reg: { GHANIMA: { [K56b]: { pago: 216, forma: "E" } } } }, ts: Date.now() + 5 }) });
+  const lunDespues = ((await mora56()).dias || []).find((g) => g.dia === "LUNES") || {};
+  ok("la que completa entre semana deja de deber",
+    lunDespues.alCorriente === lunAntes.alCorriente + 1,
+    JSON.stringify({ antes: lunAntes.alCorriente, despues: lunDespues.alCorriente }));
+  ok("pero NO cuenta como que pagó su día",
+    lunDespues.alCorrienteSuDia === lunAntes.alCorrienteSuDia,
+    JSON.stringify({ antes: lunAntes.alCorrienteSuDia, despues: lunDespues.alCorrienteSuDia }));
+  ok("y lo cobrado ESE DÍA no se infla con lo de después",
+    Math.abs(lunDespues.cobradoSuDia - lunAntes.cobradoSuDia) < 0.01
+    && lunDespues.cobrado > lunAntes.cobrado,
+    JSON.stringify({ suDiaAntes: lunAntes.cobradoSuDia, suDiaDespues: lunDespues.cobradoSuDia,
+                     semanaAntes: lunAntes.cobrado, semanaDespues: lunDespues.cobrado }));
+
   const fc56 = (await mora56()).fueraDeCuenta || {};
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
