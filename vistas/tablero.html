@@ -2022,7 +2022,7 @@ async function cargarMora() {
   if (d.error) { box.textContent = d.error; return; }
   if (v && !v.value) v.value = d.lunes;
   const fc = d.fueraDeCuenta || {};
-  const fuera = (fc.cuotaVariable || 0) + (fc.sinCuota || 0) + (fc.sinDia || 0);
+  const fuera = (fc.cuotaVariable || 0) + (fc.sinCuota || 0) + (fc.sinDia || 0) + (fc.sinDesembolsar || 0);
   box.innerHTML = "Semana del <b>" + hesc(d.lunes) + "</b>: falta cobrar <b style=\"color:#8E0019\">"
     + dinero(d.total) + "</b> de <b>" + d.clientas + "</b> clientas."
     + " De <b>" + (d.creditos || 0) + "</b> créditos que tocaban, <b>" + (d.alCorrienteSuDia || 0)
@@ -2036,7 +2036,9 @@ async function cargarMora() {
         + (g.cobrado > g.cobradoSuDia ? " (en la semana " + dinero(g.cobrado) + ")" : "")).join("")
     + (fuera ? '<br><span style="color:#8E0019">Fuera de la cuenta: ' + fuera + " créditos ("
         + (fc.cuotaVariable || 0) + " de cuota variable, " + (fc.sinCuota || 0) + " sin cuota, "
-        + (fc.sinDia || 0) + " sin día). Vienen dichos en el Excel.</span>" : "");
+        + (fc.sinDia || 0) + " sin día"
+        + ((fc.sinDesembolsar || 0) ? ", " + fc.sinDesembolsar + " sin desembolsar todavía" : "")
+        + "). Vienen dichos en el Excel.</span>" : "");
 }
 
 // ---------- movimiento del periodo (sin corte) ----------

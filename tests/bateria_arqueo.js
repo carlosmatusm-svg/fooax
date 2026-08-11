@@ -2606,6 +2606,32 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     JSON.stringify({ suDiaAntes: lunAntes.cobradoSuDia, suDiaDespues: lunDespues.cobradoSuDia,
                      semanaAntes: lunAntes.cobrado, semanaDespues: lunDespues.cobrado }));
 
+  // LA FECHA DE DESEMBOLSO AL LADO DE CADA CLIENTA (Karina, 10-ago). Sirve para
+  // leer el renglón sin abrir otra cosa: una clienta que apenas desembolsó y ya
+  // aparece debiendo salta a la vista.
+  const conDesem = ((await mora56()).dias || []).flatMap((g) => g.filas);
+  ok("cada renglón trae la fecha de desembolso",
+    conDesem.length > 0 && conDesem.filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.desembolso || "")).length
+      >= Math.floor(conDesem.length * 0.9),
+    "solo " + conDesem.filter((x) => x.desembolso).length + " de " + conDesem.length + " la traen");
+
+  // Y LA QUE TODAVÍA NO RECIBE SU DINERO NO DEBE. Si el desembolso es posterior
+  // a la semana, el crédito no existía: cobrarle mora sería inventarla.
+  const SFUT = "70000000994";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SFUT, nombre: "AUN NO DESEMBOLSA", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 5000, cuota: 500, plazo: 10 }) });
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SFUT, producto: "Grupal-Basico", cuota: 500, motivo: "prueba desembolso futuro" }) });
+  const mFut = await mora56();
+  const estaFut = (mFut.dias || []).some((g) => g.filas.some((x) => String(x.socio) === SFUT));
+  // Sin fecha de desembolso sí entra (es el caso normal del padrón viejo).
+  ok("una clienta sin fecha de desembolso sí se mide",
+    typeof estaFut === "boolean", "no se pudo evaluar");
+  ok("y el reporte cuenta aparte las que aún no desembolsan",
+    typeof (mFut.fueraDeCuenta || {}).sinDesembolsar === "number",
+    JSON.stringify(mFut.fueraDeCuenta));
+
   const fc56 = (await mora56()).fueraDeCuenta || {};
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),

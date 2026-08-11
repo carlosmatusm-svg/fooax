@@ -1451,7 +1451,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
   const cv = carteraViva(usuario);
   const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
   const dias = {};
-  const fueraDeCuenta = { sinCuota: 0, cuotaVariable: 0, sinDia: 0, liquidados: 0 };
+  const fueraDeCuenta = { sinCuota: 0, cuotaVariable: 0, sinDia: 0, liquidados: 0, sinDesembolsar: 0 };
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     if (!mios.has(norm(c.ejecutivo))) continue;
@@ -1463,6 +1463,12 @@ function moraDeLaSemana(usuario, lunesOpt) {
     if (esCuotaVariable(c.producto)) { fueraDeCuenta.cuotaVariable++; continue; }
     const cuota = Number(c.cuota) || 0;
     if (cuota <= 0) { fueraDeCuenta.sinCuota++; continue; }
+    // TODAVÍA NO LE HAN DADO EL DINERO: no puede deber. Si el desembolso es
+    // POSTERIOR a la semana que se está midiendo, el crédito no existía. Sin
+    // esto se les cobraba mora a clientas que aún no reciben su préstamo — hay
+    // 3 en el padrón con fecha de desembolso adelantada.
+    const desem = String(c.desembolso || "").slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(desem) && desem > domingo) { fueraDeCuenta.sinDesembolsar++; continue; }
     const dia = String(c.diaPago || "").trim().toUpperCase();
     if (!idxDia(dia)) { fueraDeCuenta.sinDia++; continue; }
     const clave = claveCredito(c.id, c.producto);
@@ -1487,6 +1493,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
     g.filas.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
       socio: String(c.id), clienta: c.nombre, producto: c.producto,
       cuota, pagado, pagadoSuDia, suFecha, faltante,
+      desembolso: desem || null,
       saldo: infoCredito(cv, c).saldoActual });
     g.total = Math.round((g.total + faltante) * 100) / 100;
   }
@@ -1525,8 +1532,8 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
   const s = wb.addWorksheet("Mora de la semana");
   const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019", LAV = "FFF3F0FA";
   const MONEDA = '"$"#,##0.00';
-  [14, 22, 15, 34, 18, 16, 13, 15, 17].forEach((w, i) => (s.getColumn(i + 1).width = w));
-  s.mergeCells("A1:I1");
+  [14, 22, 15, 34, 18, 13, 16, 13, 15, 17].forEach((w, i) => (s.getColumn(i + 1).width = w));
+  s.mergeCells("A1:J1");
   const t = s.getCell("A1");
   t.value = "FOOAX · MORA DE LA SEMANA · del " + d.lunes + " al " + d.domingo;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
@@ -1540,22 +1547,23 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     rd.getCell(1).value = "DIA";
     rd.getCell(2).value = g.dia;
     rd.getCell(3).value = g.fecha;
-    for (let i = 1; i <= 9; i++) {
+    for (let i = 1; i <= 10; i++) {
       rd.getCell(i).font = { bold: true, color: { argb: "FFFFFFFF" } };
       rd.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
     }
     const rh = s.getRow(f++);
-    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "FALTANTE DE PAGO", "Cuota", "Pagó ese día", "Pagó en la semana"]
+    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "DESEMBOLSO", "FALTANTE DE PAGO", "Cuota", "Pagó ese día", "Pagó en la semana"]
       .forEach((h, i) => { const c = rh.getCell(i + 1); c.value = h;
         c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } }; });
     for (const x of g.filas) {
       const r = s.getRow(f++);
-      [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
-      const cf = r.getCell(6); cf.value = x.faltante; cf.numFmt = MONEDA;
+      [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto, x.desembolso || "—"]
+        .forEach((v, i) => (r.getCell(i + 1).value = v));
+      const cf = r.getCell(7); cf.value = x.faltante; cf.numFmt = MONEDA;
       cf.font = { bold: true, color: { argb: ROJO } };
-      const cc = r.getCell(7); cc.value = x.cuota; cc.numFmt = MONEDA;
-      const cd = r.getCell(8); cd.value = x.pagadoSuDia; cd.numFmt = MONEDA;
-      const cp = r.getCell(9); cp.value = x.pagado; cp.numFmt = MONEDA;
+      const cc = r.getCell(8); cc.value = x.cuota; cc.numFmt = MONEDA;
+      const cd = r.getCell(9); cd.value = x.pagadoSuDia; cd.numFmt = MONEDA;
+      const cp = r.getCell(10); cp.value = x.pagado; cp.numFmt = MONEDA;
     }
     const rt = s.getRow(f++);
     rt.getCell(4).value = "TOTAL " + g.dia + "  ·  " + g.alCorrienteSuDia + " de " + g.creditos
@@ -1563,14 +1571,14 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
       + (g.alCorriente > g.alCorrienteSuDia ? "  (+" + (g.alCorriente - g.alCorrienteSuDia) + " completaron después)" : "")
       + "  ·  cobrado ese día " + g.cobradoSuDia.toFixed(2);
     rt.getCell(4).font = { bold: true };
-    const ct = rt.getCell(6); ct.value = g.total; ct.numFmt = MONEDA;
+    const ct = rt.getCell(7); ct.value = g.total; ct.numFmt = MONEDA;
     ct.font = { bold: true, color: { argb: ROJO } };
     f++;
   }
   const rg = s.getRow(f++);
   rg.getCell(4).value = "TOTAL DE LA SEMANA";
   rg.getCell(4).font = { bold: true, size: 12 };
-  const cg = rg.getCell(6); cg.value = d.total; cg.numFmt = MONEDA;
+  const cg = rg.getCell(7); cg.value = d.total; cg.numFmt = MONEDA;
   cg.font = { bold: true, size: 12, color: { argb: ROJO } };
   // Lo que NO entró en la cuenta, dicho con todas sus letras: un reporte de mora
   // que calla lo que dejó fuera se lee como si hubiera medido todo.
@@ -1582,13 +1590,14 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     "· " + fc.sinCuota + " créditos sin cuota capturada en el padrón.",
     "· " + fc.sinDia + " créditos sin día de cobro.",
     "· " + fc.liquidados + " créditos ya liquidados (no deben nada esta semana).",
+    "· " + fc.sinDesembolsar + " créditos cuya fecha de desembolso es POSTERIOR a esta semana: todavía no reciben el dinero, no pueden deber.",
     "Faltante = cuota − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
     "«Pagó ese día» es lo que abonó EL DÍA que le toca; «pagó en la semana» incluye lo que completó después. "
       + "El faltante se calcula con la SEMANA: si completó el jueves, ya no debe. La columna del día es para ver quién va tarde aunque acabe pagando.",
   ];
   for (const n of notas) {
     const r = s.getRow(f++);
-    s.mergeCells("A" + r.number + ":I" + r.number);
+    s.mergeCells("A" + r.number + ":J" + r.number);
     r.getCell(1).value = n;
     r.getCell(1).font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
   }
