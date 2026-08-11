@@ -1269,9 +1269,26 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const e1 = await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2");
   const e2 = await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional");
   await mov43("2026-07-11", "11112816492", e1.base + e2.base, "LIQUIDACION", "L43d");
-  ok("con DOS créditos, la liquidación se reparte entre los dos",
-    (await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2")).act <= 0.009
-    && (await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")).act <= 0.009,
+  // REGLA NUEVA (Karina, 10-ago): «la liquidación tiene que ser EXCLUSIVAMENTE
+  // para ese crédito que liquidan, sin afectar los demás activos». Antes, si la
+  // socia tenía dos créditos y el abono no decía cuál, se repartía entre los
+  // dos: eso era adivinar, y le bajaba el saldo al que no era. Ahora no se
+  // aplica a ninguno y sale en el aviso para que Monse le ponga el crédito.
+  ok("con DOS créditos y sin decir cuál, NO se le aplica a ninguno",
+    Math.abs((await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2")).act - e1.base) < 0.01
+    && Math.abs((await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")).act - e2.base) < 0.01,
+    JSON.stringify([await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2"), await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")]));
+  const avisoL43 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("y queda avisada en el tablero, con su folio, para poder corregirla",
+    (avisoL43.liquidacionesSinCredito || []).some((x) => String(x.socio) === "11112816492"),
+    JSON.stringify((avisoL43.liquidacionesSinCredito || []).map((x) => x.socio)));
+  // Y en cuanto se dice CUÁL, le baja a ese y solo a ese.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-07-11", tipo: "Liquidación", concepto: "Ya con su crédito",
+      monto: e2.base, metodo: "efectivo", socio: "11112816492", producto: "Grupal-Adicional" }) });
+  ok("diciendo CUÁL, le baja a ese crédito y al otro no",
+    (await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")).act <= 0.009
+    && Math.abs((await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2")).act - e1.base) < 0.01,
     JSON.stringify([await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2"), await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")]));
   // Si la ejecutiva la BORRA de su app, el sync la marca anulada y deja de contar.
   await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: "2026-07-10",

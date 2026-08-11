@@ -1194,6 +1194,7 @@ function carteraViva(usuario) {
     // Lo que ya tiene crédito escrito sale del reparto: es de ESE crédito. Sin
     // apartarlo se contaría dos veces (una en su crédito y otra en la bolsa).
     const bolsaLibre = Math.max(0, bolsa - (ligadas.porSocio[soc] || 0));
+    const suyosVivos = activos.filter((x) => String(x.id) === soc).length;
     const tope = Math.max(0, (c.saldo || 0) - pagado);
     // RENOVAR DESPUÉS DE LIQUIDAR. El ciclo nuevo hereda la MISMA llave
     // (socio+producto), así que la liquidación con la que se cerró el ANTERIOR
@@ -1206,7 +1207,15 @@ function carteraViva(usuario) {
     const ligadoAqui = ligadas.porClave[clave] || 0;
     const exacto = Math.min(Math.max(0, ligadoAqui - prevLiq), tope);
     const prevRestante = Math.max(0, prevLiq - ligadoAqui);
-    const disp = Math.max(0, bolsaLibre - usado - prevRestante);
+    // UNA LIQUIDACIÓN ES EXCLUSIVAMENTE DEL CRÉDITO QUE LIQUIDAN (Karina, 10-ago:
+    // «sin afectar los demás activos»). Si la socia tiene MÁS DE UN crédito vivo
+    // y el abono no dice cuál, ya no se reparte: repartir era adivinar, y
+    // adivinaba mal — le bajaba el saldo al que no era. Se queda sin aplicar y
+    // sale en el aviso de «liquidaciones sin crédito» del tablero, donde Monse
+    // le pone el crédito y entonces sí le baja al que debe.
+    //
+    // Con UN SOLO crédito activo no hay a quién equivocarle: ahí sí se aplica.
+    const disp = suyosVivos > 1 ? 0 : Math.max(0, bolsaLibre - usado - prevRestante);
     const repartido = Math.min(disp, Math.max(0, tope - exacto));
     const liquidado = exacto + repartido;
     if (repartido > 0) liqRestante["__usado__" + soc] = usado + repartido;
