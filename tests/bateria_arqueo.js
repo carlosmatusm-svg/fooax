@@ -2565,6 +2565,25 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     Math.abs(totalConCorteA - totalConCorteB) < 0.01, totalConCorteA + " vs " + totalConCorteB);
 
   // Y que diga lo que dejó fuera, en vez de callarlo.
+  // CUÁNTAS SÍ PAGARON (Karina, 10-ago: «¿cuántos tuvieron pagadas en lunes?»).
+  // Un total de mora suelto no se puede leer: "$34,040" no dice nada sin "de 90
+  // créditos, 12 pagaron completo".
+  const m2 = await mora56();
+  const lun56 = (m2.dias || []).find((g) => g.dia === "LUNES");
+  ok("el reporte dice cuántos créditos tocaban cada día",
+    !!lun56 && lun56.creditos > 0 && lun56.creditos >= lun56.filas.length,
+    JSON.stringify({ creditos: (lun56 || {}).creditos, enMora: (lun56 || { filas: [] }).filas.length }));
+  ok("y cuántos pagaron su cuota completa",
+    !!lun56 && lun56.alCorriente >= 1 && lun56.creditos === lun56.alCorriente + lun56.filas.length,
+    JSON.stringify({ alCorriente: (lun56 || {}).alCorriente, enMora: (lun56 || { filas: [] }).filas.length,
+                     creditos: (lun56 || {}).creditos }));
+  ok("y cuánto se cobró ese día",
+    !!lun56 && lun56.cobrado >= 576, "cobrado " + (lun56 || {}).cobrado);
+  ok("los totales de la semana suman lo de cada día",
+    m2.creditos === (m2.dias || []).reduce((x, g) => x + g.creditos, 0)
+    && m2.alCorriente === (m2.dias || []).reduce((x, g) => x + g.alCorriente, 0),
+    JSON.stringify({ creditos: m2.creditos, alCorriente: m2.alCorriente }));
+
   const fc56 = (await mora56()).fueraDeCuenta || {};
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),

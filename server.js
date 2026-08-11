@@ -1457,8 +1457,14 @@ function moraDeLaSemana(usuario, lunesOpt) {
     const clave = claveCredito(c.id, c.producto);
     const pagado = Math.round((pagoSemana[clave] || 0) * 100) / 100;
     const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
-    if (faltante <= 0) continue;
-    const g = dias[dia] || (dias[dia] = { dia, fecha: null, filas: [], total: 0 });
+    // El día se abre SIEMPRE, pague o no: hace falta saber cuántas SÍ pagaron
+    // para leer la mora. «$34,040 de mora» no dice nada sin «de 90 créditos».
+    const g = dias[dia] || (dias[dia] = { dia, fecha: null, filas: [], total: 0,
+      creditos: 0, alCorriente: 0, pagaronAlgo: 0, cobrado: 0 });
+    g.creditos++;
+    g.cobrado = Math.round((g.cobrado + pagado) * 100) / 100;
+    if (pagado > 0) g.pagaronAlgo++;
+    if (faltante <= 0) { g.alCorriente++; continue; }
     g.filas.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
       socio: String(c.id), clienta: c.nombre, producto: c.producto,
       cuota, pagado, faltante, saldo: infoCredito(cv, c).saldoActual });
@@ -1474,9 +1480,14 @@ function moraDeLaSemana(usuario, lunesOpt) {
       || String(a.clienta).localeCompare(String(b.clienta)));
   }
   void orden;
+  const sum = (f) => Math.round(lista.reduce((s, g) => s + f(g), 0) * 100) / 100;
   return { lunes, domingo, dias: lista,
-    total: Math.round(lista.reduce((s, g) => s + g.total, 0) * 100) / 100,
+    total: sum((g) => g.total),
     clientas: new Set(lista.flatMap((g) => g.filas.map((f) => f.socio))).size,
+    creditos: sum((g) => g.creditos),
+    alCorriente: sum((g) => g.alCorriente),
+    pagaronAlgo: sum((g) => g.pagaronAlgo),
+    cobrado: sum((g) => g.cobrado),
     fueraDeCuenta };
 }
 
@@ -1524,7 +1535,8 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
       const cp = r.getCell(8); cp.value = x.pagado; cp.numFmt = MONEDA;
     }
     const rt = s.getRow(f++);
-    rt.getCell(4).value = "TOTAL " + g.dia;
+    rt.getCell(4).value = "TOTAL " + g.dia + "  ·  " + g.alCorriente + " de " + g.creditos
+      + " pagaron completo  ·  cobrado " + g.cobrado.toFixed(2);
     rt.getCell(4).font = { bold: true };
     const ct = rt.getCell(6); ct.value = g.total; ct.numFmt = MONEDA;
     ct.font = { bold: true, color: { argb: ROJO } };
