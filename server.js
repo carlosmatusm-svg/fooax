@@ -1425,6 +1425,11 @@ function rangoPeriodo(q) {
 // eso da un número distinto al del semáforo de cartera, que mide otra cosa
 // (el acumulado desde el corte) — y por eso «no nos dio».
 // ===================================================================
+const NOMBRE_DIA = ["DOMINGO", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
+function nombreDia(fechaISO) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fechaISO || ""))) return "";
+  return NOMBRE_DIA[new Date(fechaISO + "T12:00:00").getDay()] || "";
+}
 function moraDeLaSemana(usuario, lunesOpt) {
   const lunes = /^\d{4}-\d{2}-\d{2}$/.test(String(lunesOpt || "")) ? lunesOpt : lunesDeLaSemana(hoyMX());
   const dom = new Date(lunes + "T12:00:00"); dom.setDate(dom.getDate() + 6);
@@ -1494,6 +1499,12 @@ function moraDeLaSemana(usuario, lunesOpt) {
       socio: String(c.id), clienta: c.nombre, producto: c.producto,
       cuota, pagado, pagadoSuDia, suFecha, faltante,
       desembolso: desem || null,
+      // El día de la semana en que se desembolsó. Karina lo pidió así porque en
+      // las plantillas los días vienen por nombre, no por fecha. NO es el que
+      // agrupa —eso lo manda el DÍA DE PAGO— y en 3 de cada 11 no coinciden:
+      // hay quien desembolsó en miércoles y cobra los lunes.
+      diaDesembolso: nombreDia(desem),
+      diaPago: dia,
       saldo: infoCredito(cv, c).saldoActual });
     g.total = Math.round((g.total + faltante) * 100) / 100;
   }
@@ -1532,8 +1543,8 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
   const s = wb.addWorksheet("Mora de la semana");
   const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019", LAV = "FFF3F0FA";
   const MONEDA = '"$"#,##0.00';
-  [14, 22, 15, 34, 18, 13, 16, 13, 15, 17].forEach((w, i) => (s.getColumn(i + 1).width = w));
-  s.mergeCells("A1:J1");
+  [14, 22, 15, 34, 18, 18, 18, 13, 16, 13, 15, 17].forEach((w, i) => (s.getColumn(i + 1).width = w));
+  s.mergeCells("A1:L1");
   const t = s.getCell("A1");
   t.value = "FOOAX · MORA DE LA SEMANA · del " + d.lunes + " al " + d.domingo;
   t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
@@ -1547,23 +1558,29 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     rd.getCell(1).value = "DIA";
     rd.getCell(2).value = g.dia;
     rd.getCell(3).value = g.fecha;
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 12; i++) {
       rd.getCell(i).font = { bold: true, color: { argb: "FFFFFFFF" } };
       rd.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
     }
     const rh = s.getRow(f++);
-    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "DESEMBOLSO", "FALTANTE DE PAGO", "Cuota", "Pagó ese día", "Pagó en la semana"]
+    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "DÍA DEL DESEMBOLSO", "FECHA DE DESEMBOLSO",
+     "DÍA DE COBRO", "FALTANTE DE PAGO", "Cuota", "Pagó ese día", "Pagó en la semana"]
       .forEach((h, i) => { const c = rh.getCell(i + 1); c.value = h;
         c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } }; });
     for (const x of g.filas) {
       const r = s.getRow(f++);
-      [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto, x.desembolso || "—"]
+      [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto,
+       x.diaDesembolso || "—", x.desembolso || "—", x.diaPago]
         .forEach((v, i) => (r.getCell(i + 1).value = v));
-      const cf = r.getCell(7); cf.value = x.faltante; cf.numFmt = MONEDA;
+      // Si desembolsó en un día y cobra en otro, se marca: es lo que explica
+      // que su día de cobro no sea el que uno esperaría por el desembolso.
+      if (x.diaDesembolso && x.diaDesembolso !== x.diaPago)
+        r.getCell(6).font = { color: { argb: ROJO } };
+      const cf = r.getCell(9); cf.value = x.faltante; cf.numFmt = MONEDA;
       cf.font = { bold: true, color: { argb: ROJO } };
-      const cc = r.getCell(8); cc.value = x.cuota; cc.numFmt = MONEDA;
-      const cd = r.getCell(9); cd.value = x.pagadoSuDia; cd.numFmt = MONEDA;
-      const cp = r.getCell(10); cp.value = x.pagado; cp.numFmt = MONEDA;
+      const cc = r.getCell(10); cc.value = x.cuota; cc.numFmt = MONEDA;
+      const cd = r.getCell(11); cd.value = x.pagadoSuDia; cd.numFmt = MONEDA;
+      const cp = r.getCell(12); cp.value = x.pagado; cp.numFmt = MONEDA;
     }
     const rt = s.getRow(f++);
     rt.getCell(4).value = "TOTAL " + g.dia + "  ·  " + g.alCorrienteSuDia + " de " + g.creditos
@@ -1571,14 +1588,14 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
       + (g.alCorriente > g.alCorrienteSuDia ? "  (+" + (g.alCorriente - g.alCorrienteSuDia) + " completaron después)" : "")
       + "  ·  cobrado ese día " + g.cobradoSuDia.toFixed(2);
     rt.getCell(4).font = { bold: true };
-    const ct = rt.getCell(7); ct.value = g.total; ct.numFmt = MONEDA;
+    const ct = rt.getCell(9); ct.value = g.total; ct.numFmt = MONEDA;
     ct.font = { bold: true, color: { argb: ROJO } };
     f++;
   }
   const rg = s.getRow(f++);
   rg.getCell(4).value = "TOTAL DE LA SEMANA";
   rg.getCell(4).font = { bold: true, size: 12 };
-  const cg = rg.getCell(7); cg.value = d.total; cg.numFmt = MONEDA;
+  const cg = rg.getCell(9); cg.value = d.total; cg.numFmt = MONEDA;
   cg.font = { bold: true, size: 12, color: { argb: ROJO } };
   // Lo que NO entró en la cuenta, dicho con todas sus letras: un reporte de mora
   // que calla lo que dejó fuera se lee como si hubiera medido todo.
@@ -1592,12 +1609,16 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     "· " + fc.liquidados + " créditos ya liquidados (no deben nada esta semana).",
     "· " + fc.sinDesembolsar + " créditos cuya fecha de desembolso es POSTERIOR a esta semana: todavía no reciben el dinero, no pueden deber.",
     "Faltante = cuota − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
+    "Los bloques se agrupan por el DÍA DE COBRO de la plantilla, no por el día en que se desembolsó: "
+      + "se comprobó contra el archivo de la Ing. Monse y empata en 11 de 11, mientras que el día del desembolso "
+      + "solo empata en 8 de 11 (hay quien desembolsó en miércoles y cobra los lunes). "
+      + "Cuando los dos días NO coinciden, el del desembolso va marcado en rojo.",
     "«Pagó ese día» es lo que abonó EL DÍA que le toca; «pagó en la semana» incluye lo que completó después. "
       + "El faltante se calcula con la SEMANA: si completó el jueves, ya no debe. La columna del día es para ver quién va tarde aunque acabe pagando.",
   ];
   for (const n of notas) {
     const r = s.getRow(f++);
-    s.mergeCells("A" + r.number + ":J" + r.number);
+    s.mergeCells("A" + r.number + ":L" + r.number);
     r.getCell(1).value = n;
     r.getCell(1).font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
   }

@@ -2610,6 +2610,23 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // leer el renglón sin abrir otra cosa: una clienta que apenas desembolsó y ya
   // aparece debiendo salta a la vista.
   const conDesem = ((await mora56()).dias || []).flatMap((g) => g.filas);
+  // EL DÍA POR NOMBRE, NO SOLO LA FECHA (Karina, 10-ago: «en vez de fecha dicen
+  // lunes, martes, etc.»). Y las DOS cosas separadas, porque no son la misma:
+  // el bloque lo manda el DÍA DE COBRO, no el día en que se desembolsó. Se
+  // comprobó contra su archivo: el día de cobro empata en 11 de 11 y el del
+  // desembolso solo en 8 de 11.
+  const filas56 = ((await mora56()).dias || []).flatMap((g) => g.filas.map((x) => ({ g, x })));
+  ok("cada renglón dice el DÍA del desembolso, no solo la fecha",
+    filas56.length > 0 && filas56.filter(({ x }) =>
+      /^(LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|SABADO|DOMINGO)$/.test(x.diaDesembolso || "")).length
+      >= Math.floor(filas56.length * 0.9),
+    "solo " + filas56.filter(({ x }) => x.diaDesembolso).length + " de " + filas56.length);
+  ok("y también su día de cobro, que es el que agrupa",
+    filas56.every(({ g, x }) => x.diaPago === g.dia), "hay renglones bajo un día que no es el suyo");
+  ok("los dos días se distinguen: hay quien desembolsó en uno y cobra en otro",
+    filas56.some(({ x }) => x.diaDesembolso && x.diaDesembolso !== x.diaPago),
+    "en estos datos ninguno difiere");
+
   ok("cada renglón trae la fecha de desembolso",
     conDesem.length > 0 && conDesem.filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.desembolso || "")).length
       >= Math.floor(conDesem.length * 0.9),
