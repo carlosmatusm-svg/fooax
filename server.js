@@ -1452,6 +1452,31 @@ function moraDeLaSemana(usuario, lunesOpt) {
     const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + (idxDia(dia) - 1));
     return d.toISOString().slice(0, 10);
   };
+  // LO QUE LA CLIENTA ENTREGÓ POR CAJA ESA SEMANA TAMBIÉN CUBRE SU CUOTA.
+  // (12-ago, al cotejar contra el archivo rectificado de Monse.) Si paga en la
+  // oficina y Dirección lo registra como liquidación o recuperación, ese dinero
+  // le bajaba el saldo pero la mora NO lo contaba — solo contaba las fichas de
+  // las ejecutivas, y la clienta salía debiendo una cuota que ya entregó.
+  // Con varios créditos y sin decir cuál, no se adivina: queda en el aviso.
+  for (let f = new Date(lunes + "T12:00:00"); ; f.setDate(f.getDate() + 1)) {
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > domingo || fISO > hoyMX()) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+      const soc = socioDeMov(m); if (!soc) continue;
+      let prod = productoDeMov(m);
+      if (!prod) {
+        const suyos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === String(soc));
+        if (suyos.length === 1) prod = suyos[0].producto;
+      }
+      if (!prod) continue;
+      const clave = claveCredito(soc, prod);
+      pagoSemana[clave] = (pagoSemana[clave] || 0) + (Number(m.monto) || 0);
+      const pf = porClaveFecha[clave] || (porClaveFecha[clave] = {});
+      const b = pf[fISO] || (pf[fISO] = { p: 0, g: 0 });
+      b.p += Number(m.monto) || 0;
+    }
+  }
 
   const cv = carteraViva(usuario);
   const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
@@ -1629,6 +1654,7 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
       + "se comprobó contra el archivo de la Ing. Monse y empata en 11 de 11, mientras que el día del desembolso "
       + "solo empata en 8 de 11 (hay quien desembolsó en miércoles y cobra los lunes). "
       + "Cuando los dos días NO coinciden, el del desembolso va marcado en rojo.",
+    "Los pagos por CAJA (liquidaciones y recuperaciones registradas por Dirección) también cubren la cuota de la semana.",
     "«Pagó ese día» es lo que abonó EL DÍA que le toca; «pagó en la semana» incluye lo que completó después. "
       + "El faltante se calcula con la SEMANA: si completó el jueves, ya no debe. La columna del día es para ver quién va tarde aunque acabe pagando.",
   ];

@@ -2665,6 +2665,35 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     Math.abs((mHoy.totalVencido + mHoy.totalPorVencer) - mHoy.total) < 0.01,
     JSON.stringify({ v: mHoy.totalVencido, pv: mHoy.totalPorVencer, t: mHoy.total }));
 
+  // EL PAGO POR CAJA TAMBIÉN CUBRE LA CUOTA (Karina, 12-ago, al cotejar contra
+  // el archivo rectificado de Monse: 4 pagos que ella tenía y nosotros no).
+  // Si la clienta paga en la oficina y Dirección lo registra como recuperación,
+  // antes le bajaba el saldo pero la mora la seguía marcando como deudora.
+  const buscaM56 = (d, socio, prod) => {
+    for (const g of d.dias || []) for (const x of g.filas)
+      if (String(x.socio) === socio && (!prod || x.producto === prod)) return x;
+    return null;
+  };
+  // El caso real del archivo de Monse fue MARIA DEL ROSARIO (pagó $500 de su
+  // cuota de $576 en caja → falta $76), pero una prueba anterior de esta misma
+  // sección ya la puso al corriente. Se usa a ELVIRA ROSA, que nadie ha tocado:
+  // cuota $445, paga $400 por caja → falta $45.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: L56, tipo: "Recuperación / adelanto", concepto: "Pago en oficina",
+      monto: 400, metodo: "efectivo", socio: "11113075182", producto: "Individual 1", ejecutivo: "christopher" }) });
+  const mr56 = buscaM56(await mora56(), "11113075182", "Individual 1");
+  ok("un pago por CAJA cubre la cuota (cuota $445 − $400 en caja = falta $45)",
+    !!mr56 && mr56.faltante === 45 && mr56.pagado === 400, JSON.stringify(mr56));
+  // Con DOS créditos, el pago por caja solo cubre el crédito que dice.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: L56, tipo: "Recuperación / adelanto", concepto: "Pago en oficina",
+      monto: 648, metodo: "efectivo", socio: "11112946258", producto: "Grupal-Basico 2", ejecutivo: "neri" }) });
+  const dv56 = await mora56();
+  ok("con dos créditos, el pago por caja cubre SOLO el crédito que dice",
+    buscaM56(dv56, "11112946258", "Grupal-Basico 2") === null
+    && !!buscaM56(dv56, "11112946258", "Grupal-Micro 2"),
+    JSON.stringify([buscaM56(dv56, "11112946258", "Grupal-Basico 2"), buscaM56(dv56, "11112946258", "Grupal-Micro 2")]));
+
   const fc56 = (await mora56()).fueraDeCuenta || {};
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
