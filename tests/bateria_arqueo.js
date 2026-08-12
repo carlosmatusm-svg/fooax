@@ -2720,6 +2720,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // re-crédito no cargaba la fecha y salió en la mora tres semanas antes de
   // recibir el dinero.
   const S57 = "70000000997";
+  const cartAntes57 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
   const r57 = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S57, nombre: "PILAR DE PRUEBA 57", producto: "Grupal-Basico 2",
       centro: "C-0", ejecutivo: "Julio", saldo: 10368, cuota: 576, plazo: 18, desembolso: "2027-01-15" }) });
@@ -2733,6 +2734,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     .find((x) => String(x.id) === S57);
   ok("y la fecha le baja a la app de la ejecutiva",
     !!v57 && v57.desembolso === "2027-01-15", JSON.stringify(v57));
+  // Y LA CARTERA DEL TABLERO VA EN SINCRONÍA (Karina, 12-ago: «asegúrate que
+  // sincronice con la mora en el tablero y lo demás»). Antes un crédito sin
+  // desembolsar sumaba a lo esperado, y si su día ya había pasado el semáforo
+  // lo pintaba EN MORA.
+  const cart57 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("la cartera NO le espera cuota a quien aún no desembolsa",
+    Math.abs((cart57.esperadoALaFecha || 0) - (cartAntes57.esperadoALaFecha || 0)) < 0.01
+    && Math.abs((cart57.esperado || 0) - (cartAntes57.esperado || 0)) < 0.01,
+    JSON.stringify({ antes: cartAntes57.esperadoALaFecha, despues: cart57.esperadoALaFecha }));
+  ok("y el semáforo la pone en PENDIENTE, no en mora",
+    cart57.semaforo.pendiente === cartAntes57.semaforo.pendiente + 1
+    && cart57.semaforo.enMora === cartAntes57.semaforo.enMora,
+    JSON.stringify({ antes: cartAntes57.semaforo, despues: cart57.semaforo }));
   // El re-crédito también la guarda.
   await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S57, producto: "Grupal-Basico 2", motivo: "No renovó" }) });

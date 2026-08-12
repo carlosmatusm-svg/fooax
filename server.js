@@ -2280,6 +2280,15 @@ function atrasoEnPagos(c, info) {
   const debio = Math.min(pl, transcurridos);
   return { atraso: debio - hechos, hechos, debio, restantes, transcurridos, plazo: pl };
 }
+// TODAVÍA NO LE ENTREGAN EL DINERO: no puede deber, no se le espera cuota.
+// (Karina, 12-ago: «asegúrate que sincronice con la mora en el tablero y lo
+// demás».) La mora semanal ya excluía estos créditos; la CARTERA no: sumaban a
+// lo esperado y a pendiente de cobro, y si su día ya había pasado, el semáforo
+// los pintaba EN MORA — tres semanas antes del desembolso.
+function aunNoDesembolsa(c) {
+  const d = String(c.desembolso || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) && d > hoyMX();
+}
 function estaTerminado(c, info) {
   if (/termino|liquidad/i.test(String(c.estatus || ""))) return true;
   return !!info && (info.saldoActual || 0) <= 0.009;
@@ -2297,6 +2306,9 @@ function semaforoDe(c, info, pagoSemana) {
   // contra la del padrón daría un semáforo falso. Se aparta hasta que exista
   // el módulo de intereses.
   if (esCuotaVariable(c.producto)) return "cuotaVariable";
+  // Aún no desembolsa: no es mora ni parcial — está pendiente de que le
+  // entreguen su dinero, no de que pague.
+  if (aunNoDesembolsa(c)) return "pendiente";
   // "pendiente" NO es mora: cada centro cobra en su día, y el lunes casi nadie
   // ha pagado todavía. Ahora que el crédito trae su DÍA, se puede separar de
   // verdad (lo pidió Anel el 4-ago): si su día ya PASÓ y no cubrió, eso sí es
@@ -2339,7 +2351,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       // dictado de Monse (29-jul) "mora = los faltantes de pago de los créditos
       // ACTIVOS". Un vencido ya no tiene cuota que esperar, está en recuperación
       // — y lo que entre de él es RECUPERACIÓN, no cobranza de la semana.
-      if (!esCuotaVariable(c.producto) && !esVencido(c)) {
+      if (!esCuotaVariable(c.producto) && !esVencido(c) && !aunNoDesembolsa(c)) {
         const cu = Math.min(Number(c.cuota) || 0, info.saldoActual);
         esperado += cu;
         const d = idxDia(c.diaPago);
@@ -2359,7 +2371,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
     const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, esperadoALaFecha: 0, pendiente_: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, enMora: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
     e.creditos++; e.cartera += info.saldoActual; e.moraAcum = (e.moraAcum || 0) + mora; e[s]++;
-    if (info.saldoActual > 0 && !esCuotaVariable(c.producto) && !esVencido(c)) {
+    if (info.saldoActual > 0 && !esCuotaVariable(c.producto) && !esVencido(c) && !aunNoDesembolsa(c)) {
       const cuE = Math.min(Number(c.cuota) || 0, info.saldoActual);
       const dE = idxDia(c.diaPago);
       e.esperado += cuE;
