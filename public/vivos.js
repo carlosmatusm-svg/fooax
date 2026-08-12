@@ -203,4 +203,34 @@
   window.addEventListener("online", bajar);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) bajar(); });
   setTimeout(bajar, 4000);
+
+  // ---- 5. EL DÍA QUE SE QUEDÓ ABIERTO ----
+  // (12-ago) Los pagos de GUIE XHUUBA —clienta de LUNES— aparecieron fechados
+  // miércoles: la app es una PWA que puede quedarse abierta días enteros, y la
+  // fecha solo se fijaba AL ABRIR. Todo lo capturado después de medianoche caía
+  // en el día viejo, y la mora de la semana no lo veía.
+  //
+  // Vigilancia cada minuto: si el día en pantalla ya no es hoy, se recarga. Al
+  // recargar, la propia app aplica su regla del día anterior (si hay captura
+  // sin enviar, BLOQUEA hasta mandar el arqueo de ese día) y lo nuevo queda
+  // con la fecha correcta. Lo capturado no se pierde: vive en localStorage.
+  function hoyMXcliente() {
+    return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+  }
+  function vigilaDia() {
+    try {
+      var inp = document.getElementById("inpFecha");
+      if (!inp || !inp.value) return;
+      if (inp.value === hoyMXcliente()) return;
+      // Fecha vieja SANCIONADA: la app está a propósito en el bloqueo del día
+      // anterior (esperando su arqueo). Recargar aquí sería un ciclo infinito.
+      try {
+        if (window.sessionStorage && window.sessionStorage.getItem("fooax_fecha_ok") === inp.value) return;
+      } catch (e) { }
+      window.location.reload();
+    } catch (e) { }
+  }
+  window.__vigilaDia = vigilaDia;
+  setInterval(vigilaDia, CADA);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) vigilaDia(); });
 })();

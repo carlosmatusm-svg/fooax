@@ -196,6 +196,13 @@ for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
   ok("vivos.js vuelve a preguntar solo (setInterval)", /setInterval\(/.test(v), "sin sondeo");
   ok("vivos.js no pisa el plazo que capturó la ejecutiva",
     /!d\.plazo/.test(v), "podría estar sobrescribiéndolo");
+  // El vigilante del día: una PWA abierta al pasar medianoche fechaba las
+  // capturas en el día viejo (los pagos de GUIE XHUUBA, 12-ago). Si esto
+  // desaparece, el hueco regresa en silencio.
+  ok("vivos.js vigila que el día en pantalla siga siendo hoy",
+    /__vigilaDia/.test(v) && /inpFecha/.test(v) && /reload\(\)/.test(v), "se quitó el vigilante");
+  ok("y respeta el bloqueo del día anterior (sin ciclo de recargas)",
+    /fooax_fecha_ok/.test(v), "no revisa la fecha sancionada");
 }
 
 console.log("\n══════════════════════════════════");
