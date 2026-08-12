@@ -1481,7 +1481,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
   const cv = carteraViva(usuario);
   const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
   const dias = {};
-  const fueraDeCuenta = { sinCuota: 0, cuotaVariable: 0, sinDia: 0, liquidados: 0, sinDesembolsar: 0 };
+  const fueraDeCuenta = { sinCuota: 0, cuotaVariable: 0, sinDia: 0, liquidados: 0, sinDesembolsar: 0, vencidos: 0 };
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     if (!mios.has(norm(c.ejecutivo))) continue;
@@ -1491,6 +1491,12 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // periodo y la del padrón deja de servir al primer pago. Marcarles mora con
     // ella sería inventarla. Se cuentan aparte para que no desaparezcan en silencio.
     if (esCuotaVariable(c.producto)) { fueraDeCuenta.cuotaVariable++; continue; }
+    // UN VENCIDO NO VA EN LA MORA SEMANAL. Es la regla que la Ing. Monse dictó
+    // el 4-ago: el dinero de un crédito vencido cuenta SOLO como recuperación.
+    // Y su archivo lo confirma (12-ago): DAFNE SINAI está VENCIDA en su propia
+    // plantilla y por eso no la lista en la mora de la semana — nosotros sí la
+    // listábamos, y era una de las diferencias.
+    if (/vencid/i.test(String(c.estatus || ""))) { fueraDeCuenta.vencidos++; continue; }
     const cuota = Number(c.cuota) || 0;
     if (cuota <= 0) { fueraDeCuenta.sinCuota++; continue; }
     // TODAVÍA NO LE HAN DADO EL DINERO: no puede deber. Si el desembolso es
@@ -1649,6 +1655,7 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     "· " + fc.sinDia + " créditos sin día de cobro.",
     "· " + fc.liquidados + " créditos ya liquidados (no deben nada esta semana).",
     "· " + fc.sinDesembolsar + " créditos cuya fecha de desembolso es POSTERIOR a esta semana: todavía no reciben el dinero, no pueden deber.",
+    "· " + fc.vencidos + " créditos VENCIDOS: van en recuperación, no en la mora semanal (regla de la Ing. Monse, 4-ago).",
     "Faltante = cuota − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
     "Los bloques se agrupan por el DÍA DE COBRO de la plantilla, no por el día en que se desembolsó: "
       + "se comprobó contra el archivo de la Ing. Monse y empata en 11 de 11, mientras que el día del desembolso "

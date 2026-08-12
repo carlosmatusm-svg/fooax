@@ -2694,6 +2694,16 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     && !!buscaM56(dv56, "11112946258", "Grupal-Micro 2"),
     JSON.stringify([buscaM56(dv56, "11112946258", "Grupal-Basico 2"), buscaM56(dv56, "11112946258", "Grupal-Micro 2")]));
 
+  // LOS VENCIDOS NO VAN EN LA MORA SEMANAL (regla Monse 4-ago, confirmada el
+  // 12-ago con su archivo: DAFNE SINAI, vencida en su propia plantilla, no
+  // aparece en su mora — nosotros sí la listábamos).
+  const mVen = await mora56();
+  const dafne = (mVen.dias || []).some((g) => g.filas.some((x) => String(x.socio) === "11113042991"));
+  ok("un crédito VENCIDO no aparece en la mora semanal",
+    !dafne, "DAFNE SINAI (vencida) sigue en la lista");
+  ok("pero queda contado aparte, no desaparece en silencio",
+    (mVen.fueraDeCuenta || {}).vencidos >= 1, JSON.stringify(mVen.fueraDeCuenta));
+
   const fc56 = (await mora56()).fueraDeCuenta || {};
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
