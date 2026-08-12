@@ -2714,6 +2714,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     rx56.status === 200 && bx56.length > 5000 && bx56[0] === 0x50 && bx56[1] === 0x4B,
     "status " + rx56.status + " · " + bx56.length + " bytes");
 
+  console.log("\n— 57. LA FECHA DE DESEMBOLSO VIAJA COMPLETA (Karina, 12-ago) —");
+  // «Agrégale el campo de fecha de desembolso al re-dar crédito y al alta, y
+  // que se vincule.» El caso PILAR: renovada con desembolso al 28-ago, el
+  // re-crédito no cargaba la fecha y salió en la mora tres semanas antes de
+  // recibir el dinero.
+  const S57 = "70000000997";
+  const r57 = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S57, nombre: "PILAR DE PRUEBA 57", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 10368, cuota: 576, plazo: 18, desembolso: "2027-01-15" }) });
+  ok("el alta acepta la fecha de desembolso (incluso futura)", r57.status === 200, "status " + r57.status);
+  const enMora57 = async () => {
+    const d = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+    return (d.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S57));
+  };
+  ok("un crédito que aún no desembolsa NO sale en la mora", !(await enMora57()), "salió en la mora");
+  const v57 = ((await j(await fetch(U + "/api/vivos", { headers: H(cJul) }))).vivos || [])
+    .find((x) => String(x.id) === S57);
+  ok("y la fecha le baja a la app de la ejecutiva",
+    !!v57 && v57.desembolso === "2027-01-15", JSON.stringify(v57));
+  // El re-crédito también la guarda.
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S57, producto: "Grupal-Basico 2", motivo: "No renovó" }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S57, producto: "Grupal-Basico 2", saldo: 12000, cuota: 600,
+      plazo: 20, ejecutivo: "Julio", desembolso: "2027-02-01", motivo: "Renovación futura" }) });
+  const c57 = ((await j(await fetch(U + "/api/clientes?q=" + S57, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el re-crédito guarda la fecha de desembolso",
+    !!c57 && c57.desembolso === "2027-02-01", JSON.stringify((c57 || {}).desembolso));
+  ok("y tampoco sale en la mora hasta que desembolse", !(await enMora57()), "salió en la mora");
+  const rMal = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000000998", nombre: "FECHA CHUECA", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 100, plazo: 10, desembolso: "28/08/2026" }) });
+  ok("una fecha chueca se rechaza con un error que se entiende", rMal.status === 400, "status " + rMal.status);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

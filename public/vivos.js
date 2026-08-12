@@ -100,7 +100,7 @@
       arr.forEach(function (c) {
         var v = ix[String(c.f) + "|" + n(c.sub)];
         if (!v) return;
-        var antes = c.saldo + "|" + c.esp + "|" + c.plazo + "|" + c.unidad + "|" + c.dia + "|" + c.mora + "|" + (c.etiqueta || "");
+        var antes = c.saldo + "|" + c.esp + "|" + c.plazo + "|" + c.unidad + "|" + c.dia + "|" + c.mora + "|" + (c.etiqueta || "") + "|" + (c.des || "");
         if (v.saldo >= 0) c.saldo = v.saldo;
         if (v.cuota > 0) c.esp = v.cuota;
         if (v.plazo > 0) c.plazo = v.plazo;
@@ -109,9 +109,10 @@
         // se asigna siempre — con un `if (v.etiqueta)` nunca se podría borrar.
         c.etiqueta = v.etiqueta || "";
         if (v.dia) c.dia = v.dia;
+        if (v.desembolso) c.des = v.desembolso;
         if (typeof v.mora === "number") c.mora = v.mora;
         if (v.importe > 0) { c.imp = v.importe; c.impOrig = v.importe; c.sug = Math.round(v.importe * 1.2); }
-        if (antes !== (c.saldo + "|" + c.esp + "|" + c.plazo + "|" + c.unidad + "|" + c.dia + "|" + c.mora + "|" + (c.etiqueta || ""))) cambios++;
+        if (antes !== (c.saldo + "|" + c.esp + "|" + c.plazo + "|" + c.unidad + "|" + c.dia + "|" + c.mora + "|" + (c.etiqueta || "") + "|" + (c.des || ""))) cambios++;
         // El plazo se siembra para que la app ya no se lo pregunte a mano.
         // NUNCA se pisa el que la ejecutiva haya escrito ella.
         if (typeof datosCli !== "undefined" && datosCli) {

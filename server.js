@@ -2124,10 +2124,18 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
         "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\").",
     });
   }
+  // FECHA DE DESEMBOLSO (Karina, 12-ago). Sin ella el sistema no puede saber
+  // que un crédito futuro aún no debe: PILAR PEREZ se renovó con desembolso al
+  // 28-ago, el re-crédito no cargó la fecha y salió en la mora tres semanas
+  // antes de recibir el dinero. Puede ser futura — ese es justo el caso.
+  const desembolso = String(b.desembolso || "").slice(0, 10);
+  if (desembolso && !/^\d{4}-\d{2}-\d{2}$/.test(desembolso))
+    return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
   const clienta = {
     id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0,
+    desembolso: desembolso || null,
   };
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
@@ -2923,8 +2931,12 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
       diasLiq: recorta(liqTodo[id], liqPrev, (x) => x || 0),
     };
   }
+  const desembolsoRc = String(b.desembolso || "").slice(0, 10);
+  if (desembolsoRc && !/^\d{4}-\d{2}-\d{2}$/.test(desembolsoRc))
+    return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
   const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
+    desembolso: desembolsoRc || null,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
@@ -4424,6 +4436,7 @@ function datosVivosParaApp(usuario) {
         importe: Number(c.importe) || 0,
         mora: Number(c.mora) || 0,
         etiqueta: c.etiqueta || "",
+        desembolso: String(c.desembolso || "").slice(0, 10),
       };
     });
 }

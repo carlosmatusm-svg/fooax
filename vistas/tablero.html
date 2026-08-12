@@ -502,6 +502,9 @@
         <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal"></div>
         <div class="acampo"><label>Plazo (nº de pagos)</label><input id="aPlazo" type="number" inputmode="numeric" placeholder="18" title="Cuántos pagos tiene el crédito EN TOTAL: semanas si cobra semanal, mensualidades si cobra mensual (Magnus). No lo conviertas."></div>
       </div>
+      <div class="arow">
+        <div class="acampo"><label>Fecha de desembolso</label><input id="aDesem" type="date" title="Cuándo se le entrega (o entregó) el dinero. Puede ser una fecha futura: hasta ese día el crédito no debe nada y no aparece en la mora."></div>
+      </div>
       <button class="altasubmit" type="submit">Registrar alta</button>
       <div class="altaerr" id="altaErr"></div>
     </form>
@@ -1141,6 +1144,11 @@ function pedirRecredito(btn, i) {
     // fuera del "pago 13 de 18", del esperado y del semáforo. Le pasó a SOCORRO
     // MIGUEL el 10-ago. Se calcula solo (monto ÷ cuota) y se puede corregir.
     + '<input class="credin" id="rcPlazo" inputmode="numeric" placeholder="plazo (n° de pagos)">'
+    // FECHA DE DESEMBOLSO (Karina, 12-ago): sin ella, una renovación que
+    // desembolsa después (PILAR, 28-ago) salía en la mora antes de recibir el
+    // dinero. Puede ser futura — ese es justo el caso.
+    + '<span class="credlbl">Fecha de desembolso:</span>'
+    + '<input class="credin" id="rcDesem" type="date">'
     + '<span class="credlbl">Lo cobra:</span><select class="credin" id="rcEjec">' + opsEj + "</select>"
     + '<button class="credok" onclick="hacerRecredito(this,' + i + ')">Dar crédito</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1155,7 +1163,8 @@ async function hacerRecredito(btn, i) {
     // Si no lo escriben, se deduce de monto ÷ cuota: es exactamente el número de
     // pagos del crédito. Vale más eso que dejarlo en cero, que era lo de antes.
     plazo: ($("rcPlazo") && $("rcPlazo").value)
-      || (Number($("rcCuota").value) > 0 ? Math.round(Number($("rcSaldo").value) / Number($("rcCuota").value)) : "") };
+      || (Number($("rcCuota").value) > 0 ? Math.round(Number($("rcSaldo").value) / Number($("rcCuota").value)) : ""),
+    desembolso: ($("rcDesem") && $("rcDesem").value) || "" };
   try {
     const r = await fetch("/api/creditos/recredito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
@@ -1194,6 +1203,7 @@ async function registrarAlta(e) {
     nombre: $("aNombre").value, id: $("aSocio").value, producto: productoElegido("aProducto", "aProductoNuevo"),
     centro: $("aCentro").value, ejecutivo: $("aEjecutivo").value,
     saldo: $("aSaldo").value, cuota: $("aCuota").value, plazo: $("aPlazo").value,
+    desembolso: $("aDesem") ? $("aDesem").value : "",
   };
   try {
     const r = await fetch("/api/clientes/alta", {
