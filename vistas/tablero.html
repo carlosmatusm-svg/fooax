@@ -2023,12 +2023,14 @@ async function cargarMora() {
   if (v && !v.value) v.value = d.lunes;
   const fc = d.fueraDeCuenta || {};
   const fuera = (fc.cuotaVariable || 0) + (fc.sinCuota || 0) + (fc.sinDia || 0) + (fc.sinDesembolsar || 0);
-  box.innerHTML = "Semana del <b>" + hesc(d.lunes) + "</b>: falta cobrar <b style=\"color:#8E0019\">"
-    + dinero(d.total) + "</b> de <b>" + d.clientas + "</b> clientas."
+  box.innerHTML = "Semana del <b>" + hesc(d.lunes) + "</b>: mora vencida a hoy <b style=\"color:#8E0019\">"
+    + dinero(d.totalVencido == null ? d.total : d.totalVencido) + "</b>"
+    + (d.totalPorVencer > 0 ? " · por vencer en la semana " + dinero(d.totalPorVencer) : "") + "."
     + " De <b>" + (d.creditos || 0) + "</b> créditos que tocaban, <b>" + (d.alCorrienteSuDia || 0)
     + "</b> pagaron completo EL DÍA que les tocaba y <b>" + ((d.alCorriente || 0) - (d.alCorrienteSuDia || 0))
     + "</b> completaron después, entre semana."
     + (d.dias || []).map((g) => "<br><b>" + hesc(g.dia) + "</b> " + hesc(g.fecha)
+        + (g.vencido === false ? ' <span style="color:#6B6480">(aún no vence)</span>' : "")
         + " · <b>" + g.alCorrienteSuDia + " de " + g.creditos + "</b> pagaron ese día"
         + (g.alCorriente > g.alCorrienteSuDia ? " (+" + (g.alCorriente - g.alCorrienteSuDia) + " después)" : "")
         + " · deben <b style=\"color:#8E0019\">" + dinero(g.total) + "</b>"

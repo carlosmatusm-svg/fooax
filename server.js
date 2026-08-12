@@ -1509,18 +1509,28 @@ function moraDeLaSemana(usuario, lunesOpt) {
     g.total = Math.round((g.total + faltante) * 100) / 100;
   }
   // La fecha real de cada día dentro de esa semana, como la pone Monse.
-  const orden = ["LUNES", "MARTES", "MIERCOLES", "MIÉRCOLES", "JUEVES", "VIERNES", "SABADO", "SÁBADO", "DOMINGO"];
   const lista = Object.values(dias).sort((a, b) => idxDia(a.dia) - idxDia(b.dia));
+  const hoy = hoyMX();
   for (const g of lista) {
     const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + (idxDia(g.dia) - 1));
     g.fecha = d.toISOString().slice(0, 10);
+    // MORA vs POR VENCER (12-ago, al cotejar contra el archivo de Monse de la
+    // semana 10-14: el suyo solo trae los días que YA PASARON). Un día cuyo
+    // cobro todavía no llega no es mora — es cobranza por venir. Sumarlo al
+    // total era justo lo que hacía que "no cuadrara" contra el de ella: el
+    // miércoles nuestro reporte ya cargaba jueves y viernes completos.
+    g.vencido = g.fecha <= hoy;
     g.filas.sort((a, b) => String(a.centro).localeCompare(String(b.centro))
       || String(a.clienta).localeCompare(String(b.clienta)));
   }
-  void orden;
   const sum = (f) => Math.round(lista.reduce((s, g) => s + f(g), 0) * 100) / 100;
+  const sumV = (f) => Math.round(lista.filter((g) => g.vencido).reduce((s, g) => s + f(g), 0) * 100) / 100;
   return { lunes, domingo, dias: lista,
     total: sum((g) => g.total),
+    // Lo VENCIDO a hoy es el número comparable con el archivo de Monse: solo
+    // los días cuyo cobro ya pasó. Lo demás es "por vencer", no mora.
+    totalVencido: sumV((g) => g.total),
+    totalPorVencer: Math.round((sum((g) => g.total) - sumV((g) => g.total)) * 100) / 100,
     clientas: new Set(lista.flatMap((g) => g.filas.map((f) => f.socio))).size,
     creditos: sum((g) => g.creditos),
     alCorriente: sum((g) => g.alCorriente),
@@ -1558,6 +1568,7 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     rd.getCell(1).value = "DIA";
     rd.getCell(2).value = g.dia;
     rd.getCell(3).value = g.fecha;
+    if (!g.vencido) rd.getCell(4).value = "AÚN NO VENCE — cobranza por venir, no es mora";
     for (let i = 1; i <= 12; i++) {
       rd.getCell(i).font = { bold: true, color: { argb: "FFFFFFFF" } };
       rd.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
@@ -1593,10 +1604,15 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     f++;
   }
   const rg = s.getRow(f++);
-  rg.getCell(4).value = "TOTAL DE LA SEMANA";
+  rg.getCell(4).value = "MORA VENCIDA A HOY (días que ya pasaron)";
   rg.getCell(4).font = { bold: true, size: 12 };
-  const cg = rg.getCell(9); cg.value = d.total; cg.numFmt = MONEDA;
+  const cg = rg.getCell(9); cg.value = d.totalVencido; cg.numFmt = MONEDA;
   cg.font = { bold: true, size: 12, color: { argb: ROJO } };
+  const rg2 = s.getRow(f++);
+  rg2.getCell(4).value = "Por vencer en la semana (días que faltan)";
+  rg2.getCell(4).font = { bold: true };
+  const cg2 = rg2.getCell(9); cg2.value = d.totalPorVencer; cg2.numFmt = MONEDA;
+  cg2.font = { bold: true };
   // Lo que NO entró en la cuenta, dicho con todas sus letras: un reporte de mora
   // que calla lo que dejó fuera se lee como si hubiera medido todo.
   f++;

@@ -2649,6 +2649,22 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     typeof (mFut.fueraDeCuenta || {}).sinDesembolsar === "number",
     JSON.stringify(mFut.fueraDeCuenta));
 
+  // MORA vs POR VENCER (Karina, 12-ago: «checa por qué no nos cuadró con la de
+  // ellos»). El archivo de Monse solo trae los días que YA PASARON; el nuestro
+  // cargaba la semana completa, con jueves y viernes aún sin llegar. Un día
+  // cuyo cobro no llega no es mora.
+  const mHoy = await j(await fetch(U + "/api/mora", { headers: H(cm) }));   // semana EN CURSO
+  ok("los días que aún no llegan vienen marcados como no vencidos",
+    (mHoy.dias || []).every((g) => g.vencido === (g.fecha <= HOY)),
+    JSON.stringify((mHoy.dias || []).map((g) => g.fecha + ":" + g.vencido)));
+  const sumaV = Math.round((mHoy.dias || []).filter((g) => g.vencido).reduce((x, g) => x + g.total, 0) * 100) / 100;
+  ok("la mora vencida a hoy solo suma los días que ya pasaron",
+    Math.abs(mHoy.totalVencido - sumaV) < 0.01,
+    mHoy.totalVencido + " vs " + sumaV);
+  ok("y vencido + por vencer = la semana completa",
+    Math.abs((mHoy.totalVencido + mHoy.totalPorVencer) - mHoy.total) < 0.01,
+    JSON.stringify({ v: mHoy.totalVencido, pv: mHoy.totalPorVencer, t: mHoy.total }));
+
   const fc56 = (await mora56()).fueraDeCuenta || {};
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
