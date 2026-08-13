@@ -1351,9 +1351,15 @@ function movimientoDelPeriodo(usuario, desde, hasta) {
   const otros = [];
   for (let f = new Date(desde + "T12:00:00"); f.toISOString().slice(0, 10) <= hasta; f.setDate(f.getDate() + 1)) {
     const fISO = f.toISOString().slice(0, 10);
-    for (const m of movsDeFecha(fISO, usuario)) {
+    // CON ANULADOS. El 12-ago se buscó una liquidación de YOALI KAREN que la
+    // ejecutiva sí registró el lunes y ya no estaba: un re-sync de su app la
+    // anuló, y como los anulados no salían en este reporte, era INVISIBLE —
+    // parecía que nunca se registró. Ahora salen marcados ANULADO (sin contar
+    // en ningún total), para poder ver qué pasó.
+    for (const m of movsDeFecha(fISO, usuario, true)) {
       otros.push({
         fecha: fISO, folio: m.folio, tipo: tipoDeMov(m) || m.categoria || "Otro",
+        anulado: !!m.anulado, producto: m.producto || "",
         entrada: !!m.entrada, concepto: m.concepto || "", monto: Number(m.monto) || 0,
         metodo: m.metodo || "efectivo", socio: socioDeMov(m) || "",
         clienta: (porClave[claveCredito(socioDeMov(m) || "", "")] || {}).nombre
@@ -1373,7 +1379,7 @@ function movimientoDelPeriodo(usuario, desde, hasta) {
     d.pago += c.pago; d.garantia += c.garantia; d.solidario += c.solidario;
     if (c.total > 0) d.clientas.add(c.socio);
   }
-  for (const m of otros) { const d = dia(m.fecha); if (m.entrada) d.entradas += m.monto; else d.salidas += m.monto; }
+  for (const m of otros) { if (m.anulado) continue; const d = dia(m.fecha); if (m.entrada) d.entradas += m.monto; else d.salidas += m.monto; }
   const porDia = Object.values(dias).sort((a, b) => a.fecha.localeCompare(b.fecha)).map((d) => ({
     fecha: d.fecha, pago: d.pago, garantia: d.garantia, solidario: d.solidario,
     entradas: d.entradas, salidas: d.salidas, clientas: d.clientas.size,
@@ -1386,8 +1392,8 @@ function movimientoDelPeriodo(usuario, desde, hasta) {
   return { desde, hasta, cobranza, otros, porDia, total: {
     pago: suma(cobranza, (x) => x.pago), garantia: suma(cobranza, (x) => x.garantia),
     solidario: suma(cobranza, (x) => x.solidario),
-    entradas: suma(otros.filter((x) => x.entrada), (x) => x.monto),
-    salidas: suma(otros.filter((x) => !x.entrada), (x) => x.monto),
+    entradas: suma(otros.filter((x) => x.entrada && !x.anulado), (x) => x.monto),
+    salidas: suma(otros.filter((x) => !x.entrada && !x.anulado), (x) => x.monto),
   } };
 }
 
@@ -1756,19 +1762,25 @@ app.get("/api/periodo/excel", requiere("direccion", "admin"), async (req, res) =
   // ---- 3. OTROS MOVIMIENTOS: lo que entra fuera de la ficha y todo lo que sale.
   const c3 = hoja("Entradas y salidas", "FOOAX · ENTRADAS Y SALIDAS " + rotulo,
     [["Fecha", 12], ["Día", 11], ["Entra/Sale", 11], ["Tipo", 24], ["Concepto", 34],
-     ["Clienta", 28], ["Socio", 15], ["Ejecutivo", 13], ["Monto", 14], ["Método", 14],
-     ["Registró", 14], ["Folio", 16]]);
+     ["Clienta", 28], ["Socio", 15], ["Crédito", 16], ["Ejecutivo", 13], ["Monto", 14], ["Método", 14],
+     ["Registró", 14], ["Folio", 16], ["ANULADO", 12]]);
   f = 3;
   for (const x of d.otros) {
     const fila = c3.getRow(f++);
     [x.fecha, nomDia(x.fecha), x.entrada ? "ENTRA" : "SALE", x.tipo, x.concepto,
-     x.clienta, x.socio, x.ejecutivo].forEach((v, i) => (fila.getCell(i + 1).value = v));
-    const c = fila.getCell(9); c.value = x.monto; c.numFmt = MONEDA;
+     x.clienta, x.socio, x.producto || "", x.ejecutivo].forEach((v, i) => (fila.getCell(i + 1).value = v));
+    const c = fila.getCell(10); c.value = x.monto; c.numFmt = MONEDA;
     c.font = { bold: true, color: { argb: x.entrada ? VERDE : ROJO } };
     fila.getCell(3).font = { bold: true, color: { argb: x.entrada ? VERDE : ROJO } };
-    fila.getCell(10).value = x.metodo;
-    fila.getCell(11).value = x.registradoPor;
-    fila.getCell(12).value = x.folio;
+    fila.getCell(11).value = x.metodo;
+    fila.getCell(12).value = x.registradoPor;
+    fila.getCell(13).value = x.folio;
+    if (x.anulado) {
+      // Anulado: se ve, no cuenta. Gris y con su letrero, para que nadie lo sume.
+      fila.getCell(14).value = "ANULADO";
+      fila.getCell(14).font = { bold: true, color: { argb: ROJO } };
+      for (let i = 1; i <= 13; i++) fila.getCell(i).font = { ...(fila.getCell(i).font || {}), color: { argb: "FF9A93AC" }, strike: true };
+    }
   }
 
   const buf = await wb.xlsx.writeBuffer();

@@ -2763,6 +2763,34 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 100, plazo: 10, desembolso: "28/08/2026" }) });
   ok("una fecha chueca se rechaza con un error que se entiende", rMal.status === 400, "status " + rMal.status);
 
+  console.log("\n— 58. UN MOVIMIENTO ANULADO SE VE, PERO NO CUENTA (Karina, 12-ago) —");
+  // La liquidación de YOALI KAREN: la ejecutiva la registró el lunes, un
+  // re-sync de su app la anuló, y como los anulados no salían en el reporte del
+  // periodo era INVISIBLE — parecía que nunca se registró.
+  // Fecha propia: el HOY de Julio ya quedó CERRADO por secciones anteriores,
+  // y un día cerrado no anula por re-sync (también es protección, sección 24).
+  const F58 = "2026-06-17";
+  const K58mov = { folio: "AN58", concepto: "LIQUIDACION", socio: "11112931059",
+    producto: "COMADRE", clienta: "BLANCA LUIS BERNAL", monto: 777, via: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F58, snapshot: { movs: [K58mov] }, ts: Date.now() }) });
+  // Re-sync del día SIN ese movimiento pero CON otro contenido: así es la
+  // anulación legítima desde la app (borró el renglón y volvió a sincronizar).
+  // Un sync totalmente vacío NO anula — esa protección ya existe (sección 5c)
+  // y de hecho atajó el primer intento de esta prueba.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F58, snapshot: { movs: [{ folio: "AN58b", concepto: "GASTO",
+      monto: 10, via: "E", tipoGasto: "Gasolina", nota: "ruta" }] }, ts: Date.now() + 1 }) });
+  const per58 = await j(await fetch(U + "/api/periodo?desde=" + F58 + "&hasta=" + F58, { headers: H(cm) }));
+  const anulado58 = (per58.otros || []).find((x) => /AN58$/.test(x.folio || ""));
+  ok("el movimiento anulado SÍ aparece en el reporte del periodo",
+    !!anulado58 && anulado58.anulado === true, JSON.stringify(anulado58 || "no vino"));
+  ok("con su crédito, para saber de cuál era",
+    !!anulado58 && anulado58.producto === "COMADRE", (anulado58 || {}).producto || "sin producto");
+  ok("pero NO suma en los totales del día",
+    !((per58.porDia || []).some((x) => x.fecha === F58 && Math.abs((x.entradas || 0) - 777) < 778 && (x.entradas || 0) >= 777)),
+    JSON.stringify(per58.porDia));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
