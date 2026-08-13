@@ -2331,6 +2331,55 @@ function semaforoDe(c, info, pagoSemana) {
   if (cuotaDelCredito(c) > 0 && pagoSemana + 0.01 < cuotaDelCredito(c)) return "parcial";
   return "alCorriente";
 }
+// VERIFICADOR DE DESGLOSE (Karina, 12-ago: «checa si pasó con otras más —
+// necesito que lo prevés»). El hoyo de YOALI se notó porque lo APLICADO al
+// saldo no se podía LISTAR en Ver pagos. Esto revisa esa igualdad para TODOS
+// los créditos de una pasada: lo que carteraViva aplicó vs lo que el historial
+// alcanza a mostrar. Si vuelven a divergir por cualquier rincón, aquí truena.
+function verificarDesglose(usuario) {
+  const corte = corteSaldos();
+  const cv = carteraViva(usuario);
+  const { porFecha } = pagosDeLaSemana(usuario, corte);
+  const listable = {};
+  for (const clave in porFecha)
+    for (const f in porFecha[clave])
+      if (f >= corte) listable[clave] = (listable[clave] || 0) + (porFecha[clave][f].p || 0);
+  const ts0 = corteTs();
+  const vivosPorSocio = {};
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    (vivosPorSocio[String(c.id)] = vivosPorSocio[String(c.id)] || []).push(c);
+  }
+  for (const m of store.todosMovimientos()) {
+    if (m.anulado) continue;
+    if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+    if (!(String(m.fecha) >= corte || (Number(m.ts) || 0) > ts0)) continue;
+    const soc = socioDeMov(m); if (!soc) continue;
+    const monto = Number(m.monto) || 0;
+    if (m.producto) listable[claveCredito(soc, m.producto)] = (listable[claveCredito(soc, m.producto)] || 0) + monto;
+    else for (const cr of (vivosPorSocio[soc] || []))
+      listable[claveCredito(cr.id, cr.producto)] = (listable[claveCredito(cr.id, cr.producto)] || 0) + monto;
+  }
+  let revisados = 0;
+  const rotos = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const info = infoCredito(cv, c);
+    const aplicado = Math.round(((info.pagado || 0) + (info.liquidado || 0)) * 100) / 100;
+    if (aplicado <= 0.009) continue;
+    revisados++;
+    const lst = Math.round((listable[claveCredito(c.id, c.producto)] || 0) * 100) / 100;
+    if (lst + 0.01 < aplicado)
+      rotos.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto,
+        ejecutivo: c.ejecutivo, aplicado, listable: lst,
+        faltaEnLaLista: Math.round((aplicado - lst) * 100) / 100 });
+  }
+  return { revisados, rotos };
+}
+app.get("/api/desglose", requiere("direccion", "admin"), (req, res) => {
+  res.json(verificarDesglose(req.usuario));
+});
+
 app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   const cv = carteraViva(req.usuario);
   const sem = pagosDeLaSemana(req.usuario);          // ventana semanal (lunes → hoy)
@@ -2711,7 +2760,10 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     if (m.producto && nprod(m.producto) !== nprod(c.producto)) continue;
     filas.push({ fecha: m.fecha, tipo: "liquidacion", ejecutivo: m.registradoPor || "—",
       pago: m.monto, garantia: 0, solidario: 0, forma: m.metodo || "efectivo",
-      cuenta: String(m.fecha) >= corte, folio: m.folio });
+      // Cuenta si es del corte en adelante O si se capturó DESPUÉS de fijar el
+      // corte (fecha atrasada): la plantilla no pudo traerlo, así que sí baja
+      // el saldo — y la tarjeta debe decirlo igual que lo aplica carteraViva.
+      cuenta: String(m.fecha) >= corte || (Number(m.ts) || 0) > corteTs(), folio: m.folio });
   }
   // LO QUE LE CORRIGIÓ DIRECCIÓN, con su motivo (Karina, 7-ago). Un pago
   // anulado desaparece del historial —queda en cero y deja de sumar—, así que
@@ -2749,6 +2801,18 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
 
   filas.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   const info = infoCredito(carteraViva(req.usuario), c);
+  // EL DESCUADRE SE ANUNCIA SOLO (Karina, 12-ago: «si lo dan de alta tiene que
+  // aparecer — chécalo»). El hoyo de YOALI se notó porque el resumen decía
+  // $3,456 y los renglones sumaban $2,880: dinero aplicado que la lista no
+  // enseñaba. Ese cotejo ahora lo hace la propia tarjeta en cada carga: si lo
+  // aplicado es MÁS de lo que se alcanza a listar, viene `descuadre` con el
+  // monto y el tablero lo pinta en rojo. Así el próximo hoyo de esta familia
+  // no espera a que alguien lo note: se denuncia solo.
+  const sumaListada = Math.round(filas.filter((x) => x.cuenta)
+    .reduce((t, x) => t + (x.pago || 0), 0) * 100) / 100;
+  const aplicado = Math.round(((info.pagado || 0) + (info.liquidado || 0)) * 100) / 100;
+  const descuadre = (sumaListada + 0.01 < aplicado)
+    ? Math.round((aplicado - sumaListada) * 100) / 100 : 0;
   res.json({
     socio: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
     ejecutivo: c.ejecutivo, cuota: c.cuota || 0, corte,
@@ -2759,6 +2823,7 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     pagadoAntesDelCorte: Math.round(filas.filter((x) => !x.cuenta).reduce((s, x) => s + x.pago, 0) * 100) / 100,
     historial: filas,
     correcciones,
+    descuadre,
   });
 });
 

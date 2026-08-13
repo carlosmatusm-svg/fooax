@@ -1027,6 +1027,10 @@ async function verPagos(btn, i) {
 
   box.innerHTML = '<div class="hcaja">'
     + "<b>" + hesc(d.nombre) + " · " + hesc(d.producto) + "</b>"
+    + (d.descuadre > 0
+        ? '<div class="hcorr"><b>OJO: hay ' + dinero(d.descuadre) + ' aplicados al saldo que esta lista no alcanza a mostrar.</b>'
+          + '<div class="hcorrm">La cuenta está bien — lo que falla es el desglose. Mándale este pantallazo a Karina.</div></div>'
+        : "")
     + (cor ? '<div class="hsec">Correcciones de Dirección</div>' + cor : "")
     + '<div class="hres">Saldo de la plantilla <b>' + dinero(d.saldoPlantilla) + "</b>"
     + " − pagado desde el corte <b>" + dinero(d.pagadoDesdeElCorte + d.liquidado) + "</b>"

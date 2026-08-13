@@ -2831,6 +2831,20 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     (hB.historial || []).some((x) => x.pago === 200) && (hB.historial || []).length >= 1,
     JSON.stringify(hB.historial));
 
+  // EL BARRIDO (Karina: «checa si pasó con otras más»). No se revisa una
+  // clienta: se revisan TODAS las que tuvieron movimiento en esta corrida — la
+  // batería ya sembró pagos en centros, individuales, liquidaciones ligadas,
+  // renovaciones y correcciones. Para cada una, lo APLICADO al saldo tiene que
+  // poderse LISTAR en Ver pagos. Si mañana un cambio vuelve a esconder pagos,
+  // esta red lo pesca sin importar por cuál rincón se esconda.
+  const barrido59 = await j(await fetch(U + "/api/desglose", { headers: H(cm) }));
+  ok("BARRIDO: en TODOS los créditos con movimiento (" + barrido59.revisados
+      + "), lo aplicado se puede listar completo",
+    (barrido59.rotos || []).length === 0,
+    (barrido59.rotos || []).slice(0, 5).map((r) => r.nombre + " (" + r.producto + "): faltan $" + r.faltaEnLaLista).join(" · "));
+  ok("y el barrido revisó un universo de verdad, no un caso suelto",
+    barrido59.revisados >= 15, "solo " + barrido59.revisados + " créditos con movimiento");
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
