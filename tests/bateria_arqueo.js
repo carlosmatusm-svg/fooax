@@ -2472,6 +2472,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el crédito re-dado trae su plazo, no cero",
     !!n55 && n55.plazo === 48, "plazo " + (n55 || {}).plazo);
   const alt55 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+  // La fecha del servidor viaja en cada paquete: es la única referencia del
+  // vigilante de medianoche (el reloj del teléfono no cuenta).
+  ok("el paquete vivo trae la fecha oficial del servidor",
+    alt55.hoy === HOY, "hoy=" + alt55.hoy + " esperado " + HOY);
   ok("y viaja como alta, para que le entre al teléfono sin recargar",
     (alt55.altas || []).some((a) => String(a.id) === S55), "no viene en las altas");
   // Y QUE LA APP DE VERDAD LA PONGA. Que el servidor la mande no basta: se

@@ -203,6 +203,13 @@ for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
     /__vigilaDia/.test(v) && /inpFecha/.test(v) && /reload\(\)/.test(v), "se quitó el vigilante");
   ok("y respeta el bloqueo del día anterior (sin ciclo de recargas)",
     /fooax_fecha_ok/.test(v), "no revisa la fecha sancionada");
+  // El vigilante compara SOLO contra la fecha del SERVIDOR. Contra el reloj
+  // del teléfono recargaba cada minuto cuando ese reloj andaba mal — el
+  // "se me reinicia a cada rato" de Christopher (12-ago).
+  ok("el vigilante usa la fecha del SERVIDOR, no el reloj del teléfono",
+    /__hoyServidor/.test(v) && !/hoyMXcliente/.test(v), "volvió el reloj del teléfono");
+  ok("y recarga UNA sola vez por fecha (sin ciclo)",
+    /fooax_vigilo_/.test(v), "se quitó el candado de una-sola-recarga");
 }
 
 console.log("\n══════════════════════════════════");

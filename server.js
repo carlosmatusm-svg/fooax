@@ -4584,8 +4584,12 @@ function datosVivosParaApp(usuario) {
 // que nadie tenga que regenerar el archivo de nadie.
 function paqueteVivo(usuario) {
   const { altas, centros, quitar } = altasParaApp(usuario);
+  // `hoy`: la fecha OFICIAL del servidor viaja en cada paquete. El vigilante de
+  // medianoche la usa como única referencia — comparar contra el reloj del
+  // teléfono recargaba la app CADA MINUTO cuando ese reloj andaba mal (le pasó
+  // a Christopher el 12-ago, capturando pagos).
   return { altas, centros, quitar, vivos: datosVivosParaApp(usuario),
-    correcciones: correccionesParaApp(usuario), ts: Date.now() };
+    correcciones: correccionesParaApp(usuario), ts: Date.now(), hoy: hoyMX() };
 }
 
 // LAS CORRECCIONES DE DIRECCIÓN, para que la ejecutiva las vea en su teléfono.

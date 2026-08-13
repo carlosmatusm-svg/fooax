@@ -169,6 +169,9 @@
   // Aplica un paquete completo. Devuelve cuántas cosas cambiaron.
   function aplicar(d) {
     if (!d) return 0;
+    // La fecha del servidor SIEMPRE se toma, venga lo que venga: es la única
+    // referencia del vigilante del día y del resto de la app.
+    if (d.hoy) window.__hoyServidor = d.hoy;
     var t = 0;
     try { t += quitar(d.quitar); } catch (e) { }
     try { t += altas(d.altas, d.centros); } catch (e) { }
@@ -215,20 +218,50 @@
   // recargar, la propia app aplica su regla del día anterior (si hay captura
   // sin enviar, BLOQUEA hasta mandar el arqueo de ese día) y lo nuevo queda
   // con la fecha correcta. Lo capturado no se pierde: vive en localStorage.
-  function hoyMXcliente() {
-    return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+  // SOLO CONTRA EL SERVIDOR. La primera versión comparaba contra el reloj del
+  // teléfono: si ese reloj andaba en otro día (pasa, y por eso la app usa la
+  // fecha del servidor como oficial), la pantalla y el reloj nunca empataban y
+  // esto recargaba la app CADA MINUTO — Christopher perdía lo que iba
+  // tecleando una y otra vez (12-ago). Sin fecha del servidor, no se vigila.
+  function hayCaptura() {
+    try {
+      return !!((typeof reg !== "undefined" && Object.keys(reg || {}).length)
+        || (typeof regI !== "undefined" && Object.keys(regI || {}).length)
+        || (typeof movs !== "undefined" && (movs || []).length)
+        || (typeof arqueo !== "undefined" && Object.keys(arqueo || {}).length));
+    } catch (e) { return true; }   // ante la duda, tratar como que sí hay
   }
   function vigilaDia() {
     try {
       var inp = document.getElementById("inpFecha");
       if (!inp || !inp.value) return;
-      if (inp.value === hoyMXcliente()) return;
+      var hoySrv = window.__hoyServidor;
+      if (!hoySrv || inp.value === hoySrv) return;
       // Fecha vieja SANCIONADA: la app está a propósito en el bloqueo del día
       // anterior (esperando su arqueo). Recargar aquí sería un ciclo infinito.
       try {
         if (window.sessionStorage && window.sessionStorage.getItem("fooax_fecha_ok") === inp.value) return;
       } catch (e) { }
-      window.location.reload();
+      // UNA sola recarga por fecha: es la que resuelve el cambio de día real
+      // (al recargar, la app bloquea el día viejo si traía captura). Si al
+      // volver la fecha sigue sin empatar, recargar otra vez no va a arreglar
+      // nada — sería el ciclo de Christopher.
+      var marca = "fooax_vigilo_" + inp.value;
+      var ya = null;
+      try { ya = window.sessionStorage && window.sessionStorage.getItem(marca); } catch (e) { }
+      if (!ya) {
+        try { window.sessionStorage && window.sessionStorage.setItem(marca, "1"); } catch (e) { }
+        window.location.reload();
+        return;
+      }
+      // Segunda vez: el reloj del teléfono está mal, no el día. Si NO hay
+      // captura, se corrige la fecha en silencio y a seguir. Si SÍ hay, no se
+      // toca nada (moverla re-fecharía lo capturado): el banner de "captura de
+      // un día anterior" ya lo está avisando.
+      if (!hayCaptura()) {
+        inp.value = hoySrv;
+        if (typeof updFecha === "function") try { updFecha(); } catch (e) { }
+      }
     } catch (e) { }
   }
   window.__vigilaDia = vigilaDia;
