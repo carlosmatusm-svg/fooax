@@ -2791,6 +2791,46 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !((per58.porDia || []).some((x) => x.fecha === F58 && Math.abs((x.entradas || 0) - 777) < 778 && (x.entradas || 0) >= 777)),
     JSON.stringify(per58.porDia));
 
+  console.log("\n— 59. VER PAGOS DICE LA VERDAD COMPLETA (Karina, 12-ago, caso YOALI) —");
+  // Dos hoyos en la misma tarjeta: (1) los pagos capturados DENTRO de un centro
+  // no salían — solo los individuales—, y por eso el pago del lunes de YOALI
+  // «no se veía»; (2) una liquidación con crédito dicho salía en TODOS los
+  // créditos de la socia, no solo en el suyo.
+  const S59 = "70000000999";
+  const K59a = S59 + "|Grupal-Basico 2|YOALI DE PRUEBA 59|0";
+  const K59b = S59 + "|Grupal-Adicional|YOALI DE PRUEBA 59|0";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S59, nombre: "YOALI DE PRUEBA 59", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3456, cuota: 576, plazo: 6 }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S59, nombre: "YOALI DE PRUEBA 59", producto: "Grupal-Adicional",
+      centro: "C-0", ejecutivo: "Julio", saldo: 2400, cuota: 200, plazo: 12 }) });
+  // Pago del lunes DENTRO de un centro (reg de dos niveles), en transferencia.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-06-22", snapshot: { reg: { "C-12 · PRUEBA": {
+      [K59a]: { pago: 576, garantia: 24, forma: "T" },
+      [K59b]: { pago: 200, forma: "T" } } } }, ts: Date.now() }) });
+  // Liquidación de HOY con su crédito dicho.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-06-24", snapshot: { movs: [{ folio: "YK59",
+      concepto: "LIQUIDACION", socio: S59, producto: "Grupal-Basico 2",
+      clienta: "YOALI DE PRUEBA 59", monto: 2880, via: "E" }] }, ts: Date.now() + 1 }) });
+  const hist59 = async (prod) => j(await fetch(U + "/api/credito/historial?id=" + S59
+    + "&producto=" + encodeURIComponent(prod), { headers: H(cm) }));
+  const hA = await hist59("Grupal-Basico 2");
+  ok("el pago capturado DENTRO de un centro sí sale en Ver pagos",
+    (hA.historial || []).some((x) => x.fecha === "2026-06-22" && x.pago === 576 && x.tipo === "pago"),
+    JSON.stringify((hA.historial || []).map((x) => x.fecha + ":" + x.tipo + ":" + x.pago)));
+  ok("y la liquidación aparece en el crédito que ELLA dijo",
+    (hA.historial || []).some((x) => x.tipo === "liquidacion" && x.pago === 2880), "no está");
+  const hB = await hist59("Grupal-Adicional");
+  ok("pero NO aparece en el otro crédito de la misma socia",
+    !(hB.historial || []).some((x) => x.tipo === "liquidacion"),
+    JSON.stringify((hB.historial || []).map((x) => x.tipo + ":" + x.pago)));
+  ok("el otro crédito solo trae lo suyo",
+    (hB.historial || []).some((x) => x.pago === 200) && (hB.historial || []).length >= 1,
+    JSON.stringify(hB.historial));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

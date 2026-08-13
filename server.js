@@ -2679,10 +2679,23 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     for (const fecha in snaps[ej]) {
       let data = snaps[ej][fecha].snapshot;
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
-      for (const bloque of [data && data.reg, data && data.regI]) {
-        if (!bloque) continue;
-        for (const k in bloque) acum(bloque[k], k, fecha, USUARIOS[ej] ? USUARIOS[ej].nombre : ej);
-      }
+      // EN DOS NIVELES, como pagosDeLaSemana. `reg` guarda centro → clienta →
+      // pago, y este recorrido era PLANO: le pasaba el CENTRO entero a acum(),
+      // que no le encontraba pago y lo tiraba. Resultado: los pagos capturados
+      // dentro de un centro NUNCA salían en «Ver pagos» — solo los individuales.
+      // Lo destapó Karina el 12-ago con YOALI KAREN: su pago del lunes ($576,
+      // centro OSHER) no aparecía, aunque el saldo sí lo descontaba.
+      const acumPlano = (st) => {
+        if (!st || typeof st !== "object") return;
+        for (const k in st) {
+          const nd = st[k];
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd))
+            acum(nd, k, fecha, USUARIOS[ej] ? USUARIOS[ej].nombre : ej);
+          else if (nd && typeof nd === "object")
+            for (const kk in nd) acum(nd[kk], kk, fecha, USUARIOS[ej] ? USUARIOS[ej].nombre : ej);
+        }
+      };
+      acumPlano(data && data.reg); acumPlano(data && data.regI);
     }
   }
   // Liquidaciones y recuperaciones: van por SOCIO, no por crédito.
@@ -2690,6 +2703,12 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     if (m.anulado || socioDeMov(m) !== String(c.id)) continue;
     const tipo = tipoDeMov(m);
     if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+    // LA LIQUIDACIÓN ES DE SU CRÉDITO, NO DE TODOS (Karina, 12-ago): la de
+    // YOALI ($2,880, Grupal-Basico 2) salía también en el «Ver pagos» de su
+    // Grupal-Adicional, aunque ahí no descontó un peso. Si el movimiento dice
+    // de cuál crédito es, solo se muestra en ese. Los viejos sin crédito se
+    // siguen mostrando en todos: no hay forma de saber de cuál eran.
+    if (m.producto && nprod(m.producto) !== nprod(c.producto)) continue;
     filas.push({ fecha: m.fecha, tipo: "liquidacion", ejecutivo: m.registradoPor || "—",
       pago: m.monto, garantia: 0, solidario: 0, forma: m.metodo || "efectivo",
       cuenta: String(m.fecha) >= corte, folio: m.folio });
