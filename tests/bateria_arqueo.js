@@ -2845,6 +2845,48 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el barrido revisó un universo de verdad, no un caso suelto",
     barrido59.revisados >= 15, "solo " + barrido59.revisados + " créditos con movimiento");
 
+  console.log("\n— 60. EL DÍA DE PAGO VIAJA CON EL ALTA (Karina, 12-ago) —");
+  // «A todas les tienes que poner día de pago para ver quién nos falta, y que
+  // cuando den de alta traiga ese dato y no nos falle la mora.» Sin día, la
+  // clienta es INVISIBLE para la mora semanal.
+  const S60 = "70000001000";
+  // (a) Alta CON día dicho.
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60, nombre: "DONA CON DIA 60", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4800, cuota: 400, plazo: 12, diaPago: "Lunes" }) });
+  const c60 = ((await j(await fetch(U + "/api/clientes?q=" + S60, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el alta guarda el día de pago", !!c60 && c60.diaPago === "LUNES", JSON.stringify((c60 || {}).diaPago));
+  const m60 = await j(await fetch(U + "/api/mora?lunes=2026-08-03", { headers: H(cm) }));
+  ok("y con día, la clienta SÍ entra a la mora bajo su día",
+    (m60.dias || []).some((g) => g.dia === "LUNES" && g.filas.some((x) => String(x.socio) === S60)),
+    "no salió bajo LUNES");
+  // (b) Alta SIN día en un centro que cobra en un día ÚNICO: lo hereda.
+  const S60b = "70000001001";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60b, nombre: "DONA HEREDA DIA 60", producto: "Grupal-Basico",
+      centro: "ADNACHIEL", ejecutivo: "Neri", saldo: 2400, cuota: 200, plazo: 12 }) });
+  const c60b = ((await j(await fetch(U + "/api/clientes?q=" + S60b, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("un alta sin día HEREDA el día único de su centro (ADNACHIEL cobra martes)",
+    !!c60b && c60b.diaPago === "MARTES", JSON.stringify((c60b || {}).diaPago));
+  // (c) El re-crédito conserva el día del ciclo anterior.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs: [{ folio: "D60", concepto: "LIQUIDACION",
+      socio: S60, producto: "Grupal-Basico", clienta: "DONA CON DIA 60", monto: 4800, via: "E" }] }, ts: Date.now() }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60, producto: "Grupal-Basico", saldo: 6000, cuota: 500,
+      plazo: 12, ejecutivo: "Julio", motivo: "Renovación 60" }) });
+  const c60c = ((await j(await fetch(U + "/api/clientes?q=" + S60, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el re-crédito conserva el día del ciclo anterior",
+    !!c60c && c60c.diaPago === "LUNES", JSON.stringify((c60c || {}).diaPago));
+  // (d) Un día inventado se rechaza.
+  const rD60 = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000001002", nombre: "DIA CHUECO", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 100, plazo: 10, diaPago: "LUNES Y JUEVES" }) });
+  ok("un día inventado se rechaza", rD60.status === 400, "status " + rD60.status);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

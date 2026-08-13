@@ -169,6 +169,7 @@
   .perrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px}
   .perrow label{font-size:12px;color:var(--gris);font-weight:700}
   .perrow input{padding:7px 9px;border:1px solid #D9D2E6;border-radius:9px;font:inherit;font-size:13px}
+  .rsindia{font-weight:800;color:#8E0019;background:#FCEDEF;border-radius:6px;padding:1px 6px;font-size:11px}
   .rbadge-eti{display:inline-block;vertical-align:middle;font-size:10px;font-weight:800;
     letter-spacing:.04em;padding:2px 7px;border-radius:999px;
     background:#EDE6F7;color:#5B2E8C;border:1px solid #C9B3E4}
@@ -504,6 +505,8 @@
       </div>
       <div class="arow">
         <div class="acampo"><label>Fecha de desembolso</label><input id="aDesem" type="date" title="Cuándo se le entrega (o entregó) el dinero. Puede ser una fecha futura: hasta ese día el crédito no debe nada y no aparece en la mora."></div>
+        <div class="acampo"><label>Día de pago</label>
+          <select id="aDia"><option value="">— el del centro —</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div>
       </div>
       <button class="altasubmit" type="submit">Registrar alta</button>
       <div class="altaerr" id="altaErr"></div>
@@ -968,7 +971,12 @@ function tarjetaCredito(c, i) {
   return '<div class="rcard">'
     + '<div class="rn">' + hesc(c.nombre) + (badge ? " " + badge : "")
       + (c.etiqueta ? ' <span class="rbadge-eti">' + hesc(c.etiqueta).toUpperCase() + "</span>" : "") + "</div>"
-    + '<div class="rm">ID ' + hesc(c.id) + " · " + hesc(c.producto) + " · " + hesc(c.centro) + " · " + hesc(c.ejecutivo) + "</div>"
+    + '<div class="rm">ID ' + hesc(c.id) + " · " + hesc(c.producto) + " · " + hesc(c.centro) + " · " + hesc(c.ejecutivo)
+      // El día de pago A LADO de la clienta (Karina, 12-ago): con día se lee
+      // de corrido; SIN día va en rojo, porque esa clienta es invisible para
+      // la mora semanal y hay que ponérselo.
+      + (c.diaPago ? ' · <b>' + hesc(String(c.diaPago).toUpperCase()) + "</b>"
+                   : ' · <span class="rsindia">SIN DÍA DE PAGO</span>') + "</div>"
     + '<div class="rd"><span>saldo <b>' + dinero(saldoAct) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
     + (c.pagado > 0 ? '<span class="rpago">pagó ' + dinero(c.pagado) + " esta sem.</span>" : "")
@@ -1153,6 +1161,12 @@ function pedirRecredito(btn, i) {
     // dinero. Puede ser futura — ese es justo el caso.
     + '<span class="credlbl">Fecha de desembolso:</span>'
     + '<input class="credin" id="rcDesem" type="date">'
+    + '<span class="credlbl">Día de pago:</span>'
+    + '<select class="credin" id="rcDia">'
+    + ["", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"].map((d) =>
+        '<option value="' + d + '"' + (String(c.diaPago || "").toUpperCase() === d && d ? " selected" : "")
+        + ">" + (d || "— el que traía —") + "</option>").join("")
+    + "</select>"
     + '<span class="credlbl">Lo cobra:</span><select class="credin" id="rcEjec">' + opsEj + "</select>"
     + '<button class="credok" onclick="hacerRecredito(this,' + i + ')">Dar crédito</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1168,7 +1182,8 @@ async function hacerRecredito(btn, i) {
     // pagos del crédito. Vale más eso que dejarlo en cero, que era lo de antes.
     plazo: ($("rcPlazo") && $("rcPlazo").value)
       || (Number($("rcCuota").value) > 0 ? Math.round(Number($("rcSaldo").value) / Number($("rcCuota").value)) : ""),
-    desembolso: ($("rcDesem") && $("rcDesem").value) || "" };
+    desembolso: ($("rcDesem") && $("rcDesem").value) || "",
+    diaPago: ($("rcDia") && $("rcDia").value) || "" };
   try {
     const r = await fetch("/api/creditos/recredito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
@@ -1208,6 +1223,7 @@ async function registrarAlta(e) {
     centro: $("aCentro").value, ejecutivo: $("aEjecutivo").value,
     saldo: $("aSaldo").value, cuota: $("aCuota").value, plazo: $("aPlazo").value,
     desembolso: $("aDesem") ? $("aDesem").value : "",
+    diaPago: $("aDia") ? $("aDia").value : "",
   };
   try {
     const r = await fetch("/api/clientes/alta", {

@@ -2143,11 +2143,17 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   const desembolso = String(b.desembolso || "").slice(0, 10);
   if (desembolso && !/^\d{4}-\d{2}-\d{2}$/.test(desembolso))
     return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
+  // DÍA DE PAGO: el que digan, o el del centro. Sin día la clienta queda fuera
+  // de la mora semanal (invisible) — es justo lo que no debe pasar.
+  const diaPagoAlta = String(b.diaPago || "").trim().toUpperCase();
+  if (diaPagoAlta && !idxDia(diaPagoAlta))
+    return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
   const clienta = {
     id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0,
     desembolso: desembolso || null,
+    diaPago: diaPagoAlta || diaDelCentro(centro) || null,
   };
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
@@ -2297,6 +2303,25 @@ function atrasoEnPagos(c, info) {
 // demás».) La mora semanal ya excluía estos créditos; la CARTERA no: sumaban a
 // lo esperado y a pendiente de cobro, y si su día ya había pasado, el semáforo
 // los pintaba EN MORA — tres semanas antes del desembolso.
+// EL DÍA DE PAGO DEL CENTRO, para heredarlo en las altas (Karina, 12-ago:
+// «cuando den de alta traiga ese dato y no nos falle la mora»). Primero el que
+// se registró con el centro; si no, el día ÚNICO de sus créditos activos (48 de
+// 50 centros cobran todos el mismo día). Si el centro cobra en días mezclados,
+// no se adivina: se pide en el formulario.
+function diaDelCentro(centro) {
+  const n0 = norm(String(centro || "").split("·").pop());
+  if (!n0) return "";
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "centro" && norm(cb.centro) === n0 && idxDia(cb.dia)) return String(cb.dia).toUpperCase();
+  const dias = new Set();
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (norm(String(c.centro || "").split("·").pop()) !== n0) continue;
+    const d = String(c.diaPago || "").trim().toUpperCase();
+    if (idxDia(d)) dias.add(d);
+  }
+  return dias.size === 1 ? [...dias][0] : "";
+}
 function aunNoDesembolsa(c) {
   const d = String(c.desembolso || "").slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(d) && d > hoyMX();
@@ -3042,9 +3067,13 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   const desembolsoRc = String(b.desembolso || "").slice(0, 10);
   if (desembolsoRc && !/^\d{4}-\d{2}-\d{2}$/.test(desembolsoRc))
     return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
+  const diaPagoRc = String(b.diaPago || "").trim().toUpperCase();
+  if (diaPagoRc && !idxDia(diaPagoRc))
+    return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
   const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
     desembolso: desembolsoRc || null,
+    diaPago: diaPagoRc || String((choca || previa).diaPago || "").toUpperCase() || diaDelCentro(centro) || null,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
