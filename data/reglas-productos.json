@@ -3,144 +3,154 @@
     "ESTE ARCHIVO ES EL MOTOR DE REGLAS. Lo edita Dirección, NO se programa.",
     "El sistema NO trae ninguna tasa ni plazo escrito en su código: todo sale de aquí.",
     "Cambiar una tasa, un tope o un plazo es editar este archivo — no hace falta un programador.",
-    "Cada producto dice su FUENTE: de qué documento salió el dato. Si dos documentos se",
-    "contradicen, se ve aquí y se decide aquí, no en el código.",
+    "Cada producto dice su FUENTE: de qué documento y qué renglón salió el dato.",
     "Lo que trae 'pendiente': true NO se calcula: el sistema se niega y dice qué falta,",
-    "en vez de inventar un número. Un interés inventado se cobra de verdad."
+    "en vez de inventar un número. Un interés inventado se le cobra de verdad a una señora."
   ],
   "version": "2026-08-12",
   "vigenteDesde": "2026-08-12",
+  "fuentePrincipal": "Formulas Calculo Karina.pdf — Lic. Anel Aydee Díaz Silva, 25-jul-2026. Fórmulas validadas por la contadora (CLIP) con ejemplos reales. Catálogo de 16 productos validado por Ing. Monse, mayo 2026 (pág. 7).",
   "iva": 0.16,
+
+  "_ADVERTENCIA_DEL_PROPIO_DOCUMENTO": {
+    "texto": "El PDF dice, textual, en la página del catálogo: «Confirmar con la contadora si cada % es mensual (se divide entre 4) o total del crédito, antes de fijar el parámetro por producto».",
+    "porQueImporta": "Si 5.67% es MENSUAL, el Grupal Básico 18 sem cuesta 25.5% del monto. Si es TOTAL del crédito, cuesta 5.67%. Son cuatro veces y media de diferencia en lo que se le cobra a la clienta.",
+    "estadoHoy": "El Anexo E v5 (autorizado por Anel, 28-jul) usa la tasa como MENSUAL y con eso reproduce el ejemplo de COMADRE al centavo. Por eso el motor está configurado en 'mensual'. Falta que la contadora lo confirme por escrito.",
+    "interpretacion": "mensual"
+  },
 
   "redondeo": {
     "_nota": "Los ejemplos de la contadora SOLO cuadran calculando con decimales completos y redondeando AL FINAL. Si se redondea paso por paso, el total sale 1 centavo arriba.",
     "decimales": 2,
     "momento": "final",
     "ajusteDeCentavos": "ultima",
-    "_ajusteDeCentavos": "'ultima' = la última cuota absorbe la diferencia para cerrar en $0.00 exacto. 'reparte' = se distribuye entre las cuotas. DECISIÓN PENDIENTE de Contaduría — hoy 'ultima', que es lo que dice 'ajustar para cerrar en cero'."
+    "_ajusteDeCentavos": "El PDF dice «Ajustar centavos para cerrar exactamente en cero» pero no dice dónde. 'ultima' = la última cuota absorbe la diferencia. 'reparte' = se distribuye."
   },
 
   "metodos": {
     "A": {
       "nombre": "Interés fijo sobre monto original — cuota PAREJA",
       "formula": "capital = monto / nPagos ; interes = monto * (tasaMensual / 4) ; iva = interes * 0.16 ; cuota = capital + interes + iva",
-      "_nota": "El /4 convierte la tasa MENSUAL a semanal. Validado por la contadora con COMADRE."
+      "fuente": "PDF pág. 3 — ejemplo validado COMADRE $10,000 / 12 sem / 20% = $1,413.33"
     },
     "A_DIAS": {
       "nombre": "Pago Único — interés por días reales",
       "formula": "dias = vencimiento - otorgamiento ; interesDiario = (monto * tasaMensual) / 30 ; interes = interesDiario * dias ; total = monto + interes + iva",
-      "_nota": "El conteo empieza el día SIGUIENTE al otorgamiento. El ±1 día es el parámetro diaInicial."
+      "fuente": "PDF pág. 4 — ejemplo validado $50,000 / 37 días / 10% = $57,153.33. «El conteo empieza el día siguiente al otorgamiento»."
     },
     "B": {
       "nombre": "Saldos insolutos — cuota DECRECIENTE",
       "formula": "capital = monto / nPagos (fijo) ; interes = saldoInsoluto * tasaMensual / 30 * diasDelPeriodo ; iva = interes * 0.16",
-      "_nota": "Prorrateo por DÍAS REALES entre cortes (hallazgo 18 del Anexo E). El primer periodo casi nunca son 30 días."
+      "fuente": "PDF pág. 5 — «Validado por la contadora con tres clientas reales». El primer pago varía porque los días al primer corte no son 30."
     }
   },
 
   "diaInicial": 1,
-  "_diaInicial": "1 = el interés empieza a contar el día SIGUIENTE al otorgamiento (como dice el PDF de fórmulas). 0 = cuenta el mismo día.",
+  "_diaInicial": "1 = el interés empieza a contar el día SIGUIENTE al otorgamiento (nota de la contadora, PDF pág. 4). 0 = cuenta también el día del otorgamiento.",
 
   "moratorio": {
     "_nota": "Se calcula PAGO POR PAGO y se suman. Requiere saber cuándo debió pagar cada cuota (desembolso + día de pago).",
-    "formula": "moraDelPago = cuota * tasaMoratoriaMensual / 30 * diasDeAtraso ; + IVA 16%",
+    "formula": "moraDelPago = cuota * tasaMoratoriaMensual ; moraDiaria = moraDelPago / 30 ; mora = moraDiaria * diasDeAtraso ; + IVA 16%",
+    "fuente": "PDF pág. 6 — ejemplo validado: Comadre cuota $1,413.33, tasa moratoria 10% mensual, pago #6 con 22 días de atraso → mora $103.64 + IVA $16.58 = pago con mora $1,533.56.",
     "tasaMoratoriaMensual": null,
     "pendiente": true,
-    "faltaPara": "La tasa moratoria de FOOAX. El PDF de fórmulas explica el método pero NO dice cuál es la tasa. Sin ella no se calcula ningún moratorio."
+    "faltaPara": "La tasa moratoria OFICIAL de FOOAX. El PDF trae el método y un ejemplo con 10% mensual, pero el 10% es el ejemplo — el documento nunca declara que esa sea la tasa de la casa. Confirmar con Anel/Contaduría y ponerla aquí."
   },
 
   "productos": [
     {
-      "clave": "COMADRE",
-      "nombre": "Comadre",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.20,
-      "fuente": "PDF de fórmulas 27-jul — ejemplo validado por la contadora: $10,000 / 12 sem / 20% = cuota $1,413.33",
-      "advertencia": "NO está en el catálogo de 16 ni en los 17 subproductos del Anexo E: sin plazo ni rango de monto oficial. La tasa 20% sale solo del ejemplo."
+      "clave": "GRUPAL_BASICO_18",
+      "nombre": "Grupal Básico 18 semanas",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.0567, "plazos": [18], "montoMin": 3000, "montoMax": 15000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 1"
     },
     {
-      "clave": "PAGO_UNICO",
-      "nombre": "Pago Único",
-      "metodo": "A_DIAS",
-      "periodicidad": "unico",
-      "tasaMensual": 0.10,
-      "fuente": "PDF de fórmulas 27-jul — ejemplo: $50,000 / 37 días / 10% mensual = $57,153.33",
-      "advertencia": "Tercera mecánica de facto. NO está en ninguna fase cotizada ni en el catálogo. La tasa 10% sale solo del ejemplo."
-    },
-    {
-      "clave": "MAGNUS",
-      "nombre": "Magnus (CCF03)",
-      "metodo": "B",
-      "periodicidad": "mensual",
-      "tasaMensual": 0.0304,
-      "montoMin": 20000,
-      "montoMax": 300000,
-      "fuente": "Tasa 3.04% resuelta 27-jul (cerró el pendiente 2.95% vs 3.04%). Topes $20K–$300K confirmados: coinciden PDF de fórmulas y Anexo E v5."
-    },
-    {
-      "clave": "GRUPAL_BASICO",
-      "nombre": "Grupal Básico",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0567,
-      "plazos": [18],
-      "fuente": "Vault 29-jul: 'Básico 18 sem al 5.67%'. VERIFICAR contra el catálogo firmado antes de usar en producción."
-    },
-    {
-      "clave": "FOXI_PLUS",
-      "nombre": "Foxi Plus (1 y 2)",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": null,
-      "montoMin": 15000,
-      "montoMax": null,
-      "pendiente": true,
-      "faltaPara": "La tasa, y el TOPE: el PDF de fórmulas dice $15K–50K y el Anexo E v5 dice $15K–150K. Son $100,000 de diferencia y cambian el nivel de autorización ($50K = Gerencia; $150K = Dirección + buró + visita + garantía)."
+      "clave": "GRUPAL_BASICO_24",
+      "nombre": "Grupal Básico 24 semanas",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.0632, "plazos": [24], "montoMin": 3000, "montoMax": 15000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 2"
     },
     {
       "clave": "GRUPAL_MICRO_32",
       "nombre": "Grupal Micro 32 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": null,
-      "plazos": [32],
-      "montoMin": 8000,
-      "montoMax": null,
-      "pendiente": true,
-      "faltaPara": "La tasa, y el tope: PDF dice $8K–20K, Anexo E v5 dice $8K–50K ($30,000 de diferencia)."
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.0462, "plazos": [32], "montoMin": 8000, "montoMax": 20000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 3",
+      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000. Diferencia de $30,000 sin resolver."
     },
     {
       "clave": "GRUPAL_MICRO_48",
       "nombre": "Grupal Micro 48 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": null,
-      "plazos": [48],
-      "montoMin": 8000,
-      "montoMax": null,
-      "pendiente": true,
-      "faltaPara": "La tasa, y el tope: PDF dice $8K–20K, Anexo E v5 dice $8K–50K."
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.0385, "plazos": [48], "montoMin": 8000, "montoMax": 20000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 4",
+      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000."
+    },
+    {
+      "clave": "GRUPAL_MICRO_52",
+      "nombre": "Grupal Micro 52 semanas",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.0525, "plazos": [52], "montoMax": 50000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 5 («hasta $50K», sin mínimo declarado)"
     },
     {
       "clave": "GRUPAL_ADICIONAL",
-      "nombre": "Grupal Adicional",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": null,
-      "pendiente": true,
-      "faltaPara": "Tasa, plazos y rango de monto del catálogo firmado."
+      "nombre": "Grupal Adicional 13 semanas",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.0795, "plazos": [13], "montoMin": 1000, "montoMax": 4000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 6"
     },
     {
       "clave": "GRUPAL_MICROCREDITO",
-      "nombre": "Grupal Microcrédito",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": null,
+      "nombre": "Grupal Microcrédito 32 semanas",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.0586, "plazos": [32], "montoMin": 20000, "montoMax": 50000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 7"
+    },
+    {
+      "clave": "MAGNUS",
+      "nombre": "Magnus (CCF03)",
+      "metodo": "B", "periodicidad": "mensual",
+      "tasaMensual": 0.0304, "plazos": [24], "montoMin": 20000, "montoMax": 300000,
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 16 («3.04%/m», el único que el propio catálogo marca como mensual). Topes confirmados: coinciden PDF y Anexo E v5."
+    },
+    {
+      "clave": "COMADRE",
+      "nombre": "Comadre",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": 0.20,
+      "fuente": "PDF pág. 3 — ejemplo validado ($10,000 / 12 sem / 20% = $1,413.33)",
+      "advertencia": "NO está en el catálogo oficial de 16: no tiene plazo ni rango de monto propios. La tasa 20% sale únicamente del ejemplo."
+    },
+    {
+      "clave": "PAGO_UNICO",
+      "nombre": "Pago Único",
+      "metodo": "A_DIAS", "periodicidad": "unico",
+      "tasaMensual": 0.10,
+      "fuente": "PDF pág. 4 — ejemplo validado ($50,000 / 37 días / 10% = $57,153.33)",
+      "advertencia": "NO está en el catálogo oficial de 16 y es una TERCERA mecánica de cálculo. La tasa 10% sale únicamente del ejemplo."
+    },
+    {
+      "clave": "FOXI",
+      "nombre": "FOXI (5 ciclos, $5K a $15K)",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": null, "plazos": [16], "montoMin": 5000, "montoMax": 15000,
       "pendiente": true,
-      "faltaPara": "Tasa, plazos y rango de monto del catálogo firmado."
+      "fuente": "PDF pág. 7, catálogo oficial · renglones 8–12",
+      "faltaPara": "El catálogo da un RANGO (5.69% a 9.13%) porque son 5 ciclos con tasa distinta cada uno, pero no dice cuál le toca a cada ciclo. Falta la tabla ciclo por ciclo."
+    },
+    {
+      "clave": "FOXI_PLUS",
+      "nombre": "FOXI+ (Plus 1 y 2)",
+      "metodo": "A", "periodicidad": "semanal",
+      "tasaMensual": null, "montoMin": 15000, "montoMax": 50000,
+      "pendiente": true,
+      "fuente": "PDF pág. 7, catálogo oficial · renglones 13–15",
+      "faltaPara": "El catálogo da un RANGO (3.88% a 5.74%) para 3 subproductos de 16 a 32 semanas, sin decir cuál va con cuál. Y el TOPE está en disputa: el PDF dice $50,000 y el Anexo E v5 dice $150,000 — $100,000 de diferencia que cambian el nivel de autorización ($50K = Gerencia; $150K = Dirección + buró + visita + garantía)."
     }
   ],
 
-  "_faltan_del_catalogo": "El catálogo firmado tiene 16 productos (17 subproductos en el Anexo E). Aquí están los que el vault documenta. Los demás se agregan copiando un bloque y llenando su tasa: el sistema los toma sin tocar código."
+  "_como_agregar_un_producto": "Copia un bloque, cámbiale clave, nombre, método, tasaMensual, plazos y topes, y escribe su fuente. El sistema lo toma sin tocar código."
 }
