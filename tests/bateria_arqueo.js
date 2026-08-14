@@ -2520,6 +2520,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // cuotas del padrón: faltante = cuota − lo que abonó ESA semana, y cada
   // clienta bajo su día de cobro. No mira el corte.
   const L56 = "2026-08-03";
+  // El método de Monse (14-ago) arrastra DESDE EL CORTE: para medir la semana
+  // del 3-ago el corte debe estar en esa fecha, si no los vencimientos de esa
+  // semana quedan antes del corte y no exigen nada.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: L56 }) });
   const mora56 = async () => j(await fetch(U + "/api/mora?lunes=" + L56, { headers: H(cm) }));
   const buscaMora = (d, socio) => {
     for (const g of d.dias || []) for (const x of g.filas) if (String(x.socio) === socio) return { g, x };
@@ -2560,12 +2564,15 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y al completar su cuota desaparece de la mora",
     buscaMora(await mora56(), SOC56) === null, "le sigue apareciendo mora");
 
-  // NO DEPENDE DEL CORTE: es justo por lo que "no daba".
+  // EL CORTE ES LA BASE DEL ARRASTRE (cambio de diseño del 14-ago, método de
+  // Monse): los adelantos y atrasos se miden desde el corte, así que moverlo SÍ
+  // cambia la foto — y por eso ya nunca se mueve (no hay más plantillas). Lo
+  // que se garantiza es que sea reproducible: al regresarlo, el número regresa.
   const totalConCorteA = (await mora56()).total;
   await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: L56 }) });
   const totalConCorteB = (await mora56()).total;
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
-  ok("mover el corte NO le cambia un peso a la mora de la semana",
+  ok("el corte es la base del arrastre: al regresarlo, la mora regresa idéntica",
     Math.abs(totalConCorteA - totalConCorteB) < 0.01, totalConCorteA + " vs " + totalConCorteB);
 
   // Y que diga lo que dejó fuera, en vez de callarlo.
@@ -2712,6 +2719,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
     JSON.stringify(fc56));
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  const rx56b = await fetch(U + "/api/saldos/corte", { headers: H(cm) });
+  void rx56b;
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: L56 }) });
   const rx56 = await fetch(U + "/api/mora/excel?lunes=" + L56, { headers: H(cm) });
   const bx56 = Buffer.from(await rx56.arrayBuffer());
   ok("el Excel de la mora se descarga y es un xlsx de verdad",
@@ -2861,10 +2872,16 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const c60 = ((await j(await fetch(U + "/api/clientes?q=" + S60, { headers: H(cm) }))).resultados || [])
     .find((c) => c.activa !== false && c.estatus !== "BAJA");
   ok("el alta guarda el día de pago", !!c60 && c60.diaPago === "LUNES", JSON.stringify((c60 || {}).diaPago));
-  const m60 = await j(await fetch(U + "/api/mora?lunes=2026-08-03", { headers: H(cm) }));
+  // Dada de alta HOY, su primera cuota es el lunes SIGUIENTE (17-ago): en esa
+  // semana SÍ aparece bajo su día — y en las semanas de antes de existir, no.
+  const m60 = await j(await fetch(U + "/api/mora?lunes=2026-08-17", { headers: H(cm) }));
   ok("y con día, la clienta SÍ entra a la mora bajo su día",
     (m60.dias || []).some((g) => g.dia === "LUNES" && g.filas.some((x) => String(x.socio) === S60)),
     "no salió bajo LUNES");
+  const m60ants = await j(await fetch(U + "/api/mora?lunes=2026-08-03", { headers: H(cm) }));
+  ok("pero NO debe la semana de ANTES de existir (alta de hoy, mora del 3-ago)",
+    !(m60ants.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S60)),
+    "salió debiendo una semana en la que su crédito no existía");
   // (b) Alta SIN día en un centro que cobra en un día ÚNICO: lo hereda.
   const S60b = "70000001001";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
@@ -3021,6 +3038,71 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const bx62 = Buffer.from(await rx62.arrayBuffer());
   ok("y el Excel del arqueo se genera con el bloque adentro",
     rx62.status === 200 && bx62.length > 5000 && bx62[0] === 0x50, "status " + rx62.status);
+
+  console.log("\n— 63. LOS TRES CASOS DE MONSE: adelantos y saldos chicos (14-ago) —");
+  // Monse validó la mora a mano y encontró lo que faltaba: 1) ARIELA adelantó
+  // un pago LA SEMANA PASADA y salía debiendo; 2) LA CONSENTIDA pagó el
+  // MIÉRCOLES su cuota del jueves y salía debiendo; 3) a LUCIA le quedan $442
+  // de saldo y se le exigía la cuota completa. La regla es una: desde el corte,
+  // cada día de cobro vencido exige una cuota, TODO lo abonado cuenta, y el
+  // faltante se acota a una cuota y al saldo restante.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+
+  // (1) ARIELA: clienta de JUEVES que el jueves PASADO (06-ago) pagó DOBLE.
+  const S63a = "70000001063";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S63a, nombre: "ARIELA DE PRUEBA 63", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 7060, cuota: 706, plazo: 10, diaPago: "Jueves" }) });
+  const K63a = S63a + "|Grupal-Basico 2|ARIELA DE PRUEBA 63|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K63a]: { pago: 1412, forma: "E" } } }, ts: Date.now() }) });
+  const w63 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const enMora63 = (soc) => (w63.dias || []).some((g) => g.filas.some((x) => String(x.socio) === soc));
+  ok("la que ADELANTÓ la semana pasada ya NO sale debiendo esta semana",
+    !enMora63(S63a), "ARIELA de prueba sigue en la mora");
+
+  // (2) LA CONSENTIDA: clienta de JUEVES que paga el MIÉRCOLES de esta semana.
+  const S63b = "70000001064";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S63b, nombre: "CONSENTIDA DE PRUEBA 63", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4800, cuota: 480, plazo: 10, diaPago: "Jueves",
+      desembolso: "2026-08-07" }) });
+  const K63b = S63b + "|Grupal-Basico|CONSENTIDA DE PRUEBA 63|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-12", snapshot: { regI: { [K63b]: { pago: 480, forma: "E" } } }, ts: Date.now() + 1 }) });
+  const w63b = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  ok("la que pagó ANTES de su día (miércoles por jueves) tampoco sale",
+    !(w63b.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S63b)),
+    "LA CONSENTIDA de prueba sigue en la mora");
+  const d63b = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-13", { headers: H(cm) }));
+  ok("ni en la mora del ARQUEO de su día (jueves)",
+    !(d63b.centros || []).some((g) => g.filas.some((x) => String(x.socio) === S63b)),
+    "sale en el arqueo del jueves");
+
+  // (3) LUCIA: le quedan $442 de saldo — no se le puede exigir la cuota entera.
+  const S63c = "70000001065";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S63c, nombre: "LUCIA DE PRUEBA 63", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 874, cuota: 432, plazo: 2, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
+  const K63c = S63c + "|Grupal-Basico 2|LUCIA DE PRUEBA 63|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K63c]: { pago: 432, forma: "E" } } }, ts: Date.now() + 2 }) });
+  const w63c = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const lucia = (w63c.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S63c);
+  ok("a la que le queda MENOS que una cuota solo se le exige el saldo ($442)",
+    !!lucia && lucia.faltante === 442, JSON.stringify(lucia));
+
+  // Y el atrasado NO infla: quien va 3 cuotas atrás sale con UNA cuota, no tres.
+  const S63d = "70000001066";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S63d, nombre: "ATRASADA DE PRUEBA 63", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 5000, cuota: 500, plazo: 20, diaPago: "Jueves",
+      desembolso: "2026-07-02" }) });
+  const w63d = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const atr = (w63d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S63d);
+  ok("los atrasos viejos NO inflan la semana: se exige una cuota, no todas",
+    !!atr && atr.faltante === 500, JSON.stringify(atr));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

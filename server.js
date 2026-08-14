@@ -1435,6 +1435,46 @@ function rangoPeriodo(q) {
 // (el acumulado desde el corte) — y por eso «no nos dio».
 // ===================================================================
 const NOMBRE_DIA = ["DOMINGO", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
+// Cuántas veces cae el día de cobro de una clienta entre dos fechas (ambas
+// incluidas). Es la pieza del método de la Ing. Monse (14-ago): cada día de
+// cobro vencido desde el corte exige una cuota.
+// ¿Cuándo NACIÓ el crédito vigente de esta clave? (alta o re-crédito). Es el
+// respaldo cuando no capturaron desembolso: un crédito dado de alta el jueves
+// no puede deber la cuota del lunes anterior. Solo cuenta el ÚLTIMO nacimiento
+// (una renovación reinicia las obligaciones).
+function fechaNacimientoCredito(id, producto) {
+  let f = null;
+  for (const cb of store.cambiosPadron()) {
+    if ((cb.tipo === "alta" || cb.tipo === "recredito") &&
+        String(cb.id) === String(id) && nprod(cb.producto) === nprod(producto) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(cb.fecha || "")) f = cb.fecha;
+  }
+  return f;
+}
+
+// El arranque real de las obligaciones: el desembolso si lo capturaron, si no
+// la fecha del alta/re-crédito. Devuelve el día SIGUIENTE (la primera cuota es
+// el primer día de cobro DESPUÉS de recibir el dinero), o null si no hay dato.
+function inicioObligaciones(c) {
+  const des = String(c.desembolso || "").slice(0, 10);
+  const base = /^\d{4}-\d{2}-\d{2}$/.test(des) ? des : fechaNacimientoCredito(c.id, c.producto);
+  if (!base) return null;
+  const dv = new Date(base + "T12:00:00"); dv.setDate(dv.getDate() + 1);
+  return dv.toISOString().slice(0, 10);
+}
+
+function vencimientosEntre(diaIdx, desdeISO, hastaISO) {
+  if (!diaIdx || !desdeISO || !hastaISO || hastaISO < desdeISO) return 0;
+  let n = 0;
+  const d = new Date(desdeISO + "T12:00:00");
+  const fin = new Date(hastaISO + "T12:00:00");
+  while (d <= fin) {
+    const g = d.getDay();
+    if ((g === 0 ? 7 : g) === diaIdx) n++;
+    d.setDate(d.getDate() + 1);
+  }
+  return n;
+}
 function nombreDia(fechaISO) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fechaISO || ""))) return "";
   return NOMBRE_DIA[new Date(fechaISO + "T12:00:00").getDay()] || "";
@@ -1525,7 +1565,35 @@ function moraDeLaSemana(usuario, lunesOpt) {
     const clave = claveCredito(c.id, c.producto);
     const pagado = Math.round((pagoSemana[clave] || 0) * 100) / 100;
     const pagadoSuDia = Math.round((((porClaveFecha[clave] || {})[suFecha] || {}).p || 0) * 100) / 100;
-    const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
+    // EL MÉTODO DE MONSE, COMPLETO (validado por ella el 14-ago con ARIELA,
+    // LUCIA y LA CONSENTIDA). "Cuota − lo pagado esta semana" se quedaba corto
+    // en tres casos: la que ADELANTÓ la semana pasada salía debiendo (ARIELA),
+    // la que pagó ANTES de su día en la misma semana también, y a la que le
+    // queda menos saldo que una cuota se le exigía la cuota entera (LUCIA, a
+    // la que le quedan $442).
+    //
+    // Regla completa: desde el corte, cada día de cobro vencido exige una
+    // cuota; TODO lo abonado desde el corte cuenta, venga del día que venga;
+    // lo que falta se acota a UNA cuota (los atrasos viejos no inflan la
+    // semana) y NUNCA pasa del saldo que le queda.
+    const infoM = infoCredito(cv, c);
+    // Los vencimientos no pueden empezar ANTES de que el crédito exista: a uno
+    // desembolsado (o dado de alta) el viernes no se le exige la cuota del
+    // jueves anterior.
+    let desdeV = corteSaldos();
+    const iniOb = inicioObligaciones(c);
+    if (iniOb && iniOb > desdeV) desdeV = iniOb;
+    const venc = vencimientosEntre(idxDia(dia), desdeV, suFecha);
+    const abonadoDesdeCorte = Math.round(((infoM.pagado || 0) + (infoM.liquidado || 0)) * 100) / 100;
+    let faltante0 = Math.max(0, Math.min(cuota, cuota * venc - abonadoDesdeCorte));
+    // EL PLAZO TERMINÓ (el caso LUCIA, $442): cuando ya corrieron todos sus
+    // pagos, lo exigible es TODO lo que queda — el último pago absorbe los
+    // centavos y lo atrasado, por eso puede ser mayor que la cuota.
+    const plazoM = Number(c.plazo) || 0;
+    if (plazoM > 0 && iniOb &&
+        vencimientosEntre(idxDia(dia), iniOb, suFecha) >= plazoM)
+      faltante0 = infoM.saldoActual;
+    const faltante = Math.round(Math.min(faltante0, infoM.saldoActual) * 100) / 100;
     // El día se abre SIEMPRE, pague o no: hace falta saber cuántas SÍ pagaron
     // para leer la mora. «$34,040 de mora» no dice nada sin «de 90 créditos».
     const g = dias[dia] || (dias[dia] = { dia, fecha: null, filas: [], total: 0,
@@ -4019,14 +4087,9 @@ function moraDelDia(usuario, fecha) {
   for (const clave in porFecha)
     if (porFecha[clave][f]) pagoDelDia[clave] = (porFecha[clave][f].p || 0);
 
-  // LOS PAGOS DE OFICINA TAMBIÉN CUENTAN. Una liquidación o recuperación que
-  // registra Dirección es dinero que la clienta entregó: si no se cuenta aquí,
-  // sale debiendo alguien que ya pagó. La mora de la semana sí los contaba y
-  // este bloque no — por eso el arqueo mostraba MÁS que la mora semanal, que
-  // fue exactamente lo que Karina notó el 12-ago.
-  const sumaMovs = (destino, desdeF, hastaF) => {
+  const sumaMovsCorte = (destino, desdeF, hastaF) => {
     const d0 = new Date(desdeF + "T12:00:00");
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < 400; k++) {
       const dd = new Date(d0); dd.setDate(d0.getDate() + k);
       const fISO = dd.toISOString().slice(0, 10);
       if (fISO > hastaF) break;
@@ -4045,7 +4108,49 @@ function moraDelDia(usuario, fecha) {
       }
     }
   };
-  sumaMovs(pagoDelDia, f, f);
+
+  // TODO lo abonado DESDE EL CORTE, en dos cortes de tiempo: hasta este día
+  // (decide la mora del día) y hasta hoy (decide qué ya se recuperó). Es la
+  // misma ventana que usa la mora semanal — método de Monse, 14-ago.
+  const corteHoy = corteSaldos();
+  const hoyReal2 = hoyMX();
+  const { porFecha: pfCorte } = pagosDeLaSemana(usuario, corteHoy, hoyReal2 > f ? hoyReal2 : f);
+  const abonadoDesdeCorteHasta = {}, abonadoTotal = {};
+  for (const clave in pfCorte)
+    for (const d2 in pfCorte[clave]) {
+      const v = pfCorte[clave][d2].p || 0;
+      abonadoTotal[clave] = (abonadoTotal[clave] || 0) + v;
+      if (d2 <= f) abonadoDesdeCorteHasta[clave] = (abonadoDesdeCorteHasta[clave] || 0) + v;
+    }
+  sumaMovsCorte(abonadoDesdeCorteHasta, corteHoy, f);
+  sumaMovsCorte(abonadoTotal, corteHoy, hoyReal2 > f ? hoyReal2 : f);
+  // Abonos de caja por clave y por FECHA, para poder cortarlos en cualquier día
+  // del acumulado sin volver a recorrer los movimientos.
+  const movsPorClaveFecha = {};
+  {
+    const d0 = new Date(corteHoy + "T12:00:00");
+    for (let k = 0; k < 400; k++) {
+      const dd = new Date(d0); dd.setDate(d0.getDate() + k);
+      const fISO2 = dd.toISOString().slice(0, 10);
+      if (fISO2 > f) break;
+      const dest = {};
+      sumaMovsCorte(dest, fISO2, fISO2);
+      for (const cl in dest) (movsPorClaveFecha[cl] = movsPorClaveFecha[cl] || {})[fISO2] = dest[cl];
+    }
+  }
+  const movsCorteHasta = (clave, hastaISO) => {
+    let t = 0;
+    for (const dd2 in (movsPorClaveFecha[clave] || {})) if (dd2 <= hastaISO) t += movsPorClaveFecha[clave][dd2];
+    return t;
+  };
+
+  // LOS PAGOS DE OFICINA TAMBIÉN CUENTAN. Una liquidación o recuperación que
+  // registra Dirección es dinero que la clienta entregó: si no se cuenta aquí,
+  // sale debiendo alguien que ya pagó. La mora de la semana sí los contaba y
+  // este bloque no — por eso el arqueo mostraba MÁS que la mora semanal, que
+  // fue exactamente lo que Karina notó el 12-ago.
+
+
   // Y lo abonado de ese día EN ADELANTE, hasta el DOMINGO: sirve para saber
   // quién se puso al corriente después.
   //
@@ -4063,7 +4168,7 @@ function moraDelDia(usuario, fecha) {
     for (const d2 in pfHasta[clave])
       if (d2 >= f && d2 <= domingoSem)
         pagoHastaHoy[clave] = (pagoHastaHoy[clave] || 0) + (pfHasta[clave][d2].p || 0);
-  sumaMovs(pagoHastaHoy, f, domingoSem);
+  sumaMovsCorte(pagoHastaHoy, f, domingoSem);
 
   const centros = {};
   const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0, sinDesembolsar: 0, liquidados: 0 };
@@ -4080,16 +4185,37 @@ function moraDelDia(usuario, fecha) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(des) && des > f) { fuera.sinDesembolsar++; continue; }
     const clave = claveCredito(c.id, c.producto);
     const pagado = Math.round((pagoDelDia[clave] || 0) * 100) / 100;
-    const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
+    // LA MISMA FÓRMULA DE MONSE que la mora semanal (14-ago): cuotas exigidas
+    // desde el corte hasta ESTE día, menos TODO lo abonado desde el corte hasta
+    // este día — así el adelanto de la semana pasada (ARIELA) y el pago
+    // adelantado dentro de la semana (LA CONSENTIDA, pagó el miércoles su
+    // jueves) cuentan a favor. Acotado a una cuota y al saldo restante (LUCIA).
+    const infoD = infoCredito(cv, c);
+    let desdeV = corteSaldos();
+    const iniObD = inicioObligaciones(c);
+    if (iniObD && iniObD > desdeV) desdeV = iniObD;
+    const venc = vencimientosEntre(idxDia(dia), desdeV, f);
+    const abonadoHastaHoyDia = Math.round((abonadoDesdeCorteHasta[clave] || 0) * 100) / 100;
+    let faltante0 = Math.max(0, Math.min(cuota, cuota * venc - abonadoHastaHoyDia));
+    const plazoD = Number(c.plazo) || 0;
+    let termino = false;
+    if (plazoD > 0 && iniObD) {
+      termino = vencimientosEntre(idxDia(dia), iniObD, f) >= plazoD;
+      if (termino) faltante0 = infoD.saldoActual + Math.max(0, (abonadoTotal[clave] || 0) - abonadoHastaHoyDia);
+    }
+    const faltante = Math.round(Math.min(faltante0, infoD.saldoActual + Math.max(0, (abonadoTotal[clave] || 0) - abonadoHastaHoyDia)) * 100) / 100;
     if (faltante <= 0) continue;
     // LO QUE PAGÓ DESPUÉS, hasta hoy. Es lo que reconcilia este bloque con la
     // mora de la semana: ahí la que se pone al corriente el miércoles YA NO
     // aparece debiendo el lunes, y aquí SÍ (porque ese lunes no pagó). Sin
     // decirlo, los dos reportes se ven contradictorios — que fue justo lo que
     // Karina notó el 12-ago: «el arqueo muestra más que esta parte del sistema».
-    const pagadoDespues = Math.round(Math.max(0,
-      ((pagoHastaHoy[clave] || 0) - pagado)) * 100) / 100;
-    const sigueDebiendo = Math.round(Math.max(0, faltante - pagadoDespues) * 100) / 100;
+    // Lo que sigue debiendo HOY con la misma fórmula, pero contando también lo
+    // abonado después de este día. La resta contra `faltante` es lo recuperado.
+    let sd0 = Math.max(0, Math.min(cuota, cuota * venc - (abonadoTotal[clave] || 0)));
+    if (termino) sd0 = infoD.saldoActual;
+    const sigueDebiendo = Math.round(Math.min(sd0, infoD.saldoActual) * 100) / 100;
+    const pagadoDespues = Math.round(Math.max(0, faltante - sigueDebiendo) * 100) / 100;
     const nom = String(c.centro || "").trim() || "Individual";
     const g = centros[nom] || (centros[nom] = { centro: nom, ejecutivo: c.ejecutivo || "—",
       filas: [], total: 0, recuperado: 0, pendiente: 0 });
@@ -4113,21 +4239,9 @@ function moraDelDia(usuario, fecha) {
   // daba un acumulado MENOR que el día, que no se puede leer. Cada día se mide
   // igual y se suma: eso sí se sostiene.
   //
-  // Se reaprovecha el mismo `cv` y una sola lectura de pagos de la semana, así
-  // que recorrer los 5 días no cuesta más consultas.
-  const { porFecha: pfSem } = pagosDeLaSemana(usuario, lunes, f);
-  // Los pagos de oficina, día por día, para el acumulado.
-  const movsPorDia = {};
-  {
-    const d0 = new Date(lunes + "T12:00:00");
-    for (let k = 0; k < 7; k++) {
-      const dd = new Date(d0); dd.setDate(d0.getDate() + k);
-      const fISO = dd.toISOString().slice(0, 10);
-      if (fISO > f) break;
-      const destino = (movsPorDia[fISO] = {});
-      sumaMovs(destino, fISO, fISO);
-    }
-  }
+  // Misma fórmula de Monse, día por día: cuotas vencidas desde el corte hasta
+  // ese día, menos lo abonado desde el corte hasta ese día. Los abonos por
+  // fecha ya están en pfCorte; solo se corta la suma en cada día.
   let acumulado = 0;
   for (let k = 0; k < 7; k++) {
     const dd = new Date(lunes + "T12:00:00"); dd.setDate(dd.getDate() + k);
@@ -4138,7 +4252,8 @@ function moraDelDia(usuario, fecha) {
       if (c.activa === false || c.estatus === "BAJA") continue;
       if (!mios.has(norm(c.ejecutivo))) continue;
       if (String(c.diaPago || "").trim().toUpperCase() !== diaK) continue;
-      if (infoCredito(cv, c).saldoActual <= 0.009) continue;
+      const infoK = infoCredito(cv, c);
+      if (infoK.saldoActual <= 0.009) continue;
       if (/vencid/i.test(String(c.estatus || ""))) continue;
       if (esCuotaVariable(c.producto)) continue;
       const cuotaK = Number(c.cuota) || 0;
@@ -4146,8 +4261,20 @@ function moraDelDia(usuario, fecha) {
       const desK = String(c.desembolso || "").slice(0, 10);
       if (/^\d{4}-\d{2}-\d{2}$/.test(desK) && desK > fISO) continue;
       const claveK = claveCredito(c.id, c.producto);
-      const pagK = (((pfSem[claveK] || {})[fISO] || {}).p || 0) + ((movsPorDia[fISO] || {})[claveK] || 0);
-      acumulado += Math.max(0, cuotaK - pagK);
+      let abonadoK = 0;
+      for (const dd2 in (pfCorte[claveK] || {}))
+        if (dd2 <= fISO) abonadoK += pfCorte[claveK][dd2].p || 0;
+      abonadoK += movsCorteHasta(claveK, fISO);
+      let desdeK = corteHoy;
+      const iniObK = inicioObligaciones(c);
+      if (iniObK && iniObK > desdeK) desdeK = iniObK;
+      const vencK = vencimientosEntre(idxDia(diaK), desdeK, fISO);
+      let faltK = Math.max(0, Math.min(cuotaK, cuotaK * vencK - abonadoK));
+      const plazoK = Number(c.plazo) || 0;
+      if (plazoK > 0 && iniObK &&
+          vencimientosEntre(idxDia(diaK), iniObK, fISO) >= plazoK)
+        faltK = infoK.saldoActual;
+      acumulado += Math.min(faltK, infoK.saldoActual);
     }
   }
   acumulado = Math.round(acumulado * 100) / 100;
