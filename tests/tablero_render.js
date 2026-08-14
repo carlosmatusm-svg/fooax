@@ -203,6 +203,14 @@ for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
     /__vigilaDia/.test(v) && /inpFecha/.test(v) && /reload\(\)/.test(v), "se quitó el vigilante");
   ok("y respeta el bloqueo del día anterior (sin ciclo de recargas)",
     /fooax_fecha_ok/.test(v), "no revisa la fecha sancionada");
+  // El repintado que le borraba la pantalla a Christopher (12-ago): si estos
+  // tres candados se caen, el "se me reinicia cada minuto" regresa.
+  ok("vivos.js NO repinta mientras la ejecutiva está escribiendo",
+    /estaEscribiendo/.test(v) && /activeElement/.test(v), "se quitó el candado del foco");
+  ok("y conserva el centro elegido al repintar",
+    /centroElegido/.test(v) && /selCentro/.test(v), "ya no repone el selector");
+  ok("y una corrección de Dirección se aplica UNA sola vez",
+    /fooax_corr_/.test(v), "se quitó la firma de correcciones");
   // El vigilante compara SOLO contra la fecha del SERVIDOR. Contra el reloj
   // del teléfono recargaba cada minuto cuando ese reloj andaba mal — el
   // "se me reinicia a cada rato" de Christopher (12-ago).

@@ -126,13 +126,47 @@
     return cambios;
   }
 
+  // REPINTAR SIN BORRARLE LA PANTALLA (Christopher, 12-ago: «cada 40 segundos
+  // o un minuto se me reinicia y tengo que volver a poner todo»). El reinicio
+  // de página se arregló aparte; esto era lo otro: cada vez que Dirección
+  // registraba algo de una clienta suya, el repintado reconstruía el selector
+  // de centros (se perdía el elegido) y tiraba lo que estaba a medio teclear.
+  //
+  // Tres reglas:
+  //   1. Si está ESCRIBIENDO (un campo con foco), NO se repinta: se apunta y
+  //      se repinta cuando suelte el campo o al siguiente minuto.
+  //   2. El centro elegido SE CONSERVA: se guarda antes y se repone después.
+  //   3. Nada de esto toca los datos — solo la pintada.
+  var repintadoPendiente = false;
+  function estaEscribiendo() {
+    try {
+      var el = document.activeElement;
+      return !!(el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName || ""));
+    } catch (e) { return false; }
+  }
   function repintar() {
+    if (estaEscribiendo()) { repintadoPendiente = true; return; }
+    repintadoPendiente = false;
+    var sel = null, centroElegido = null;
+    try {
+      sel = document.getElementById("selCentro");
+      centroElegido = sel ? sel.value : null;
+    } catch (e) { }
     if (typeof fillCentros === "function") try { fillCentros(); } catch (e) { }
+    // Reponer el centro ANTES de render(): render lee el selector para saber
+    // qué lista pintar. Sin esto, el repintado lo regresaba a "— Elige…".
+    if (sel && centroElegido) try { sel.value = centroElegido; } catch (e) { }
     if (typeof render === "function") try { render(); } catch (e) { }
     if (typeof renderIndiv === "function") try { renderIndiv(); } catch (e) { }
     if (typeof renderRenov === "function") try { renderRenov(); } catch (e) { }
     if (typeof recalc === "function") try { recalc(); } catch (e) { }
   }
+  // Cuando suelta el campo, si quedó una pintada pendiente, ahora sí.
+  try {
+    document.addEventListener("focusout", function () {
+      if (repintadoPendiente) setTimeout(function () { if (!estaEscribiendo()) repintar(); }, 250);
+    });
+  } catch (e) { }
 
   // ---- 4. CORRECCIONES DE DIRECCIÓN sobre la captura de HOY ----
   // Si Monse le anula un pago o le quita una garantía, la ejecutiva tiene que
@@ -153,6 +187,17 @@
       var r = nodo[c.clave];
       if ((r.pago || 0) === c.pago && (r.garantia || 0) === c.garantia
         && (r.solidario || 0) === c.solidario && !!r._dir === !!c.anulado) return;
+      // UNA CORRECCIÓN SE APLICA UNA SOLA VEZ. Antes se re-imponía en cada
+      // sondeo: si la ejecutiva volvía a capturarle a esa clienta DESPUÉS de la
+      // corrección (la clienta pasó a pagar más tarde), el minuto siguiente se
+      // lo pisaba en silencio — parte del «tengo que volver a poner todo» de
+      // Christopher. La misma corrección (misma firma) ya no se re-aplica; una
+      // corrección NUEVA de Dirección trae otra firma y sí entra.
+      var firma = c.clave + "|" + c.pago + "|" + c.garantia + "|" + c.solidario + "|" + (c.anulado ? 1 : 0);
+      try {
+        if (window.sessionStorage && window.sessionStorage.getItem("fooax_corr_" + firma)) return;
+        if (window.sessionStorage) window.sessionStorage.setItem("fooax_corr_" + firma, "1");
+      } catch (e) { }
       r.pago = c.pago; r.garantia = c.garantia; r.solidario = c.solidario;
       r._dir = c.anulado ? "anulado" : "corregido";
       r._dirPor = c.por;
