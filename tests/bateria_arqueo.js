@@ -2891,6 +2891,55 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 100, plazo: 10, diaPago: "LUNES Y JUEVES" }) });
   ok("un día inventado se rechaza", rD60.status === 400, "status " + rD60.status);
 
+  console.log("\n— 61. MOTOR DE REGLAS · intereses por producto (Karina y su tío, 12-ago) —");
+  // «Teníamos que hacer un motor de reglas AFUERA de nuestro código con los
+  // cálculos.» Y es lo correcto aquí: la tasa de MAGNUS estuvo en duda, los
+  // topes de FOXI+ se contradicen entre dos documentos firmados, y sigue sin
+  // decidirse qué tasa se imprime. Con las reglas en el código, cada cambio
+  // sería un programador y un despliegue.
+  const reg61 = await j(await fetch(U + "/api/reglas", { headers: H(cm) }));
+  ok("el motor se lee desde el archivo de reglas, no del código",
+    !!reg61.version && Array.isArray(reg61.listos), JSON.stringify(reg61).slice(0, 120));
+  ok("y se autocomprueba contra los ejemplos que validó la contadora",
+    reg61.autoprueba && reg61.autoprueba.ok === true,
+    JSON.stringify((reg61.autoprueba || {}).casos || []));
+
+  // LOS TRES EJEMPLOS VALIDADOS, uno por uno.
+  const sim = async (qs) => {
+    const r = await fetch(U + "/api/reglas/simular?" + qs, { headers: H(cm) });
+    return { status: r.status, d: await r.json() };
+  };
+  const com = await sim("producto=COMADRE&monto=10000&plazo=12");
+  ok("COMADRE $10,000 / 12 sem / 20% da la cuota de $1,413.33",
+    com.status === 200 && Math.abs(com.d.cuota - 1413.33) < 0.01, JSON.stringify(com.d.cuota));
+  ok("y el capital cierra EXACTO: suma $10,000 y el saldo final es $0.00",
+    com.d.totales.capital === 10000 && com.d.pagos[com.d.pagos.length - 1].saldo === 0,
+    JSON.stringify({ capital: com.d.totales.capital, ultimo: com.d.pagos[com.d.pagos.length - 1] }));
+  const pu = await sim("producto=PAGO_UNICO&monto=50000&dias=37");
+  ok("Pago Único $50,000 / 37 días / 10% da $57,153.33",
+    pu.status === 200 && Math.abs(pu.d.totales.aPagar - 57153.33) < 0.01,
+    JSON.stringify((pu.d.totales || {}).aPagar));
+  // MAGNUS: el prorrateo por DÍAS REALES es el hallazgo 18 del Anexo E — con
+  // mes plano daría $3,040 y con 45 días reales da $4,560.
+  const mg = await sim("producto=MAGNUS&monto=100000&plazo=24&diasPorPeriodo="
+    + [45].concat(Array(23).fill(30)).join(","));
+  ok("MAGNUS prorratea por DÍAS reales: primer corte a 45 días = $4,560 de interés",
+    mg.status === 200 && Math.abs(mg.d.pagos[0].interes - 4560) < 0.01,
+    JSON.stringify((mg.d.pagos || [])[0]));
+  ok("y su cuota BAJA cada periodo (saldos insolutos)",
+    mg.status === 200 && mg.d.pagos[1].cuota > mg.d.pagos[2].cuota,
+    JSON.stringify((mg.d.pagos || []).slice(1, 3).map((x) => x.cuota)));
+
+  // LO QUE NO SE PUEDE CALCULAR SE NIEGA — no se inventa un interés.
+  const fx = await sim("producto=Foxi%20Plus%20-%201&monto=30000&plazo=18");
+  ok("un producto sin tasa NO se calcula: se niega y dice qué falta",
+    fx.status === 400 && /tope|tasa/i.test(fx.d.motivo || ""), JSON.stringify(fx.d));
+  ok("y el motor lista aparte los que esperan dato, para poder pedirlos",
+    (reg61.esperando || []).length > 0 && (reg61.esperando || []).every((p) => p.faltaPara),
+    JSON.stringify((reg61.esperando || []).map((p) => p.nombre)));
+  ok("el moratorio tampoco se inventa: espera su tasa",
+    reg61.moratorio && reg61.moratorio.pendiente === true, JSON.stringify(reg61.moratorio));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

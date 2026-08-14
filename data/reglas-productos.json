@@ -1,0 +1,146 @@
+{
+  "_lea_esto_antes_de_editar": [
+    "ESTE ARCHIVO ES EL MOTOR DE REGLAS. Lo edita Dirección, NO se programa.",
+    "El sistema NO trae ninguna tasa ni plazo escrito en su código: todo sale de aquí.",
+    "Cambiar una tasa, un tope o un plazo es editar este archivo — no hace falta un programador.",
+    "Cada producto dice su FUENTE: de qué documento salió el dato. Si dos documentos se",
+    "contradicen, se ve aquí y se decide aquí, no en el código.",
+    "Lo que trae 'pendiente': true NO se calcula: el sistema se niega y dice qué falta,",
+    "en vez de inventar un número. Un interés inventado se cobra de verdad."
+  ],
+  "version": "2026-08-12",
+  "vigenteDesde": "2026-08-12",
+  "iva": 0.16,
+
+  "redondeo": {
+    "_nota": "Los ejemplos de la contadora SOLO cuadran calculando con decimales completos y redondeando AL FINAL. Si se redondea paso por paso, el total sale 1 centavo arriba.",
+    "decimales": 2,
+    "momento": "final",
+    "ajusteDeCentavos": "ultima",
+    "_ajusteDeCentavos": "'ultima' = la última cuota absorbe la diferencia para cerrar en $0.00 exacto. 'reparte' = se distribuye entre las cuotas. DECISIÓN PENDIENTE de Contaduría — hoy 'ultima', que es lo que dice 'ajustar para cerrar en cero'."
+  },
+
+  "metodos": {
+    "A": {
+      "nombre": "Interés fijo sobre monto original — cuota PAREJA",
+      "formula": "capital = monto / nPagos ; interes = monto * (tasaMensual / 4) ; iva = interes * 0.16 ; cuota = capital + interes + iva",
+      "_nota": "El /4 convierte la tasa MENSUAL a semanal. Validado por la contadora con COMADRE."
+    },
+    "A_DIAS": {
+      "nombre": "Pago Único — interés por días reales",
+      "formula": "dias = vencimiento - otorgamiento ; interesDiario = (monto * tasaMensual) / 30 ; interes = interesDiario * dias ; total = monto + interes + iva",
+      "_nota": "El conteo empieza el día SIGUIENTE al otorgamiento. El ±1 día es el parámetro diaInicial."
+    },
+    "B": {
+      "nombre": "Saldos insolutos — cuota DECRECIENTE",
+      "formula": "capital = monto / nPagos (fijo) ; interes = saldoInsoluto * tasaMensual / 30 * diasDelPeriodo ; iva = interes * 0.16",
+      "_nota": "Prorrateo por DÍAS REALES entre cortes (hallazgo 18 del Anexo E). El primer periodo casi nunca son 30 días."
+    }
+  },
+
+  "diaInicial": 1,
+  "_diaInicial": "1 = el interés empieza a contar el día SIGUIENTE al otorgamiento (como dice el PDF de fórmulas). 0 = cuenta el mismo día.",
+
+  "moratorio": {
+    "_nota": "Se calcula PAGO POR PAGO y se suman. Requiere saber cuándo debió pagar cada cuota (desembolso + día de pago).",
+    "formula": "moraDelPago = cuota * tasaMoratoriaMensual / 30 * diasDeAtraso ; + IVA 16%",
+    "tasaMoratoriaMensual": null,
+    "pendiente": true,
+    "faltaPara": "La tasa moratoria de FOOAX. El PDF de fórmulas explica el método pero NO dice cuál es la tasa. Sin ella no se calcula ningún moratorio."
+  },
+
+  "productos": [
+    {
+      "clave": "COMADRE",
+      "nombre": "Comadre",
+      "metodo": "A",
+      "periodicidad": "semanal",
+      "tasaMensual": 0.20,
+      "fuente": "PDF de fórmulas 27-jul — ejemplo validado por la contadora: $10,000 / 12 sem / 20% = cuota $1,413.33",
+      "advertencia": "NO está en el catálogo de 16 ni en los 17 subproductos del Anexo E: sin plazo ni rango de monto oficial. La tasa 20% sale solo del ejemplo."
+    },
+    {
+      "clave": "PAGO_UNICO",
+      "nombre": "Pago Único",
+      "metodo": "A_DIAS",
+      "periodicidad": "unico",
+      "tasaMensual": 0.10,
+      "fuente": "PDF de fórmulas 27-jul — ejemplo: $50,000 / 37 días / 10% mensual = $57,153.33",
+      "advertencia": "Tercera mecánica de facto. NO está en ninguna fase cotizada ni en el catálogo. La tasa 10% sale solo del ejemplo."
+    },
+    {
+      "clave": "MAGNUS",
+      "nombre": "Magnus (CCF03)",
+      "metodo": "B",
+      "periodicidad": "mensual",
+      "tasaMensual": 0.0304,
+      "montoMin": 20000,
+      "montoMax": 300000,
+      "fuente": "Tasa 3.04% resuelta 27-jul (cerró el pendiente 2.95% vs 3.04%). Topes $20K–$300K confirmados: coinciden PDF de fórmulas y Anexo E v5."
+    },
+    {
+      "clave": "GRUPAL_BASICO",
+      "nombre": "Grupal Básico",
+      "metodo": "A",
+      "periodicidad": "semanal",
+      "tasaMensual": 0.0567,
+      "plazos": [18],
+      "fuente": "Vault 29-jul: 'Básico 18 sem al 5.67%'. VERIFICAR contra el catálogo firmado antes de usar en producción."
+    },
+    {
+      "clave": "FOXI_PLUS",
+      "nombre": "Foxi Plus (1 y 2)",
+      "metodo": "A",
+      "periodicidad": "semanal",
+      "tasaMensual": null,
+      "montoMin": 15000,
+      "montoMax": null,
+      "pendiente": true,
+      "faltaPara": "La tasa, y el TOPE: el PDF de fórmulas dice $15K–50K y el Anexo E v5 dice $15K–150K. Son $100,000 de diferencia y cambian el nivel de autorización ($50K = Gerencia; $150K = Dirección + buró + visita + garantía)."
+    },
+    {
+      "clave": "GRUPAL_MICRO_32",
+      "nombre": "Grupal Micro 32 semanas",
+      "metodo": "A",
+      "periodicidad": "semanal",
+      "tasaMensual": null,
+      "plazos": [32],
+      "montoMin": 8000,
+      "montoMax": null,
+      "pendiente": true,
+      "faltaPara": "La tasa, y el tope: PDF dice $8K–20K, Anexo E v5 dice $8K–50K ($30,000 de diferencia)."
+    },
+    {
+      "clave": "GRUPAL_MICRO_48",
+      "nombre": "Grupal Micro 48 semanas",
+      "metodo": "A",
+      "periodicidad": "semanal",
+      "tasaMensual": null,
+      "plazos": [48],
+      "montoMin": 8000,
+      "montoMax": null,
+      "pendiente": true,
+      "faltaPara": "La tasa, y el tope: PDF dice $8K–20K, Anexo E v5 dice $8K–50K."
+    },
+    {
+      "clave": "GRUPAL_ADICIONAL",
+      "nombre": "Grupal Adicional",
+      "metodo": "A",
+      "periodicidad": "semanal",
+      "tasaMensual": null,
+      "pendiente": true,
+      "faltaPara": "Tasa, plazos y rango de monto del catálogo firmado."
+    },
+    {
+      "clave": "GRUPAL_MICROCREDITO",
+      "nombre": "Grupal Microcrédito",
+      "metodo": "A",
+      "periodicidad": "semanal",
+      "tasaMensual": null,
+      "pendiente": true,
+      "faltaPara": "Tasa, plazos y rango de monto del catálogo firmado."
+    }
+  ],
+
+  "_faltan_del_catalogo": "El catálogo firmado tiene 16 productos (17 subproductos en el Anexo E). Aquí están los que el vault documenta. Los demás se agregan copiando un bloque y llenando su tasa: el sistema los toma sin tocar código."
+}

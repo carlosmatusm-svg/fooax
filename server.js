@@ -635,6 +635,9 @@ app.get("/api/semana", requiere("direccion", "admin"), (req, res) => {
 // Respaldo en EXCEL de verdad (.xlsx): cobranza detallada + movimientos de caja.
 // Lo que Monse puede abrir y usar directo, sin depender de Drive ni nada externo.
 const ExcelJS = require("exceljs");
+// El motor de reglas: los intereses se calculan con lo que Dirección escribe en
+// data/reglas-productos.json, no con números metidos en este archivo.
+const motor = require("./motor-reglas");
 
 function filasCobranza(snaps) {
   const filas = [];
@@ -2401,6 +2404,40 @@ function verificarDesglose(usuario) {
   }
   return { revisados, rotos };
 }
+// ===================================================================
+// MOTOR DE REGLAS · intereses por producto (Fase 3)
+// El cálculo NO vive aquí: vive en data/reglas-productos.json, que edita
+// Dirección. Estas rutas solo lo exponen.
+// ===================================================================
+app.get("/api/reglas", requiere("direccion", "admin"), (req, res) => {
+  const R = motor.reglas(true);   // relee al vuelo: si acaban de editar una tasa, se ve
+  const listos = [], esperando = [];
+  for (const p of R.productos || []) {
+    const fila = { clave: p.clave, nombre: p.nombre, metodo: p.metodo,
+      periodicidad: p.periodicidad, tasaMensual: p.tasaMensual,
+      montoMin: p.montoMin || null, montoMax: p.montoMax || null,
+      plazos: p.plazos || null, fuente: p.fuente || null,
+      advertencia: p.advertencia || null, faltaPara: p.faltaPara || null };
+    (p.pendiente || p.tasaMensual == null ? esperando : listos).push(fila);
+  }
+  res.json({ version: R.version, vigenteDesde: R.vigenteDesde, iva: R.iva,
+    redondeo: R.redondeo, moratorio: R.moratorio,
+    listos, esperando, autoprueba: motor.autoprueba() });
+});
+
+// Simula un crédito y devuelve su tabla de amortización completa.
+app.get("/api/reglas/simular", requiere("direccion", "admin"), (req, res) => {
+  const q = req.query || {};
+  const dias = String(q.diasPorPeriodo || "").trim();
+  const t = motor.tablaAmortizacion({
+    producto: q.producto, monto: Number(q.monto), plazo: Number(q.plazo),
+    dias: Number(q.dias) || 0,
+    diasPorPeriodo: dias ? dias.split(",").map((x) => Number(x.trim())) : null,
+  });
+  if (!t.ok) return res.status(400).json(t);
+  res.json(t);
+});
+
 app.get("/api/desglose", requiere("direccion", "admin"), (req, res) => {
   res.json(verificarDesglose(req.usuario));
 });
@@ -4894,6 +4931,17 @@ function repararAlmaRosario10ago() {
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
+  // MOTOR DE REGLAS: se comprueba contra los ejemplos que validó la contadora.
+  // Si un cambio en las tasas o en el redondeo deja de reproducirlos, se grita
+  // aquí — vale más un servidor que avisa que uno que cobra mal en silencio.
+  try {
+    const ap = motor.autoprueba();
+    if (ap.ok) console.log("[motor de reglas] OK · reproduce los " + ap.casos.length + " ejemplos validados");
+    else {
+      console.error("[motor de reglas] ⚠️  NO reproduce los ejemplos validados:");
+      for (const c of ap.casos) if (!c.ok) console.error("   ✗ " + c.caso + " · espera " + c.espera + " · obtuvo " + c.obtuvo);
+    }
+  } catch (e) { console.error("[motor de reglas] no se pudo leer:", e.message); }
   recuperarMovimientosHistoricos();
   repararAnuladosFalsos();
   repararCapturaKarina24jul();
