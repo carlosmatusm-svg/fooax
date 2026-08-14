@@ -1512,13 +1512,18 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // POSTERIOR a la semana que se está midiendo, el crédito no existía. Sin
     // esto se les cobraba mora a clientas que aún no reciben su préstamo — hay
     // 3 en el padrón con fecha de desembolso adelantada.
-    const desem = String(c.desembolso || "").slice(0, 10);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(desem) && desem > domingo) { fueraDeCuenta.sinDesembolsar++; continue; }
     const dia = String(c.diaPago || "").trim().toUpperCase();
     if (!idxDia(dia)) { fueraDeCuenta.sinDia++; continue; }
+    const suFecha = fechaDelDia(dia);
+    const desem = String(c.desembolso || "").slice(0, 10);
+    // Se compara contra SU DÍA de esa semana, no contra el domingo. Una clienta
+    // desembolsada el MARTES no podía deber el LUNES: comparando contra el
+    // domingo se colaba y se le marcaba mora de un día en que su crédito ni
+    // existía. Lo destapó Karina el 12-ago al ver que el arqueo del lunes y
+    // esta mora no cuadraban ($700 de diferencia en la batería).
+    if (/^\d{4}-\d{2}-\d{2}$/.test(desem) && desem > suFecha) { fueraDeCuenta.sinDesembolsar++; continue; }
     const clave = claveCredito(c.id, c.producto);
     const pagado = Math.round((pagoSemana[clave] || 0) * 100) / 100;
-    const suFecha = fechaDelDia(dia);
     const pagadoSuDia = Math.round((((porClaveFecha[clave] || {})[suFecha] || {}).p || 0) * 100) / 100;
     const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
     // El día se abre SIEMPRE, pague o no: hace falta saber cuántas SÍ pagaron
@@ -1582,6 +1587,44 @@ function moraDeLaSemana(usuario, lunesOpt) {
 }
 
 app.get("/api/mora", requiere("direccion", "admin"), (req, res) => {
+  // ?porQue=<socio> dice POR QUÉ un crédito no aparece en la mora. Nació el
+  // 12-ago persiguiendo una diferencia de $700 entre este reporte y el arqueo:
+  // sin esto, un total que no cuadra no se puede perseguir.
+  const soc = String(req.query.porQue || "").trim();
+  if (soc) {
+    const m = moraDeLaSemana(req.usuario, req.query.lunes);
+    const cv = carteraViva(req.usuario);
+    const mios = new Set(idsEjecutivos(req.usuario).map((id) => USUARIOS[id].nombre).map(norm));
+    const out = [];
+    for (const c of PADRON) {
+      if (String(c.id) !== soc) continue;
+      const r = { producto: c.producto, ejecutivo: c.ejecutivo, estatus: c.estatus,
+        activa: c.activa, cuota: c.cuota, diaPago: c.diaPago, desembolso: c.desembolso,
+        saldoActual: infoCredito(cv, c).saldoActual };
+      // Los abonos que el sistema le está viendo, día por día, en la ventana
+      // de la semana: es lo que decide si sale o no en la mora.
+      {
+        const lunesD = m.lunes;
+        const fin = new Date(lunesD + "T12:00:00"); fin.setDate(fin.getDate() + 6);
+        const { porFecha: pf } = pagosDeLaSemana(req.usuario, lunesD, fin.toISOString().slice(0, 10));
+        const cl = claveCredito(c.id, c.producto);
+        r.clave = cl;
+        r.abonos = pf[cl] || {};
+        r.pagoSemana = Object.values(r.abonos).reduce((t, x) => t + (x.p || 0), 0);
+      }
+      r.motivo =
+        (c.activa === false || c.estatus === "BAJA") ? "dado de baja"
+        : !mios.has(norm(c.ejecutivo)) ? "su ejecutivo no está en esta burbuja: " + c.ejecutivo
+        : infoCredito(cv, c).saldoActual <= 0.009 ? "ya liquidado (saldo 0)"
+        : /vencid/i.test(String(c.estatus || "")) ? "vencido (va en recuperación)"
+        : esCuotaVariable(c.producto) ? "cuota variable"
+        : !(Number(c.cuota) > 0) ? "sin cuota capturada"
+        : !idxDia(String(c.diaPago || "").trim().toUpperCase()) ? "sin día de cobro"
+        : "sí entra";
+      out.push(r);
+    }
+    return res.json({ socio: soc, lunes: m.lunes, creditos: out });
+  }
   res.json(moraDeLaSemana(req.usuario, req.query.lunes));
 });
 
@@ -3976,6 +4019,52 @@ function moraDelDia(usuario, fecha) {
   for (const clave in porFecha)
     if (porFecha[clave][f]) pagoDelDia[clave] = (porFecha[clave][f].p || 0);
 
+  // LOS PAGOS DE OFICINA TAMBIÉN CUENTAN. Una liquidación o recuperación que
+  // registra Dirección es dinero que la clienta entregó: si no se cuenta aquí,
+  // sale debiendo alguien que ya pagó. La mora de la semana sí los contaba y
+  // este bloque no — por eso el arqueo mostraba MÁS que la mora semanal, que
+  // fue exactamente lo que Karina notó el 12-ago.
+  const sumaMovs = (destino, desdeF, hastaF) => {
+    const d0 = new Date(desdeF + "T12:00:00");
+    for (let k = 0; k < 8; k++) {
+      const dd = new Date(d0); dd.setDate(d0.getDate() + k);
+      const fISO = dd.toISOString().slice(0, 10);
+      if (fISO > hastaF) break;
+      for (const m of movsDeFecha(fISO, usuario)) {
+        if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+        const soc = socioDeMov(m); if (!soc) continue;
+        let prod = productoDeMov(m);
+        if (!prod) {
+          // Sin crédito escrito solo se puede aplicar si tiene UNO solo vivo.
+          const suyos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === String(soc));
+          if (suyos.length === 1) prod = suyos[0].producto;
+        }
+        if (!prod) continue;
+        const cl = claveCredito(soc, prod);
+        destino[cl] = (destino[cl] || 0) + (Number(m.monto) || 0);
+      }
+    }
+  };
+  sumaMovs(pagoDelDia, f, f);
+  // Y lo abonado de ese día EN ADELANTE, hasta el DOMINGO: sirve para saber
+  // quién se puso al corriente después.
+  //
+  // El tope es el domingo, no hoy, A PROPÓSITO: es la misma ventana que usa la
+  // mora de la semana, y solo así el «sigue debiendo» de este bloque coincide
+  // al centavo con lo que ella reporta. Cortando en hoy los dos números se
+  // separaban y parecían contradictorios. (En la práctica no hay abonos con
+  // fecha futura, así que el número es el mismo; lo que cambia es que ahora
+  // está garantizado.)
+  const finSem = new Date(lunes + "T12:00:00"); finSem.setDate(finSem.getDate() + 6);
+  const domingoSem = finSem.toISOString().slice(0, 10);
+  const { porFecha: pfHasta } = pagosDeLaSemana(usuario, f, domingoSem);
+  const pagoHastaHoy = {};
+  for (const clave in pfHasta)
+    for (const d2 in pfHasta[clave])
+      if (d2 >= f && d2 <= domingoSem)
+        pagoHastaHoy[clave] = (pagoHastaHoy[clave] || 0) + (pfHasta[clave][d2].p || 0);
+  sumaMovs(pagoHastaHoy, f, domingoSem);
+
   const centros = {};
   const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0, sinDesembolsar: 0, liquidados: 0 };
   for (const c of PADRON) {
@@ -3989,18 +4078,32 @@ function moraDelDia(usuario, fecha) {
     if (cuota <= 0) { fuera.sinCuota++; continue; }
     const des = String(c.desembolso || "").slice(0, 10);
     if (/^\d{4}-\d{2}-\d{2}$/.test(des) && des > f) { fuera.sinDesembolsar++; continue; }
-    const pagado = Math.round((pagoDelDia[claveCredito(c.id, c.producto)] || 0) * 100) / 100;
+    const clave = claveCredito(c.id, c.producto);
+    const pagado = Math.round((pagoDelDia[clave] || 0) * 100) / 100;
     const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
     if (faltante <= 0) continue;
+    // LO QUE PAGÓ DESPUÉS, hasta hoy. Es lo que reconcilia este bloque con la
+    // mora de la semana: ahí la que se pone al corriente el miércoles YA NO
+    // aparece debiendo el lunes, y aquí SÍ (porque ese lunes no pagó). Sin
+    // decirlo, los dos reportes se ven contradictorios — que fue justo lo que
+    // Karina notó el 12-ago: «el arqueo muestra más que esta parte del sistema».
+    const pagadoDespues = Math.round(Math.max(0,
+      ((pagoHastaHoy[clave] || 0) - pagado)) * 100) / 100;
+    const sigueDebiendo = Math.round(Math.max(0, faltante - pagadoDespues) * 100) / 100;
     const nom = String(c.centro || "").trim() || "Individual";
-    const g = centros[nom] || (centros[nom] = { centro: nom, ejecutivo: c.ejecutivo || "—", filas: [], total: 0 });
+    const g = centros[nom] || (centros[nom] = { centro: nom, ejecutivo: c.ejecutivo || "—",
+      filas: [], total: 0, recuperado: 0, pendiente: 0 });
     g.filas.push({ socio: String(c.id), clienta: c.nombre, producto: c.producto,
-      cuota, pagado, faltante });
+      cuota, pagado, faltante, pagadoDespues, sigueDebiendo });
     g.total = Math.round((g.total + faltante) * 100) / 100;
+    g.recuperado = Math.round((g.recuperado + Math.min(pagadoDespues, faltante)) * 100) / 100;
+    g.pendiente = Math.round((g.pendiente + sigueDebiendo) * 100) / 100;
   }
   const lista = Object.values(centros).sort((a, b) => b.total - a.total);
   for (const g of lista) g.filas.sort((a, b) => b.faltante - a.faltante);
   const totalDia = Math.round(lista.reduce((t, g) => t + g.total, 0) * 100) / 100;
+  const recuperado = Math.round(lista.reduce((t, g) => t + g.recuperado, 0) * 100) / 100;
+  const pendiente = Math.round(lista.reduce((t, g) => t + g.pendiente, 0) * 100) / 100;
 
   // TOTAL DE MORA: el acumulado de la semana hasta ese día — el número grande
   // del boceto. Se suman los faltantes DÍA POR DÍA con esta misma regla.
@@ -4013,6 +4116,18 @@ function moraDelDia(usuario, fecha) {
   // Se reaprovecha el mismo `cv` y una sola lectura de pagos de la semana, así
   // que recorrer los 5 días no cuesta más consultas.
   const { porFecha: pfSem } = pagosDeLaSemana(usuario, lunes, f);
+  // Los pagos de oficina, día por día, para el acumulado.
+  const movsPorDia = {};
+  {
+    const d0 = new Date(lunes + "T12:00:00");
+    for (let k = 0; k < 7; k++) {
+      const dd = new Date(d0); dd.setDate(d0.getDate() + k);
+      const fISO = dd.toISOString().slice(0, 10);
+      if (fISO > f) break;
+      const destino = (movsPorDia[fISO] = {});
+      sumaMovs(destino, fISO, fISO);
+    }
+  }
   let acumulado = 0;
   for (let k = 0; k < 7; k++) {
     const dd = new Date(lunes + "T12:00:00"); dd.setDate(dd.getDate() + k);
@@ -4030,14 +4145,17 @@ function moraDelDia(usuario, fecha) {
       if (cuotaK <= 0) continue;
       const desK = String(c.desembolso || "").slice(0, 10);
       if (/^\d{4}-\d{2}-\d{2}$/.test(desK) && desK > fISO) continue;
-      const pagK = ((pfSem[claveCredito(c.id, c.producto)] || {})[fISO] || {}).p || 0;
+      const claveK = claveCredito(c.id, c.producto);
+      const pagK = (((pfSem[claveK] || {})[fISO] || {}).p || 0) + ((movsPorDia[fISO] || {})[claveK] || 0);
       acumulado += Math.max(0, cuotaK - pagK);
     }
   }
   acumulado = Math.round(acumulado * 100) / 100;
 
-  return { fecha: f, dia, lunes, centros: lista, totalDia, totalSemanaAlDia: acumulado, fuera,
-    clientas: lista.reduce((n, g) => n + g.filas.length, 0) };
+  return { fecha: f, dia, lunes, centros: lista, totalDia, recuperado, pendiente,
+    totalSemanaAlDia: acumulado, fuera,
+    clientas: lista.reduce((n, g) => n + g.filas.length, 0),
+    seRegularizaron: lista.reduce((n, g) => n + g.filas.filter((x) => x.sigueDebiendo <= 0).length, 0) };
 }
 app.get("/api/mora/dia", requiere("direccion", "admin"), (req, res) => {
   res.json(moraDelDia(req.usuario, req.query.fecha));
@@ -4243,7 +4361,8 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   const md = moraDelDia(req.usuario, fecha);
   s.mergeCells(fila, 1, fila, 4);
   const rmc = s.getCell(fila, 1);
-  rmc.value = "MORA DE CENTROS · " + md.dia + " " + md.fecha;
+  rmc.value = "MORA DE CENTROS · " + md.dia + " " + md.fecha
+    + "   (quién NO cubrió su cuota ESE DÍA)";
   rmc.font = { bold: true, color: { argb: "FFFFFFFF" } };
   rmc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
   rmc.alignment = { horizontal: "center" };
@@ -4275,11 +4394,14 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
       r.getCell(2).value = x.producto;
       r.getCell(2).font = { size: 10, color: { argb: "FF6B6480" } };
       const cp = r.getCell(3);
-      cp.value = x.pagado > 0 ? "pagó " + mxn(x.pagado) + " de " + mxn(x.cuota) : "no pagó";
-      cp.font = { size: 10, color: { argb: "FF6B6480" } };
+      cp.value = x.sigueDebiendo <= 0
+        ? "se puso al corriente después"
+        : (x.pagado > 0 ? "pagó " + mxn(x.pagado) + " de " + mxn(x.cuota) : "no pagó");
+      cp.font = { size: 10, color: { argb: x.sigueDebiendo <= 0 ? "FF0B7247" : "FF6B6480" } };
       cp.alignment = { horizontal: "right" };
       const cf2 = r.getCell(4); cf2.value = x.faltante; cf2.numFmt = dinero;
-      cf2.font = { color: { argb: "FFB00020" } };
+      // Verde si ya la cubrió entre semana: ese día faltó, pero ya no debe.
+      cf2.font = { color: { argb: x.sigueDebiendo <= 0 ? "FF0B7247" : "FFB00020" } };
     }
   }
   {
@@ -4292,6 +4414,28 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     const cv2 = rt2.getCell(4); cv2.value = md.totalDia; cv2.numFmt = dinero;
     cv2.font = { bold: true, color: { argb: "FFB00020" } };
     cv2.border = { top: { style: "thin" }, bottom: { style: "thin" } };
+  }
+  // EL PUENTE con la mora de la semana. Sin esto los dos reportes se ven
+  // contradictorios: aquí la que se puso al corriente el miércoles SÍ aparece
+  // debiendo el lunes (ese lunes no pagó), y en la mora semanal ya no.
+  if (md.recuperado > 0) {
+    const rr = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c = rr.getCell(1);
+    c.value = "De esa mora, ya se recuperó entre semana" + (md.seRegularizaron ? "  ·  " + md.seRegularizaron + " clientas se pusieron al corriente" : "");
+    c.font = { color: { argb: "FF0B7247" } };
+    c.alignment = { horizontal: "right" };
+    const cv3 = rr.getCell(4); cv3.value = -md.recuperado; cv3.numFmt = dinero;
+    cv3.font = { color: { argb: "FF0B7247" } };
+    const rp = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c2 = rp.getCell(1);
+    c2.value = "SIGUE DEBIENDO de este día  (es el número que sale en «Mora de la semana»)";
+    c2.font = { bold: true };
+    c2.alignment = { horizontal: "right" };
+    const cv4 = rp.getCell(4); cv4.value = md.pendiente; cv4.numFmt = dinero;
+    cv4.font = { bold: true, color: { argb: "FFB00020" } };
+    cv4.border = { top: { style: "thin" }, bottom: { style: "double" } };
   }
   {
     const rg2 = s.getRow(fila++);

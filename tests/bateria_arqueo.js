@@ -2971,6 +2971,44 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el total del día es la suma de sus centros",
     Math.abs(md62.totalDia - md62.centros.reduce((t, g) => t + g.total, 0)) < 0.01,
     md62.totalDia + " vs " + md62.centros.reduce((t, g) => t + g.total, 0));
+  // EL PUENTE CON LA MORA DE LA SEMANA (Karina, 12-ago: «el arqueo muestra más
+  // que esta parte del sistema»). No era un error de cálculo: son dos preguntas
+  // distintas — el arqueo mide quién NO pagó ESE DÍA, y la semanal perdona a la
+  // que se puso al corriente después. Ahora el arqueo enseña los dos números y
+  // su diferencia, para que nadie los vea como contradictorios.
+  const K62b = "11113095058|Grupal-Basico 2|HILDA ARACELY RODRIGUEZ LOPEZ|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: "2026-08-12", snapshot: { reg: { GHANIMA: { [K62b]: { pago: 216, forma: "E" } } } }, ts: Date.now() + 3 }) });
+  const md62b = await j(await fetch(U + "/api/mora/dia?fecha=" + F62, { headers: H(cm) }));
+  const tarde = md62b.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === "11113095058");
+  ok("la que se puso al corriente después SÍ aparece en la mora de ESE día",
+    !!tarde && tarde.faltante > 0, "no aparece");
+  ok("pero se marca que ya pagó, y su pendiente queda en cero",
+    !!tarde && tarde.pagadoDespues > 0 && tarde.sigueDebiendo === 0, JSON.stringify(tarde));
+  ok("el bloque cierra con el puente: mora del día − recuperado = sigue debiendo",
+    Math.abs((md62b.totalDia - md62b.recuperado) - md62b.pendiente) < 0.01,
+    JSON.stringify({ dia: md62b.totalDia, recuperado: md62b.recuperado, pendiente: md62b.pendiente }));
+  // Y ese "sigue debiendo" es EXACTAMENTE lo que reporta la mora de la semana.
+  const sem62 = await j(await fetch(U + "/api/mora?lunes=" + F62, { headers: H(cm) }));
+  const lun62 = (sem62.dias || []).find((g) => g.dia === "LUNES") || { total: -1 };
+  // Si difieren, la prueba dice EN QUÉ CRÉDITO — un "$700 de diferencia" no se
+  // puede perseguir; un nombre sí.
+  const porClave62 = {};
+  for (const g of md62b.centros) for (const x of g.filas) porClave62[x.socio + "|" + x.producto] = x;
+  const semClave62 = {};
+  for (const x of (lun62.filas || [])) semClave62[x.socio + "|" + x.producto] = x;
+  const dif62 = [];
+  for (const k in porClave62) {
+    const a2 = porClave62[k].sigueDebiendo, b2 = semClave62[k] ? semClave62[k].faltante : 0;
+    if (Math.abs(a2 - b2) > 0.01) dif62.push(porClave62[k].clienta + " (" + porClave62[k].producto + "): arqueo $" + a2 + " vs semanal $" + b2);
+  }
+  for (const k in semClave62) if (!porClave62[k])
+    dif62.push(semClave62[k].clienta + " (" + semClave62[k].producto + "): solo en la semanal, $" + semClave62[k].faltante);
+  ok("y coincide al centavo con lo que dice «Mora de la semana» para ese día",
+    Math.abs(md62b.pendiente - lun62.total) < 0.01,
+    "difieren $" + Math.round((md62b.pendiente - lun62.total) * 100) / 100
+      + " en " + dif62.length + " créditos · " + dif62.slice(0, 4).join(" · "));
+
   ok("y trae el TOTAL DE MORA acumulado de la semana",
     typeof md62.totalSemanaAlDia === "number" && md62.totalSemanaAlDia >= md62.totalDia,
     JSON.stringify({ dia: md62.totalDia, semana: md62.totalSemanaAlDia }));
