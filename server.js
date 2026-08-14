@@ -3947,6 +3947,102 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
 // ---------- ARQUEO DE CAJA en Excel (formato de la ficha física) ----------
 // Botón para Monse: cuenta el efectivo por denominación (billetes/monedas),
 // subtotal y total, del día elegido. Solo dirección/admin.
+// ===================================================================
+// MORA DEL DÍA, POR CENTRO — la idea de Karina (12-ago), tomada de su boceto:
+//
+//     MORA DE CENTROS :
+//       El Milagro · Ma de los Ángeles      $780.00
+//       Cofre de dinero · Lizbeth           $180.00
+//       Total de Mora del día               $960.00
+//       TOTAL DE MORA                     $9,754.00
+//
+// Usa EXACTAMENTE la misma regla que la mora de la semana (faltante = cuota −
+// lo que abonó), para que los dos reportes nunca se contradigan: mismos
+// excluidos (vencidos, cuota variable, sin cuota, sin desembolsar) y mismo
+// criterio de día de cobro.
+//
+// Lo que había antes en el arqueo era un solo número, y encima solo contaba a
+// las que pagaron DE MENOS: la que no pagaba nada no sumaba a la mora del día.
+// ===================================================================
+function moraDelDia(usuario, fecha) {
+  const f = /^\d{4}-\d{2}-\d{2}$/.test(String(fecha || "")) ? fecha : hoyMX();
+  const dia = NOMBRE_DIA[new Date(f + "T12:00:00").getDay()];
+  const lunes = lunesDeLaSemana(f);
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  // Lo abonado ESE DÍA, crédito por crédito.
+  const { porFecha } = pagosDeLaSemana(usuario, f, f);
+  const pagoDelDia = {};
+  for (const clave in porFecha)
+    if (porFecha[clave][f]) pagoDelDia[clave] = (porFecha[clave][f].p || 0);
+
+  const centros = {};
+  const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0, sinDesembolsar: 0, liquidados: 0 };
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    if (String(c.diaPago || "").trim().toUpperCase() !== dia) continue;   // solo los que cobran HOY
+    if (infoCredito(cv, c).saldoActual <= 0.009) { fuera.liquidados++; continue; }
+    if (/vencid/i.test(String(c.estatus || ""))) { fuera.vencidos++; continue; }
+    if (esCuotaVariable(c.producto)) { fuera.cuotaVariable++; continue; }
+    const cuota = Number(c.cuota) || 0;
+    if (cuota <= 0) { fuera.sinCuota++; continue; }
+    const des = String(c.desembolso || "").slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(des) && des > f) { fuera.sinDesembolsar++; continue; }
+    const pagado = Math.round((pagoDelDia[claveCredito(c.id, c.producto)] || 0) * 100) / 100;
+    const faltante = Math.round(Math.max(0, cuota - pagado) * 100) / 100;
+    if (faltante <= 0) continue;
+    const nom = String(c.centro || "").trim() || "Individual";
+    const g = centros[nom] || (centros[nom] = { centro: nom, ejecutivo: c.ejecutivo || "—", filas: [], total: 0 });
+    g.filas.push({ socio: String(c.id), clienta: c.nombre, producto: c.producto,
+      cuota, pagado, faltante });
+    g.total = Math.round((g.total + faltante) * 100) / 100;
+  }
+  const lista = Object.values(centros).sort((a, b) => b.total - a.total);
+  for (const g of lista) g.filas.sort((a, b) => b.faltante - a.faltante);
+  const totalDia = Math.round(lista.reduce((t, g) => t + g.total, 0) * 100) / 100;
+
+  // TOTAL DE MORA: el acumulado de la semana hasta ese día — el número grande
+  // del boceto. Se suman los faltantes DÍA POR DÍA con esta misma regla.
+  //
+  // No se saca de la mora semanal a propósito: aquella mide "cuota − lo que
+  // abonó en TODA la semana", así que perdona a la que pagó tarde. Mezclarlas
+  // daba un acumulado MENOR que el día, que no se puede leer. Cada día se mide
+  // igual y se suma: eso sí se sostiene.
+  //
+  // Se reaprovecha el mismo `cv` y una sola lectura de pagos de la semana, así
+  // que recorrer los 5 días no cuesta más consultas.
+  const { porFecha: pfSem } = pagosDeLaSemana(usuario, lunes, f);
+  let acumulado = 0;
+  for (let k = 0; k < 7; k++) {
+    const dd = new Date(lunes + "T12:00:00"); dd.setDate(dd.getDate() + k);
+    const fISO = dd.toISOString().slice(0, 10);
+    if (fISO > f) break;
+    const diaK = NOMBRE_DIA[dd.getDay()];
+    for (const c of PADRON) {
+      if (c.activa === false || c.estatus === "BAJA") continue;
+      if (!mios.has(norm(c.ejecutivo))) continue;
+      if (String(c.diaPago || "").trim().toUpperCase() !== diaK) continue;
+      if (infoCredito(cv, c).saldoActual <= 0.009) continue;
+      if (/vencid/i.test(String(c.estatus || ""))) continue;
+      if (esCuotaVariable(c.producto)) continue;
+      const cuotaK = Number(c.cuota) || 0;
+      if (cuotaK <= 0) continue;
+      const desK = String(c.desembolso || "").slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(desK) && desK > fISO) continue;
+      const pagK = ((pfSem[claveCredito(c.id, c.producto)] || {})[fISO] || {}).p || 0;
+      acumulado += Math.max(0, cuotaK - pagK);
+    }
+  }
+  acumulado = Math.round(acumulado * 100) / 100;
+
+  return { fecha: f, dia, lunes, centros: lista, totalDia, totalSemanaAlDia: acumulado, fuera,
+    clientas: lista.reduce((n, g) => n + g.filas.length, 0) };
+}
+app.get("/api/mora/dia", requiere("direccion", "admin"), (req, res) => {
+  res.json(moraDelDia(req.usuario, req.query.fecha));
+});
+
 app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const a = calcularArqueo(fecha, idsEjecutivos(req.usuario));
@@ -4138,10 +4234,91 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     fila++;
   }
   linea("Garantías", a.garantias);
-  const rm = s.getRow(fila++); rm.getCell(1).value = "Mora del día (faltantes)";
-  const cm = rm.getCell(4); cm.value = a.faltantes; cm.numFmt = dinero;
-  cm.font = { bold: true, color: { argb: a.faltantes > 0 ? "FFB00020" : "FF000000" } };
   fila++;
+
+  // ---- MORA DE CENTROS · el bloque que pidió Karina (12-ago) ----
+  // Antes aquí había un solo número, y encima solo contaba a las que pagaron
+  // DE MENOS: la que no pagaba nada no sumaba. Ahora es centro por centro, con
+  // nombre y monto, y usa la misma regla que la mora de la semana.
+  const md = moraDelDia(req.usuario, fecha);
+  s.mergeCells(fila, 1, fila, 4);
+  const rmc = s.getCell(fila, 1);
+  rmc.value = "MORA DE CENTROS · " + md.dia + " " + md.fecha;
+  rmc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  rmc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+  rmc.alignment = { horizontal: "center" };
+  s.getRow(fila).height = 20;
+  fila++;
+  if (!md.centros.length) {
+    s.mergeCells(fila, 1, fila, 4);
+    const c = s.getCell(fila, 1);
+    c.value = md.clientas === 0
+      ? "Ningún centro cobra el " + md.dia.toLowerCase() + ", o todas cubrieron su cuota."
+      : "Sin faltantes este día.";
+    c.font = { italic: true, color: { argb: "FF6B6480" } };
+    fila++;
+  }
+  for (const g of md.centros) {
+    // Renglón del centro, con su ejecutiva
+    const rc = s.getRow(fila++);
+    rc.getCell(1).value = g.centro;
+    rc.getCell(1).font = { bold: true };
+    rc.getCell(2).value = g.ejecutivo;
+    rc.getCell(2).font = { color: { argb: "FF6B6480" } };
+    const ct2 = rc.getCell(4); ct2.value = g.total; ct2.numFmt = dinero;
+    ct2.font = { bold: true, color: { argb: "FFB00020" } };
+    // Y sus clientas, una por una: sin nombres no se puede ir a cobrar.
+    for (const x of g.filas) {
+      const r = s.getRow(fila++);
+      r.getCell(1).value = "    " + x.clienta;
+      r.getCell(1).font = { color: { argb: "FF6B6480" } };
+      r.getCell(2).value = x.producto;
+      r.getCell(2).font = { size: 10, color: { argb: "FF6B6480" } };
+      const cp = r.getCell(3);
+      cp.value = x.pagado > 0 ? "pagó " + mxn(x.pagado) + " de " + mxn(x.cuota) : "no pagó";
+      cp.font = { size: 10, color: { argb: "FF6B6480" } };
+      cp.alignment = { horizontal: "right" };
+      const cf2 = r.getCell(4); cf2.value = x.faltante; cf2.numFmt = dinero;
+      cf2.font = { color: { argb: "FFB00020" } };
+    }
+  }
+  {
+    const rt2 = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c = rt2.getCell(1);
+    c.value = "Total de Mora del día" + (md.clientas ? "  ·  " + md.clientas + " clientas" : "");
+    c.font = { bold: true };
+    c.alignment = { horizontal: "right" };
+    const cv2 = rt2.getCell(4); cv2.value = md.totalDia; cv2.numFmt = dinero;
+    cv2.font = { bold: true, color: { argb: "FFB00020" } };
+    cv2.border = { top: { style: "thin" }, bottom: { style: "thin" } };
+  }
+  {
+    const rg2 = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c = rg2.getCell(1);
+    c.value = "TOTAL DE MORA · acumulado de la semana al " + md.fecha;
+    c.font = { bold: true, size: 12 };
+    c.alignment = { horizontal: "right" };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
+    const cv2 = rg2.getCell(4); cv2.value = md.totalSemanaAlDia; cv2.numFmt = dinero;
+    cv2.font = { bold: true, size: 12, color: { argb: "FFB00020" } };
+    cv2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
+  }
+  // Lo que quedó fuera de esta mora, dicho — no se calla nada.
+  {
+    const f2 = md.fuera;
+    const suma = f2.vencidos + f2.cuotaVariable + f2.sinCuota + f2.sinDesembolsar;
+    if (suma > 0) {
+      const r = s.getRow(fila++);
+      s.mergeCells(fila - 1, 1, fila - 1, 4);
+      r.getCell(1).value = "Fuera de esta cuenta: " + f2.vencidos + " vencidos (van en recuperación), "
+        + f2.cuotaVariable + " de cuota variable, " + f2.sinCuota + " sin cuota capturada, "
+        + f2.sinDesembolsar + " que aún no desembolsan.";
+      r.getCell(1).font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
+    }
+  }
+  fila += 2;
   // por ejecutiva: efectivo, transferencia y sus otros movimientos, igual que el tablero
   const rh = s.getRow(fila++); rh.getCell(1).value = "Por ejecutiva"; rh.getCell(1).font = { bold: true, color: { argb: RIO } };
   const pesos = (n) => n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });

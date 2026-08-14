@@ -2940,6 +2940,50 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el moratorio tampoco se inventa: espera su tasa",
     reg61.moratorio && reg61.moratorio.pendiente === true, JSON.stringify(reg61.moratorio));
 
+  console.log("\n— 62. MORA DE CENTROS EN EL ARQUEO DEL DÍA (idea de Karina, 12-ago) —");
+  // Su boceto: cada centro con su monto, la clienta debajo, «Total de Mora del
+  // día» y «TOTAL DE MORA» acumulado. Lo que había era UN SOLO NÚMERO, y encima
+  // solo contaba a las que pagaron DE MENOS: la que no pagaba nada no sumaba.
+  const F62 = "2026-08-10";   // lunes
+  const K62 = "11113058523|Grupal-Basico 2|MARIA DEL ROSARIO GUADALUPE CASTELLANOS RUIZ|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: F62, snapshot: { reg: { GHANIMA: { [K62]: { pago: 450, forma: "E" } } } }, ts: Date.now() }) });
+  const md62 = await j(await fetch(U + "/api/mora/dia?fecha=" + F62, { headers: H(cm) }));
+  ok("la mora del día viene agrupada por CENTRO",
+    Array.isArray(md62.centros) && md62.centros.length > 0
+    && md62.centros.every((g) => g.centro && Array.isArray(g.filas)),
+    JSON.stringify((md62.centros || []).map((g) => g.centro)));
+  ok("cada centro trae su ejecutiva y su total",
+    md62.centros.every((g) => g.ejecutivo && typeof g.total === "number"),
+    JSON.stringify(md62.centros[0]).slice(0, 140));
+  ok("y las clientas por nombre — sin nombre no se puede ir a cobrar",
+    md62.centros.some((g) => g.filas.some((x) => x.clienta && x.faltante > 0)),
+    "no vino ninguna clienta");
+  // LA QUE NO PAGÓ NADA TAMBIÉN CUENTA (lo que no hacía el número viejo).
+  const noPago = md62.centros.some((g) => g.filas.some((x) => x.pagado === 0 && x.faltante === x.cuota));
+  ok("la que NO pagó nada suma su cuota completa",
+    noPago, "solo aparecen las que pagaron de menos");
+  // Y la parcial suma solo la diferencia.
+  const parcial = md62.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === "11113058523");
+  ok("y la que pagó de menos suma solo la diferencia (cuota − pagado)",
+    !!parcial && parcial.pagado === 450 && parcial.faltante === parcial.cuota - 450,
+    JSON.stringify(parcial));
+  ok("el total del día es la suma de sus centros",
+    Math.abs(md62.totalDia - md62.centros.reduce((t, g) => t + g.total, 0)) < 0.01,
+    md62.totalDia + " vs " + md62.centros.reduce((t, g) => t + g.total, 0));
+  ok("y trae el TOTAL DE MORA acumulado de la semana",
+    typeof md62.totalSemanaAlDia === "number" && md62.totalSemanaAlDia >= md62.totalDia,
+    JSON.stringify({ dia: md62.totalDia, semana: md62.totalSemanaAlDia }));
+  // MISMA REGLA QUE LA MORA SEMANAL: los excluidos se cuentan, no se callan.
+  ok("dice lo que dejó fuera, igual que la mora de la semana",
+    md62.fuera && ["vencidos", "cuotaVariable", "sinCuota", "sinDesembolsar"]
+      .every((k) => typeof md62.fuera[k] === "number"), JSON.stringify(md62.fuera));
+  // Y que de verdad salga en el Excel del arqueo.
+  const rx62 = await fetch(U + "/api/arqueo/excel?fecha=" + F62, { headers: H(cm) });
+  const bx62 = Buffer.from(await rx62.arrayBuffer());
+  ok("y el Excel del arqueo se genera con el bloque adentro",
+    rx62.status === 200 && bx62.length > 5000 && bx62[0] === 0x50, "status " + rx62.status);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
