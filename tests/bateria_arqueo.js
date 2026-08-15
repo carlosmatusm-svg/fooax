@@ -471,11 +471,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // El bug del lunes 27-jul: los saldos solo restaban la semana en curso; el
   // lunes la ventana se vaciaba y lo pagado el viernes dejaba de descontar.
   await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000095", nombre: "SALDO TEST", producto: "Credito Saldo", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
-  const D5 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 5); return d.toISOString().slice(0, 10); })();
+  // SEMANA PASADA DE VERDAD, cualquier día que se corra. Antes era HOY−5, que
+  // en SÁBADO cae en el lunes de ESTA semana: el pago dejaba de ser "de la
+  // semana pasada" (rompía la premisa de esta prueba) y además se sumaba a la
+  // cobranza de la semana, descuadrando la sección 37 los sábados. Ahora se
+  // ancla al lunes de esta semana y se retrocede: siempre cae en la anterior.
+  const LUN20 = (() => { const d = new Date(HOY + "T12:00");
+    const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
+    return d; })();
+  const D5 = (() => { const d = new Date(LUN20); d.setDate(d.getDate() - 2); return d.toISOString().slice(0, 10); })();
   // La prueba fija SU corte antes del pago: si se queda el corte que traiga el
   // sistema (que se mueve con cada plantilla nueva), este pago cae antes y la
   // prueba falla sin que nada esté mal. El corte va un día antes del abono.
-  const CORTE20 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 6); return d.toISOString().slice(0, 10); })();
+  const CORTE20 = (() => { const d = new Date(LUN20); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
   await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: CORTE20 }) }));
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: D5, snapshot: JSON.stringify({ fecha: D5, reg: { "C-88": { "70000000095|Credito Saldo": { pago: 200, forma: "E" } } }, regI: {}, movs: [] }), ts: Date.now() }) });
   const saldoDe = async () => { const s = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("SALDO TEST"), { headers: H(ca) })); return ((s.resultados || []).find((c) => String(c.id) === "70000000095") || {}).saldoActual; };

@@ -2982,6 +2982,24 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     else e.cobrado += pagoSemana;
   }
   const r2 = (n) => Math.round(n * 100) / 100;
+  // LA MORA DE LA TARJETA ES LA MISMA DEL EXCEL (Karina, 15-ago: «tiene que
+  // llevar la mora lo que tenemos en los exceles»). Antes esta tarjeta la
+  // calculaba aparte —cuota menos lo pagado ESTA semana— y el reporte usaba el
+  // método de Monse —arrastre desde el corte, topado a una cuota y al saldo—.
+  // Con pagos reales los dos números se separan: la que adelantó la semana
+  // pasada salía debiendo aquí y no allá. Ahora el reporte MANDA y la tarjeta
+  // lo muestra, así no puede haber dos verdades.
+  //   · "mora · ya venció"  = lo vencido a la fecha (lo comparable con Monse)
+  //   · "aún no vence"      = los días de la semana que todavía no llegan
+  const mw = moraDeLaSemana(req.usuario);
+  const moraPorEjec = {};
+  for (const g of (mw.dias || [])) {
+    if (!g.vencido) continue;
+    for (const x of (g.filas || []))
+      moraPorEjec[x.ejecutivo || "—"] = r2((moraPorEjec[x.ejecutivo || "—"] || 0) + (x.faltante || 0));
+  }
+  moraReal = mw.totalVencido;
+  pendienteCobro = mw.totalPorVencer;
   // COBRANZA vs RECUPERACIÓN (dictado de Monse, 4-ago, opción A):
   // «recuperación es todo lo entrante, tanto de créditos de mora como de créditos
   // vencidos», y ese dinero cuenta SOLO como recuperación — NO se suma también a
@@ -3025,6 +3043,11 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // la que YA venció sin cubrirse: ese es el número de riesgo.
     pendienteSemana: r2(pendienteCobro),
     moraSemana: r2(moraReal),
+    // De dónde sale la mora: el MISMO reporte que baja en Excel. Si algún día
+    // vuelven a divergir, este campo delata cuál se movió.
+    moraFuente: "reporte de la semana (método Monse)",
+    moraCreditosSemana: (mw.dias || []).reduce((n, g) => n + (g.vencido ? (g.filas || []).length : 0), 0),
+    moraLunes: mw.lunes,
     // Se conserva el cálculo anterior con su nombre viejo para no romper nada que
     // lo lea, pero el tablero ya no lo muestra como "mora".
     esperadoMenosCobrado: r2(Math.max(0, esperado - cobrado)),
@@ -3036,7 +3059,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     semaforo,
     porEjec: Object.values(porEjec).map((e) => ({ ...e, cartera: r2(e.cartera), mora: r2(e.moraAcum || 0),
       esperado: r2(e.esperado), esperadoALaFecha: r2(e.esperadoALaFecha), cobrado: r2(e.cobrado),
-      moraSemana: r2(e.mora), pendienteSemana: r2(e.pendiente_),
+      moraSemana: moraPorEjec[e.nombre] || 0, pendienteSemana: r2(e.pendiente_),
       cumplimiento: e.esperadoALaFecha > 0 ? r2((e.cobrado / e.esperadoALaFecha) * 100) : 0 })),
     inconsistentes, vencidas: vencidas.sort((a, b) => b.saldoActual - a.saldoActual).slice(0, 50),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.

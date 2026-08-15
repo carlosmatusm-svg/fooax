@@ -1619,13 +1619,14 @@ async function cargarCartera() {
     + '<div><div class="ct-n">' + dinero(espFecha) + '</div><div class="ct-l">ya debía entrar</div></div>'
     + '<div><div class="ct-n">' + dinero(d.esperadoSemana) + '</div><div class="ct-l">semana completa</div></div>'
     + "</div>"
-    + '<div class="ct-grp">Dónde está el resto</div><div class="ct-vs">'
-    + '<div><div class="ct-n mora">' + dinero(d.moraSemana) + '</div><div class="ct-l">mora · ya venció</div></div>'
-    + '<div><div class="ct-n">' + dinero(d.pendienteSemana || 0) + '</div><div class="ct-l">aún no vence</div></div>'
-    + '<div><div class="ct-n rec">' + dinero(d.recuperacionSemana) + '</div><div class="ct-l">recuperación</div></div>'
-    + "</div>"
+    // LOS DOS CONCEPTOS DE ANEL (4-ago), separados y con su nombre: mora es lo
+    // VENCIDO sin cubrirse; pendiente es la amortización cuyo día no ha llegado
+    // —operación normal, no morosidad—. El bloque se pinta aparte porque tiene
+    // su PROPIA semana: Dirección puede regresarse a revisar las anteriores.
+    + '<div id="moraBloque"></div>'
     + '<div class="ct-cumpl">Semana del ' + hesc(d.lunes) + " al " + hesc(d.hoy)
-    + ". El cumplimiento se mide contra lo que <b>ya debía entrar</b> a la fecha, no contra la semana completa.</div>"
+    + ". El cumplimiento se mide contra lo que <b>ya debía entrar</b> a la fecha, no contra la semana completa. "
+    + "<b>Mora</b> = amortización vencida sin cubrirse. <b>Pendiente de cobro</b> = su día aún no llega: no es morosidad.</div>"
     + '<div class="ct-sem">'
     + chip("Al corriente", S.alCorriente || 0, "#0B7247", "#EAF7EF", "alCorriente")
     + chip("Pago parcial", S.parcial || 0, "#8A5A00", "#FFF6E9", "parcial")
@@ -1634,7 +1635,7 @@ async function cargarCartera() {
     + chip("Vencidas", S.vencida || 0, "#7A1020", "#F7E3E6", "vencida")
     + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7", "liquidada")
     + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F3ECF8", "cuotaVariable") : "")
-    + '</div><div id="semLista"></div></div>';
+    + "</div></div>";
   // Cartera — el riesgo va junto al total, que es como se leen: cuánto hay y
   // cuánto de eso está en peligro.
   h += '<div class="sub" style="margin-top:12px">'
@@ -1803,7 +1804,10 @@ async function cargarCartera() {
   h += alto + medio + info;
   box.innerHTML = h;
   // Si dejó una lista abierta, el repintado no se la cierra en la cara.
-  if (semAbierto) verSemaforo(semAbierto, semTitulo, true);
+  window.__recupSemana = d.recuperacionSemana;
+  pintarMoraBloque();
+  if (semAbierto === "__mora") { semAbierto = null; verMorosos(); }
+  else if (semAbierto) verSemaforo(semAbierto, semTitulo, true);
 }
 
 // ---------- semáforo tocable: qué clientas son de cada color ----------
@@ -1841,6 +1845,83 @@ async function verSemaforo(estado, titulo, forzar) {
         ? '<div class="renrow" role="button" style="cursor:pointer;justify-content:center;color:#324AB6;font-weight:800" '
           + 'onclick="this.outerHTML = ' + "window.__semResto" + '">Ver las ' + ((d.filas || []).length - TOPE) + " restantes</div>" : "");
   window.__semResto = (d.filas || []).slice(TOPE).map(fila).join("");
+}
+
+// EL BLOQUE DE MORA CON SU PROPIA SEMANA (Karina, 15-ago: «que se pueda ver
+// por semanas si quiere regresar a otra semana»). Los números salen del MISMO
+// reporte que baja en Excel — por eso el bloque se pide aparte y no se calcula
+// aquí: una sola fuente, un solo número.
+let moraLunesSel = null;   // null = la semana en curso
+function moraQS() { return moraLunesSel ? "?lunes=" + moraLunesSel : ""; }
+function moverSemanaMora(dias) {
+  const base = moraLunesSel || (window.__moraUlt && window.__moraUlt.lunes);
+  if (!base) return;
+  const d0 = new Date(base + "T12:00:00");
+  d0.setDate(d0.getDate() + dias);
+  moraLunesSel = d0.toISOString().slice(0, 10);
+  if (semAbierto === "__mora") { semAbierto = null; }
+  pintarMoraBloque();
+}
+function semanaMoraHoy() { moraLunesSel = null; if (semAbierto === "__mora") semAbierto = null; pintarMoraBloque(); }
+async function pintarMoraBloque() {
+  const caja = document.getElementById("moraBloque");
+  if (!caja) return;
+  let d;
+  try { d = await (await fetch("/api/mora" + moraQS(), { credentials: "include" })).json(); }
+  catch { caja.innerHTML = '<div class="permeta">Sin conexión.</div>'; return; }
+  if (d.error) { caja.innerHTML = '<div class="permeta">' + hesc(d.error) + "</div>"; return; }
+  window.__moraUlt = d;
+  const esHoy = !moraLunesSel;
+  // La recuperación es de la semana EN CURSO: en una semana pasada no se
+  // enseña en vez de repetir un número que no le corresponde.
+  const rec = esHoy && window.__recupSemana != null
+    ? '<div><div class="ct-n rec">' + dinero(window.__recupSemana) + '</div><div class="ct-l">recuperación</div></div>' : "";
+  caja.innerHTML = '<div class="ct-grp" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    + "<span>Mora y pendiente · semana del " + hesc(d.lunes) + " al " + hesc(d.domingo) + "</span>"
+    + '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="moverSemanaMora(-7)">‹ anterior</span>'
+    + (esHoy ? "" : '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="moverSemanaMora(7)">siguiente ›</span>'
+        + '<span role="button" style="cursor:pointer;color:#6B6480;font-weight:800" onclick="semanaMoraHoy()">volver a esta semana</span>')
+    + "</div><div class=\"ct-vs\">"
+    + '<div role="button" style="cursor:pointer" onclick="verMorosos()"><div class="ct-n mora">'
+    + dinero(d.totalVencido == null ? d.total : d.totalVencido)
+    + '</div><div class="ct-l">mora · ya venció <span style="color:#324AB6;font-weight:800">· ver quiénes</span></div></div>'
+    + '<div><div class="ct-n">' + dinero(d.totalPorVencer || 0) + '</div><div class="ct-l">pendiente de cobro · aún no vence</div></div>'
+    + rec + '</div><div id="semLista"></div>';
+}
+
+// LOS MOROSOS (Karina, 15-ago: «que cuando le pique descargue los morosos»).
+// Sale del MISMO reporte que baja en Excel, así el número de arriba y la lista
+// de abajo no pueden contarse distinto.
+async function verMorosos() {
+  const caja = document.getElementById("semLista");
+  if (!caja) return;
+  if (semAbierto === "__mora") { semAbierto = null; caja.innerHTML = ""; return; }
+  semAbierto = "__mora"; semTitulo = "Mora";
+  caja.innerHTML = '<div class="permeta" style="margin-top:8px">Buscando…</div>';
+  let d;
+  try { d = await (await fetch("/api/mora" + moraQS(), { credentials: "include" })).json(); }
+  catch { caja.innerHTML = '<div class="permeta" style="margin-top:8px">Sin conexión.</div>'; return; }
+  if (semAbierto !== "__mora") return;
+  if (d.error) { caja.innerHTML = '<div class="permeta" style="margin-top:8px">' + hesc(d.error) + "</div>"; return; }
+  // Solo los días YA VENCIDOS: los que no han llegado son pendiente de cobro,
+  // no mora (la distinción que pidió Anel el 4-ago).
+  const filas = (d.dias || []).filter((g) => g.vencido !== false)
+    .flatMap((g) => (g.filas || []).map((x) => ({ ...x, dia: g.dia })))
+    .sort((a2, b2) => b2.faltante - a2.faltante);
+  const total = filas.reduce((a2, x) => a2 + (x.faltante || 0), 0);
+  const fila = (x) => '<div class="renrow"><span><b>' + hesc(x.clienta) + '</b> <span style="color:#6B6480">'
+    + hesc(x.centro || "") + " · " + hesc(x.ejecutivo || "—") + " · " + hesc(x.dia || "") + '</span></span>'
+    + '<span class="rq">le falta <b style="color:#B00020">' + dinero(x.faltante) + "</b> de " + dinero(x.cuota) + "</span></div>";
+  const TOPE = 100;
+  caja.innerHTML = '<div class="rensec" style="display:flex;justify-content:space-between;align-items:center">'
+    + "<span>Mora vencida · semana del " + hesc(d.lunes) + " · " + filas.length + " créditos · " + dinero(total) + "</span>"
+    + '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="verMorosos()">cerrar</span></div>'
+    + '<button class="rescopy" style="margin:6px 0 2px" onclick="descargar(\'/api/mora/excel\' + moraQS())">Descargar los morosos (Excel)</button>'
+    + filas.slice(0, TOPE).map(fila).join("")
+    + (filas.length > TOPE
+        ? '<div class="renrow" role="button" style="cursor:pointer;justify-content:center;color:#324AB6;font-weight:800" '
+          + 'onclick="this.outerHTML = window.__semResto">Ver los ' + (filas.length - TOPE) + " restantes</div>" : "");
+  window.__semResto = filas.slice(TOPE).map(fila).join("");
 }
 
 // Copiar el resumen ejecutivo. El panel corre local y a veces sin https, así
