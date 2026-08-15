@@ -1923,6 +1923,15 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
   // esas dos: de las que cerraron ciclo en el mes, cuántas volvieron a salir.
   const terminaronEnElMes = sinRenovar.filter((x) => String(x.fechaFin || "").slice(0, 7) === mes);
   const cerraronCiclo = renovaron.length + terminaronEnElMes.length;
+  // HASTA DÓNDE ALCANZA LA VISTA. El saldo de cada clienta es la foto del día
+  // del corte: quien terminó de pagar ANTES ya venía en cero, así que el
+  // sistema no puede saber que cerró ciclo ese mes. Pedir julio con el corte
+  // en agosto daba «0 cerraron ciclo» y una tasa de 100% que no significa
+  // nada. Se dice, y NO se calcula tasa: un porcentaje falso es peor que
+  // ninguno, porque se toman decisiones con él.
+  const mesDelCorte = corte.slice(0, 7);
+  const antesDelCorte = mes < mesDelCorte;
+  const esFuturo = mes > hoy.slice(0, 7);
 
   const porEjecutivo = {};
   const cuenta = (lista, campo, montoCampo) => {
@@ -1941,7 +1950,7 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
   // La tasa por ejecutivo se calcula al final, ya con las dos cuentas hechas.
   for (const g of Object.values(porEjecutivo)) {
     const cierra = g.renovaron + g.terminaronEnElMes;
-    g.tasa = cierra > 0 ? Math.round((g.renovaron / cierra) * 100) : null;
+    g.tasa = (!antesDelCorte && cierra > 0) ? Math.round((g.renovaron / cierra) * 100) : null;
   }
 
   const suma = (l) => Math.round(l.reduce((a, x) => a + (x.monto || 0), 0) * 100) / 100;
@@ -1952,10 +1961,15 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
       mes,
       renovaron: renovaron.length,
       montoRenovado: Math.round(renovaron.reduce((a2, x) => a2 + (x.monto || 0), 0) * 100) / 100,
-      terminaronSinRenovar: terminaronEnElMes.length,
-      cerraronCiclo,
-      tasa: cerraronCiclo > 0 ? Math.round((renovaron.length / cerraronCiclo) * 100) : null,
-      terminanEnElMes: porTerminar.filter((x) => x.terminaEnElMes).length,
+      // Antes del corte no se puede afirmar quién cerró ciclo: va en null, no
+      // en cero. Cero significa «no hubo»; null significa «no se puede saber».
+      terminaronSinRenovar: antesDelCorte ? null : terminaronEnElMes.length,
+      cerraronCiclo: antesDelCorte ? null : cerraronCiclo,
+      tasa: (!antesDelCorte && cerraronCiclo > 0) ? Math.round((renovaron.length / cerraronCiclo) * 100) : null,
+      // La proyección mira hacia adelante: en un mes que ya pasó no aplica.
+      terminanEnElMes: mes < hoy.slice(0, 7) ? null : porTerminar.filter((x) => x.terminaEnElMes).length,
+      antesDelCorte, esFuturo, corte,
+      sinMovimiento: renovaron.length === 0 && (antesDelCorte || terminaronEnElMes.length === 0),
     },
     porEjecutivo: Object.values(porEjecutivo).sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo), "es")),
     totales: {

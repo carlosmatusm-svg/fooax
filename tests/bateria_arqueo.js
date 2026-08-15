@@ -3189,6 +3189,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("un mes sin movimiento sale en cero, no inventa una tasa",
     (r64v.delMes || {}).renovaron === 0 && (r64v.delMes || {}).tasa === null,
     JSON.stringify(r64v.delMes));
+  // UN MES ANTERIOR AL CORTE NO SE PUEDE MEDIR y hay que decirlo: el saldo de
+  // cada clienta es la foto del corte, así que quien terminó antes ya venía en
+  // cero. Enseñar «0 cerraron ciclo» sería mentira, y la tasa que salía de ahí
+  // (100% con una sola renovación) llevaba a decisiones con un número falso.
+  const dv = r64v.delMes || {};
+  ok("un mes ANTERIOR al corte se marca y no se puede medir",
+    dv.antesDelCorte === true && dv.terminaronSinRenovar === null && dv.cerraronCiclo === null,
+    JSON.stringify(dv));
+  ok("y NUNCA saca tasa de un mes que no puede medir",
+    dv.tasa === null && (r64v.porEjecutivo || []).every((g) => g.tasa === null),
+    JSON.stringify((r64v.porEjecutivo || []).slice(0, 3)));
+  ok("en cambio el mes en curso SÍ se puede medir y lo dice",
+    (r64m.delMes || {}).antesDelCorte === false && typeof (r64m.delMes || {}).cerraronCiclo === "number",
+    JSON.stringify(r64m.delMes));
+  // Y la proyección no aplica hacia atrás: "terminan este mes" en un mes que
+  // ya pasó no significa nada, así que va en blanco, no en cero.
+  ok("«terminan este mes» no se contesta para un mes que ya pasó",
+    dv.terminanEnElMes === null, JSON.stringify(dv));
   // Y EL PENDIENTE NO SE FILTRA POR MES: la que terminó en otro mes y no ha
   // vuelto sigue urgiendo hoy. Si el mes la escondiera, se perdería.
   ok("cambiar el mes NO esconde el pendiente acumulado",

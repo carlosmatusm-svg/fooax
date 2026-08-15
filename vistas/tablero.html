@@ -2132,11 +2132,21 @@ async function cargarRenovaciones() {
   // El mes va ARRIBA: es la foto que se reporta. Abajo queda el pendiente
   // acumulado, que no se filtra por mes a propósito — la que terminó en junio
   // y no ha vuelto sigue urgiendo hoy.
+  // ANTES DEL CORTE NO SE PUEDE SABER quién cerró ciclo: el saldo de cada
+  // clienta es la foto de ese día. Se dice con todas sus letras en vez de
+  // enseñar ceros, que se leen como "nadie" y son mentira.
+  const aviso = mm.antesDelCorte
+    ? '<br><span style="color:#8E0019">De ' + hesc(mm.mes || "") + " solo se ven las renovaciones que quedaron registradas: "
+      + "los saldos del sistema arrancan el <b>" + hesc(mm.corte || "") + "</b>, así que quién terminó de pagar antes "
+      + "de esa fecha no se puede saber. Por eso no se calcula la tasa de ese mes.</span>"
+    : (mm.sinMovimiento ? '<br><span style="color:#6B6480">Sin movimiento registrado en este mes.</span>' : "");
   box.innerHTML = "<b>En " + hesc(mm.mes || "") + ": renovaron <span style=\"color:#0B7247\">"
     + (mm.renovaron || 0) + "</span> clientas</b> por " + dinero(mm.montoRenovado || 0)
-    + " · cerraron ciclo y no han vuelto <b style=\"color:#8E0019\">" + (mm.terminaronSinRenovar || 0) + "</b>"
+    + (mm.terminaronSinRenovar == null ? ""
+        : " · cerraron ciclo y no han vuelto <b style=\"color:#8E0019\">" + mm.terminaronSinRenovar + "</b>")
     + (mm.tasa == null ? "" : " · <b>tasa de renovación " + mm.tasa + "%</b>")
     + (mm.terminanEnElMes ? " · terminan este mes <b>" + mm.terminanEnElMes + "</b> más" : "")
+    + aviso
     + "<br>"
     + (d.porEjecutivo || []).filter((g) => g.renovaron || g.terminaronEnElMes)
         .map((g) => "&nbsp;&nbsp;· <b>" + hesc(g.ejecutivo) + "</b>: renovó " + g.renovaron
