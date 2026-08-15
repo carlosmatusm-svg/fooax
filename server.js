@@ -1811,12 +1811,32 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
 // Lo que NO entra se cuenta y se dice, nunca se calla: un VENCIDO no es
 // renovación (va a recuperación, regla de la Ing. Monse del 4-ago), y los de
 // cuota variable (MAGNUS) no se pueden proyectar con la cuota del padrón.
-function reporteRenovaciones(usuario, avisoSemanas) {
+function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
   const cv = carteraViva(usuario);
   const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
   const hoy = hoyMX();
   const corte = corteSaldos();
   const semanasAviso = Number(avisoSemanas) > 0 ? Number(avisoSemanas) : 3;
+  // EL MES (Karina, 14-ago: «si de las renovaciones quiero ver de todo el
+  // mes»). El mes NO recorta la lista de pendientes —la que terminó en junio y
+  // no ha vuelto sigue urgiendo en agosto— sino que arma el CORTE DEL MES:
+  // cuántas cerraron ciclo y cuántas volvieron a salir.
+  const mes = /^\d{4}-\d{2}$/.test(String(mesPedido || "")) ? String(mesPedido) : hoy.slice(0, 7);
+
+  // FECHA EN QUE LE CAERÁ SU ÚLTIMA CUOTA: se cuentan sus días de cobro hacia
+  // adelante. Es lo que permite preguntar "¿quiénes terminan en septiembre?".
+  const fechaDeLaUltima = (diaPago, cuotasFaltan) => {
+    const idx = idxDia(String(diaPago || "").trim().toUpperCase());
+    if (!idx || !(cuotasFaltan > 0)) return null;
+    const d = new Date(hoy + "T12:00:00");
+    let vistos = 0;
+    for (let k = 0; k < 800 && vistos < cuotasFaltan; k++) {
+      d.setDate(d.getDate() + 1);
+      const g = d.getDay();
+      if ((g === 0 ? 7 : g) === idx) vistos++;
+    }
+    return vistos === cuotasFaltan ? d.toISOString().slice(0, 10) : null;
+  };
 
   // ¿Qué socias tienen HOY dinero prestado vivo? Si una terminó su crédito
   // pero ya trae otro corriendo, NO está sin renovar — ya se le volvió a dar.
@@ -1874,30 +1894,69 @@ function reporteRenovaciones(usuario, avisoSemanas) {
     if (cuota <= 0) { fuera.sinCuota++; continue; }
     const faltan = Math.ceil((info.saldoActual - 0.009) / cuota);
     if (faltan > semanasAviso) continue;
+    const fEstimada = fechaDeLaUltima(c.diaPago, faltan);
     porTerminar.push({ ...comun, saldoActual: Math.round(info.saldoActual * 100) / 100,
-      cuota, semanas: faltan, monto: Number(c.saldo) || 0 });
+      cuota, semanas: faltan, monto: Number(c.saldo) || 0,
+      fechaEstimada: fEstimada, terminaEnElMes: !!fEstimada && fEstimada.slice(0, 7) === mes });
   }
 
   // La que lleva MÁS tiempo sin renovar va primero: es la que más urge.
   sinRenovar.sort((a, b) => (b.dias || 0) - (a.dias || 0) || String(a.clienta).localeCompare(String(b.clienta), "es"));
   porTerminar.sort((a, b) => a.semanas - b.semanas || String(a.clienta).localeCompare(String(b.clienta), "es"));
 
+  // LAS QUE SÍ RENOVARON EN EL MES: cada re-crédito queda asentado en la
+  // bitácora del padrón con su fecha, así que el dato ya existe — solo hay que
+  // leerlo. Sin esto, el mes solo enseñaría lo malo y no la tasa.
+  const renovaron = [];
+  for (const cb of store.cambiosPadron()) {
+    if (cb.tipo !== "alta" || !cb.recredito) continue;
+    if (String(cb.fecha || "").slice(0, 7) !== mes) continue;
+    const cl = cb.clienta || {};
+    if (!mios.has(norm(cl.ejecutivo))) continue;
+    renovaron.push({ ejecutivo: cl.ejecutivo, centro: cl.centro, clienta: cl.nombre,
+      socio: String(cl.id || cb.id), producto: cl.producto || cb.producto,
+      monto: Number(cl.saldo) || 0, fecha: cb.fecha });
+  }
+  renovaron.sort((a2, b2) => String(b2.fecha).localeCompare(String(a2.fecha)));
+
+  // Las que TERMINARON dentro del mes y siguen sin volver. La tasa compara
+  // esas dos: de las que cerraron ciclo en el mes, cuántas volvieron a salir.
+  const terminaronEnElMes = sinRenovar.filter((x) => String(x.fechaFin || "").slice(0, 7) === mes);
+  const cerraronCiclo = renovaron.length + terminaronEnElMes.length;
+
   const porEjecutivo = {};
   const cuenta = (lista, campo, montoCampo) => {
     for (const x of lista) {
       const e = x.ejecutivo || "—";
-      porEjecutivo[e] = porEjecutivo[e] || { ejecutivo: e, sinRenovar: 0, montoSinRenovar: 0, porTerminar: 0, montoPorTerminar: 0 };
+      porEjecutivo[e] = porEjecutivo[e] || { ejecutivo: e, sinRenovar: 0, montoSinRenovar: 0,
+        porTerminar: 0, montoPorTerminar: 0, renovaron: 0, montoRenovado: 0, terminaronEnElMes: 0 };
       porEjecutivo[e][campo]++;
       porEjecutivo[e][montoCampo] = Math.round((porEjecutivo[e][montoCampo] + (x.monto || 0)) * 100) / 100;
     }
   };
   cuenta(sinRenovar, "sinRenovar", "montoSinRenovar");
   cuenta(porTerminar, "porTerminar", "montoPorTerminar");
+  cuenta(renovaron, "renovaron", "montoRenovado");
+  cuenta(terminaronEnElMes, "terminaronEnElMes", "montoSinRenovarDelMes");
+  // La tasa por ejecutivo se calcula al final, ya con las dos cuentas hechas.
+  for (const g of Object.values(porEjecutivo)) {
+    const cierra = g.renovaron + g.terminaronEnElMes;
+    g.tasa = cierra > 0 ? Math.round((g.renovaron / cierra) * 100) : null;
+  }
 
   const suma = (l) => Math.round(l.reduce((a, x) => a + (x.monto || 0), 0) * 100) / 100;
   return {
-    hoy, corte, semanasAviso,
-    sinRenovar, porTerminar,
+    hoy, corte, semanasAviso, mes,
+    sinRenovar, porTerminar, renovaron,
+    delMes: {
+      mes,
+      renovaron: renovaron.length,
+      montoRenovado: Math.round(renovaron.reduce((a2, x) => a2 + (x.monto || 0), 0) * 100) / 100,
+      terminaronSinRenovar: terminaronEnElMes.length,
+      cerraronCiclo,
+      tasa: cerraronCiclo > 0 ? Math.round((renovaron.length / cerraronCiclo) * 100) : null,
+      terminanEnElMes: porTerminar.filter((x) => x.terminaEnElMes).length,
+    },
     porEjecutivo: Object.values(porEjecutivo).sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo), "es")),
     totales: {
       sinRenovar: sinRenovar.length, montoSinRenovar: suma(sinRenovar),
@@ -1908,11 +1967,11 @@ function reporteRenovaciones(usuario, avisoSemanas) {
 }
 
 app.get("/api/renovaciones", requiere("direccion", "admin"), (req, res) => {
-  res.json(reporteRenovaciones(req.usuario, req.query.semanas));
+  res.json(reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes));
 });
 
 app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, res) => {
-  const d = reporteRenovaciones(req.usuario, req.query.semanas);
+  const d = reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019";
   const MONEDA = '"$"#,##0.00';
@@ -1936,7 +1995,7 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
     return s;
   };
 
-  const s1 = hoja("No renovaron", "FOOAX · YA TERMINARON Y NO HAN RENOVADO · al " + d.hoy,
+  const s1 = hoja("No renovaron", "FOOAX · YA TERMINARON Y NO HAN RENOVADO (todas, sin importar el mes) · al " + d.hoy,
     [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
      ["Monto del crédito que terminó", 18], ["Terminó de pagar el", 16], ["Días sin renovar", 14], ["Nota", 26]]);
   let f = 3;
@@ -1957,7 +2016,8 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
 
   const s2 = hoja("Por terminar", "FOOAX · POR TERMINAR — RENOVACIÓN PENDIENTE (" + d.semanasAviso + " cuotas o menos) · al " + d.hoy,
     [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-     ["Día de cobro", 13], ["Saldo que le queda", 16], ["Cuota", 12], ["Cuotas que le faltan", 14]]);
+     ["Día de cobro", 13], ["Saldo que le queda", 16], ["Cuota", 12], ["Cuotas que le faltan", 14],
+     ["Termina (estimado)", 15]]);
   f = 3;
   for (const x of d.porTerminar) {
     const r = s2.getRow(f++);
@@ -1966,24 +2026,54 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
     r.getCell(7).value = x.saldoActual; r.getCell(7).numFmt = MONEDA;
     r.getCell(8).value = x.cuota; r.getCell(8).numFmt = MONEDA;
     r.getCell(9).value = x.semanas;
+    r.getCell(10).value = x.fechaEstimada || "—";
     if (x.semanas <= 1) r.getCell(9).font = { bold: true, color: { argb: ROJO } };
+    if (x.terminaEnElMes) r.getCell(10).font = { bold: true, color: { argb: RIO } };
   }
   const t2 = s2.getRow(f++);
   t2.getCell(5).value = "TOTAL · " + d.totales.porTerminar + " clientas";
   t2.getCell(9).value = null;
   t2.getCell(5).font = { bold: true };
 
-  const s3 = hoja("Por ejecutivo", "FOOAX · RENOVACIONES POR EJECUTIVO · al " + d.hoy,
-    [["Ejecutivo", 16], ["No renovaron", 13], ["Monto que terminó", 17],
+  // EL MES: quién renovó, cuándo y por cuánto. Es la hoja que contesta
+  // «¿cómo nos fue este mes?» sin tener que contar a mano.
+  const sm = hoja("Renovaciones del mes", "FOOAX · RENOVACIONES DADAS EN " + d.mes,
+    [["Fecha", 12], ["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15],
+     ["Producto", 18], ["Monto del crédito nuevo", 18]]);
+  f = 3;
+  for (const x of d.renovaron) {
+    const r = sm.getRow(f++);
+    [x.fecha, x.ejecutivo, x.centro, x.clienta, x.socio, x.producto]
+      .forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(7).value = x.monto; r.getCell(7).numFmt = MONEDA;
+  }
+  const tm = sm.getRow(f++);
+  tm.getCell(4).value = "TOTAL · " + d.delMes.renovaron + " renovaciones";
+  tm.getCell(7).value = d.delMes.montoRenovado; tm.getCell(7).numFmt = MONEDA;
+  [4, 7].forEach((i) => (tm.getCell(i).font = { bold: true }));
+  const tr = sm.getRow(f + 1);
+  tr.getCell(1).value = "De los " + d.delMes.cerraronCiclo + " créditos que cerraron ciclo en " + d.mes
+    + ", renovaron " + d.delMes.renovaron + " y siguen sin volver " + d.delMes.terminaronSinRenovar
+    + (d.delMes.tasa == null ? "." : " — tasa de renovación " + d.delMes.tasa + "%.");
+  tr.font = { bold: true, color: { argb: RIO } };
+
+  const s3 = hoja("Por ejecutivo", "FOOAX · RENOVACIONES POR EJECUTIVO · " + d.mes + " · al " + d.hoy,
+    [["Ejecutivo", 16], ["Renovó en el mes", 14], ["Monto renovado", 16], ["Cerró y no volvió (mes)", 15],
+     ["Tasa de renovación", 14], ["No renovaron (todas)", 15], ["Monto que terminó", 17],
      ["Por terminar", 13], ["Monto por terminar", 17]]);
   f = 3;
   for (const g of d.porEjecutivo) {
     const r = s3.getRow(f++);
     r.getCell(1).value = g.ejecutivo;
-    r.getCell(2).value = g.sinRenovar;
-    r.getCell(3).value = g.montoSinRenovar; r.getCell(3).numFmt = MONEDA;
-    r.getCell(4).value = g.porTerminar;
-    r.getCell(5).value = g.montoPorTerminar; r.getCell(5).numFmt = MONEDA;
+    r.getCell(2).value = g.renovaron;
+    r.getCell(3).value = g.montoRenovado; r.getCell(3).numFmt = MONEDA;
+    r.getCell(4).value = g.terminaronEnElMes;
+    r.getCell(5).value = g.tasa == null ? "—" : g.tasa + "%";
+    if (g.tasa != null && g.tasa < 50) r.getCell(5).font = { bold: true, color: { argb: ROJO } };
+    r.getCell(6).value = g.sinRenovar;
+    r.getCell(7).value = g.montoSinRenovar; r.getCell(7).numFmt = MONEDA;
+    r.getCell(8).value = g.porTerminar;
+    r.getCell(9).value = g.montoPorTerminar; r.getCell(9).numFmt = MONEDA;
   }
   // Lo que quedó fuera se DICE, no se calla: si el total no cuadra con la
   // cartera, aquí está la explicación.

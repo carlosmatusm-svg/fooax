@@ -255,7 +255,12 @@ console.log("\n═══ LA TARJETA DE RENOVACIONES PINTA ═══\n");
       producto: "Grupal-Basico", monto: 6000, fechaFin: "2026-07-01", dias: 44, eraVencido: false }],
     porTerminar: [{ ejecutivo: "Neri", centro: "ADNACHIEL", clienta: "MARIA PRUEBA", socio: "2",
       producto: "Grupal-Basico", saldoActual: 1000, cuota: 500, semanas: 2, diaPago: "MARTES" }],
-    porEjecutivo: [], totales: { sinRenovar: 1, montoSinRenovar: 6000, porTerminar: 1, montoPorTerminar: 4000 },
+    porEjecutivo: [{ ejecutivo: "Julio", renovaron: 3, montoRenovado: 18000, terminaronEnElMes: 1,
+      tasa: 75, sinRenovar: 1, montoSinRenovar: 6000, porTerminar: 1, montoPorTerminar: 4000 }],
+    totales: { sinRenovar: 1, montoSinRenovar: 6000, porTerminar: 1, montoPorTerminar: 4000 },
+    mes: "2026-08",
+    delMes: { mes: "2026-08", renovaron: 3, montoRenovado: 18000, terminaronSinRenovar: 1,
+      cerraronCiclo: 4, tasa: 75, terminanEnElMes: 2 },
     fuera: { vencidos: 3, cuotaVariable: 1, sinCuota: 0 },
   };
   const ctx = {
@@ -271,6 +276,12 @@ console.log("\n═══ LA TARJETA DE RENOVACIONES PINTA ═══\n");
   if (corrio && typeof ctx.__pintar === "function") {
     ctx.__pintar().then(() => {
       const h = caja.innerHTML;
+      // El corte del MES es lo que se reporta: si esto se cae, la tarjeta
+      // pierde justo el número que Karina pidió el 14-ago.
+      ok("abre con el corte del MES: cuántas renovaron y la tasa",
+        /2026-08/.test(h) && /renovaron/.test(h) && /75%/.test(h) && /\$18,000/.test(h), h.slice(0, 260));
+      ok("y desglosa el mes por ejecutivo",
+        /Julio/.test(h) && /renov[oó] 3/.test(h), h.slice(0, 400));
       ok("dice quién NO renovó, con sus días y su dinero",
         /ROSA PRUEBA/.test(h) && /44 d/.test(h) && /\$6,000/.test(h), h.slice(0, 220));
       ok("dice quién está POR TERMINAR y cuántas cuotas le faltan",

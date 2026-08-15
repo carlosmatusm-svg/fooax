@@ -655,6 +655,7 @@
       que llevan: la de arriba es la que más urge) y las que <b>están por terminar</b> y hay que ofrecerles
       la renovación antes de que cierren. Los <b>vencidos no entran</b>: esos van en recuperación.</div>
     <div class="perrow">
+      <label>Mes</label><input type="month" id="renMes" onchange="cargarRenovaciones()">
       <label>Avisar cuando falten</label>
       <select id="renSemanas" onchange="cargarRenovaciones()">
         <option value="2">2 cuotas o menos</option>
@@ -2097,8 +2098,11 @@ async function cargarMora() {
 
 // ---------- renovaciones: las que no renovaron y las que están por terminar ----------
 function semanasRenUI() {
-  const v = document.getElementById("renSemanas");
-  return v && v.value ? "?semanas=" + v.value : "";
+  const v = document.getElementById("renSemanas"), m = document.getElementById("renMes");
+  const q = [];
+  if (v && v.value) q.push("semanas=" + v.value);
+  if (m && m.value) q.push("mes=" + m.value);
+  return q.length ? "?" + q.join("&") : "";
 }
 function descargarRenovaciones() { descargar("/api/renovaciones/excel" + semanasRenUI()); }
 async function cargarRenovaciones() {
@@ -2109,6 +2113,9 @@ async function cargarRenovaciones() {
   catch { box.textContent = "Sin conexión con el servidor."; return; }
   if (d.error) { box.textContent = d.error; return; }
   const t = d.totales || {};
+  const mm = d.delMes || {};
+  const mes = document.getElementById("renMes");
+  if (mes && !mes.value) mes.value = d.mes || "";
   // Se enseñan las 8 que más urgen de cada lista; el resto va en el Excel. Se
   // dice cuántas quedaron fuera para que nadie crea que la lista es todo.
   const fila = (x) => "<br>· <b>" + hesc(x.clienta) + "</b> " + hesc(x.centro || "")
@@ -2122,8 +2129,22 @@ async function cargarRenovaciones() {
     + "le faltan <b>" + x.semanas + (x.semanas === 1 ? " cuota" : " cuotas") + "</b> · debe "
     + dinero(x.saldoActual)).join("");
   const f = d.fuera || {};
-  box.innerHTML = "<b>Ya terminaron y no han renovado: <span style=\"color:#8E0019\">"
-    + (t.sinRenovar || 0) + "</span> clientas</b> — " + dinero(t.montoSinRenovar || 0)
+  // El mes va ARRIBA: es la foto que se reporta. Abajo queda el pendiente
+  // acumulado, que no se filtra por mes a propósito — la que terminó en junio
+  // y no ha vuelto sigue urgiendo hoy.
+  box.innerHTML = "<b>En " + hesc(mm.mes || "") + ": renovaron <span style=\"color:#0B7247\">"
+    + (mm.renovaron || 0) + "</span> clientas</b> por " + dinero(mm.montoRenovado || 0)
+    + " · cerraron ciclo y no han vuelto <b style=\"color:#8E0019\">" + (mm.terminaronSinRenovar || 0) + "</b>"
+    + (mm.tasa == null ? "" : " · <b>tasa de renovación " + mm.tasa + "%</b>")
+    + (mm.terminanEnElMes ? " · terminan este mes <b>" + mm.terminanEnElMes + "</b> más" : "")
+    + "<br>"
+    + (d.porEjecutivo || []).filter((g) => g.renovaron || g.terminaronEnElMes)
+        .map((g) => "&nbsp;&nbsp;· <b>" + hesc(g.ejecutivo) + "</b>: renovó " + g.renovaron
+          + ", no volvieron " + g.terminaronEnElMes
+          + (g.tasa == null ? "" : " (<b style=\"color:" + (g.tasa < 50 ? "#8E0019" : "#0B7247") + "\">"
+              + g.tasa + "%</b>)")).join("<br>")
+    + "<br><br><b>Ya terminaron y no han renovado: <span style=\"color:#8E0019\">"
+    + (t.sinRenovar || 0) + "</span> clientas</b> (de todos los meses) — " + dinero(t.montoSinRenovar || 0)
     + " de cartera que se acabó de pagar y no volvió a salir." + (l1 || "<br>· Ninguna: todas renovaron.")
     + "<br><br><b>Por terminar (" + (d.semanasAviso || 3) + " cuotas o menos): <span style=\"color:#324AB6\">"
     + (t.porTerminar || 0) + "</span> clientas</b> — hay que ofrecerles la renovación."

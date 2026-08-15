@@ -3171,8 +3171,36 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     sumaEj === (r64e.totales || {}).sinRenovar,
     "por ejecutivo " + sumaEj + " vs total " + (r64e.totales || {}).sinRenovar);
 
+  // (g) EL CORTE DEL MES (Karina, 14-ago: «si quiero ver de todo el mes»).
+  // La renovación de SI RENOVO 64 se dio HOY, así que cae en el mes en curso.
+  const mesHoy = HOY.slice(0, 7);
+  const r64m = await rn("?mes=" + mesHoy);
+  const dm = r64m.delMes || {};
+  ok("el corte del mes cuenta las renovaciones que se dieron en ese mes",
+    dm.mes === mesHoy && dm.renovaron >= 1, JSON.stringify(dm));
+  ok("y saca la tasa: de las que cerraron ciclo, cuántas volvieron a salir",
+    dm.cerraronCiclo === dm.renovaron + dm.terminaronSinRenovar
+      && dm.tasa === Math.round((dm.renovaron / dm.cerraronCiclo) * 100), JSON.stringify(dm));
+  ok("la clienta que renovó viene con su fecha y su monto nuevo",
+    (r64m.renovaron || []).some((x) => String(x.socio) === S64b && x.fecha === HOY && x.monto === 6000),
+    JSON.stringify((r64m.renovaron || []).slice(0, 3)));
+  // UN MES SIN MOVIMIENTO no inventa nada: cero renovaciones y tasa en blanco.
+  const r64v = await rn("?mes=2020-01");
+  ok("un mes sin movimiento sale en cero, no inventa una tasa",
+    (r64v.delMes || {}).renovaron === 0 && (r64v.delMes || {}).tasa === null,
+    JSON.stringify(r64v.delMes));
+  // Y EL PENDIENTE NO SE FILTRA POR MES: la que terminó en otro mes y no ha
+  // vuelto sigue urgiendo hoy. Si el mes la escondiera, se perdería.
+  ok("cambiar el mes NO esconde el pendiente acumulado",
+    (r64v.totales || {}).sinRenovar === (r64m.totales || {}).sinRenovar,
+    "el mes recortó la lista de pendientes");
+  // La proyección dice CUÁNDO termina, para poder preguntar por mes.
+  const casi = (r64m.porTerminar || []).find((x) => String(x.socio) === S64c);
+  ok("a la que está por terminar se le calcula la fecha de su última cuota",
+    !!casi && /^\d{4}-\d{2}-\d{2}$/.test(String(casi.fechaEstimada || "")), JSON.stringify(casi));
+
   // (f) Y baja en Excel, que es como se lo pasan a las ejecutivas.
-  const rx64 = await fetch(U + "/api/renovaciones/excel", { headers: H(cm) });
+  const rx64 = await fetch(U + "/api/renovaciones/excel?mes=" + mesHoy, { headers: H(cm) });
   ok("el reporte de renovaciones baja en Excel",
     rx64.status === 200 && /spreadsheet/.test(rx64.headers.get("content-type") || ""),
     "status " + rx64.status);
