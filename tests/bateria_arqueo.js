@@ -2523,7 +2523,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // El método de Monse (14-ago) arrastra DESDE EL CORTE: para medir la semana
   // del 3-ago el corte debe estar en esa fecha, si no los vencimientos de esa
   // semana quedan antes del corte y no exigen nada.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: L56 }) });
+  // El corte se planta el DOMINGO: la cuota del día del corte ya viene saldada
+  // dentro de la plantilla (regla del 14-ago), así que para exigir el lunes 03
+  // el corte debe ser anterior a ese día.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02" }) });
   const mora56 = async () => j(await fetch(U + "/api/mora?lunes=" + L56, { headers: H(cm) }));
   const buscaMora = (d, socio) => {
     for (const g of d.dias || []) for (const x of g.filas) if (String(x.socio) === socio) return { g, x };
@@ -2570,7 +2573,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // que se garantiza es que sea reproducible: al regresarlo, el número regresa.
   const totalConCorteA = (await mora56()).total;
   await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07" }) });
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: L56 }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02" }) });
   const totalConCorteB = (await mora56()).total;
   ok("el corte es la base del arrastre: al regresarlo, la mora regresa idéntica",
     Math.abs(totalConCorteA - totalConCorteB) < 0.01, totalConCorteA + " vs " + totalConCorteB);
@@ -2719,10 +2722,6 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("dice cuántos créditos dejó fuera y por qué",
     ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
     JSON.stringify(fc56));
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
-  const rx56b = await fetch(U + "/api/saldos/corte", { headers: H(cm) });
-  void rx56b;
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: L56 }) });
   const rx56 = await fetch(U + "/api/mora/excel?lunes=" + L56, { headers: H(cm) });
   const bx56 = Buffer.from(await rx56.arrayBuffer());
   ok("el Excel de la mora se descarga y es un xlsx de verdad",
@@ -3228,6 +3227,63 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el reporte de renovaciones baja en Excel",
     rx64.status === 200 && /spreadsheet/.test(rx64.headers.get("content-type") || ""),
     "status " + rx64.status);
+
+  console.log("\n— 66. EL CORTE EN DÍA DE COBRO Y EL PLAZO MENTIROSO (producción, 14-ago noche) —");
+  // Lo que Karina encontró en el arqueo real: el corte de producción cae en
+  // JUEVES, y a TODOS los centros de jueves se les exigía una cuota de más (el
+  // muro de LA CONSENTIDA: 46 clientas al corriente marcadas en mora). Y la
+  // regla del plazo terminado le exigía el saldo COMPLETO a quien tiene el
+  // plazo mal capturado (EPIFANIA: $5,616 habiendo pagado su cuota ese día).
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-07-30" }) });
+
+  // (a) La CONSENTIDA real: jueves, pagó el 6 y el 12 — con el corte EN jueves
+  // 30-jul NO debe nada (la cuota del 30 vive dentro de la plantilla).
+  const S66a = "70000001080";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S66a, nombre: "CONSENTIDA CORTE JUEVES 66", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
+      desembolso: "2026-05-07" }) });
+  const K66a = S66a + "|Grupal-Basico|CONSENTIDA CORTE JUEVES 66|0";
+  for (const [fch, dt] of [["2026-08-06", 31], ["2026-08-12", 32]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: fch, snapshot: { regI: { [K66a]: { pago: 840, forma: "E" } } }, ts: Date.now() + dt }) });
+  const w66 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  ok("con el corte EN su día de cobro, la que va al corriente NO sale en la mora semanal",
+    !(w66.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S66a)), "le exige la cuota del día del corte");
+  const d66 = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-13", { headers: H(cm) }));
+  ok("ni en el arqueo del jueves", !(d66.centros || []).some((g) => g.filas.some((x) => String(x.socio) === S66a)),
+    "sale en el arqueo");
+
+  // (b) La misma pero SIN pagar: debe UNA cuota (no dos, no tres).
+  const S66b = "70000001081";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S66b, nombre: "SIN PAGAR CORTE JUEVES 66", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
+      desembolso: "2026-05-07" }) });
+  const w66b = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f66b = (w66b.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S66b);
+  ok("y la que NO pagó debe exactamente UNA cuota", !!f66b && f66b.faltante === 840, JSON.stringify(f66b));
+
+  // (c) EPIFANIA: plazo mal capturado (dice 2, lleva pagada una fracción). El
+  // "plazo terminado" NO puede exigirle el saldo completo: pagó su cuota y
+  // está al corriente — el que está mal es el PLAZO, no la señora.
+  const S66c = "70000001082";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S66c, nombre: "EPIFANIA PLAZO CHUECO 66", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6048, cuota: 432, plazo: 2, diaPago: "Jueves",
+      desembolso: "2026-06-04" }) });
+  const K66c = S66c + "|Grupal-Basico 2|EPIFANIA PLAZO CHUECO 66|0";
+  for (const [fch, dt] of [["2026-08-06", 33], ["2026-08-12", 34]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: fch, snapshot: { regI: { [K66c]: { pago: 432, forma: "E" } } }, ts: Date.now() + dt }) });
+  const w66c = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f66c = (w66c.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S66c);
+  ok("el plazo mal capturado NO le exige el saldo completo a la que va al corriente",
+    !f66c, JSON.stringify(f66c));
+  // Y el caso LUCIA (que el plazo terminado SÍ exija el remanente chico) sigue
+  // vivo en la sección 63 — estas dos reglas conviven.
+
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
 
   console.log("\n— 65. CARTERA: unidades honestas (Karina, 14-ago: «100% real, no nos inventamos nada») —");
   // La columna `mora` del padrón es un CONTEO de cuotas sin pagar (Monse), no

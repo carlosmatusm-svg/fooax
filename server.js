@@ -1580,7 +1580,13 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // Los vencimientos no pueden empezar ANTES de que el crédito exista: a uno
     // desembolsado (o dado de alta) el viernes no se le exige la cuota del
     // jueves anterior.
-    let desdeV = corteSaldos();
+    // DESDE EL DÍA SIGUIENTE AL CORTE, no desde el corte: la cuota del día del
+    // corte ya viene saldada DENTRO de la plantilla (pagada, o cargada al
+    // saldo). Exigirla otra vez cobraba doble a TODOS los centros cuyo día de
+    // cobro coincide con el día del corte — el muro de LA CONSENTIDA del
+    // 14-ago: 46 clientas al corriente marcadas en mora con el corte en jueves.
+    let desdeV = (() => { const d0 = new Date(corteSaldos() + "T12:00:00");
+      d0.setDate(d0.getDate() + 1); return d0.toISOString().slice(0, 10); })();
     const iniOb = inicioObligaciones(c);
     if (iniOb && iniOb > desdeV) desdeV = iniOb;
     const venc = vencimientosEntre(idxDia(dia), desdeV, suFecha);
@@ -1589,8 +1595,13 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // EL PLAZO TERMINÓ (el caso LUCIA, $442): cuando ya corrieron todos sus
     // pagos, lo exigible es TODO lo que queda — el último pago absorbe los
     // centavos y lo atrasado, por eso puede ser mayor que la cuota.
+    // El plazo terminado exige TODO el saldo SOLO cuando lo que queda es el
+    // pico final (menos de dos cuotas — el caso LUCIA, $442). Si "terminó" y
+    // aún debe medio crédito, el PLAZO está mal capturado (error conocido del
+    // padrón): exigirle todo marcaba en mora a EPIFANIA con $5,616 habiendo
+    // pagado su cuota completa ese mismo día (14-ago).
     const plazoM = Number(c.plazo) || 0;
-    if (plazoM > 0 && iniOb &&
+    if (plazoM > 0 && iniOb && infoM.saldoActual < cuota * 2 &&
         vencimientosEntre(idxDia(dia), iniOb, suFecha) >= plazoM)
       faltante0 = infoM.saldoActual;
     const faltante = Math.round(Math.min(faltante0, infoM.saldoActual) * 100) / 100;
@@ -2865,6 +2876,39 @@ app.get("/api/reglas/simular", requiere("direccion", "admin"), (req, res) => {
 
 app.get("/api/desglose", requiere("direccion", "admin"), (req, res) => {
   res.json(verificarDesglose(req.usuario));
+});
+
+// QUIÉNES SON (Karina, 14-ago: «que pueda tocar estos y vea qué clientas
+// son»). La lista de cada color del semáforo. Usa EXACTAMENTE el mismo
+// clasificador que cuenta los chips (semaforoDe con los mismos insumos), así
+// el número del chip y el largo de la lista no pueden diferir jamás.
+app.get("/api/cartera/semaforo", requiere("direccion", "admin"), (req, res) => {
+  const estado = String(req.query.estado || "");
+  const validos = ["alCorriente", "parcial", "pendiente", "enMora", "vencida", "liquidada", "cuotaVariable"];
+  if (!validos.includes(estado))
+    return res.status(400).json({ error: "Estado desconocido. Usa: " + validos.join(", ") });
+  const cv = carteraViva(req.usuario);
+  const sem = pagosDeLaSemana(req.usuario);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const filas = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const info = infoCredito(cv, c);
+    const pagoSemana = sem.pago[claveCredito(c.id, c.producto)] || 0;
+    if (semaforoDe(c, info, pagoSemana) !== estado) continue;
+    const cuota = Number(c.cuota) || 0;
+    filas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo,
+      producto: c.producto, diaPago: c.diaPago || null, cuota,
+      pagoSemana: r2(pagoSemana), saldoActual: r2(info.saldoActual),
+      faltante: r2(Math.max(0, Math.min(cuota || Infinity, cuota) - pagoSemana)),
+      cuotasSinPagar: Number(c.mora) > 0 ? Number(c.mora) : 0 });
+  }
+  // Orden por lo que DECIDE en cada color: en mora y parcial, lo que falta;
+  // vencidas y las demás, el dinero en juego; al corriente, por nombre.
+  if (estado === "enMora" || estado === "parcial") filas.sort((a2, b2) => b2.faltante - a2.faltante);
+  else if (estado === "alCorriente") filas.sort((a2, b2) => String(a2.nombre).localeCompare(String(b2.nombre), "es"));
+  else filas.sort((a2, b2) => b2.saldoActual - a2.saldoActual);
+  res.json({ estado, total: filas.length, filas });
 });
 
 app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
@@ -4515,7 +4559,10 @@ function moraDelDia(usuario, fecha) {
     // adelantado dentro de la semana (LA CONSENTIDA, pagó el miércoles su
     // jueves) cuentan a favor. Acotado a una cuota y al saldo restante (LUCIA).
     const infoD = infoCredito(cv, c);
-    let desdeV = corteSaldos();
+    // Día siguiente al corte, igual que la semanal (la cuota del día del corte
+    // ya está dentro de la plantilla — ver el comentario de moraDeLaSemana).
+    let desdeV = (() => { const d0 = new Date(corteSaldos() + "T12:00:00");
+      d0.setDate(d0.getDate() + 1); return d0.toISOString().slice(0, 10); })();
     const iniObD = inicioObligaciones(c);
     if (iniObD && iniObD > desdeV) desdeV = iniObD;
     const venc = vencimientosEntre(idxDia(dia), desdeV, f);
@@ -4523,7 +4570,7 @@ function moraDelDia(usuario, fecha) {
     let faltante0 = Math.max(0, Math.min(cuota, cuota * venc - abonadoHastaHoyDia));
     const plazoD = Number(c.plazo) || 0;
     let termino = false;
-    if (plazoD > 0 && iniObD) {
+    if (plazoD > 0 && iniObD && infoD.saldoActual < cuota * 2) {
       termino = vencimientosEntre(idxDia(dia), iniObD, f) >= plazoD;
       if (termino) faltante0 = infoD.saldoActual + Math.max(0, (abonadoTotal[clave] || 0) - abonadoHastaHoyDia);
     }
@@ -4589,13 +4636,14 @@ function moraDelDia(usuario, fecha) {
       for (const dd2 in (pfCorte[claveK] || {}))
         if (dd2 <= fISO) abonadoK += pfCorte[claveK][dd2].p || 0;
       abonadoK += movsCorteHasta(claveK, fISO);
-      let desdeK = corteHoy;
+      let desdeK = (() => { const d0 = new Date(corteHoy + "T12:00:00");
+        d0.setDate(d0.getDate() + 1); return d0.toISOString().slice(0, 10); })();
       const iniObK = inicioObligaciones(c);
       if (iniObK && iniObK > desdeK) desdeK = iniObK;
       const vencK = vencimientosEntre(idxDia(diaK), desdeK, fISO);
       let faltK = Math.max(0, Math.min(cuotaK, cuotaK * vencK - abonadoK));
       const plazoK = Number(c.plazo) || 0;
-      if (plazoK > 0 && iniObK &&
+      if (plazoK > 0 && iniObK && infoK.saldoActual < cuotaK * 2 &&
           vencimientosEntre(idxDia(diaK), iniObK, fISO) >= plazoK)
         faltK = infoK.saldoActual;
       acumulado += Math.min(faltK, infoK.saldoActual);

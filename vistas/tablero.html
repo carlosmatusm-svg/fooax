@@ -1595,8 +1595,11 @@ async function cargarCartera() {
   if (!d || d.creditosActivos == null) { box.innerHTML = '<div class="arq-vacio">No se pudo cargar la cartera.</div>'; return; }
   const pct = Math.max(0, Math.min(100, d.cumplimiento || 0));
   const S = d.semaforo || {};
-  const chip = (txt, n, color, fondo) =>
-    '<span class="ct-chip" style="color:' + color + ';border-color:' + color + ';background:' + fondo + '">' + txt + ' <span class="q">' + n + "</span></span>";
+  // Cada chip abre su lista de clientas (Karina, 14-ago): se toca y abajo
+  // aparecen quiénes son. Tocar el mismo, la cierra.
+  const chip = (txt, n, color, fondo, key) =>
+    '<span class="ct-chip" role="button" style="cursor:pointer;color:' + color + ';border-color:' + color + ';background:' + fondo
+    + '" onclick="verSemaforo(\'' + key + '\', \'' + txt + '\')">' + txt + ' <span class="q">' + n + "</span></span>";
   // PENDIENTE DE COBRO ≠ MORA (corrección de Anel, 4-ago). El indicador decía
   // "mora de la semana" pero medía esperado − cobrado: un martes marcaba
   // $272,469 de "mora" que eran centros que todavía no llegaban a su día. Ahora
@@ -1624,14 +1627,14 @@ async function cargarCartera() {
     + '<div class="ct-cumpl">Semana del ' + hesc(d.lunes) + " al " + hesc(d.hoy)
     + ". El cumplimiento se mide contra lo que <b>ya debía entrar</b> a la fecha, no contra la semana completa.</div>"
     + '<div class="ct-sem">'
-    + chip("Al corriente", S.alCorriente || 0, "#0B7247", "#EAF7EF")
-    + chip("Pago parcial", S.parcial || 0, "#8A5A00", "#FFF6E9")
-    + chip("Aún no le toca", S.pendiente || 0, "#324AB6", "#E5EAFB")
-    + chip("En mora esta semana", S.enMora || 0, "#B00020", "#FDECEC")
-    + chip("Vencidas", S.vencida || 0, "#7A1020", "#F7E3E6")
-    + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7")
-    + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F3ECF8") : "")
-    + "</div></div>";
+    + chip("Al corriente", S.alCorriente || 0, "#0B7247", "#EAF7EF", "alCorriente")
+    + chip("Pago parcial", S.parcial || 0, "#8A5A00", "#FFF6E9", "parcial")
+    + chip("Aún no le toca", S.pendiente || 0, "#324AB6", "#E5EAFB", "pendiente")
+    + chip("En mora esta semana", S.enMora || 0, "#B00020", "#FDECEC", "enMora")
+    + chip("Vencidas", S.vencida || 0, "#7A1020", "#F7E3E6", "vencida")
+    + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7", "liquidada")
+    + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F3ECF8", "cuotaVariable") : "")
+    + '</div><div id="semLista"></div></div>';
   // Cartera — el riesgo va junto al total, que es como se leen: cuánto hay y
   // cuánto de eso está en peligro.
   h += '<div class="sub" style="margin-top:12px">'
@@ -1668,7 +1671,7 @@ async function cargarCartera() {
     + ejecLineas + (conc ? "\n· " + conc : "")
     + "\nNota: mora = cuota cuyo día de cobro ya pasó sin cubrirse; pendiente = su día aún no llega (no es morosidad). "
     + "El dinero de créditos vencidos cuenta solo como recuperación, no como cobranza.";
-  h += '<div class="arq-card" style="margin-top:12px"><div class="arq-h">Resumen ejecutivo · para copiar a tu AI o WhatsApp</div>'
+  h += '<div class="arq-card" style="margin-top:12px"><div class="arq-h">Resumen ejecutivo</div>'
     + '<div class="resum">' + hesc(window.__resumenCartera) + "</div>"
     + '<button class="rescopy" onclick="copiarResumenCartera(this)">Copiar resumen</button></div>';
   // Por ejecutiva
@@ -1799,6 +1802,45 @@ async function cargarCartera() {
 
   h += alto + medio + info;
   box.innerHTML = h;
+  // Si dejó una lista abierta, el repintado no se la cierra en la cara.
+  if (semAbierto) verSemaforo(semAbierto, semTitulo, true);
+}
+
+// ---------- semáforo tocable: qué clientas son de cada color ----------
+let semAbierto = null, semTitulo = "";
+async function verSemaforo(estado, titulo, forzar) {
+  const caja = document.getElementById("semLista");
+  if (!caja) return;
+  // Tocar el chip abierto lo cierra (salvo el repintado de los 30s, que trae forzar).
+  if (!forzar && semAbierto === estado) { semAbierto = null; caja.innerHTML = ""; return; }
+  semAbierto = estado; semTitulo = titulo;
+  caja.innerHTML = '<div class="permeta" style="margin-top:8px">Buscando…</div>';
+  let d;
+  try { d = await (await fetch("/api/cartera/semaforo?estado=" + encodeURIComponent(estado), { credentials: "include" })).json(); }
+  catch { caja.innerHTML = '<div class="permeta" style="margin-top:8px">Sin conexión.</div>'; return; }
+  if (semAbierto !== estado) return;   // ya tocaron otro chip mientras cargaba
+  if (d.error) { caja.innerHTML = '<div class="permeta" style="margin-top:8px">' + hesc(d.error) + "</div>"; return; }
+  // El dato de la derecha es el que DECIDE en cada color.
+  const lado = (x) => estado === "enMora" || estado === "parcial"
+      ? 'le falta <b style="color:#B00020">' + dinero(x.faltante) + "</b> de " + dinero(x.cuota)
+    : estado === "vencida"
+      ? 'saldo <b style="color:#B00020">' + dinero(x.saldoActual) + "</b>" + (x.cuotasSinPagar ? " · " + x.cuotasSinPagar + " cuotas sin pagar" : "")
+    : estado === "liquidada" ? "<b>pagó todo</b>"
+    : estado === "pendiente" ? "su día: <b>" + hesc(x.diaPago || "sin día") + "</b> · cuota " + dinero(x.cuota)
+    : estado === "cuotaVariable" ? "saldo " + dinero(x.saldoActual)
+    : "cubrió su cuota de <b>" + dinero(x.cuota) + "</b>";
+  const fila = (x) => '<div class="renrow"><span><b>' + hesc(x.nombre) + '</b> <span style="color:#6B6480">'
+    + hesc(x.centro || "") + " · " + hesc(x.ejecutivo || "—") + '</span></span><span class="rq">' + lado(x) + "</span></div>";
+  const TOPE = 100;
+  const visibles = (d.filas || []).slice(0, TOPE);
+  caja.innerHTML = '<div class="rensec" style="display:flex;justify-content:space-between;align-items:center">'
+    + "<span>" + hesc(titulo) + " · " + d.total + " clientas</span>"
+    + '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="verSemaforo(\'' + estado + '\', \'\')">cerrar</span></div>'
+    + visibles.map(fila).join("")
+    + ((d.filas || []).length > TOPE
+        ? '<div class="renrow" role="button" style="cursor:pointer;justify-content:center;color:#324AB6;font-weight:800" '
+          + 'onclick="this.outerHTML = ' + "window.__semResto" + '">Ver las ' + ((d.filas || []).length - TOPE) + " restantes</div>" : "");
+  window.__semResto = (d.filas || []).slice(TOPE).map(fila).join("");
 }
 
 // Copiar el resumen ejecutivo. El panel corre local y a veces sin https, así
