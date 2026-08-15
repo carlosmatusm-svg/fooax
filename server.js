@@ -2050,6 +2050,96 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
   };
 }
 
+// CRÉDITOS SIN FECHA DE DESEMBOLSO (Karina, 15-ago: «dile a Monse lo de la
+// fecha de desembolso y mándale las que faltan»).
+//
+// Por qué importa: sin esa fecha el sistema NO puede saber si un crédito es
+// nuevo —y por lo tanto todavía no debe— o si ya venía corriendo. Se asume lo
+// segundo, que es lo conservador: se le mide mora desde el corte. Un crédito
+// nuevo de verdad, sin su fecha, aparece debiendo lo que no debe.
+//
+// La plantilla trae la fecha para todos; los que faltan son los que se dan de
+// alta o se re-acreditan a mano. Por eso esta lista suele ser corta y hay que
+// vaciarla seguido.
+function sinFechaDesembolso(usuario) {
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const filas = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(c.desembolso || "").slice(0, 10))) continue;
+    const info = infoCredito(cv, c);
+    if (info.saldoActual <= 0.009) continue;      // ya liquidado: no afecta la mora
+    filas.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
+      clienta: c.nombre, socio: String(c.id), producto: c.producto,
+      saldoActual: Math.round(info.saldoActual * 100) / 100,
+      cuota: Number(c.cuota) || 0, diaPago: c.diaPago || null,
+      estatus: c.estatus || "", alta: fechaNacimientoCredito(c.id, c.producto) });
+  }
+  filas.sort((a2, b2) => String(a2.ejecutivo).localeCompare(String(b2.ejecutivo), "es")
+    || b2.saldoActual - a2.saldoActual);
+  const porEjec = {};
+  for (const x of filas) porEjec[x.ejecutivo] = (porEjec[x.ejecutivo] || 0) + 1;
+  return { hoy: hoyMX(), total: filas.length,
+    saldo: Math.round(filas.reduce((a2, x) => a2 + x.saldoActual, 0) * 100) / 100,
+    porEjecutivo: porEjec, filas };
+}
+
+app.get("/api/sin-desembolso", requiere("direccion", "admin"), (req, res) => {
+  res.json(sinFechaDesembolso(req.usuario));
+});
+
+app.get("/api/sin-desembolso/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = sinFechaDesembolso(req.usuario);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", AMBAR = "FFFFF3CD";
+  const s = wb.addWorksheet("Sin fecha de desembolso");
+  s.mergeCells("A1:J1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · CRÉDITOS SIN FECHA DE DESEMBOLSO · al " + d.hoy + " · " + d.total + " créditos";
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center", vertical: "middle" };
+  s.getRow(1).height = 24;
+  s.mergeCells("A2:J2");
+  const n = s.getCell("A2");
+  n.value = "Sin esta fecha el sistema no puede saber si el crédito es NUEVO (y todavía no debe) o si ya venía "
+    + "corriendo. Asume lo segundo y le mide mora desde el corte. Llena la última columna y pásala a Dirección.";
+  n.font = { italic: true, size: 10 };
+  n.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+  n.alignment = { wrapText: true, vertical: "middle" };
+  s.getRow(2).height = 30;
+  const head = [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+    ["Saldo que le queda", 16], ["Cuota", 12], ["Día de cobro", 13], ["Estatus", 22],
+    ["FECHA DE DESEMBOLSO (llenar)", 26]];
+  const hr = s.getRow(3);
+  head.forEach(([h, w], i) => { const c = hr.getCell(i + 1); c.value = h; s.getColumn(i + 1).width = w;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    c.alignment = { horizontal: "center", wrapText: true }; });
+  let f = 4;
+  for (const x of d.filas) {
+    const r = s.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(6).value = x.saldoActual; r.getCell(6).numFmt = '"$"#,##0.00';
+    r.getCell(7).value = x.cuota; r.getCell(7).numFmt = '"$"#,##0.00';
+    r.getCell(8).value = x.diaPago || "sin día";
+    r.getCell(9).value = x.estatus;
+    r.getCell(10).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+    r.getCell(10).border = { bottom: { style: "thin" }, left: { style: "thin" },
+      right: { style: "thin" }, top: { style: "thin" } };
+  }
+  const tr = s.getRow(f + 1);
+  tr.getCell(3).value = "TOTAL · " + d.total + " créditos";
+  tr.getCell(6).value = d.saldo; tr.getCell(6).numFmt = '"$"#,##0.00';
+  [3, 6].forEach((i) => (tr.getCell(i).font = { bold: true }));
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Sin fecha de desembolso FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
 app.get("/api/renovaciones", requiere("direccion", "admin"), (req, res) => {
   res.json(reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes));
 });
@@ -3512,7 +3602,25 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
     if (!ok) return res.status(400).json({ error: "Ese ejecutivo no existe. Elige uno de: " + nombres.join(", ") });
     campos.ejecutivo = ok;
   }
-  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota o el ejecutivo." });
+  // FECHA DE DESEMBOLSO (Karina, 15-ago). Es el dato con el que el sistema
+  // distingue un crédito NUEVO —que todavía no debe— de uno que ya venía
+  // corriendo. Faltaba poder capturarla después del alta: los que se dieron de
+  // alta sin ella no había forma de arreglarlos, y quedaban midiéndose desde
+  // el corte para siempre.
+  if (b.desembolso != null && b.desembolso !== "") {
+    const des = String(b.desembolso).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(des))
+      return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
+    campos.desembolso = des;
+  }
+  // DÍA DE PAGO: sin él la clienta es invisible para la mora, así que también
+  // se puede corregir aquí.
+  if (b.diaPago != null && b.diaPago !== "") {
+    const dp = String(b.diaPago).trim().toUpperCase();
+    if (!idxDia(dp)) return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
+    campos.diaPago = dp;
+  }
+  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota, el ejecutivo, la fecha de desembolso o el día de pago." });
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
     saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),

@@ -3373,6 +3373,40 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el arqueo del martes cobra lo mismo que la mora semanal",
     !!na && na.faltante === 1144, JSON.stringify(na));
 
+  console.log("\n— 68. LA LISTA DE LOS QUE NO TRAEN FECHA DE DESEMBOLSO (Karina, 15-ago) —");
+  // «Dile a Monse lo de la fecha de desembolso y mándale las que faltan.»
+  // Sin esa fecha el sistema no distingue un crédito NUEVO de uno que ya venía
+  // corriendo, y asume lo segundo. La lista tiene que ser fácil de vaciar.
+  const S68 = "70000001100";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S68, nombre: "SIN FECHA 68", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6000, cuota: 500, plazo: 12, diaPago: "Lunes" }) });
+  const sd68 = async () => j(await fetch(U + "/api/sin-desembolso", { headers: H(cm) }));
+  const d68 = await sd68();
+  const yo68 = (d68.filas || []).find((x) => String(x.socio) === S68);
+  ok("el crédito sin fecha de desembolso aparece en la lista",
+    !!yo68 && yo68.saldoActual === 6000, JSON.stringify(yo68));
+  ok("y la lista dice cuánto saldo está en esa situación",
+    typeof d68.saldo === "number" && d68.saldo >= 6000, JSON.stringify({ total: d68.total, saldo: d68.saldo }));
+  // El que SÍ la trae no estorba en la lista.
+  const S68b = "70000001101";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S68b, nombre: "CON FECHA 68", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6000, cuota: 500, plazo: 12, diaPago: "Lunes",
+      desembolso: "2026-08-03" }) });
+  ok("el que SÍ trae su fecha no aparece",
+    !((await sd68()).filas || []).some((x) => String(x.socio) === S68b), "salió el que sí la tiene");
+  // Al capturársela, se sale de la lista: así se vacía.
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S68, producto: "Grupal-Basico", desembolso: "2026-08-03",
+      motivo: "Captura de fecha de desembolso" }) });
+  const d68b = await sd68();
+  ok("y en cuanto Monse la captura, desaparece de la lista",
+    !(d68b.filas || []).some((x) => String(x.socio) === S68), "sigue en la lista con su fecha puesta");
+  const rx68 = await fetch(U + "/api/sin-desembolso/excel", { headers: H(cm) });
+  ok("la lista baja en Excel con su columna en blanco para llenar",
+    rx68.status === 200 && /spreadsheet/.test(rx68.headers.get("content-type") || ""), "status " + rx68.status);
+
   console.log("\n— 65. CARTERA: unidades honestas (Karina, 14-ago: «100% real, no nos inventamos nada») —");
   // La columna `mora` del padrón es un CONTEO de cuotas sin pagar (Monse), no
   // pesos. El tablero la sumaba y la pintaba como "$21 de mora" y como "% de

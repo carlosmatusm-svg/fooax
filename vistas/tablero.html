@@ -698,6 +698,7 @@
     <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg><span>Arqueo de caja del día</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg><span>Cierre de caja de la semana</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Saldos actualizados de la semana</span></button>
+    <button class="dlbtn" id="btnSinDes" onclick="descargar('/api/sin-desembolso/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18M12 15v3"/></svg><span>Créditos sin fecha de desembolso</span></button>
     <button class="dlbtn secun" onclick="descargar('/api/respaldo')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v6h8V4M8 20v-5h8v5"/></svg><span>Respaldo completo (toda la cobranza)</span></button>
   </div>
   <div class="dlhint" id="dlAviso" style="display:none"></div>
@@ -1889,6 +1890,21 @@ async function pintarMoraBloque() {
     + rec + '</div><div id="semLista"></div>';
 }
 
+// El botón de "sin fecha de desembolso" dice CUÁNTOS son: si son cero, se
+// apaga solo. Así nadie baja un Excel vacío ni se olvida de los que faltan.
+async function cargarSinDesembolso() {
+  const b = document.getElementById("btnSinDes");
+  if (!b) return;
+  let d;
+  try { d = await (await fetch("/api/sin-desembolso", { credentials: "include" })).json(); }
+  catch { return; }
+  const et = b.querySelector("span");
+  if (!et || d.error) return;
+  if (!d.total) { b.style.display = "none"; return; }
+  b.style.display = "";
+  et.textContent = d.total + (d.total === 1 ? " crédito sin fecha de desembolso" : " créditos sin fecha de desembolso");
+}
+
 // LOS MOROSOS (Karina, 15-ago: «que cuando le pique descargue los morosos»).
 // Sale del MISMO reporte que baja en Excel, así el número de arriba y la lista
 // de abajo no pueden contarse distinto.
@@ -2566,6 +2582,7 @@ cargarTendencias();
 cargarPeriodo();
 cargarMora();
 cargarRenovaciones();
+cargarSinDesembolso();
 { const e = document.getElementById("moraLunes"); if (e) e.addEventListener("change", cargarMora); }
 // Al cambiar el rango se recalcula el resumen, para ver el número antes de bajar el Excel.
 ["perDesde", "perHasta"].forEach((id) => {

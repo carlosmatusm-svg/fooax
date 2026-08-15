@@ -102,6 +102,12 @@ function aplicarCambios(base, cambios) {
         // venía: mover cartera deja huella (regla §6.1 del Complemento).
         if (k.ejecutivo) { cl.ejecutivo_anterior = cl.ejecutivo; cl.ejecutivo = k.ejecutivo; }
         if (k.centro) { cl.centro_anterior = cl.centro; cl.centro = k.centro; }
+        // FECHA DE DESEMBOLSO y DÍA DE PAGO (Karina, 15-ago). Son los dos datos
+        // con los que el sistema decide si un crédito debe y bajo qué día. Sin
+        // poder capturarlos DESPUÉS del alta, un crédito que nació sin ellos se
+        // quedaba así para siempre.
+        if (k.desembolso) { cl.desembolso_anterior = cl.desembolso || null; cl.desembolso = k.desembolso; }
+        if (k.diaPago) { cl.diaPago_anterior = cl.diaPago || null; cl.diaPago = String(k.diaPago).toUpperCase(); }
         // Etiqueta (Recuperación, Renovación…). La cadena vacía SÍ cuenta: es
         // como se quita. Por eso se compara contra undefined y no con un if
         // truthy — con un truthy nunca se podría borrar.
