@@ -2885,9 +2885,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y con día, la clienta SÍ entra a la mora bajo su día",
     (m60.dias || []).some((g) => g.dia === "LUNES" && g.filas.some((x) => String(x.socio) === S60)),
     "no salió bajo LUNES");
+  // SIN FECHA DE DESEMBOLSO se mide desde el corte, como cualquier otra: se
+  // asume que el crédito YA venía corriendo. Es lo correcto y lo conservador —
+  // Monse da de alta clientas que llevan meses pagando, y tratarlas como
+  // recién nacidas las dejaba exentas de mora (el hoyo del 15-ago). Para
+  // proteger a un crédito nuevo de verdad, se captura su desembolso.
+  const S60d = "70000001003";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60d, nombre: "DONA CON DESEMBOLSO 60", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4800, cuota: 400, plazo: 12, diaPago: "Lunes",
+      desembolso: HOY }) });
   const m60ants = await j(await fetch(U + "/api/mora?lunes=2026-08-03", { headers: H(cm) }));
-  ok("pero NO debe la semana de ANTES de existir (alta de hoy, mora del 3-ago)",
-    !(m60ants.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S60)),
+  ok("con su desembolso capturado, NO debe la semana de ANTES de existir",
+    !(m60ants.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S60d)),
     "salió debiendo una semana en la que su crédito no existía");
   // (b) Alta SIN día en un centro que cobra en un día ÚNICO: lo hereda.
   const S60b = "70000001001";
@@ -3292,6 +3302,76 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // vivo en la sección 63 — estas dos reglas conviven.
 
   await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+
+  console.log("\n— 67. LOS CASOS REALES DEL EXCEL DE MORA (Karina, 15-ago: «eliminaste a varias») —");
+  // Karina comparó el Excel de la mora antes y después y de 231 créditos
+  // quedaron 31. Al cotejar contra los saldos reales, 22 habían salido SIN
+  // haber pagado. Dos causas, las dos mías:
+  //   1. Se usaba la fecha del ALTA como si fuera el desembolso. Monse da de
+  //      alta clientas que YA traían crédito corriendo: quedaban exentas.
+  //   2. Las cuotas se contaban desde el día siguiente al corte pero los
+  //      abonos desde el corte. Quien pagó el día del corte (o entre el corte
+  //      y su primer cobro) estaba liquidando una deuda ANTERIOR, y esa
+  //      asimetría se la acreditaba a la cuota de esta semana.
+  // La regla correcta usa LA MISMA VARA: todo arranca en el primer día de
+  // cobro de la clienta después del corte.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  const rn67 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const en67 = (d, soc) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === soc);
+
+  // (a) ELVIRA: LUNES, cuota 445, pagó 445 EL DÍA DEL CORTE (5-ago, miércoles).
+  // Ese pago liquidó su cuota del lunes ANTERIOR: sigue debiendo la de esta
+  // semana. Es la que se perdió del reporte.
+  const S67a = "70000001090";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S67a, nombre: "ELVIRA REAL 67", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 2225, cuota: 445, plazo: 12, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-05", snapshot: { regI: { [S67a + "|Grupal-Basico|ELVIRA REAL 67|0"]: { pago: 445, forma: "E" } } }, ts: Date.now() + 40 }) });
+  const e67 = en67(await rn67(), S67a);
+  ok("la que pagó el DÍA DEL CORTE sigue debiendo su cuota de esta semana",
+    !!e67 && e67.faltante === 445, JSON.stringify(e67));
+
+  // (b) ARIELA: JUEVES, cuota 480, pagó 1440 el 8-ago = TRES cuotas. Ese sí es
+  // adelanto de verdad y Monse pidió que no saliera. Debe seguir fuera.
+  const S67b = "70000001091";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S67b, nombre: "ARIELA REAL 67", producto: "Grupal-Micro",
+      centro: "C-0", ejecutivo: "Julio", saldo: 11520, cuota: 480, plazo: 24, diaPago: "Jueves",
+      desembolso: "2026-04-02" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-08", snapshot: { regI: { [S67b + "|Grupal-Micro|ARIELA REAL 67|0"]: { pago: 1440, forma: "E" } } }, ts: Date.now() + 41 }) });
+  ok("la que ADELANTÓ tres cuotas sigue fuera de la mora (lo que pidió Monse)",
+    !en67(await rn67(), S67b), "ARIELA volvió a la mora");
+
+  // (c) NUBIA: MARTES, cuota 1144, NO ha abonado un peso, y Monse la dio de
+  // alta en el sistema apenas. Debe UNA cuota: el alta no la exime.
+  const S67c = "70000001092";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S67c, nombre: "NUBIA REAL 67", producto: "Grupal-Microcredito",
+      centro: "C-0", ejecutivo: "Julio", saldo: 19448, cuota: 1144, plazo: 32, diaPago: "Martes" }) });
+  const n67 = en67(await rn67(), S67c);
+  ok("el ALTA en el sistema NO exime de mora a quien ya traía su crédito",
+    !!n67 && n67.faltante === 1144, JSON.stringify(n67));
+
+  // (d) LA CONSENTIDA: JUEVES, cuota 840, pagó 6-ago y 12-ago. Al corriente.
+  const S67d = "70000001093";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S67d, nombre: "ANA CONSENTIDA 67", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
+      desembolso: "2026-05-07" }) });
+  for (const [fch, dt] of [["2026-08-06", 42], ["2026-08-12", 43]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: fch, snapshot: { regI: { [S67d + "|Grupal-Basico 2|ANA CONSENTIDA 67|0"]: { pago: 840, forma: "E" } } }, ts: Date.now() + dt }) });
+  ok("la que va al corriente (pagó su día y adelantó el miércoles) NO sale",
+    !en67(await rn67(), S67d), "ANA salió en la mora estando al corriente");
+
+  // (e) Y el arqueo de su día dice lo mismo que la semana: una sola verdad.
+  const a67 = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-11", { headers: H(cm) }));
+  const na = (a67.centros || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S67c);
+  ok("y el arqueo del martes cobra lo mismo que la mora semanal",
+    !!na && na.faltante === 1144, JSON.stringify(na));
 
   console.log("\n— 65. CARTERA: unidades honestas (Karina, 14-ago: «100% real, no nos inventamos nada») —");
   // La columna `mora` del padrón es un CONTEO de cuotas sin pagar (Monse), no
