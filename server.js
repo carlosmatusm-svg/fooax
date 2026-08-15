@@ -1964,10 +1964,17 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
       // Antes del corte no se puede afirmar quién cerró ciclo: va en null, no
       // en cero. Cero significa «no hubo»; null significa «no se puede saber».
       terminaronSinRenovar: antesDelCorte ? null : terminaronEnElMes.length,
+      montoTerminaronSinRenovar: antesDelCorte ? null
+        : Math.round(terminaronEnElMes.reduce((a2, x) => a2 + (x.monto || 0), 0) * 100) / 100,
       cerraronCiclo: antesDelCorte ? null : cerraronCiclo,
       tasa: (!antesDelCorte && cerraronCiclo > 0) ? Math.round((renovaron.length / cerraronCiclo) * 100) : null,
       // La proyección mira hacia adelante: en un mes que ya pasó no aplica.
       terminanEnElMes: mes < hoy.slice(0, 7) ? null : porTerminar.filter((x) => x.terminaEnElMes).length,
+      // Lo que les FALTA POR PAGAR a las que terminan en el mes: es la cobranza
+      // que está por cerrarse — y cada una, una renovación por ofrecer.
+      montoTerminanEnElMes: mes < hoy.slice(0, 7) ? null
+        : Math.round(porTerminar.filter((x) => x.terminaEnElMes)
+            .reduce((a2, x) => a2 + (x.saldoActual || 0), 0) * 100) / 100,
       antesDelCorte, esFuturo, corte,
       sinMovimiento: renovaron.length === 0 && (antesDelCorte || terminaronEnElMes.length === 0),
     },
@@ -2046,8 +2053,9 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
   }
   const t2 = s2.getRow(f++);
   t2.getCell(5).value = "TOTAL · " + d.totales.porTerminar + " clientas";
-  t2.getCell(9).value = null;
-  t2.getCell(5).font = { bold: true };
+  t2.getCell(7).value = Math.round(d.porTerminar.reduce((a2, x) => a2 + (x.saldoActual || 0), 0) * 100) / 100;
+  t2.getCell(7).numFmt = MONEDA;
+  [5, 7].forEach((i) => (t2.getCell(i).font = { bold: true }));
 
   // EL MES: quién renovó, cuándo y por cuánto. Es la hoja que contesta
   // «¿cómo nos fue este mes?» sin tener que contar a mano.
@@ -2906,7 +2914,12 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     }
     if (info.saldoActual <= 0) acc.liquidadas++;
     const mora = Number(c.mora) > 0 ? Number(c.mora) : 0;
-    if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, mora, saldoActual: info.saldoActual }); }
+    // LA COLUMNA `mora` DEL PADRÓN ES UN CONTEO, no pesos: «las cuotas que no
+    // ha pagado el cliente» (Monse). En el padrón real vale 12, 21, 63, 229 —
+    // con cuotas de $320. Sumarla y pintarla como "$21 de mora" era enseñar un
+    // número falso. El DINERO en riesgo es otro: el saldo vivo de ese crédito.
+    if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, cuotasSinPagar: mora, saldoActual: info.saldoActual }); }
+    if (enRecuperacion(c)) acc.enRiesgo = (acc.enRiesgo || 0) + info.saldoActual;
     const np = numeroDePago(c, info.saldoActual);
     if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
     const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, esperadoALaFecha: 0, pendiente_: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, enMora: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
@@ -2948,7 +2961,12 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     creditosActivos: activos.length, conSaldo,
     cartera: r2(acc.cartera),
     saldoPromedio: conSaldo ? r2(acc.cartera / conSaldo) : 0,
-    moraMonto: r2(acc.moraMonto), moraCreditos: acc.moraCreditos,
+    // `moraMonto`/`moraPorcentaje` mezclaban unidades (cuotas entre pesos) y ya
+    // no se enseñan; quedan por compatibilidad. Los buenos son estos dos:
+    moraCuotasTotal: acc.moraMonto, moraCreditos: acc.moraCreditos,
+    carteraEnRiesgo: r2(acc.enRiesgo || 0),
+    riesgoPorcentaje: acc.cartera > 0 ? r2(((acc.enRiesgo || 0) / acc.cartera) * 100) : 0,
+    moraMonto: r2(acc.moraMonto),
     moraPorcentaje: acc.cartera > 0 ? r2((acc.moraMonto / acc.cartera) * 100) : 0,
     liquidadas: acc.liquidadas,
     // MORA DE LA SEMANA vs RECUPERACIÓN (corazón de la Fase 2, versión
@@ -2976,7 +2994,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       esperado: r2(e.esperado), esperadoALaFecha: r2(e.esperadoALaFecha), cobrado: r2(e.cobrado),
       moraSemana: r2(e.mora), pendienteSemana: r2(e.pendiente_),
       cumplimiento: e.esperadoALaFecha > 0 ? r2((e.cobrado / e.esperadoALaFecha) * 100) : 0 })),
-    inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
+    inconsistentes, vencidas: vencidas.sort((a, b) => b.saldoActual - a.saldoActual).slice(0, 50),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
     // Las que SÍ traen clienta pero no dicen de cuál de sus créditos: el sistema

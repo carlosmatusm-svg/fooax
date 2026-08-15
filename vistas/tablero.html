@@ -173,6 +173,16 @@
   .rbadge-eti{display:inline-block;vertical-align:middle;font-size:10px;font-weight:800;
     letter-spacing:.04em;padding:2px 7px;border-radius:999px;
     background:#EDE6F7;color:#5B2E8C;border:1px solid #C9B3E4}
+  .renstats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .renstat{flex:1 1 128px;min-width:126px;background:#fff;border:1px solid #E4DDF0;border-radius:10px;padding:9px 11px}
+  .renstat .rn{font-size:20px;font-weight:800;color:var(--tinta);line-height:1.15}
+  .renstat .rl{font-size:11px;color:var(--gris);font-weight:700;margin-top:2px;line-height:1.3}
+  .renstat .rm{font-size:11px;color:var(--gris);margin-top:1px}
+  .rensec{font-size:12px;font-weight:800;color:var(--tinta);margin:13px 0 2px;letter-spacing:.02em}
+  .renrow{display:flex;justify-content:space-between;gap:10px;background:#fff;border:1px solid #EEE9F6;
+    border-radius:8px;padding:6px 10px;margin-top:4px;font-size:12.5px;align-items:center}
+  .renrow .rq{color:var(--gris);white-space:nowrap;text-align:right}
+  .renejec{font-size:12px;color:var(--gris);margin-top:3px}
   .hcorr{padding:7px 10px;border-radius:8px;background:#FCEDEF;
     border-left:4px solid #8E0019;line-height:1.4}
   .hcorr>b{color:#8E0019;font-size:13px}
@@ -313,7 +323,24 @@
   .av-mas:active{background:rgba(0,0,0,.03)}
   .ct-nota{font-size:11.5px;line-height:1.45;color:var(--gris);background:#FFF6E9;border:1px solid #F0DCC0;
     border-radius:12px;padding:9px 11px;margin:10px 16px 0}
+  .ct-grp{font-size:10.5px;font-weight:800;color:var(--gris);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 2px}
+  .ej-card{background:#fff;border:1px solid #EEE9F6;border-radius:10px;padding:9px 11px;margin-top:6px}
+  .ej-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ej-nom{font-weight:800;color:var(--tinta);font-size:13px}
+  .ej-pct{font-weight:800;font-size:16px;white-space:nowrap}
+  .ej-bar{height:6px;border-radius:4px;background:#EDE8F5;margin:6px 0 5px;overflow:hidden}
+  .ej-bar i{display:block;height:100%;background:#0B7247}
+  .ej-det{font-size:11.5px;color:var(--gris);line-height:1.5}
+  .ej-det b{color:var(--tinta)}
+  .resum{font-size:12.5px;line-height:1.6;color:var(--tinta);background:#fff;border:1px solid #EEE9F6;
+    border-radius:10px;padding:10px 12px;margin-top:8px;white-space:pre-wrap;word-break:break-word}
+  .rescopy{margin-top:8px;font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--rio);
+    border:0;border-radius:9px;padding:8px 14px;cursor:pointer}
+  .ct-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
   .ct-tab{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  .ct-scroll .ct-tab{margin-top:0;min-width:520px}
+  .ct-tab th,.ct-tab td{white-space:nowrap;padding-left:8px}
+  .ct-tab th:first-child,.ct-tab td:first-child{padding-left:0}
   .ct-tab th{text-align:right;font-size:10.5px;color:var(--gris);text-transform:uppercase;letter-spacing:.02em;padding:0 0 6px}
   .ct-tab th:first-child{text-align:left}
   .ct-tab td{text-align:right;padding:7px 0;border-top:1px solid var(--lav);font-variant-numeric:tabular-nums}
@@ -1584,13 +1611,15 @@ async function cargarCartera() {
     + '<div class="ct-pct-l">de lo que ya debía entrar<br>'
     + "<b>" + dinero(d.cobradoSemana) + "</b> de " + dinero(espFecha) + "</div></div>"
     + '<div class="ct-barra"><i style="width:' + pct + '%;background:#0B7247"></i><i style="width:' + (100 - pct) + '%;background:#E9C3C8"></i></div>'
-    + '<div class="ct-vs">'
+    + '<div class="ct-grp">La semana</div><div class="ct-vs">'
     + '<div><div class="ct-n ok">' + dinero(d.cobradoSemana) + '</div><div class="ct-l">cobrado</div></div>'
-    + '<div><div class="ct-n">' + dinero(espFecha) + '</div><div class="ct-l">esperado a la fecha</div></div>'
-    + '<div><div class="ct-n mora">' + dinero(d.moraSemana) + '</div><div class="ct-l">mora · ya venció</div></div>'
-    + '<div><div class="ct-n">' + dinero(d.pendienteSemana || 0) + '</div><div class="ct-l">pendiente · aún no vence</div></div>'
-    + '<div><div class="ct-n rec">' + dinero(d.recuperacionSemana) + '</div><div class="ct-l">recuperación</div></div>'
+    + '<div><div class="ct-n">' + dinero(espFecha) + '</div><div class="ct-l">ya debía entrar</div></div>'
     + '<div><div class="ct-n">' + dinero(d.esperadoSemana) + '</div><div class="ct-l">semana completa</div></div>'
+    + "</div>"
+    + '<div class="ct-grp">Dónde está el resto</div><div class="ct-vs">'
+    + '<div><div class="ct-n mora">' + dinero(d.moraSemana) + '</div><div class="ct-l">mora · ya venció</div></div>'
+    + '<div><div class="ct-n">' + dinero(d.pendienteSemana || 0) + '</div><div class="ct-l">aún no vence</div></div>'
+    + '<div><div class="ct-n rec">' + dinero(d.recuperacionSemana) + '</div><div class="ct-l">recuperación</div></div>'
     + "</div>"
     + '<div class="ct-cumpl">Semana del ' + hesc(d.lunes) + " al " + hesc(d.hoy)
     + ". El cumplimiento se mide contra lo que <b>ya debía entrar</b> a la fecha, no contra la semana completa.</div>"
@@ -1603,29 +1632,70 @@ async function cargarCartera() {
     + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7")
     + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F3ECF8") : "")
     + "</div></div>";
-  // Cartera
+  // Cartera — el riesgo va junto al total, que es como se leen: cuánto hay y
+  // cuánto de eso está en peligro.
   h += '<div class="sub" style="margin-top:12px">'
     + '<div class="mini"><div class="eti">Cartera total</div><div class="v">' + dinero(d.cartera) + "</div></div>"
-    + '<div class="mini"><div class="eti">Saldo promedio</div><div class="v">' + dinero(d.saldoPromedio) + "</div></div>"
+    + '<div class="mini"><div class="eti">Cartera en riesgo</div><div class="v" style="color:#B00020">' + dinero(d.carteraEnRiesgo || 0)
+    + ' <span style="font-size:12px;font-weight:700">· ' + (d.riesgoPorcentaje || 0) + "%</span></div>"
+    + '<div style="font-size:11px;color:var(--gris);margin-top:2px">saldo vivo de vencidas y en mora</div></div>'
     + "</div>"
     + '<div class="sub">'
-    + '<div class="mini"><div class="eti">Mora sobre cartera</div><div class="v">' + (d.moraPorcentaje || 0) + "%</div></div>"
     + '<div class="mini"><div class="eti">Créditos con saldo</div><div class="v">' + d.conSaldo + "</div></div>"
+    + '<div class="mini"><div class="eti">Saldo promedio</div><div class="v">' + dinero(d.saldoPromedio) + "</div></div>"
     + "</div>";
+
+  // RESUMEN EJECUTIVO (Karina, 14-ago): la CEO pega los números en una AI para
+  // entenderlos. Este párrafo ya viene masticado — texto plano, con unidades y
+  // contexto, listo para copiar a la AI o al WhatsApp. Sale de los MISMOS
+  // números verificados de arriba: no calcula nada nuevo.
+  const ejecLineas = (d.porEjec || []).slice().sort((x, y) => (x.cumplimiento || 0) - (y.cumplimiento || 0))
+    .map((e) => "· " + e.nombre + ": cobró " + dinero(e.cobrado) + " de " + dinero(e.esperadoALaFecha || e.esperado)
+      + " que ya debían entrar (" + (e.cumplimiento || 0) + "%), mora vencida " + dinero(e.moraSemana || 0)
+      + ", cartera " + dinero(e.cartera) + " en " + e.creditos + " créditos.").join("\n");
+  const conc = d.conciliacion
+    ? (d.conciliacion.cuadra ? "La conciliación cuadra: todo lo cobrado bajó de un saldo."
+        : "OJO: la conciliación NO cuadra, hay " + dinero(d.conciliacion.diferencia || 0) + " sin aplicar a saldos.")
+    : "";
+  window.__resumenCartera = "CARTERA FOOAX al " + d.hoy + " (semana del " + d.lunes + "):\n"
+    + "· Cumplimiento a la fecha: " + (d.cumplimiento || 0) + "% — cobrado " + dinero(d.cobradoSemana)
+    + " de " + dinero(espFecha) + " que ya debía entrar (la semana completa espera " + dinero(d.esperadoSemana) + ").\n"
+    + "· Mora ya vencida de la semana: " + dinero(d.moraSemana) + ". Aún no vence: " + dinero(d.pendienteSemana || 0)
+    + ". Recuperación de vencidos: " + dinero(d.recuperacionSemana) + ".\n"
+    + "· Cartera viva: " + dinero(d.cartera) + " en " + d.conSaldo + " créditos (promedio " + dinero(d.saldoPromedio) + ").\n"
+    + "· En riesgo: " + dinero(d.carteraEnRiesgo || 0) + " (" + (d.riesgoPorcentaje || 0) + "% de la cartera) en "
+    + d.moraCreditos + " créditos vencidos o en mora.\n"
+    + ejecLineas + (conc ? "\n· " + conc : "")
+    + "\nNota: mora = cuota cuyo día de cobro ya pasó sin cubrirse; pendiente = su día aún no llega (no es morosidad). "
+    + "El dinero de créditos vencidos cuenta solo como recuperación, no como cobranza.";
+  h += '<div class="arq-card" style="margin-top:12px"><div class="arq-h">Resumen ejecutivo · para copiar a tu AI o WhatsApp</div>'
+    + '<div class="resum">' + hesc(window.__resumenCartera) + "</div>"
+    + '<button class="rescopy" onclick="copiarResumenCartera(this)">Copiar resumen</button></div>';
   // Por ejecutiva
-  h += '<div class="arq-card" style="margin-top:12px"><div class="arq-h">Por ejecutiva · esperado vs cobrado</div>'
-    + '<table class="ct-tab"><thead><tr><th>Ejecutiva</th><th>Créditos</th><th>Cartera</th><th>Esperado</th><th>Cobrado</th><th>Cumpl.</th></tr></thead><tbody>'
-    + (d.porEjec || []).map((e) =>
-        "<tr><td>" + hesc(e.nombre) + "</td><td>" + e.creditos + "</td><td>" + dinero(e.cartera) + "</td><td>"
-        + dinero(e.esperado) + "</td><td>" + dinero(e.cobrado) + '</td><td style="color:'
-        + (e.cumplimiento >= 90 ? "#0B7247" : e.cumplimiento >= 50 ? "#8A5A00" : "#B00020") + ';font-weight:800">' + e.cumplimiento + "%</td></tr>").join("")
-    + "</tbody></table></div>";
+  // TARJETAS, NO TABLA: siete columnas no caben en un teléfono, y este panel
+  // se lee en el teléfono. La PEOR va arriba — es a quien hay que atender.
+  h += '<div class="arq-card" style="margin-top:12px"><div class="arq-h">Por ejecutiva · la que necesita atención va primero</div>'
+    + (d.porEjec || []).slice().sort((x, y) => (x.cumplimiento || 0) - (y.cumplimiento || 0)).map((e) => {
+        const col = e.cumplimiento >= 90 ? "#0B7247" : e.cumplimiento >= 50 ? "#8A5A00" : "#B00020";
+        const w = Math.max(0, Math.min(100, e.cumplimiento || 0));
+        return '<div class="ej-card"><div class="ej-top"><span class="ej-nom">' + hesc(e.nombre)
+          + '</span><span class="ej-pct" style="color:' + col + '">' + (e.cumplimiento || 0) + "%</span></div>"
+          + '<div class="ej-bar"><i style="width:' + w + '%;background:' + col + '"></i></div>'
+          + '<div class="ej-det">cobró <b>' + dinero(e.cobrado) + "</b> de <b>" + dinero(e.esperadoALaFecha || e.esperado)
+          + "</b> que ya debían entrar · mora vencida <b style=\"color:#B00020\">" + dinero(e.moraSemana || 0) + "</b>"
+          + "<br>cartera <b>" + dinero(e.cartera) + "</b> en " + e.creditos + " créditos · recuperación "
+          + dinero(e.recuperacion || 0) + "</div></div>";
+      }).join("")
+    + "</div>";
   // Vencidas
   if ((d.vencidas || []).length) {
-    h += '<div class="arq-card"><div class="arq-h">Vencidas · ' + d.moraCreditos + " créditos · " + dinero(d.moraMonto) + " de mora</div>"
+    // La columna `mora` del padrón son CUOTAS sin pagar, no pesos: se dice como
+    // conteo. El dinero de cada renglón es su saldo, y por saldo van ordenadas.
+    h += '<div class="arq-card"><div class="arq-h">Vencidas · ' + d.moraCreditos + " créditos · "
+      + dinero(d.carteraEnRiesgo || 0) + " de saldo en riesgo</div>"
       + (d.vencidas.slice(0, 15).map((v) =>
           '<div class="arq-ejec"><span>' + hesc(v.nombre) + '<br><span style="font-size:11px">' + hesc(v.centro || "") + " · " + hesc(v.ejecutivo || "") + "</span></span>"
-          + '<b style="color:#B00020">mora ' + dinero(v.mora) + '<br><span style="font-weight:600;color:var(--gris)">saldo ' + dinero(v.saldoActual) + "</span></b></div>").join(""))
+          + '<b style="color:#B00020">saldo ' + dinero(v.saldoActual) + '<br><span style="font-weight:600;color:var(--gris)">' + (v.cuotasSinPagar || 0) + " cuotas sin pagar</span></b></div>").join(""))
       + "</div>";
   }
   // Plazos mal capturados (dato para Monse)
@@ -1634,29 +1704,9 @@ async function cargarCartera() {
       + d.inconsistentes.slice(0, 10).map((x) => "• " + hesc(x.nombre) + " (" + hesc(x.producto) + "): plazo dice <b>" + x.plazoPadron + "</b>, real <b>" + x.plazoReal + "</b>").join("<br>")
       + "</div>";
   }
-  // PLAZO YA VENCIDO. Antes se avisaba de las que debían "exactamente una cuota",
-  // pero con la plantilla al día eso es NORMAL: es su último pago. Lo que sí
-  // importa es a quién ya se le acabó el plazo y no cerró.
-  if ((d.atrasados || []).length) {
-    const tot = d.atrasados.reduce((a, b) => a + (b.saldo || 0), 0);
-    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">⚠ ' + d.atrasados.length
-      + " créditos atrasados 4 pagos o más (" + dinero(tot) + ").</b> "
-      + "El plazo no es una fecha límite sino un número de pagos: esto compara los pagos que lleva contra los que debería llevar.<br>"
-      + d.atrasados.slice(0, 12).map((x) => "• " + hesc(x.ejecutivo || "—") + " · " + hesc(x.nombre)
-          + " (" + hesc(x.producto) + "): " + dinero(x.saldo) + " · lleva " + x.hechos
-          + " de " + x.plazo + " pagos, debería llevar " + x.debio + " — atraso de " + x.atraso).join("<br>")
-      + (d.atrasados.length > 12 ? "<br>… y " + (d.atrasados.length - 12) + " más" : "")
-      + "</div>";
-  }
-  // Liquidaciones que entraron a caja pero no le bajaron el saldo a nadie.
-  if ((d.liquidacionesSinClienta || []).length) {
-    const totL = d.liquidacionesSinClienta.reduce((a, b) => a + (b.monto || 0), 0);
-    h += '<div class="ct-nota" style="border-color:#B00020"><b style="color:#B00020">🔴 ' + d.liquidacionesSinClienta.length
-      + " liquidaciones sin clienta (" + dinero(totL) + ").</b> Ese dinero entró a la caja pero <b>no le bajó el saldo a nadie</b>, porque el movimiento no dice de qué clienta es. "
-      + "La app de la ejecutiva ya lo impide; estos vienen del tablero o son viejos. Hay que anularlos y volverlos a capturar con su clienta.<br>"
-      + d.liquidacionesSinClienta.slice(0, 8).map((x) => "• " + hesc(x.fecha) + " · " + hesc(x.concepto) + " · " + dinero(x.monto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "")).join("<br>")
-      + "</div>";
-  }
+  // Los avisos de atrasados y de liquidaciones sin clienta viven SOLO en el
+  // sistema de prioridades de abajo (alta/media): aquí salían por segunda vez
+  // como muro de viñetas y la misma alerta dos veces enseña que nadie la lee.
   // ORDEN: primero el semáforo del día (¿cuadra?), luego lo que cuesta dinero,
   // luego lo que hay que revisar, y hasta el final la referencia. Antes la
   // conciliación quedaba enterrada bajo un muro de 1,600 caracteres.
@@ -1749,6 +1799,23 @@ async function cargarCartera() {
 
   h += alto + medio + info;
   box.innerHTML = h;
+}
+
+// Copiar el resumen ejecutivo. El panel corre local y a veces sin https, así
+// que clipboard puede no existir: el respaldo es el truco del textarea.
+function copiarResumenCartera(btn) {
+  const txt = window.__resumenCartera || "";
+  const listo = () => { btn.textContent = "Copiado ✓"; setTimeout(() => (btn.textContent = "Copiar resumen"), 2000); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(listo).catch(() => copiarResumenRespaldo(txt, listo));
+  } else copiarResumenRespaldo(txt, listo);
+}
+function copiarResumenRespaldo(txt, listo) {
+  const ta = document.createElement("textarea");
+  ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); listo(); } catch {}
+  document.body.removeChild(ta);
 }
 
 // ---------- FASE 2 · tendencias semana a semana ----------
@@ -2112,23 +2179,9 @@ async function cargarRenovaciones() {
   try { d = await (await fetch("/api/renovaciones" + semanasRenUI(), { credentials: "include" })).json(); }
   catch { box.textContent = "Sin conexión con el servidor."; return; }
   if (d.error) { box.textContent = d.error; return; }
-  const t = d.totales || {};
   const mm = d.delMes || {};
   const mes = document.getElementById("renMes");
   if (mes && !mes.value) mes.value = d.mes || "";
-  // Se enseñan las 8 que más urgen de cada lista; el resto va en el Excel. Se
-  // dice cuántas quedaron fuera para que nadie crea que la lista es todo.
-  const fila = (x) => "<br>· <b>" + hesc(x.clienta) + "</b> " + hesc(x.centro || "")
-    + " <span style=\"color:#6B6480\">(" + hesc(x.ejecutivo || "—") + ")</span> ";
-  const l1 = (d.sinRenovar || []).slice(0, 8).map((x) => fila(x)
-    + (x.dias == null ? "" : "hace <b style=\"color:" + (x.dias >= 30 ? "#8E0019" : "#6B6480") + "\">"
-        + x.dias + " días</b> ")
-    + "· terminó " + dinero(x.monto)
-    + (x.eraVencido ? " <span style=\"color:#8E0019\">(era vencido: fue recuperación)</span>" : "")).join("");
-  const l2 = (d.porTerminar || []).slice(0, 8).map((x) => fila(x)
-    + "le faltan <b>" + x.semanas + (x.semanas === 1 ? " cuota" : " cuotas") + "</b> · debe "
-    + dinero(x.saldoActual)).join("");
-  const f = d.fuera || {};
   // El mes va ARRIBA: es la foto que se reporta. Abajo queda el pendiente
   // acumulado, que no se filtra por mes a propósito — la que terminó en junio
   // y no ha vuelto sigue urgiendo hoy.
@@ -2136,34 +2189,66 @@ async function cargarRenovaciones() {
   // clienta es la foto de ese día. Se dice con todas sus letras en vez de
   // enseñar ceros, que se leen como "nadie" y son mentira.
   const aviso = mm.antesDelCorte
-    ? '<br><span style="color:#8E0019">De ' + hesc(mm.mes || "") + " solo se ven las renovaciones que quedaron registradas: "
-      + "los saldos del sistema arrancan el <b>" + hesc(mm.corte || "") + "</b>, así que quién terminó de pagar antes "
-      + "de esa fecha no se puede saber. Por eso no se calcula la tasa de ese mes.</span>"
-    : (mm.sinMovimiento ? '<br><span style="color:#6B6480">Sin movimiento registrado en este mes.</span>' : "");
-  box.innerHTML = "<b>En " + hesc(mm.mes || "") + ": renovaron <span style=\"color:#0B7247\">"
-    + (mm.renovaron || 0) + "</span> clientas</b> por " + dinero(mm.montoRenovado || 0)
-    + (mm.terminaronSinRenovar == null ? ""
-        : " · cerraron ciclo y no han vuelto <b style=\"color:#8E0019\">" + mm.terminaronSinRenovar + "</b>")
-    + (mm.tasa == null ? "" : " · <b>tasa de renovación " + mm.tasa + "%</b>")
-    + (mm.terminanEnElMes ? " · terminan este mes <b>" + mm.terminanEnElMes + "</b> más" : "")
+    ? '<div class="permeta" style="color:#8E0019;margin-top:8px">De ' + hesc(mm.mes || "")
+      + " solo se ven las renovaciones que quedaron registradas: los saldos del sistema arrancan el <b>"
+      + hesc(mm.corte || "") + "</b>, así que quién terminó de pagar antes de esa fecha no se puede saber. "
+      + "Por eso no se calcula la tasa de ese mes.</div>"
+    : (mm.sinMovimiento ? '<div class="permeta" style="margin-top:8px">Sin movimiento registrado en este mes.</div>' : "");
+
+  // CADA NÚMERO GRANDE CONTESTA UNA PREGUNTA DE DIRECCIÓN:
+  //   renovaron   → ¿está saliendo el dinero a la calle otra vez?
+  //   tasa        → ¿qué tan bien retenemos a la que termina? (rojo bajo 50%)
+  //   se enfriaron→ ¿cuánta cartera cerró y nadie fue por ella?
+  //   terminan    → ¿qué viene este mes? (cobranza por cerrar = ofertas por hacer)
+  const tile = (n, l, m2, color) => '<div class="renstat"><div class="rn"'
+    + (color ? ' style="color:' + color + '"' : "") + ">" + n + '</div><div class="rl">' + l + "</div>"
+    + (m2 ? '<div class="rm">' + m2 + "</div>" : "") + "</div>";
+  const stats = '<div class="renstats">'
+    + tile(mm.renovaron || 0, "renovaron en " + hesc(mm.mes || ""), dinero(mm.montoRenovado || 0) + " colocados", "#0B7247")
+    + tile(mm.tasa == null ? "—" : mm.tasa + "%", "tasa de renovación",
+        mm.cerraronCiclo == null ? "no se puede medir" : "de " + mm.cerraronCiclo + " que cerraron ciclo",
+        mm.tasa == null ? "#6B6480" : (mm.tasa < 50 ? "#8E0019" : "#0B7247"))
+    + tile(mm.terminaronSinRenovar == null ? "—" : mm.terminaronSinRenovar, "cerraron y no volvieron",
+        mm.montoTerminaronSinRenovar ? dinero(mm.montoTerminaronSinRenovar) + " que se enfriaron" : "",
+        mm.terminaronSinRenovar ? "#8E0019" : null)
+    + tile(mm.terminanEnElMes == null ? "—" : mm.terminanEnElMes, "terminan este mes",
+        mm.montoTerminanEnElMes ? "les falta " + dinero(mm.montoTerminanEnElMes) + " por pagar" : "")
+    + "</div>";
+
+  const ejec = (d.porEjecutivo || []).filter((g) => g.renovaron || g.terminaronEnElMes)
+    .map((g) => "<b>" + hesc(g.ejecutivo) + "</b> renovó " + g.renovaron + ", no volvieron " + g.terminaronEnElMes
+      + (g.tasa == null ? "" : ' (<b style="color:' + (g.tasa < 50 ? "#8E0019" : "#0B7247") + '">' + g.tasa + "%</b>)"))
+    .join(" · ");
+
+  // Las listas son renglones de acción: nombre a la izquierda, el dato que
+  // decide a la derecha. Arriba va la que más urge; el resto vive en el Excel.
+  const quien = (x) => "<b>" + hesc(x.clienta) + "</b> <span style=\"color:#6B6480\">"
+    + hesc(x.centro || "") + " · " + hesc(x.ejecutivo || "—") + "</span>";
+  const l1 = (d.sinRenovar || []).slice(0, 8).map((x) => '<div class="renrow"><span>' + quien(x)
+    + (x.eraVencido ? ' <span style=\"color:#8E0019\">(era vencido: fue recuperación)</span>' : "")
+    + '</span><span class="rq">' + (x.dias == null ? "" : '<b style=\"color:'
+      + (x.dias >= 30 ? "#8E0019" : "#3A3350") + '\">' + x.dias + " días</b> · ")
+    + "terminó " + dinero(x.monto) + "</span></div>").join("");
+  const l2 = (d.porTerminar || []).slice(0, 8).map((x) => '<div class="renrow"><span>' + quien(x)
+    + '</span><span class="rq"><b>' + x.semanas + (x.semanas === 1 ? " cuota" : " cuotas") + "</b> · debe "
+    + dinero(x.saldoActual) + "</span></div>").join("");
+  const t = d.totales || {};
+  const f = d.fuera || {};
+
+  box.innerHTML = stats
+    + (ejec ? '<div class="renejec">' + ejec + "</div>" : "")
     + aviso
-    + "<br>"
-    + (d.porEjecutivo || []).filter((g) => g.renovaron || g.terminaronEnElMes)
-        .map((g) => "&nbsp;&nbsp;· <b>" + hesc(g.ejecutivo) + "</b>: renovó " + g.renovaron
-          + ", no volvieron " + g.terminaronEnElMes
-          + (g.tasa == null ? "" : " (<b style=\"color:" + (g.tasa < 50 ? "#8E0019" : "#0B7247") + "\">"
-              + g.tasa + "%</b>)")).join("<br>")
-    + "<br><br><b>Ya terminaron y no han renovado: <span style=\"color:#8E0019\">"
-    + (t.sinRenovar || 0) + "</span> clientas</b> (de todos los meses) — " + dinero(t.montoSinRenovar || 0)
-    + " de cartera que se acabó de pagar y no volvió a salir." + (l1 || "<br>· Ninguna: todas renovaron.")
-    + "<br><br><b>Por terminar (" + (d.semanasAviso || 3) + " cuotas o menos): <span style=\"color:#324AB6\">"
-    + (t.porTerminar || 0) + "</span> clientas</b> — hay que ofrecerles la renovación."
-    + (l2 || "<br>· Ninguna por ahora.")
+    + '<div class="rensec">Ya terminaron y no han renovado — <span style="color:#8E0019">' + (t.sinRenovar || 0)
+    + "</span> clientas de todos los meses · " + dinero(t.montoSinRenovar || 0) + " que no volvieron a salir</div>"
+    + (l1 || '<div class="permeta">Ninguna: todas renovaron.</div>')
+    + '<div class="rensec">Por terminar (' + (d.semanasAviso || 3) + " cuotas o menos) — <span style=\"color:#324AB6\">"
+    + (t.porTerminar || 0) + "</span> clientas · ofrecerles la renovación antes de que cierren</div>"
+    + (l2 || '<div class="permeta">Ninguna por ahora.</div>')
     + ((t.sinRenovar || 0) + (t.porTerminar || 0) > 16
-        ? "<br><br><span style=\"color:#6B6480\">Arriba van las que más urgen. La lista completa, con socio y día de cobro, está en el Excel.</span>" : "")
-    + "<br><span style=\"color:#8E0019\">Fuera de esta cuenta: " + (f.vencidos || 0)
+        ? '<div class="permeta">Arriba van las que más urgen. La lista completa, con socio y día de cobro, está en el Excel.</div>' : "")
+    + '<div class="permeta" style="color:#8E0019">Fuera de esta cuenta: ' + (f.vencidos || 0)
     + " vencidos (van en recuperación), " + (f.cuotaVariable || 0) + " de cuota variable y "
-    + (f.sinCuota || 0) + " sin cuota capturada.</span>";
+    + (f.sinCuota || 0) + " sin cuota capturada.</div>";
 }
 
 // ---------- movimiento del periodo (sin corte) ----------

@@ -260,7 +260,8 @@ console.log("\n═══ LA TARJETA DE RENOVACIONES PINTA ═══\n");
     totales: { sinRenovar: 1, montoSinRenovar: 6000, porTerminar: 1, montoPorTerminar: 4000 },
     mes: "2026-08",
     delMes: { mes: "2026-08", renovaron: 3, montoRenovado: 18000, terminaronSinRenovar: 1,
-      cerraronCiclo: 4, tasa: 75, terminanEnElMes: 2 },
+      montoTerminaronSinRenovar: 6000, cerraronCiclo: 4, tasa: 75, terminanEnElMes: 2,
+      montoTerminanEnElMes: 1000, antesDelCorte: false, corte: "2026-08-05", sinMovimiento: false },
     fuera: { vencidos: 3, cuotaVariable: 1, sinCuota: 0 },
   };
   const ctx = {
@@ -280,6 +281,8 @@ console.log("\n═══ LA TARJETA DE RENOVACIONES PINTA ═══\n");
       // pierde justo el número que Karina pidió el 14-ago.
       ok("abre con el corte del MES: cuántas renovaron y la tasa",
         /2026-08/.test(h) && /renovaron/.test(h) && /75%/.test(h) && /\$18,000/.test(h), h.slice(0, 260));
+      ok("cada conteo trae su dinero: colocado, enfriado y por cobrar",
+        /\$18,000/.test(h) && /se enfriaron/.test(h) && /les falta \$1,000 por pagar/.test(h), h.slice(0, 700));
       ok("y desglosa el mes por ejecutivo",
         /Julio/.test(h) && /renov[oó] 3/.test(h), h.slice(0, 400));
       ok("dice quién NO renovó, con sus días y su dinero",

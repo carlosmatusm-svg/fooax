@@ -3207,6 +3207,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // ya pasó no significa nada, así que va en blanco, no en cero.
   ok("«terminan este mes» no se contesta para un mes que ya pasó",
     dv.terminanEnElMes === null, JSON.stringify(dv));
+  // CADA CONTEO CON SU DINERO: contar clientas sin pesos no decide nada.
+  ok("el mes en curso dice cuánto dinero se enfrió y cuánto está por cobrarse",
+    typeof (r64m.delMes || {}).montoTerminaronSinRenovar === "number"
+      && typeof (r64m.delMes || {}).montoTerminanEnElMes === "number", JSON.stringify(r64m.delMes));
+  ok("y en un mes que no se puede medir, esos montos van en blanco, no en cero",
+    dv.montoTerminaronSinRenovar === null && dv.montoTerminanEnElMes === null, JSON.stringify(dv));
   // Y EL PENDIENTE NO SE FILTRA POR MES: la que terminó en otro mes y no ha
   // vuelto sigue urgiendo hoy. Si el mes la escondiera, se perdería.
   ok("cambiar el mes NO esconde el pendiente acumulado",
@@ -3222,6 +3228,29 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el reporte de renovaciones baja en Excel",
     rx64.status === 200 && /spreadsheet/.test(rx64.headers.get("content-type") || ""),
     "status " + rx64.status);
+
+  console.log("\n— 65. CARTERA: unidades honestas (Karina, 14-ago: «100% real, no nos inventamos nada») —");
+  // La columna `mora` del padrón es un CONTEO de cuotas sin pagar (Monse), no
+  // pesos. El tablero la sumaba y la pintaba como "$21 de mora" y como "% de
+  // mora sobre cartera" (cuotas divididas entre pesos). El dinero real en
+  // riesgo es el SALDO vivo de los créditos vencidos/en mora.
+  const cart65 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("la cartera en riesgo es dinero de verdad: la suma de los saldos vencidos",
+    typeof cart65.carteraEnRiesgo === "number" && cart65.carteraEnRiesgo >= 0
+      && typeof cart65.riesgoPorcentaje === "number", JSON.stringify({ r: cart65.carteraEnRiesgo, p: cart65.riesgoPorcentaje }));
+  ok("y su porcentaje sale de pesos entre pesos, no de cuotas entre pesos",
+    cart65.cartera === 0 || Math.abs(cart65.riesgoPorcentaje - Math.round((cart65.carteraEnRiesgo / cart65.cartera) * 10000) / 100) < 0.02,
+    cart65.carteraEnRiesgo + " / " + cart65.cartera + " vs " + cart65.riesgoPorcentaje + "%");
+  ok("cada vencida dice sus CUOTAS sin pagar (conteo) y su saldo (pesos), separados",
+    (cart65.vencidas || []).every((v) => typeof v.cuotasSinPagar === "number" && typeof v.saldoActual === "number"),
+    JSON.stringify((cart65.vencidas || [])[0]));
+  ok("las vencidas van ordenadas por el DINERO en juego, no por el conteo",
+    (cart65.vencidas || []).every((v, i2, arr) => i2 === 0 || arr[i2 - 1].saldoActual >= v.saldoActual - 0.01),
+    "desordenadas");
+  ok("el conteo total de cuotas conserva su nombre de conteo",
+    typeof cart65.moraCuotasTotal === "number", "falta moraCuotasTotal");
+  ok("y la tabla por ejecutiva trae su mora ya vencida de la semana",
+    (cart65.porEjec || []).every((e) => typeof e.moraSemana === "number"), "falta moraSemana");
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
