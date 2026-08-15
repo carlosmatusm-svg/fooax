@@ -3104,6 +3104,79 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("los atrasos viejos NO inflan la semana: se exige una cuota, no todas",
     !!atr && atr.faltante === 500, JSON.stringify(atr));
 
+  console.log("\n— 64. RENOVACIONES: quién no volvió y quién está por terminar (Karina, 14-ago) —");
+  // «Hay que poner las renovaciones pendientes o las que NO renovaron de los
+  // ejecutivos, en el de Anel.» Son dos listas distintas y no se deben mezclar:
+  // la que ya terminó y sigue sin crédito es cartera que se enfría; la que está
+  // por terminar es trabajo por hacer ANTES de que cierre.
+
+  // (a) TERMINÓ DE PAGAR y no tiene otro crédito: sale en «no renovaron».
+  const S64a = "70000001070";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64a, nombre: "TERMINO SIN VOLVER 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2, diaPago: "Lunes" }) });
+  const K64a = S64a + "|Grupal-Basico|TERMINO SIN VOLVER 64|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-10", snapshot: { regI: { [K64a]: { pago: 1000, forma: "E" } } }, ts: Date.now() + 10 }) });
+  const rn = async (q) => j(await fetch(U + "/api/renovaciones" + (q || ""), { headers: H(cm) }));
+  const r64 = await rn();
+  const sin64 = (soc, d) => (d.sinRenovar || []).find((x) => String(x.socio) === soc);
+  const q64 = sin64(S64a, r64);
+  ok("la que terminó de pagar y no tiene otro crédito sale en «no renovaron»", !!q64, "no salió");
+  ok("y dice CUÁNDO terminó y cuántos días lleva sin renovar",
+    !!q64 && q64.fechaFin === "2026-08-10" && q64.dias >= 0, JSON.stringify(q64));
+
+  // (b) LA QUE SÍ RENOVÓ no aparece: terminó, pero ya trae crédito nuevo vivo.
+  const S64b = "70000001071";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64b, nombre: "SI RENOVO 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2, diaPago: "Lunes" }) });
+  const K64b = S64b + "|Grupal-Basico|SI RENOVO 64|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-10", snapshot: { regI: { [K64b]: { pago: 1000, forma: "E" } } }, ts: Date.now() + 11 }) });
+  ok("antes de renovar, sí aparece pendiente", !!sin64(S64b, await rn()), "no salió");
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64b, producto: "Grupal-Basico", saldo: 6000, cuota: 500,
+      plazo: 12, ejecutivo: "Julio", motivo: "Renovación 64" }) });
+  ok("y en cuanto se le RE-DA el crédito, desaparece de la lista",
+    !sin64(S64b, await rn()), "sigue apareciendo como no renovada");
+
+  // (c) POR TERMINAR: le faltan 2 cuotas, entra al aviso de 3 o menos.
+  const S64c = "70000001072";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64c, nombre: "CASI TERMINA 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2, diaPago: "Lunes" }) });
+  const r64c = await rn();
+  const pt64 = (d, soc) => (d.porTerminar || []).find((x) => String(x.socio) === soc);
+  ok("a la que le faltan 2 cuotas se avisa que está por terminar",
+    !!pt64(r64c, S64c) && pt64(r64c, S64c).semanas === 2, JSON.stringify(pt64(r64c, S64c)));
+  // Y el umbral MANDA: con «2 o menos» sigue; con una clienta larga, no entra.
+  const S64d = "70000001073";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64d, nombre: "LARGA 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 10000, cuota: 500, plazo: 20, diaPago: "Lunes" }) });
+  const r64d = await rn();
+  ok("a la que le faltan 20 cuotas NO se le avisa todavía", !pt64(r64d, S64d), "salió antes de tiempo");
+
+  // (d) UN VENCIDO NO ES RENOVACIÓN: va en recuperación, y se dice.
+  const fuera64 = (await rn()).fuera || {};
+  ok("los vencidos y los de cuota variable se cuentan aparte, no se callan",
+    typeof fuera64.vencidos === "number" && typeof fuera64.cuotaVariable === "number"
+      && typeof fuera64.sinCuota === "number", JSON.stringify(fuera64));
+
+  // (e) EL CORTE POR EJECUTIVO cuadra con las listas.
+  const r64e = await rn();
+  const sumaEj = (r64e.porEjecutivo || []).reduce((a2, g) => a2 + g.sinRenovar, 0);
+  ok("el corte por ejecutivo suma exactamente lo mismo que la lista",
+    sumaEj === (r64e.totales || {}).sinRenovar,
+    "por ejecutivo " + sumaEj + " vs total " + (r64e.totales || {}).sinRenovar);
+
+  // (f) Y baja en Excel, que es como se lo pasan a las ejecutivas.
+  const rx64 = await fetch(U + "/api/renovaciones/excel", { headers: H(cm) });
+  ok("el reporte de renovaciones baja en Excel",
+    rx64.status === 200 && /spreadsheet/.test(rx64.headers.get("content-type") || ""),
+    "status " + rx64.status);
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

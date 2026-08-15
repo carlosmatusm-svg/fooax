@@ -1797,6 +1797,208 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
   res.end(Buffer.from(buf));
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// RENOVACIONES — la pregunta de Karina (14-ago): «las renovaciones pendientes
+// o las que NO renovaron, de los ejecutivos, en el de Anel».
+//
+// Son dos preguntas distintas y por eso van en dos listas:
+//   · YA TERMINARON Y NO HAN RENOVADO — pagaron todo y siguen sin crédito
+//     nuevo. Cada día que pasa es cartera que se enfría (y clienta que la
+//     competencia puede levantar). El dato que manda es CUÁNTOS DÍAS llevan.
+//   · ESTÁN POR TERMINAR — les quedan 3 cuotas o menos. Es la lista de
+//     trabajo: a estas hay que ofrecerles la renovación ANTES de que cierren.
+//
+// Lo que NO entra se cuenta y se dice, nunca se calla: un VENCIDO no es
+// renovación (va a recuperación, regla de la Ing. Monse del 4-ago), y los de
+// cuota variable (MAGNUS) no se pueden proyectar con la cuota del padrón.
+function reporteRenovaciones(usuario, avisoSemanas) {
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const hoy = hoyMX();
+  const corte = corteSaldos();
+  const semanasAviso = Number(avisoSemanas) > 0 ? Number(avisoSemanas) : 3;
+
+  // ¿Qué socias tienen HOY dinero prestado vivo? Si una terminó su crédito
+  // pero ya trae otro corriendo, NO está sin renovar — ya se le volvió a dar.
+  const conCreditoVivo = new Set();
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (infoCredito(cv, c).saldoActual > 0.009) conCreditoVivo.add(String(c.id));
+  }
+
+  // ÚLTIMO DÍA EN QUE ABONÓ: es la fecha en que terminó de pagar. Sale de los
+  // mismos pagos que usa el saldo (desde el corte) más las liquidaciones de
+  // caja, para que el número de días no dependa de dónde se capturó.
+  const pf = pagosDeLaSemana(usuario, corte).porFecha || {};
+  const ultimoAbono = {};
+  for (const clave in pf)
+    for (const f in pf[clave])
+      if (((pf[clave][f] || {}).p || 0) > 0 && (!ultimoAbono[clave] || f > ultimoAbono[clave]))
+        ultimoAbono[clave] = f;
+  const ultimaLiq = {};
+  for (const m of (store.respaldo().movimientos || [])) {
+    if (m.anulado || !/^(liquidaci|recuperaci)/i.test(tipoDeMov(m))) continue;
+    const soc = socioDeMov(m);
+    if (!soc || !/^\d{4}-\d{2}-\d{2}$/.test(String(m.fecha || ""))) continue;
+    if (!ultimaLiq[soc] || m.fecha > ultimaLiq[soc]) ultimaLiq[soc] = m.fecha;
+  }
+  const diasEntre = (a, b) => Math.max(0, Math.round(
+    (new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000));
+
+  const sinRenovar = [], porTerminar = [];
+  const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0 };
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    const info = infoCredito(cv, c);
+    const clave = claveCredito(c.id, c.producto);
+    const comun = { ejecutivo: c.ejecutivo, centro: c.centro, clienta: c.nombre,
+      socio: String(c.id), producto: c.producto, diaPago: c.diaPago || null };
+
+    if ((c.saldo || 0) > 0 && info.saldoActual <= 0.009) {
+      // TERMINÓ DE PAGAR. Si ya trae otro crédito vivo, no está pendiente.
+      if (conCreditoVivo.has(String(c.id))) continue;
+      // Un vencido que se liquidó fue RECUPERACIÓN, no una renovación normal:
+      // se marca para que Dirección lo trate distinto, pero no se esconde.
+      const venc = esVencido(c);
+      const fin = [ultimoAbono[clave] || "", ultimaLiq[String(c.id)] || ""].sort().pop() || null;
+      sinRenovar.push({ ...comun, monto: Number(c.saldo) || 0,
+        fechaFin: fin, dias: fin ? diasEntre(fin, hoy) : null,
+        eraVencido: venc, cuota: Number(c.cuota) || 0 });
+      continue;
+    }
+    if (info.saldoActual <= 0.009) continue;          // sin saldo original: nada que renovar
+    if (esVencido(c)) { fuera.vencidos++; continue; }  // va a recuperación, no a renovación
+    if (esCuotaVariable(c.producto)) { fuera.cuotaVariable++; continue; }
+    const cuota = Number(c.cuota) || 0;
+    if (cuota <= 0) { fuera.sinCuota++; continue; }
+    const faltan = Math.ceil((info.saldoActual - 0.009) / cuota);
+    if (faltan > semanasAviso) continue;
+    porTerminar.push({ ...comun, saldoActual: Math.round(info.saldoActual * 100) / 100,
+      cuota, semanas: faltan, monto: Number(c.saldo) || 0 });
+  }
+
+  // La que lleva MÁS tiempo sin renovar va primero: es la que más urge.
+  sinRenovar.sort((a, b) => (b.dias || 0) - (a.dias || 0) || String(a.clienta).localeCompare(String(b.clienta), "es"));
+  porTerminar.sort((a, b) => a.semanas - b.semanas || String(a.clienta).localeCompare(String(b.clienta), "es"));
+
+  const porEjecutivo = {};
+  const cuenta = (lista, campo, montoCampo) => {
+    for (const x of lista) {
+      const e = x.ejecutivo || "—";
+      porEjecutivo[e] = porEjecutivo[e] || { ejecutivo: e, sinRenovar: 0, montoSinRenovar: 0, porTerminar: 0, montoPorTerminar: 0 };
+      porEjecutivo[e][campo]++;
+      porEjecutivo[e][montoCampo] = Math.round((porEjecutivo[e][montoCampo] + (x.monto || 0)) * 100) / 100;
+    }
+  };
+  cuenta(sinRenovar, "sinRenovar", "montoSinRenovar");
+  cuenta(porTerminar, "porTerminar", "montoPorTerminar");
+
+  const suma = (l) => Math.round(l.reduce((a, x) => a + (x.monto || 0), 0) * 100) / 100;
+  return {
+    hoy, corte, semanasAviso,
+    sinRenovar, porTerminar,
+    porEjecutivo: Object.values(porEjecutivo).sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo), "es")),
+    totales: {
+      sinRenovar: sinRenovar.length, montoSinRenovar: suma(sinRenovar),
+      porTerminar: porTerminar.length, montoPorTerminar: suma(porTerminar),
+    },
+    fuera,
+  };
+}
+
+app.get("/api/renovaciones", requiere("direccion", "admin"), (req, res) => {
+  res.json(reporteRenovaciones(req.usuario, req.query.semanas));
+});
+
+app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = reporteRenovaciones(req.usuario, req.query.semanas);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019";
+  const MONEDA = '"$"#,##0.00';
+  const hoja = (nombre, titulo, cols) => {
+    const s = wb.addWorksheet(nombre);
+    const ultima = String.fromCharCode(64 + cols.length);
+    s.mergeCells("A1:" + ultima + "1");
+    const t = s.getCell("A1");
+    t.value = titulo;
+    t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+    t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    t.alignment = { horizontal: "center", vertical: "middle" };
+    s.getRow(1).height = 24;
+    const hr = s.getRow(2);
+    cols.forEach(([h, w], i) => {
+      const cc = hr.getCell(i + 1); cc.value = h; s.getColumn(i + 1).width = w;
+      cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      cc.alignment = { horizontal: "center", wrapText: true };
+    });
+    return s;
+  };
+
+  const s1 = hoja("No renovaron", "FOOAX · YA TERMINARON Y NO HAN RENOVADO · al " + d.hoy,
+    [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+     ["Monto del crédito que terminó", 18], ["Terminó de pagar el", 16], ["Días sin renovar", 14], ["Nota", 26]]);
+  let f = 3;
+  for (const x of d.sinRenovar) {
+    const r = s1.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(6).value = x.monto; r.getCell(6).numFmt = MONEDA;
+    r.getCell(7).value = x.fechaFin || "—";
+    r.getCell(8).value = x.dias == null ? "—" : x.dias;
+    r.getCell(9).value = x.eraVencido ? "Era crédito VENCIDO: fue recuperación" : "";
+    // Más de un mes sin renovar se ve en rojo: es la que se está enfriando.
+    if ((x.dias || 0) >= 30) r.getCell(8).font = { bold: true, color: { argb: ROJO } };
+  }
+  const t1 = s1.getRow(f++);
+  t1.getCell(5).value = "TOTAL · " + d.totales.sinRenovar + " clientas";
+  t1.getCell(6).value = d.totales.montoSinRenovar; t1.getCell(6).numFmt = MONEDA;
+  [5, 6].forEach((i) => (t1.getCell(i).font = { bold: true }));
+
+  const s2 = hoja("Por terminar", "FOOAX · POR TERMINAR — RENOVACIÓN PENDIENTE (" + d.semanasAviso + " cuotas o menos) · al " + d.hoy,
+    [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+     ["Día de cobro", 13], ["Saldo que le queda", 16], ["Cuota", 12], ["Cuotas que le faltan", 14]]);
+  f = 3;
+  for (const x of d.porTerminar) {
+    const r = s2.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto, x.diaPago || "—"]
+      .forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(7).value = x.saldoActual; r.getCell(7).numFmt = MONEDA;
+    r.getCell(8).value = x.cuota; r.getCell(8).numFmt = MONEDA;
+    r.getCell(9).value = x.semanas;
+    if (x.semanas <= 1) r.getCell(9).font = { bold: true, color: { argb: ROJO } };
+  }
+  const t2 = s2.getRow(f++);
+  t2.getCell(5).value = "TOTAL · " + d.totales.porTerminar + " clientas";
+  t2.getCell(9).value = null;
+  t2.getCell(5).font = { bold: true };
+
+  const s3 = hoja("Por ejecutivo", "FOOAX · RENOVACIONES POR EJECUTIVO · al " + d.hoy,
+    [["Ejecutivo", 16], ["No renovaron", 13], ["Monto que terminó", 17],
+     ["Por terminar", 13], ["Monto por terminar", 17]]);
+  f = 3;
+  for (const g of d.porEjecutivo) {
+    const r = s3.getRow(f++);
+    r.getCell(1).value = g.ejecutivo;
+    r.getCell(2).value = g.sinRenovar;
+    r.getCell(3).value = g.montoSinRenovar; r.getCell(3).numFmt = MONEDA;
+    r.getCell(4).value = g.porTerminar;
+    r.getCell(5).value = g.montoPorTerminar; r.getCell(5).numFmt = MONEDA;
+  }
+  // Lo que quedó fuera se DICE, no se calla: si el total no cuadra con la
+  // cartera, aquí está la explicación.
+  const rf = s3.getRow(f + 1);
+  rf.getCell(1).value = "Fuera de esta cuenta: " + d.fuera.vencidos + " vencidos (van en recuperación, no en renovación), "
+    + d.fuera.cuotaVariable + " de cuota variable (MAGNUS: su cuota cambia cada periodo) y "
+    + d.fuera.sinCuota + " sin cuota capturada.";
+  rf.font = { italic: true, color: { argb: ROJO } };
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Renovaciones FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
 app.get("/api/periodo", requiere("direccion", "admin"), (req, res) => {
   const { desde, hasta } = rangoPeriodo(req.query);
   res.json(movimientoDelPeriodo(req.usuario, desde, hasta));

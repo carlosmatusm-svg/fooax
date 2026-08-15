@@ -220,6 +220,79 @@ for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
     /fooax_vigilo_/.test(v), "se quitó el candado de una-sola-recarga");
 }
 
+// LA TARJETA DE RENOVACIONES PINTA DE VERDAD (Karina, 14-ago). No basta con
+// que el JavaScript compile: esta tarjeta arma HTML con comillas dentro de
+// comillas, que es justo donde se rompe y deja la tarjeta en "Cargando…".
+// Aquí se le da una respuesta de mentiras y se revisa lo que escribió.
+console.log("\n═══ LA TARJETA DE RENOVACIONES PINTA ═══\n");
+{
+  // Se corre SOLO la función que pinta esta tarjeta, con sus dos ayudantes.
+  // Correr el tablero entero aquí es imposible (necesitaría un navegador de
+  // verdad) y tampoco es lo que interesa: lo que se rompe es el HTML que arma.
+  // Se recorta contando llaves hasta cerrar la función (sirve igual para las
+  // de un solo renglón, como hesc, que para las largas).
+  const trozo = (nombre) => {
+    let i = js.indexOf("function " + nombre + "(");
+    if (i < 0) return "";
+    // Si es `async function`, el async va incluido: sin él, el await de adentro
+    // no compila y la prueba culpa a la tarjeta de un error que no tiene.
+    if (js.slice(Math.max(0, i - 6), i) === "async ") i -= 6;
+    let prof = 0, visto = false;
+    for (let k = i; k < js.length; k++) {
+      if (js[k] === "{") { prof++; visto = true; }
+      else if (js[k] === "}") { prof--; if (visto && prof === 0) return js.slice(i, k + 1); }
+    }
+    return "";
+  };
+  const dineroSrc = (js.match(/const dinero = [^\n]+/) || [""])[0];
+  const src = [dineroSrc, trozo("hesc"), trozo("semanasRenUI"), trozo("cargarRenovaciones"),
+    "globalThis.__pintar = cargarRenovaciones;"].join("\n");
+  const caja = { innerHTML: "", textContent: "" };
+  const elems = { renResumen: caja, renSemanas: { value: "3" } };
+  const respuesta = {
+    hoy: "2026-08-14", semanasAviso: 3,
+    sinRenovar: [{ ejecutivo: "Julio", centro: "PEÑITAS", clienta: "ROSA PRUEBA", socio: "1",
+      producto: "Grupal-Basico", monto: 6000, fechaFin: "2026-07-01", dias: 44, eraVencido: false }],
+    porTerminar: [{ ejecutivo: "Neri", centro: "ADNACHIEL", clienta: "MARIA PRUEBA", socio: "2",
+      producto: "Grupal-Basico", saldoActual: 1000, cuota: 500, semanas: 2, diaPago: "MARTES" }],
+    porEjecutivo: [], totales: { sinRenovar: 1, montoSinRenovar: 6000, porTerminar: 1, montoPorTerminar: 4000 },
+    fuera: { vencidos: 3, cuotaVariable: 1, sinCuota: 0 },
+  };
+  const ctx = {
+    document: { getElementById: (id) => elems[id] || null },
+    fetch: () => Promise.resolve({ json: () => Promise.resolve(respuesta) }),
+    console: { log() {}, error() {} },
+  };
+  ctx.globalThis = ctx;
+  let corrio = true, motivo = "";
+  try { vm.createContext(ctx); new vm.Script(src).runInContext(ctx); }
+  catch (e) { corrio = false; motivo = e.message; }
+  ok("la tarjeta de renovaciones y sus ayudantes compilan solos", corrio, motivo);
+  if (corrio && typeof ctx.__pintar === "function") {
+    ctx.__pintar().then(() => {
+      const h = caja.innerHTML;
+      ok("dice quién NO renovó, con sus días y su dinero",
+        /ROSA PRUEBA/.test(h) && /44 d/.test(h) && /\$6,000/.test(h), h.slice(0, 220));
+      ok("dice quién está POR TERMINAR y cuántas cuotas le faltan",
+        /MARIA PRUEBA/.test(h) && /2 cuotas/.test(h), h.slice(0, 220));
+      ok("y no se calla lo que dejó fuera (vencidos y cuota variable)",
+        /3 vencidos/.test(h) && /cuota variable/.test(h), h.slice(-180));
+      // Comillas rotas: es EL error de armar HTML dentro de una cadena. El
+      // síntoma es una barra invertida suelta o una etiqueta sin cerrar.
+      ok("el HTML que arma no trae comillas ni etiquetas rotas",
+        !/\\"/.test(h) && (h.match(/<b[\s>]/g) || []).length === (h.match(/<\/b>/g) || []).length
+          && (h.match(/<span[\s>]/g) || []).length === (h.match(/<\/span>/g) || []).length,
+        h.slice(0, 220));
+      cerrar();
+    }).catch((e) => { ok("la tarjeta de renovaciones se pinta sin error", false, e.message); cerrar(); });
+  } else {
+    ok("la tarjeta de renovaciones existe y es una función", false, "no se pudo aislar");
+    cerrar();
+  }
+}
+
+function cerrar() {
 console.log("\n══════════════════════════════════");
 console.log(FALLA === 0 ? "✅✅ TODO PASÓ: " + PASA + " verificaciones" : "❌ FALLARON " + FALLA + " de " + (PASA + FALLA));
 process.exit(FALLA === 0 ? 0 : 1);
+}

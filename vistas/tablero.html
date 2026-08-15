@@ -645,6 +645,27 @@
     </div>
     <div class="permeta" id="moraResumen">Cargando…</div>
   </div>
+  <!-- RENOVACIONES — Karina, 14-ago: «hay que poner las renovaciones pendientes
+       o las que no renovaron de los ejecutivos, en el de Anel». Dos listas: la
+       que ya terminó y sigue sin crédito (cartera que se enfría) y la que está
+       por terminar (a la que hay que ofrecerle ANTES de que cierre). -->
+  <div class="perwrap">
+    <div class="perttl">Renovaciones · quién terminó y no ha vuelto, y quién está por terminar</div>
+    <div class="permeta">Las que ya <b>pagaron todo y siguen sin crédito nuevo</b> (ordenadas por los días
+      que llevan: la de arriba es la que más urge) y las que <b>están por terminar</b> y hay que ofrecerles
+      la renovación antes de que cierren. Los <b>vencidos no entran</b>: esos van en recuperación.</div>
+    <div class="perrow">
+      <label>Avisar cuando falten</label>
+      <select id="renSemanas" onchange="cargarRenovaciones()">
+        <option value="2">2 cuotas o menos</option>
+        <option value="3" selected>3 cuotas o menos</option>
+        <option value="4">4 cuotas o menos</option>
+        <option value="6">6 cuotas o menos</option>
+      </select>
+      <button class="dlbtn" onclick="descargarRenovaciones()"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg><span>Descargar</span></button>
+    </div>
+    <div class="permeta" id="renResumen">Cargando…</div>
+  </div>
   <div class="descargas">
     <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg><span>Arqueo de caja del día</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg><span>Cierre de caja de la semana</span></button>
@@ -2074,6 +2095,46 @@ async function cargarMora() {
         + "). Vienen dichos en el Excel.</span>" : "");
 }
 
+// ---------- renovaciones: las que no renovaron y las que están por terminar ----------
+function semanasRenUI() {
+  const v = document.getElementById("renSemanas");
+  return v && v.value ? "?semanas=" + v.value : "";
+}
+function descargarRenovaciones() { descargar("/api/renovaciones/excel" + semanasRenUI()); }
+async function cargarRenovaciones() {
+  const box = document.getElementById("renResumen");
+  if (!box) return;
+  let d;
+  try { d = await (await fetch("/api/renovaciones" + semanasRenUI(), { credentials: "include" })).json(); }
+  catch { box.textContent = "Sin conexión con el servidor."; return; }
+  if (d.error) { box.textContent = d.error; return; }
+  const t = d.totales || {};
+  // Se enseñan las 8 que más urgen de cada lista; el resto va en el Excel. Se
+  // dice cuántas quedaron fuera para que nadie crea que la lista es todo.
+  const fila = (x) => "<br>· <b>" + hesc(x.clienta) + "</b> " + hesc(x.centro || "")
+    + " <span style=\"color:#6B6480\">(" + hesc(x.ejecutivo || "—") + ")</span> ";
+  const l1 = (d.sinRenovar || []).slice(0, 8).map((x) => fila(x)
+    + (x.dias == null ? "" : "hace <b style=\"color:" + (x.dias >= 30 ? "#8E0019" : "#6B6480") + "\">"
+        + x.dias + " días</b> ")
+    + "· terminó " + dinero(x.monto)
+    + (x.eraVencido ? " <span style=\"color:#8E0019\">(era vencido: fue recuperación)</span>" : "")).join("");
+  const l2 = (d.porTerminar || []).slice(0, 8).map((x) => fila(x)
+    + "le faltan <b>" + x.semanas + (x.semanas === 1 ? " cuota" : " cuotas") + "</b> · debe "
+    + dinero(x.saldoActual)).join("");
+  const f = d.fuera || {};
+  box.innerHTML = "<b>Ya terminaron y no han renovado: <span style=\"color:#8E0019\">"
+    + (t.sinRenovar || 0) + "</span> clientas</b> — " + dinero(t.montoSinRenovar || 0)
+    + " de cartera que se acabó de pagar y no volvió a salir." + (l1 || "<br>· Ninguna: todas renovaron.")
+    + "<br><br><b>Por terminar (" + (d.semanasAviso || 3) + " cuotas o menos): <span style=\"color:#324AB6\">"
+    + (t.porTerminar || 0) + "</span> clientas</b> — hay que ofrecerles la renovación."
+    + (l2 || "<br>· Ninguna por ahora.")
+    + ((t.sinRenovar || 0) + (t.porTerminar || 0) > 16
+        ? "<br><br><span style=\"color:#6B6480\">Arriba van las que más urgen. La lista completa, con socio y día de cobro, está en el Excel.</span>" : "")
+    + "<br><span style=\"color:#8E0019\">Fuera de esta cuenta: " + (f.vencidos || 0)
+    + " vencidos (van en recuperación), " + (f.cuotaVariable || 0) + " de cuota variable y "
+    + (f.sinCuota || 0) + " sin cuota capturada.</span>";
+}
+
 // ---------- movimiento del periodo (sin corte) ----------
 function rangoPeriodoUI() {
   const dd = document.getElementById("perDesde"), hh = document.getElementById("perHasta");
@@ -2265,6 +2326,7 @@ cargarCartera();
 cargarTendencias();
 cargarPeriodo();
 cargarMora();
+cargarRenovaciones();
 { const e = document.getElementById("moraLunes"); if (e) e.addEventListener("change", cargarMora); }
 // Al cambiar el rango se recalcula el resumen, para ver el número antes de bajar el Excel.
 ["perDesde", "perHasta"].forEach((id) => {
@@ -2272,7 +2334,7 @@ cargarMora();
   if (e) e.addEventListener("change", cargarPeriodo);
 });
 // 30s: se siente en vivo sin comerse los datos del celular (antes era cada 5s)
-setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); cargarCartera(); cargarTendencias(); cargarPeriodo(); }, 30000);
+setInterval(() => { cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSeg(); cargarSemana(); cargarCartera(); cargarTendencias(); cargarPeriodo(); cargarRenovaciones(); }, 30000);
 </script>
 </body>
 </html>
