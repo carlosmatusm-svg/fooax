@@ -3253,8 +3253,13 @@ function semaforoDe(c, info, pagoSemana) {
   // verdad (lo pidió Anel el 4-ago): si su día ya PASÓ y no cubrió, eso sí es
   // mora; si todavía no le toca —o le toca hoy—, es pendiente de cobro.
   const dc = idxDia(c.diaPago), hy = idxHoy();
+  // SIN ABONAR: si su día ya pasó, es mora; si no le toca todavía, es pendiente.
   if (pagoSemana <= 0) return (dc > 0 && dc < hy) ? "enMora" : "pendiente";
-  if (dc > 0 && dc < hy && cuotaDelCredito(c) > 0 && pagoSemana + 0.01 < cuotaDelCredito(c)) return "enMora";
+  // PAGÓ ALGO PERO NO COMPLETÓ: es PAGO PARCIAL, haya pasado su día o no
+  // (Karina, 15-ago: «esas tienen que ir en cartera en el área de pago
+  // parcial»). Antes, si su día ya había pasado, se iban al montón de la mora:
+  // el jueves ya no quedaba una sola parcial y se perdía de vista quién está
+  // pagando a medias, que es distinto de quien no paga.
   if (cuotaDelCredito(c) > 0 && pagoSemana + 0.01 < cuotaDelCredito(c)) return "parcial";
   return "alCorriente";
 }

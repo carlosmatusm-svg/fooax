@@ -1623,7 +1623,7 @@ async function cargarCartera() {
     + chip("Al corriente", S.alCorriente || 0, "#0B7247", "#EAF7EF", "alCorriente")
     + chip("Pago parcial", S.parcial || 0, "#8A5A00", "#FFF6E9", "parcial")
     + chip("Aún no le toca", S.pendiente || 0, "#324AB6", "#E5EAFB", "pendiente")
-    + chip("En mora esta semana", S.enMora || 0, "#B00020", "#FDECEC", "enMora")
+    + chip("En mora · no pagó nada", S.enMora || 0, "#B00020", "#FDECEC", "enMora")
     + chip("Vencidas", S.vencida || 0, "#7A1020", "#F7E3E6", "vencida")
     + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7", "liquidada")
     + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F3ECF8", "cuotaVariable") : "")
@@ -1844,7 +1844,10 @@ async function verSemaforo(estado, titulo, forzar) {
   if (semAbierto !== estado) return;   // ya tocaron otro chip mientras cargaba
   if (d.error) { caja.innerHTML = '<div class="permeta" style="margin-top:8px">' + hesc(d.error) + "</div>"; return; }
   // El dato de la derecha es el que DECIDE en cada color.
-  const lado = (x) => estado === "enMora" || estado === "parcial"
+  const lado = (x) => estado === "parcial"
+      ? 'pagó <b style="color:#8A5A00">' + dinero(x.pagoSemana) + "</b> de " + dinero(x.cuota)
+        + ' · le falta <b style="color:#B00020">' + dinero(x.faltante) + "</b>"
+    : estado === "enMora"
       ? 'le falta <b style="color:#B00020">' + dinero(x.faltante) + "</b> de " + dinero(x.cuota)
     : estado === "vencida"
       ? 'saldo <b style="color:#B00020">' + dinero(x.saldoActual) + "</b>" + (x.cuotasSinPagar ? " · " + x.cuotasSinPagar + " cuotas sin pagar" : "")

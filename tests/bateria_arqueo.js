@@ -3400,6 +3400,39 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el arqueo del martes cobra lo mismo que la mora semanal",
     !!na && na.faltante === 1144, JSON.stringify(na));
 
+  const lunesDeLaSemanaJS = (iso) => { const d = new Date(iso + "T12:00:00");
+    const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
+    return d.toISOString().slice(0, 10); };
+  console.log("\n— 74. LA QUE PAGA A MEDIAS VA EN «PAGO PARCIAL» (Karina, 15-ago) —");
+  // «Esas tienen que ir en cartera en el área de pago parcial.» Antes, si su
+  // día ya había pasado, la que pagó incompleto se iba al montón de la mora:
+  // el jueves ya no quedaba una sola parcial en el semáforo y se perdía de
+  // vista quién está pagando a medias — que es MUY distinto de quien no paga.
+  const S74 = "70000009060";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S74, nombre: "PAGA A MEDIAS 74", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 20,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  const S74b = "70000009061";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S74b, nombre: "NO PAGA NADA 74", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 20,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  const LUN74 = lunesDeLaSemanaJS(HOY);
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: LUN74,
+    snapshot: { reg: { GHANIMA: { [S74 + "|Grupal-Basico|PAGA A MEDIAS 74|0"]: { pago: 88, forma: "E" } } } },
+    ts: Date.now() + 90 }) });
+  const sem74 = async (estado) => j(await fetch(U + "/api/cartera/semaforo?estado=" + estado, { headers: H(cm) }));
+  const enPar = (await sem74("parcial")).filas.find((x) => String(x.socio) === S74);
+  ok("la que pagó $88 de su cuota de $588 va en PAGO PARCIAL, no en la mora",
+    !!enPar, "no está en pago parcial");
+  ok("y su renglón dice cuánto pagó y cuánto le falta",
+    !!enPar && enPar.pagoSemana === 88 && enPar.faltante === 500, JSON.stringify(enPar));
+  ok("la que NO pagó nada sí va en la mora, que es otra cosa",
+    (await sem74("enMora")).filas.some((x) => String(x.socio) === S74b), "no está en mora");
+  ok("y la que pagó a medias NO aparece también en la mora (una clienta, un lugar)",
+    !(await sem74("enMora")).filas.some((x) => String(x.socio) === S74), "sale en los dos");
+
   console.log("\n— 73. EL MISMO PAGO CAPTURADO DOS VECES (Karina, 15-ago) —");
   // «Pagó 88 pesos, pero realmente debe 588, y le pone el sistema que pagó
   // 588.» La clienta quedó listada en DOS lugares —dos centros, o un centro y
