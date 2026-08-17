@@ -743,7 +743,10 @@ function refrescarVista() {
   $("fHoy").style.display = FECHA_VISTA ? "inline-flex" : "none";
   document.body.classList.toggle("pasado", !!FECHA_VISTA);
   pintarBotonArqueo();
-  cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSemana();
+  // El CIERRE DE CAJA también sigue el día que se está mirando: si Dirección se
+  // regresa al sábado, tiene que ver el cierre de ESA semana, no el de hoy.
+  // Sin esta línea la tarjeta se quedaba con la semana en curso (Karina, 17-ago).
+  cargar(); cargarMovs(); cargarArqueo(); cargarResumen(); cargarSemana(); cargarCajaSemana();
 }
 function verHoy() {
   FECHA_VISTA = null;
@@ -1467,7 +1470,7 @@ async function cargarEjecutivos() {
 async function cargarCajaSemana() {
   const box = $("cajaSemana"); if (!box) return;
   let c;
-  try { c = await (await fetch("/api/semana/caja", { credentials: "include" })).json(); }
+  try { c = await (await fetch("/api/semana/caja" + fq(), { credentials: "include" })).json(); }
   catch { box.innerHTML = '<div class="rechint">Sin conexión con el servidor.</div>'; return; }
   const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const nom = (f) => { const [y, m, d] = f.split("-").map(Number);
@@ -2293,7 +2296,11 @@ async function cargarSemana() {
 // fecha del día y textContent borraría el SVG.
 const ICONO_RECIBO = '<svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg>';
 function descargar(base) {
-  const url = base + (base.indexOf("/arqueo/") >= 0 ? fq() : "");
+  // El ARQUEO y el CIERRE DE CAJA son de un día y de su semana: si Dirección se
+  // regresó al sábado, el Excel tiene que ser el del sábado (Karina, 17-ago).
+  // Los demás reportes tienen su propio selector y no dependen de esta fecha.
+  const conFecha = base.indexOf("/arqueo/") >= 0 || base.indexOf("/semana/caja/") >= 0;
+  const url = base + (conFecha ? fq() : "");
   const btns = document.querySelectorAll(".dlbtn");
   btns.forEach((b) => (b.disabled = true));
   const aviso = document.getElementById("dlAviso");

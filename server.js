@@ -4946,10 +4946,17 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
 // lo que debe quedar el sábado es simplemente lo que entró menos lo que salió.
 // El cierre se para el SÁBADO: ninguna clienta tiene ese día de cobro, pero sí
 // entra dinero (recuperaciones, liquidaciones, pagos atrasados).
-function cierreDeCaja(usuario, lunesOpt) {
+// `fechaOpt`: el día que Dirección está mirando. Si se regresa al sábado, el
+// cierre tiene que ser el DE ESA SEMANA cerrado a ese día — no el de la semana
+// en curso (Karina, 17-ago: «si me regreso al sábado, necesito ver el cierre de
+// caja del sábado»). Antes se ignoraba y siempre salía la semana de hoy.
+function cierreDeCaja(usuario, lunesOpt, fechaOpt) {
   const r2 = (n) => Math.round((n || 0) * 100) / 100;
-  const hoy = hoyMX();
-  const lunes = lunesOpt || lunesDeLaSemana(hoy);
+  const hoyReal = hoyMX();
+  const mirando = /^\d{4}-\d{2}-\d{2}$/.test(String(fechaOpt || "")) && fechaOpt <= hoyReal
+    ? fechaOpt : hoyReal;
+  const hoy = mirando;
+  const lunes = lunesOpt || lunesDeLaSemana(mirando);
   const ids = idsEjecutivos(usuario);
   const dias = [];
   let entroCobranza = 0, entroMovs = 0, salio = 0;
@@ -5008,11 +5015,11 @@ function cierreDeCaja(usuario, lunesOpt) {
   };
 }
 app.get("/api/semana/caja", requiere("direccion", "admin"), (req, res) => {
-  res.json(cierreDeCaja(req.usuario, req.query.lunes));
+  res.json(cierreDeCaja(req.usuario, req.query.lunes, req.query.fecha));
 });
 // El mismo cierre en Excel, para mandárselo a Dirección o guardarlo del sábado.
 app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, res) => {
-  const c = cierreDeCaja(req.usuario, req.query.lunes);
+  const c = cierreDeCaja(req.usuario, req.query.lunes, req.query.fecha);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const s = wb.addWorksheet("Cierre de caja", { properties: { defaultColWidth: 20 } });
   const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF0B7247";

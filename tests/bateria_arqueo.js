@@ -3431,6 +3431,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     /__pintarMora/.test(appHtml78) && /fooax_refresco/.test(appHtml78),
     "no está el rescate");
 
+  console.log("\n— 80. EL CIERRE DE CAJA SIGUE EL DÍA QUE SE ESTÁ MIRANDO (Karina, 17-ago) —");
+  // «Si me regreso al sábado, yo necesito ver lo del sábado, el cierre de caja
+  // del sábado, y así sucesivamente.» La tarjeta y el Excel salían SIEMPRE con
+  // la semana en curso: elegir un día anterior no los movía, así que el cierre
+  // del sábado era imposible de sacar.
+  const S80 = "70000009300";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S80, nombre: "CAJA POR DIA 80", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 40000, cuota: 500, plazo: 80,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  const K80 = S80 + "|Grupal-Basico|CAJA POR DIA 80|0";
+  for (const [f, monto, dt] of [["2026-08-13", 3000, 1], ["2026-08-15", 2000, 2]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: f, snapshot: { regI: { [K80]: { pago: monto, forma: "E" } } },
+        ts: Date.now() + 130 + dt }) });
+  const caja80 = async (q) => j(await fetch(U + "/api/semana/caja" + q, { headers: H(cm) }));
+  const sab80 = await caja80("?fecha=2026-08-15");
+  ok("al elegir el SÁBADO, el cierre es el de ESA semana, cerrado a ese día",
+    sab80.lunes === "2026-08-10" && sab80.hasta === "2026-08-15",
+    "del " + sab80.lunes + " al " + sab80.hasta);
+  ok("y trae lo cobrado hasta ese día, no lo de hoy",
+    sab80.entro >= 5000, "entró " + sab80.entro);
+  const jue80 = await caja80("?fecha=2026-08-13");
+  ok("al elegir el JUEVES, corta ahí: cada día tiene su cierre",
+    jue80.hasta === "2026-08-13" && jue80.entro >= 3000 && jue80.entro < sab80.entro,
+    "hasta " + jue80.hasta + " · entró " + jue80.entro);
+  const rx80 = await fetch(U + "/api/semana/caja/excel?fecha=2026-08-15", { headers: H(cm) });
+  ok("y el EXCEL de ese día se puede descargar, con su fecha en el nombre",
+    rx80.status === 200 && /2026-08-10 al 2026-08-15/.test(rx80.headers.get("content-disposition") || ""),
+    (rx80.headers.get("content-disposition") || "status " + rx80.status).slice(0, 90));
+  // Sin elegir fecha sigue siendo la semana en curso, como siempre.
+  const hoy80 = await caja80("");
+  ok("sin elegir día, sigue siendo la semana en curso",
+    hoy80.lunes === lunesDeLaSemanaJS(HOY), "lunes " + hoy80.lunes);
+
   console.log("\n— 79. LA QUE TERMINÓ DE PAGAR DEJA DE COBRARSE (reporte de Administración) —");
   // «La aplicación no liquida los créditos al terminar su plazo: cinco clientas
   // que terminaron el 16 y 17 de julio siguieron recibiendo cobro.»
