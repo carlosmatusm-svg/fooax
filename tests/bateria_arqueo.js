@@ -3086,8 +3086,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // (1) ARIELA: clienta de JUEVES que el jueves PASADO (06-ago) pagó DOBLE.
   const S63a = "70000001063";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    // Desembolsada el 30-jul: al 13-ago le tocaban 2 pagos y lleva 2 (pagó
+    // doble el 6-ago). Trae UNA cuota de adelanto.
     body: JSON.stringify({ id: S63a, nombre: "ARIELA DE PRUEBA 63", producto: "Grupal-Basico 2",
-      centro: "C-0", ejecutivo: "Julio", saldo: 7060, cuota: 706, plazo: 10, diaPago: "Jueves" }) });
+      centro: "C-0", ejecutivo: "Julio", saldo: 7060, cuota: 706, plazo: 10, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
   const K63a = S63a + "|Grupal-Basico 2|ARIELA DE PRUEBA 63|0";
   await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
     body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K63a]: { pago: 1412, forma: "E" } } }, ts: Date.now() }) });
@@ -3448,19 +3451,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // Y EL REPORTE DICE CON QUÉ MIDIÓ CADA UNO: si un día el número se ve raro,
   // lo primero es ver cuántos cayeron al respaldo del arrastre.
   const m69 = await cal69();
-  ok("el reporte dice cuántos midió con calendario y cuántos con el arrastre",
-    m69.medidoCon && typeof m69.medidoCon.calendario === "number"
-      && typeof m69.medidoCon.arrastre === "number" && m69.medidoCon.calendario >= 4,
+  ok("el reporte dice a cuántas se les abonó un adelanto",
+    m69.medidoCon && typeof m69.medidoCon.conAdelanto === "number" && m69.medidoCon.conAdelanto >= 2,
     JSON.stringify(m69.medidoCon));
-  // Un crédito SIN plazo no se puede medir con calendario: cae al respaldo.
+  // SIN PLAZO no hay calendario, así que no hay adelanto que abonar: se le pide
+  // su cuota completa, que es lo conservador y no depende de un dato que falta.
   const S69e = "70000001124";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S69e, nombre: "SIN PLAZO 69", producto: "Grupal-Basico",
       centro: "C-0", ejecutivo: "Julio", saldo: 4000, cuota: 500, diaPago: "Lunes",
       desembolso: "2026-05-04" }) });
-  const m69b = await cal69();
-  ok("el que no trae plazo cae al arrastre y se cuenta aparte",
-    m69b.medidoCon.arrastre > m69.medidoCon.arrastre, JSON.stringify(m69b.medidoCon));
+  const e69 = f69(await cal69(), S69e);
+  ok("al que no trae plazo se le pide su cuota, sin adivinarle adelanto",
+    !!e69 && e69.faltante === 500, JSON.stringify(e69));
 
   console.log("\n— 68. LA LISTA DE LOS QUE NO TRAEN FECHA DE DESEMBOLSO (Karina, 15-ago) —");
   // «Dile a Monse lo de la fecha de desembolso y mándale las que faltan.»
