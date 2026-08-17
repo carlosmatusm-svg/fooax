@@ -2551,12 +2551,20 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       return dd === esperado;
     }), JSON.stringify((m0.dias || []).map((g) => g.dia + "=" + g.fecha)));
 
-  // EL CASO DE SU ARCHIVO. MARIA DEL ROSARIO: cuota $576, faltante $126 → pagó
-  // $450. Es el renglón que prueba que la regla es "cuota − lo abonado" y no
-  // "la cuota entera si no pagó completo".
-  const SOC56 = "11113058523";
-  const K56 = SOC56 + "|Grupal-Basico 2|MARIA DEL ROSARIO GUADALUPE CASTELLANOS RUIZ|0";
-  const antes56 = buscaMora(m0, SOC56);
+  // EL CASO DE SU ARCHIVO, con una clienta sintética cuyo calendario cuenta la
+  // historia exacta: desembolsada el lunes 23-mar a 20 pagos de $576, al lunes
+  // 3-ago van 19 vencimientos y debería deberle $576; su saldo de $1,152 dice
+  // que va UNA cuota atrás — la de esta semana. Cuota $576, faltante $126 tras
+  // pagar $450: el renglón que prueba que la regla es "lo atrasado" y no "la
+  // cuota entera si no pagó completo".
+  const SOC56 = "70000001110";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC56, nombre: "MARIA SINTETICA 56", producto: "Grupal-Basico 2",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 1152, cuota: 576, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  const K56 = SOC56 + "|Grupal-Basico 2|MARIA SINTETICA 56|0";
+  // La foto se vuelve a tomar: m0 se sacó ANTES de dar de alta a esta clienta.
+  const antes56 = buscaMora(await mora56(), SOC56);
   ok("sin abonar, le falta su cuota completa",
     !!antes56 && antes56.x.faltante === antes56.x.cuota, JSON.stringify((antes56 || {}).x));
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
@@ -2610,7 +2618,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // faltante se calcula con la SEMANA completa —si completó el jueves, ya no
   // debe—, pero eso solo escondería a las que van tarde. Por eso se miden las
   // dos: lo que abonó EL DÍA que le toca y lo que abonó en la semana.
-  const K56b = "11113095058|Grupal-Basico 2|HILDA ARACELY RODRIGUEZ LOPEZ|0";
+  const SOC56b = "70000001111";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC56b, nombre: "HILDA SINTETICA 56", producto: "Grupal-Basico 2",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 432, cuota: 216, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  const K56b = SOC56b + "|Grupal-Basico 2|HILDA SINTETICA 56|0";
   const lunAntes = ((await mora56()).dias || []).find((g) => g.dia === "LUNES") || {};
   // Paga completo, pero el MIÉRCOLES: se pone al corriente tarde.
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
@@ -2979,7 +2992,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // día» y «TOTAL DE MORA» acumulado. Lo que había era UN SOLO NÚMERO, y encima
   // solo contaba a las que pagaron DE MENOS: la que no pagaba nada no sumaba.
   const F62 = "2026-08-10";   // lunes
-  const K62 = "11113058523|Grupal-Basico 2|MARIA DEL ROSARIO GUADALUPE CASTELLANOS RUIZ|0";
+  const K62 = "70000001110|Grupal-Basico 2|MARIA SINTETICA 56|0";
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
     body: JSON.stringify({ fecha: F62, snapshot: { reg: { GHANIMA: { [K62]: { pago: 450, forma: "E" } } } }, ts: Date.now() }) });
   const md62 = await j(await fetch(U + "/api/mora/dia?fecha=" + F62, { headers: H(cm) }));
@@ -2998,7 +3011,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la que NO pagó nada suma su cuota completa",
     noPago, "solo aparecen las que pagaron de menos");
   // Y la parcial suma solo la diferencia.
-  const parcial = md62.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === "11113058523");
+  const parcial = md62.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === "70000001110");
   ok("y la que pagó de menos suma solo la diferencia (cuota − pagado)",
     !!parcial && parcial.pagado === 450 && parcial.faltante === parcial.cuota - 450,
     JSON.stringify(parcial));
@@ -3010,11 +3023,16 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // distintas — el arqueo mide quién NO pagó ESE DÍA, y la semanal perdona a la
   // que se puso al corriente después. Ahora el arqueo enseña los dos números y
   // su diferencia, para que nadie los vea como contradictorios.
-  const K62b = "11113095058|Grupal-Basico 2|HILDA ARACELY RODRIGUEZ LOPEZ|0";
+  const SOC62b = "70000001112";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC62b, nombre: "PUENTE SINTETICA 62", producto: "Grupal-Basico 2",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 1080, cuota: 216, plazo: 24, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  const K62b = SOC62b + "|Grupal-Basico 2|PUENTE SINTETICA 62|0";
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
     body: JSON.stringify({ fecha: "2026-08-12", snapshot: { reg: { GHANIMA: { [K62b]: { pago: 216, forma: "E" } } } }, ts: Date.now() + 3 }) });
   const md62b = await j(await fetch(U + "/api/mora/dia?fecha=" + F62, { headers: H(cm) }));
-  const tarde = md62b.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === "11113095058");
+  const tarde = md62b.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === SOC62b);
   ok("la que se puso al corriente después SÍ aparece en la mora de ESE día",
     !!tarde && tarde.faltante > 0, "no aparece");
   ok("pero se marca que ya pagó, y su pendiente queda en cero",
@@ -3113,8 +3131,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // Y el atrasado NO infla: quien va 3 cuotas atrás sale con UNA cuota, no tres.
   const S63d = "70000001066";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    // Desembolsada el 2-jul (6 jueves vencidos al 13-ago), debería deberle
+    // $7,000 (14 cuotas de 20); su saldo de $8,500 dice que va 3 atrás.
     body: JSON.stringify({ id: S63d, nombre: "ATRASADA DE PRUEBA 63", producto: "Grupal-Basico",
-      centro: "C-0", ejecutivo: "Julio", saldo: 5000, cuota: 500, plazo: 20, diaPago: "Jueves",
+      centro: "C-0", ejecutivo: "Julio", saldo: 8500, cuota: 500, plazo: 20, diaPago: "Jueves",
       desembolso: "2026-07-02" }) });
   const w63d = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
   const atr = (w63d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S63d);
@@ -3260,7 +3280,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S66a, nombre: "CONSENTIDA CORTE JUEVES 66", producto: "Grupal-Basico",
       centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
-      desembolso: "2026-05-07" }) });
+      desembolso: "2026-07-30" }) });
   const K66a = S66a + "|Grupal-Basico|CONSENTIDA CORTE JUEVES 66|0";
   for (const [fch, dt] of [["2026-08-06", 31], ["2026-08-12", 32]])
     await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
@@ -3277,7 +3297,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S66b, nombre: "SIN PAGAR CORTE JUEVES 66", producto: "Grupal-Basico",
       centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
-      desembolso: "2026-05-07" }) });
+      desembolso: "2026-07-30" }) });
   const w66b = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
   const f66b = (w66b.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S66b);
   ok("y la que NO pagó debe exactamente UNA cuota", !!f66b && f66b.faltante === 840, JSON.stringify(f66b));
@@ -3324,8 +3344,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // semana. Es la que se perdió del reporte.
   const S67a = "70000001090";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    // Desembolsada el 4-may: al lunes 10-ago van 14 vencimientos de un plazo
+    // de 20, debería deberle $2,670. Su saldo al corte de $3,560 menos el pago
+    // del 5-ago ($445) deja $3,115: sigue UNA cuota atrás — el pago del día
+    // del corte liquidó la anterior, no la de esta semana.
     body: JSON.stringify({ id: S67a, nombre: "ELVIRA REAL 67", producto: "Grupal-Basico",
-      centro: "C-0", ejecutivo: "Julio", saldo: 2225, cuota: 445, plazo: 12, diaPago: "Lunes",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3560, cuota: 445, plazo: 20, diaPago: "Lunes",
       desembolso: "2026-05-04" }) });
   await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
     body: JSON.stringify({ fecha: "2026-08-05", snapshot: { regI: { [S67a + "|Grupal-Basico|ELVIRA REAL 67|0"]: { pago: 445, forma: "E" } } }, ts: Date.now() + 40 }) });
@@ -3339,7 +3363,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S67b, nombre: "ARIELA REAL 67", producto: "Grupal-Micro",
       centro: "C-0", ejecutivo: "Julio", saldo: 11520, cuota: 480, plazo: 24, diaPago: "Jueves",
-      desembolso: "2026-04-02" }) });
+      desembolso: "2026-07-30" }) });
   await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
     body: JSON.stringify({ fecha: "2026-08-08", snapshot: { regI: { [S67b + "|Grupal-Micro|ARIELA REAL 67|0"]: { pago: 1440, forma: "E" } } }, ts: Date.now() + 41 }) });
   ok("la que ADELANTÓ tres cuotas sigue fuera de la mora (lo que pidió Monse)",
@@ -3360,7 +3384,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S67d, nombre: "ANA CONSENTIDA 67", producto: "Grupal-Basico 2",
       centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
-      desembolso: "2026-05-07" }) });
+      desembolso: "2026-07-30" }) });
   for (const [fch, dt] of [["2026-08-06", 42], ["2026-08-12", 43]])
     await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
       body: JSON.stringify({ fecha: fch, snapshot: { regI: { [S67d + "|Grupal-Basico 2|ANA CONSENTIDA 67|0"]: { pago: 840, forma: "E" } } }, ts: Date.now() + dt }) });
@@ -3372,6 +3396,71 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const na = (a67.centros || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S67c);
   ok("y el arqueo del martes cobra lo mismo que la mora semanal",
     !!na && na.faltante === 1144, JSON.stringify(na));
+
+  console.log("\n— 69. LA MORA SE MIDE CONTRA EL CALENDARIO DEL CRÉDITO (Karina, 15-ago) —");
+  // «No mira el lunes, solo tienes a una persona, sigue mal.» El arrastre desde
+  // el corte le acreditaba al lunes 10 los pagos que liquidaban la cuota
+  // atrasada del lunes 3, y el lunes salía con una sola clienta. El método real
+  // de Monse compara el SALDO contra el calendario: desembolsada tal día, con
+  // N pagos, para hoy debería deberle tanto. Lo que exceda es su atraso.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  const cal69 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f69 = (d, soc) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === soc);
+
+  // AL CORRIENTE: desembolsada el lunes 4-may a 20 pagos de $500. Al lunes
+  // 10-ago van 14 vencimientos, debería deberle $3,000 — y eso debe.
+  const S69a = "70000001120";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69a, nombre: "AL CORRIENTE 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3000, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  ok("la que va exactamente en su calendario NO debe nada",
+    !f69(await cal69(), S69a), "salió debiendo estando al corriente");
+
+  // UNA CUOTA ATRÁS: mismo calendario, pero le quedan $3,500.
+  const S69b = "70000001121";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69b, nombre: "UNA ATRAS 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3500, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  const b69 = f69(await cal69(), S69b);
+  ok("la que va UNA cuota atrás debe exactamente una cuota",
+    !!b69 && b69.faltante === 500, JSON.stringify(b69));
+
+  // CINCO ATRÁS: se le exige UNA, no cinco (los atrasos viejos no inflan).
+  const S69c = "70000001122";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69c, nombre: "CINCO ATRAS 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 5500, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  const c69 = f69(await cal69(), S69c);
+  ok("la que va CINCO atrás sigue debiendo UNA cuota en la semana",
+    !!c69 && c69.faltante === 500, JSON.stringify(c69));
+
+  // ADELANTADA: le queda menos de lo que su calendario pide.
+  const S69d = "70000001123";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69d, nombre: "ADELANTADA 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1500, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  ok("la que va ADELANTADA no debe nada", !f69(await cal69(), S69d), "salió debiendo yendo adelantada");
+
+  // Y EL REPORTE DICE CON QUÉ MIDIÓ CADA UNO: si un día el número se ve raro,
+  // lo primero es ver cuántos cayeron al respaldo del arrastre.
+  const m69 = await cal69();
+  ok("el reporte dice cuántos midió con calendario y cuántos con el arrastre",
+    m69.medidoCon && typeof m69.medidoCon.calendario === "number"
+      && typeof m69.medidoCon.arrastre === "number" && m69.medidoCon.calendario >= 4,
+    JSON.stringify(m69.medidoCon));
+  // Un crédito SIN plazo no se puede medir con calendario: cae al respaldo.
+  const S69e = "70000001124";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69e, nombre: "SIN PLAZO 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4000, cuota: 500, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  const m69b = await cal69();
+  ok("el que no trae plazo cae al arrastre y se cuenta aparte",
+    m69b.medidoCon.arrastre > m69.medidoCon.arrastre, JSON.stringify(m69b.medidoCon));
 
   console.log("\n— 68. LA LISTA DE LOS QUE NO TRAEN FECHA DE DESEMBOLSO (Karina, 15-ago) —");
   // «Dile a Monse lo de la fecha de desembolso y mándale las que faltan.»

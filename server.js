@@ -1483,6 +1483,32 @@ function diaSiguiente(fISO) {
   return d.toISOString().slice(0, 10);
 }
 
+// EL CALENDARIO DEL CRÉDITO (el método real de Monse, 15-ago). Ella valida la
+// mora comparando el SALDO contra dónde debería ir el crédito: desembolsado el
+// día D con N pagos semanales, para la fecha F ya debió pagar tantas cuotas y
+// deberle quedar tanto. Lo que el saldo real exceda a eso es su atraso.
+//
+// Este método reemplaza al arrastre "desde el corte", que era un remiendo tras
+// otro: la ventana acreditaba al lunes 10 pagos que eran de la cuota atrasada
+// del lunes 3 (el "$288 de mora en lunes" del 15-ago), y cada caso especial
+// pedía su parche. Contra el calendario no hay ventana que ajustar.
+//
+// Devuelve null cuando no hay calendario confiable (sin desembolso o sin
+// plazo): ahí se usa el arrastre desde el corte, que es lo conservador.
+function calendarioDelCredito(c, diaIdx, fechaISO) {
+  const des = String(c.desembolso || "").slice(0, 10);
+  const plazo = Number(c.plazo) || 0;
+  const cuota = Number(c.cuota) || 0;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(des) || plazo <= 0 || cuota <= 0 || !diaIdx) return null;
+  const venc = vencimientosEntre(diaIdx, diaSiguiente(des), fechaISO);
+  return {
+    venc,
+    // Lo que DEBERÍA quedarle de saldo si fuera al corriente.
+    restante: Math.round(Math.max(0, cuota * (plazo - venc)) * 100) / 100,
+    termino: venc >= plazo,
+  };
+}
+
 function vencimientosEntre(diaIdx, desdeISO, hastaISO) {
   if (!diaIdx || !desdeISO || !hastaISO || hastaISO < desdeISO) return 0;
   let n = 0;
@@ -1588,6 +1614,11 @@ function moraDeLaSemana(usuario, lunesOpt) {
   const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
   const dias = {};
   const fueraDeCuenta = { sinCuota: 0, cuotaVariable: 0, sinDia: 0, liquidados: 0, sinDesembolsar: 0, vencidos: 0 };
+  // CON QUÉ SE MIDIÓ CADA UNO. El calendario (saldo contra dónde debería ir el
+  // crédito) es el bueno; el arrastre desde el corte es el respaldo para los
+  // que no traen desembolso o plazo confiable. Se cuenta y se dice: si un día
+  // el número se ve raro, lo primero es ver cuántos cayeron al respaldo.
+  const medidoCon = { calendario: 0, arrastre: 0 };
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     if (!mios.has(norm(c.ejecutivo))) continue;
@@ -1634,28 +1665,30 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // lo que falta se acota a UNA cuota (los atrasos viejos no inflan la
     // semana) y NUNCA pasa del saldo que le queda.
     const infoM = infoCredito(cv, c);
-    // LA MISMA VARA PARA LAS DOS COSAS. La cuenta arranca en el PRIMER DÍA DE
-    // COBRO de la clienta después del corte, y desde ahí se cuentan sus cuotas
-    // Y sus abonos. Si un crédito no ha sido desembolsado a esa altura, arranca
-    // después de su desembolso.
-    let desdeV = diaSiguiente(corteM);
-    const iniOb = inicioObligaciones(c);
-    if (iniOb && iniOb > desdeV) desdeV = iniOb;
-    const venc = vencimientosEntre(idxDia(dia), desdeV, suFecha);
-    const abonadoDesdeCorte = abonadoDesde(clave, desdeV);
-    let faltante0 = Math.max(0, Math.min(cuota, cuota * venc - abonadoDesdeCorte));
-    // EL PLAZO TERMINÓ (el caso LUCIA, $442): cuando ya corrieron todos sus
-    // pagos, lo exigible es TODO lo que queda — el último pago absorbe los
-    // centavos y lo atrasado, por eso puede ser mayor que la cuota.
-    // El plazo terminado exige TODO el saldo SOLO cuando lo que queda es el
-    // pico final (menos de dos cuotas — el caso LUCIA, $442). Si "terminó" y
-    // aún debe medio crédito, el PLAZO está mal capturado (error conocido del
-    // padrón): exigirle todo marcaba en mora a EPIFANIA con $5,616 habiendo
-    // pagado su cuota completa ese mismo día (14-ago).
-    const plazoM = Number(c.plazo) || 0;
-    if (plazoM > 0 && iniOb && infoM.saldoActual < cuota * 2 &&
-        vencimientosEntre(idxDia(dia), iniOb, suFecha) >= plazoM)
+    // EL SALDO CONTRA SU CALENDARIO (método de Monse). Atraso = lo que el
+    // saldo real excede a lo que debería quedar a la fecha. Se exige a lo más
+    // UNA cuota por semana (los atrasos viejos no inflan), salvo el pico final.
+    const cal = calendarioDelCredito(c, idxDia(dia), suFecha);
+    let faltante0;
+    if (cal && cal.termino && infoM.saldoActual < cuota * 2) {
+      // El plazo corrió completo y queda el pico final (LUCIA, $442): se exige
+      // todo, que puede ser un poco más que la cuota.
+      medidoCon.calendario++;
       faltante0 = infoM.saldoActual;
+    } else if (cal && !cal.termino) {
+      medidoCon.calendario++;
+      faltante0 = Math.max(0, Math.min(cuota, infoM.saldoActual - cal.restante));
+    } else {
+      medidoCon.arrastre++;
+      // Sin calendario confiable (sin desembolso, sin plazo, o un plazo que ya
+      // "terminó" con medio crédito vivo — plazo mal capturado): arrastre desde
+      // el corte, que es lo conservador y no depende del dato chueco.
+      let desdeV = diaSiguiente(corteM);
+      const iniOb = inicioObligaciones(c);
+      if (iniOb && iniOb > desdeV) desdeV = iniOb;
+      const vencC = vencimientosEntre(idxDia(dia), desdeV, suFecha);
+      faltante0 = Math.max(0, Math.min(cuota, cuota * vencC - abonadoDesde(clave, desdeV)));
+    }
     const faltante = Math.round(Math.min(faltante0, infoM.saldoActual) * 100) / 100;
     // El día se abre SIEMPRE, pague o no: hace falta saber cuántas SÍ pagaron
     // para leer la mora. «$34,040 de mora» no dice nada sin «de 90 créditos».
@@ -1701,7 +1734,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
   }
   const sum = (f) => Math.round(lista.reduce((s, g) => s + f(g), 0) * 100) / 100;
   const sumV = (f) => Math.round(lista.filter((g) => g.vencido).reduce((s, g) => s + f(g), 0) * 100) / 100;
-  return { lunes, domingo, dias: lista,
+  return { lunes, domingo, dias: lista, medidoCon,
     total: sum((g) => g.total),
     // Lo VENCIDO a hoy es el número comparable con el archivo de Monse: solo
     // los días cuyo cobro ya pasó. Lo demás es "por vencer", no mora.
@@ -1837,6 +1870,9 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     "· " + fc.sinCuota + " créditos sin cuota capturada en el padrón.",
     "· " + fc.sinDia + " créditos sin día de cobro.",
     "· " + fc.liquidados + " créditos ya liquidados (no deben nada esta semana).",
+    "· Medidos con su CALENDARIO (saldo contra dónde debería ir el crédito): "
+      + ((d.medidoCon || {}).calendario || 0) + ". Con el arrastre desde el corte, por no traer "
+      + "desembolso o plazo confiable: " + ((d.medidoCon || {}).arrastre || 0) + ".",
     "· " + fc.sinDesembolsar + " créditos cuya fecha de desembolso es POSTERIOR a esta semana: todavía no reciben el dinero, no pueden deber.",
     "· " + fc.vencidos + " créditos VENCIDOS: van en recuperación, no en la mora semanal (regla de la Ing. Monse, 4-ago).",
     "Faltante = cuota − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
@@ -4756,21 +4792,27 @@ function moraDelDia(usuario, fecha) {
     // adelantado dentro de la semana (LA CONSENTIDA, pagó el miércoles su
     // jueves) cuentan a favor. Acotado a una cuota y al saldo restante (LUCIA).
     const infoD = infoCredito(cv, c);
-    // MISMA VARA que la mora semanal: la cuenta arranca en el primer día de
-    // cobro después del corte, y desde ahí se cuentan cuotas Y abonos.
-    let desdeV = diaSiguiente(corteSaldos());
-    const iniObD = inicioObligaciones(c);
-    if (iniObD && iniObD > desdeV) desdeV = iniObD;
-    const venc = vencimientosEntre(idxDia(dia), desdeV, f);
-    const abonadoHastaHoyDia = Math.round((abonoEntre(clave, desdeV, f) || 0) * 100) / 100;
-    let faltante0 = Math.max(0, Math.min(cuota, cuota * venc - abonadoHastaHoyDia));
-    const plazoD = Number(c.plazo) || 0;
+    // EL SALDO CONTRA SU CALENDARIO (método de Monse), con el saldo QUE TENÍA
+    // ESE DÍA: los abonos posteriores no cambian lo que debía ese jueves — esos
+    // van en "se puso al corriente después".
+    const saldoEseDia = Math.max(0, Math.round(((c.saldo || 0) - abonoEntre(clave, corteSaldos(), f)) * 100) / 100);
+    const cal = calendarioDelCredito(c, idxDia(dia), f);
+    let faltante0;
     let termino = false;
-    if (plazoD > 0 && iniObD && infoD.saldoActual < cuota * 2) {
-      termino = vencimientosEntre(idxDia(dia), iniObD, f) >= plazoD;
-      if (termino) faltante0 = infoD.saldoActual + Math.max(0, (abonadoTotal[clave] || 0) - abonadoHastaHoyDia);
+    if (cal && cal.termino && infoD.saldoActual < cuota * 2) {
+      termino = true;
+      faltante0 = saldoEseDia;
+    } else if (cal && !cal.termino) {
+      faltante0 = Math.max(0, Math.min(cuota, saldoEseDia - cal.restante));
+    } else {
+      // Sin calendario confiable: arrastre desde el corte.
+      let desdeV = diaSiguiente(corteSaldos());
+      const iniObD = inicioObligaciones(c);
+      if (iniObD && iniObD > desdeV) desdeV = iniObD;
+      const vencC = vencimientosEntre(idxDia(dia), desdeV, f);
+      faltante0 = Math.max(0, Math.min(cuota, cuota * vencC - abonoEntre(clave, desdeV, f)));
     }
-    const faltante = Math.round(Math.min(faltante0, infoD.saldoActual + Math.max(0, (abonadoTotal[clave] || 0) - abonadoHastaHoyDia)) * 100) / 100;
+    const faltante = Math.round(Math.min(faltante0, saldoEseDia) * 100) / 100;
     if (faltante <= 0) continue;
     // LO QUE PAGÓ DESPUÉS, hasta hoy. Es lo que reconcilia este bloque con la
     // mora de la semana: ahí la que se pone al corriente el miércoles YA NO
@@ -4779,8 +4821,16 @@ function moraDelDia(usuario, fecha) {
     // Karina notó el 12-ago: «el arqueo muestra más que esta parte del sistema».
     // Lo que sigue debiendo HOY con la misma fórmula, pero contando también lo
     // abonado después de este día. La resta contra `faltante` es lo recuperado.
-    let sd0 = Math.max(0, Math.min(cuota, cuota * venc - abonoEntre(clave, desdeV, hoyReal2 > f ? hoyReal2 : f)));
+    let sd0;
     if (termino) sd0 = infoD.saldoActual;
+    else if (cal && !cal.termino) sd0 = Math.max(0, Math.min(cuota, infoD.saldoActual - cal.restante));
+    else {
+      let desdeV2 = diaSiguiente(corteSaldos());
+      const iniObD2 = inicioObligaciones(c);
+      if (iniObD2 && iniObD2 > desdeV2) desdeV2 = iniObD2;
+      const vencC2 = vencimientosEntre(idxDia(dia), desdeV2, f);
+      sd0 = Math.max(0, Math.min(cuota, cuota * vencC2 - abonoEntre(clave, desdeV2, hoyReal2 > f ? hoyReal2 : f)));
+    }
     const sigueDebiendo = Math.round(Math.min(sd0, infoD.saldoActual) * 100) / 100;
     const pagadoDespues = Math.round(Math.max(0, faltante - sigueDebiendo) * 100) / 100;
     const nom = String(c.centro || "").trim() || "Individual";
@@ -4832,17 +4882,19 @@ function moraDelDia(usuario, fecha) {
       for (const dd2 in (pfCorte[claveK] || {}))
         if (dd2 <= fISO) abonadoK += pfCorte[claveK][dd2].p || 0;
       abonadoK += movsCorteHasta(claveK, fISO);
-      let desdeK = diaSiguiente(corteHoy);
-      const iniObK = inicioObligaciones(c);
-      if (iniObK && iniObK > desdeK) desdeK = iniObK;
-      const vencK = vencimientosEntre(idxDia(diaK), desdeK, fISO);
-      abonadoK = abonoEntre(claveK, desdeK, fISO);
-      let faltK = Math.max(0, Math.min(cuotaK, cuotaK * vencK - abonadoK));
-      const plazoK = Number(c.plazo) || 0;
-      if (plazoK > 0 && iniObK && infoK.saldoActual < cuotaK * 2 &&
-          vencimientosEntre(idxDia(diaK), iniObK, fISO) >= plazoK)
-        faltK = infoK.saldoActual;
-      acumulado += Math.min(faltK, infoK.saldoActual);
+      const saldoK = Math.max(0, Math.round(((c.saldo || 0) - abonoEntre(claveK, corteHoy, fISO)) * 100) / 100);
+      const calK = calendarioDelCredito(c, idxDia(diaK), fISO);
+      let faltK;
+      if (calK && calK.termino && infoK.saldoActual < cuotaK * 2) faltK = saldoK;
+      else if (calK && !calK.termino) faltK = Math.max(0, Math.min(cuotaK, saldoK - calK.restante));
+      else {
+        let desdeK = diaSiguiente(corteHoy);
+        const iniObK = inicioObligaciones(c);
+        if (iniObK && iniObK > desdeK) desdeK = iniObK;
+        const vencK = vencimientosEntre(idxDia(diaK), desdeK, fISO);
+        faltK = Math.max(0, Math.min(cuotaK, cuotaK * vencK - abonoEntre(claveK, desdeK, fISO)));
+      }
+      acumulado += Math.min(faltK, saldoK);
     }
   }
   acumulado = Math.round(acumulado * 100) / 100;
