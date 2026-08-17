@@ -3400,6 +3400,67 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el arqueo del martes cobra lo mismo que la mora semanal",
     !!na && na.faltante === 1144, JSON.stringify(na));
 
+  console.log("\n— 70. LOS CINCO CASOS DE KARINA (15-ago, con el corte movido al 13) —");
+  // «Esta pagó el lunes y la pusiste en mora.» (BEATRIZ CRESPO.) Y con ella,
+  // toda la lista: que la recuperación actualice, que el adelanto dentro de la
+  // semana cuente, y que quien paga ANTES de su día no salga en mora.
+  //
+  // El corte movido al 13 es lo que destapó a BEATRIZ: la semana lo CRUZA, así
+  // que su pago del lunes 10 ya venía descontado en el saldo de la plantilla y
+  // el sistema se lo contaba OTRA VEZ como si fuera dinero nuevo.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-13" }) });
+  const alta70 = (id, nom, prod, saldo, cuota, plazo, dia, des) =>
+    fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id, nombre: nom, producto: prod, centro: "C-0", ejecutivo: "Julio",
+        saldo, cuota, plazo, diaPago: dia, desembolso: des }) });
+  const K70 = (id, nom, prod) => id + "|" + prod + "|" + nom + "|0";
+  const mora70 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const en70 = (d, id) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === id);
+
+  await alta70("70000009001", "BEATRIZ 70", "Grupal-Basico 2", 288, 288, 20, "Lunes", "2026-03-23");
+  await alta70("70000009003", "ADELANTA DIA 70", "Grupal-Basico", 5000, 500, 20, "Martes", "2026-03-24");
+  await alta70("70000009002", "CONSENTIDA 70", "Grupal-Basico", 8400, 840, 20, "Jueves", "2026-03-26");
+  await alta70("70000009004", "NO PAGO 70", "Grupal-Basico", 5000, 500, 20, "Lunes", "2026-03-23");
+  // El día completo en UN sync: así lo manda la app (reemplaza el día entero).
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul), body: JSON.stringify({ fecha: "2026-08-10",
+    snapshot: { regI: {
+      [K70("70000009001", "BEATRIZ 70", "Grupal-Basico 2")]: { pago: 288, forma: "E" },
+      [K70("70000009003", "ADELANTA DIA 70", "Grupal-Basico")]: { pago: 500, forma: "E" } } }, ts: Date.now() + 60 }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul), body: JSON.stringify({ fecha: "2026-08-12",
+    snapshot: { regI: { [K70("70000009002", "CONSENTIDA 70", "Grupal-Basico")]: { pago: 840, forma: "E" } } },
+    ts: Date.now() + 61 }) });
+
+  const d70 = await mora70();
+  ok("la que PAGÓ SU LUNES no sale en mora, aunque la semana cruce el corte",
+    !en70(d70, "70000009001"), JSON.stringify(en70(d70, "70000009001")));
+  ok("la que cobra JUEVES y pagó el MIÉRCOLES tampoco (adelanto dentro de la semana)",
+    !en70(d70, "70000009002"), JSON.stringify(en70(d70, "70000009002")));
+  ok("y la de MARTES que decidió pagar el LUNES tampoco: pagó",
+    !en70(d70, "70000009003"), JSON.stringify(en70(d70, "70000009003")));
+  const nop70 = en70(d70, "70000009004");
+  ok("la que NO pagó sí queda en mora, con su cuota",
+    !!nop70 && nop70.faltante === 500, JSON.stringify(nop70));
+
+  // LA RECUPERACIÓN ACTUALIZA: baja lo que pagó y deja en mora lo que debe.
+  const recup70 = (monto) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Recuperación / adelanto", monto, concepto: "Recuperación · NO PAGO 70",
+      metodo: "efectivo", socio: "70000009004", producto: "Grupal-Basico", fecha: "2026-08-14" }) });
+  await recup70(200);
+  const p70 = en70(await mora70(), "70000009004");
+  ok("una recuperación PARCIAL le resta y deja en mora lo que falta",
+    !!p70 && p70.faltante === 300, JSON.stringify(p70));
+  await recup70(300);
+  ok("y al completar la recuperación, sale de la mora",
+    !en70(await mora70(), "70000009004"), "sigue en la mora con todo pagado");
+
+  // Y EL ARQUEO DEL DÍA dice lo mismo: quien pagó antes de su día no aparece.
+  const a70 = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-11", { headers: H(cm) }));
+  ok("el arqueo del martes tampoco cobra a la que pagó el lunes",
+    !(a70.centros || []).some((g) => g.filas.some((x) => String(x.socio) === "70000009003")),
+    "sale en el arqueo del martes habiendo pagado el lunes");
+
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+
   console.log("\n— 69. LA MORA SE MIDE CONTRA EL CALENDARIO DEL CRÉDITO (Karina, 15-ago) —");
   // «No mira el lunes, solo tienes a una persona, sigue mal.» El arrastre desde
   // el corte le acreditaba al lunes 10 los pagos que liquidaban la cuota

@@ -1686,21 +1686,28 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // su calendario— ese adelanto se le abona, porque ya pagó ese dinero
     // (ARIELA de PEÑITAS). El calendario se usa SOLO para medir el adelanto,
     // nunca para calcular lo que debe.
+    // EL SALDO ANTES DE LA SEMANA. Ojo con el corte: si la semana lo cruza, los
+    // pagos ANTERIORES al corte ya vienen descontados en el saldo de la
+    // plantilla y los POSTERIORES no. Sumar todos otra vez cobraba doble — así
+    // salió BEATRIZ CRESPO en mora habiendo pagado su lunes (15-ago), porque su
+    // pago del 10 ya estaba dentro del saldo del corte del 13.
+    let pagadoPostCorte = 0;
+    for (const fx in (porClaveFecha[clave] || {}))
+      if (fx >= corteM && fx >= lunes && fx <= domingo) pagadoPostCorte += porClaveFecha[clave][fx].p || 0;
+    const saldoAntes = Math.round((infoM.saldoActual + pagadoPostCorte) * 100) / 100;
     // El adelanto se mide ANTES de que caiga la cuota de esta semana: cuánto
     // traía a favor al cerrar la semana pasada. Medirlo contra el calendario de
     // HOY daría cero siempre (la cuota de esta semana ya está contada) y el
     // adelanto de ARIELA se perdería.
     const calAnt = calendarioDelCredito(c, idxDia(dia), diaAnterior(suFecha));
-    const saldoAntes = Math.round((infoM.saldoActual + pagado) * 100) / 100;
     const aFavor = (calAnt && !calAnt.termino)
       ? Math.max(0, Math.round((calAnt.restante - saldoAntes) * 100) / 100) : 0;
     if (aFavor > 0) medidoCon.conAdelanto++;
     // El tope es su cuota, salvo que sea su ÚLTIMO pago: ahí se le pide todo lo
     // que queda, que puede ser un poco más (el cierre de LUCIA, $442).
     const calHoy = calendarioDelCredito(c, idxDia(dia), suFecha);
-    const ultimo = !!(calHoy && calHoy.termino && infoM.saldoActual < cuota * 2);
-    const exigible = ultimo ? Math.round((infoM.saldoActual + pagado) * 100) / 100
-                            : Math.min(cuota, infoM.saldoActual + pagado);
+    const ultimo = !!(calHoy && calHoy.termino && saldoAntes < cuota * 2);
+    const exigible = ultimo ? saldoAntes : Math.min(cuota, saldoAntes);
     const faltante = Math.round(
       Math.min(Math.max(0, exigible - pagado - aFavor), infoM.saldoActual) * 100) / 100;
     // El día se abre SIEMPRE, pague o no: hace falta saber cuántas SÍ pagaron
@@ -4784,6 +4791,25 @@ function moraDelDia(usuario, fecha) {
         pagoHastaHoy[clave] = (pagoHastaHoy[clave] || 0) + (pfHasta[clave][d2].p || 0);
   sumaMovsCorte(pagoHastaHoy, f, domingoSem);
 
+  // LO ABONADO EN LA SEMANA HASTA ESE DÍA. Karina, 15-ago: «si su pago es el
+  // martes pero decidió pagar el lunes, no tiene que registrarle una mora
+  // porque pagó». Mirando solo el día exacto, la que se adelanta dentro de su
+  // propia semana salía debiendo — el caso de LA CONSENTIDA, que paga el
+  // miércoles su cuota del jueves.
+  const pagoSemHasta = {};
+  {
+    const { porFecha: pfSem } = pagosDeLaSemana(usuario, lunes, f);
+    for (const clave in pfSem)
+      for (const d2 in pfSem[clave])
+        if (d2 >= lunes && d2 <= f) pagoSemHasta[clave] = (pagoSemHasta[clave] || 0) + (pfSem[clave][d2].p || 0);
+    sumaMovsCorte(pagoSemHasta, lunes, f);
+  }
+
+  // Lo abonado exactamente en un día (fichas + caja), para separar lo del día
+  // de lo que entró después.
+  const porFechaDia = (clave, fISO) => Math.round(
+    (((pagoDelDia[clave] || 0)) + (((movsPorClaveFecha[clave] || {})[fISO]) || 0)) * 100) / 100;
+
   const centros = {};
   const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0, sinDesembolsar: 0, liquidados: 0 };
   for (const c of PADRON) {
@@ -4809,16 +4835,22 @@ function moraDelDia(usuario, fecha) {
     // cubrió su cuota el día que le tocaba cobrar. Lo que pague después no
     // cambia lo que debía ese jueves — eso va abajo, en "se puso al corriente
     // después", que es la recuperación.
-    const saldoEseDia = Math.max(0, Math.round(((c.saldo || 0) - abonoEntre(clave, corteSaldos(), f)) * 100) / 100);
+    // Lo abonado en su semana HASTA ese día: incluye el pago adelantado dentro
+    // de la misma semana. `pagado` (el del día exacto) se sigue reportando,
+    // porque es lo que mide la disciplina del centro.
+    const pagadoSem = Math.round((pagoSemHasta[clave] || 0) * 100) / 100;
+    // El saldo ANTES de los abonos de esta semana que aún no están dentro de
+    // él (los posteriores al corte): mismo cuidado que en la mora semanal.
+    const saldoAntesD = Math.max(0, Math.round(
+      ((c.saldo || 0) - abonoEntre(clave, corteSaldos(), lunes === corteSaldos() ? lunes : diaAnterior(lunes))) * 100) / 100);
     const calAntD = calendarioDelCredito(c, idxDia(dia), diaAnterior(f));
     const aFavor = (calAntD && !calAntD.termino)
-      ? Math.max(0, Math.round((calAntD.restante - (saldoEseDia + pagado)) * 100) / 100) : 0;
+      ? Math.max(0, Math.round((calAntD.restante - saldoAntesD) * 100) / 100) : 0;
     const calHoyD = calendarioDelCredito(c, idxDia(dia), f);
-    const termino = !!(calHoyD && calHoyD.termino && infoD.saldoActual < cuota * 2);
-    const exigible = termino ? Math.round((saldoEseDia + pagado) * 100) / 100
-                             : Math.min(cuota, saldoEseDia + pagado);
+    const termino = !!(calHoyD && calHoyD.termino && saldoAntesD < cuota * 2);
+    const exigible = termino ? saldoAntesD : Math.min(cuota, saldoAntesD);
     const faltante = Math.round(
-      Math.min(Math.max(0, exigible - pagado - aFavor), saldoEseDia) * 100) / 100;
+      Math.min(Math.max(0, exigible - pagadoSem - aFavor), saldoAntesD) * 100) / 100;
     if (faltante <= 0) continue;
     // LA RECUPERACIÓN. Lo que entró DESPUÉS de su día: es lo que la saca de la
     // mora («se sale cuando se hace recuperación», Karina 15-ago). Este bloque
@@ -4826,7 +4858,7 @@ function moraDelDia(usuario, fecha) {
     // pendiente en cero. Es lo que reconcilia el arqueo con la mora semanal,
     // donde la que se puso al corriente ya no aparece.
     const pagadoDespues = Math.round(
-      Math.max(0, (pagoHastaHoy[clave] || 0) - pagado) * 100) / 100;
+      Math.max(0, (pagoHastaHoy[clave] || 0) - (porFechaDia(clave, f))) * 100) / 100;
     const sigueDebiendo = Math.round(
       Math.min(Math.max(0, faltante - pagadoDespues), infoD.saldoActual) * 100) / 100;
     void termino;
