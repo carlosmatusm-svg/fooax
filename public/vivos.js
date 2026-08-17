@@ -211,6 +211,80 @@
     return tocadas;
   }
 
+  // ===================================================================
+  // MI MORA — la ejecutiva la trae en la mano (Karina, 15-ago: «en las apps de
+  // cada uno de los ejecutivos que le ponga cuánta mora llevan, con el nombre
+  // de la clienta»).
+  //
+  // El número NO se calcula aquí: baja ya hecho del mismo reporte que ve
+  // Dirección. Así el total que ella carga y el que Anel ve en el tablero son
+  // el mismo, y cuando entra una recuperación baja en los dos a la vez.
+  //
+  // Se pinta en su propia tarjeta al principio de la pantalla de captura, y se
+  // vuelve a dibujar sola en cada sondeo.
+  function hesc(t) {
+    return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function pesos(v) {
+    var x = Math.round((Number(v) || 0) * 100) / 100;
+    return "$" + x.toLocaleString("es-MX", { minimumFractionDigits: (x % 1) ? 2 : 0, maximumFractionDigits: 2 });
+  }
+  function cajaMora() {
+    var box = document.getElementById("miMoraBox");
+    if (box) return box;
+    // Se cuelga arriba del primer contenedor de la app, sin depender de que el
+    // HTML de cada ejecutiva traiga un hueco: así sirve para las cinco.
+    var host = document.querySelector(".wrap:not(.hidden)") || document.querySelector(".wrap") || document.body;
+    box = document.createElement("div");
+    box.id = "miMoraBox";
+    box.className = "card";
+    box.style.cssText = "border-left:5px solid #B00020";
+    if (host.firstChild) host.insertBefore(box, host.firstChild); else host.appendChild(box);
+    return box;
+  }
+  function mora(m) {
+    if (!m || typeof m.total !== "number") return 0;
+    var box = cajaMora();
+    var firma = JSON.stringify([m.total, m.clientas, (m.filas || []).length]);
+    if (box.getAttribute("data-firma") === firma) return 0;
+    box.setAttribute("data-firma", firma);
+    if (!m.clientas) {
+      box.innerHTML = '<div class="sectitle" style="color:#0B7247">Mi mora · al corriente</div>'
+        + '<div class="meta">Ninguna clienta con cuota vencida esta semana. Bien ahí.</div>';
+      return 1;
+    }
+    var top = (m.filas || []).slice(0, 12);
+    box.innerHTML =
+      '<div class="sectitle" style="color:#B00020">Mi mora · ' + pesos(m.total) + "</div>"
+      + '<div class="meta">' + m.clientas + (m.clientas === 1 ? " clienta" : " clientas")
+      + " con cuota vencida en la semana del " + hesc(m.lunes) + "."
+      + " Cuando entre su pago o una recuperación, baja sola.</div>"
+      + '<div class="meta" style="margin-top:6px">'
+      + (m.porCentro || []).map(function (c) {
+          return "<b>" + hesc(c.centro) + "</b> " + pesos(c.falta);
+        }).join(" &nbsp;·&nbsp; ") + "</div>"
+      + '<div id="miMoraLista" style="margin-top:8px">'
+      + top.map(function (x) {
+          return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;'
+            + 'border-top:1px solid rgba(0,0,0,.08);font-size:13px">'
+            + "<span><b>" + hesc(x.clienta) + "</b><br>"
+            + '<span style="opacity:.7;font-size:11.5px">' + hesc(x.centro) + " · " + hesc(x.dia)
+            + " · " + hesc(x.producto) + "</span></span>"
+            + '<span style="text-align:right;white-space:nowrap">'
+            + '<b style="color:#B00020">' + pesos(x.falta) + "</b><br>"
+            + '<span style="opacity:.7;font-size:11.5px">'
+            + (x.pagado > 0 ? "abonó " + pesos(x.pagado) + " de " + pesos(x.cuota) : "cuota " + pesos(x.cuota))
+            + "</span></span></div>";
+        }).join("")
+      + ((m.filas || []).length > top.length
+          ? '<div class="meta" style="margin-top:6px">y ' + ((m.filas || []).length - top.length)
+            + " más — arriba van las que más deben.</div>" : "")
+      + "</div>";
+    return 1;
+  }
+  window.__pintarMora = mora;
+
   // Aplica un paquete completo. Devuelve cuántas cosas cambiaron.
   function aplicar(d) {
     if (!d) return 0;
@@ -222,6 +296,7 @@
     try { t += altas(d.altas, d.centros); } catch (e) { }
     try { t += montos(d.vivos); } catch (e) { }
     try { t += correcciones(d.correcciones); } catch (e) { }
+    try { t += mora(d.mora); } catch (e) { }
     return t;
   }
   window.__aplicarVivos = aplicar;

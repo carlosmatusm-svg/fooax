@@ -3724,7 +3724,30 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   const q = norm(req.query.q).trim();
   const cv = carteraViva(req.usuario);
   let base = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
-  const conSaldo = base.map((c) => ({ ...c, ...infoCredito(cv, c) }));
+  // LO ABONADO, SEMANA POR SEMANA (Karina, 15-ago: «la semana es de lunes a
+  // domingo, y aquí hicieron un pago una semana y a la siguiente le puso pagó
+  // tanto esta semana»). La tarjeta decía "pagó $960 esta sem." sumando TODO lo
+  // abonado desde el corte: los $480 del 6-ago eran de la semana anterior.
+  // Ahora se desglosa por semana y cada una dice su lunes.
+  const { porFecha: pfCred } = pagosDeLaSemana(req.usuario, corteSaldos());
+  const semanasDe = (c) => {
+    const clave = claveCredito(c.id, c.producto);
+    const porLunes = {};
+    for (const f in (pfCred[clave] || {})) {
+      const p = pfCred[clave][f].p || 0;
+      if (p <= 0) continue;
+      const L = lunesDeLaSemana(f);
+      porLunes[L] = Math.round(((porLunes[L] || 0) + p) * 100) / 100;
+    }
+    return Object.keys(porLunes).sort().reverse().map((L) => ({ lunes: L, monto: porLunes[L] }));
+  };
+  const lunesHoy = lunesDeLaSemana(hoyMX());
+  const conSaldo = base.map((c) => {
+    const semanas = semanasDe(c);
+    const estaSem = semanas.find((x) => x.lunes === lunesHoy);
+    return { ...c, ...infoCredito(cv, c), porSemana: semanas,
+      pagadoEstaSemana: estaSem ? estaSem.monto : 0, lunesDeHoy: lunesHoy };
+  });
   let lista = conSaldo;
   if (estado === "liquidadas") lista = conSaldo.filter((c) => (c.saldo || 0) > 0 && c.saldoActual <= 0);
   // esVencido(): reconoce "VENCIDO" y "CREDITO VENCIDO A RECUPERAR" como los
@@ -6080,6 +6103,39 @@ function datosVivosParaApp(usuario) {
 // Lo pide `vivos.js` al abrir, cada minuto, al recuperar señal y al volver a la
 // pestaña — para que un cambio de Dirección aparezca solo, sin recargar y sin
 // que nadie tenga que regenerar el archivo de nadie.
+// LA MORA DE LA EJECUTIVA, para su teléfono (Karina, 15-ago: «en las apps de
+// cada uno de los ejecutivos que le ponga cuánta mora llevan, con el nombre de
+// la clienta»).
+//
+// Sale del MISMO reporte que ve Dirección —no se recalcula aparte— filtrado a
+// sus clientas. Así el número que ella trae en la mano y el que Anel ve en el
+// tablero son el mismo, y cuando entra una recuperación baja en los dos.
+function moraParaApp(usuario) {
+  const d = moraDeLaSemana(usuario);
+  const mias = [];
+  for (const g of (d.dias || [])) {
+    if (g.vencido === false) continue;          // su día aún no llega: no es mora
+    for (const x of g.filas) {
+      if (norm(x.ejecutivo) !== norm(usuario.nombre)) continue;
+      mias.push({ dia: g.dia, fecha: g.fecha, centro: x.centro, clienta: x.clienta,
+        socio: x.socio, producto: x.producto, cuota: x.cuota, pagado: x.pagado,
+        falta: x.faltante, saldo: x.saldo });
+    }
+  }
+  // La que más debe, primero: es por donde se empieza a cobrar.
+  mias.sort((a2, b2) => b2.falta - a2.falta);
+  const porCentro = {};
+  for (const x of mias) porCentro[x.centro] = Math.round(((porCentro[x.centro] || 0) + x.falta) * 100) / 100;
+  return {
+    lunes: d.lunes, domingo: d.domingo,
+    total: Math.round(mias.reduce((a2, x) => a2 + x.falta, 0) * 100) / 100,
+    clientas: mias.length,
+    porCentro: Object.keys(porCentro).sort((a2, b2) => porCentro[b2] - porCentro[a2])
+      .map((c) => ({ centro: c, falta: porCentro[c] })),
+    filas: mias,
+  };
+}
+
 function paqueteVivo(usuario) {
   const { altas, centros, quitar } = altasParaApp(usuario);
   // `hoy`: la fecha OFICIAL del servidor viaja en cada paquete. El vigilante de
@@ -6087,7 +6143,8 @@ function paqueteVivo(usuario) {
   // teléfono recargaba la app CADA MINUTO cuando ese reloj andaba mal (le pasó
   // a Christopher el 12-ago, capturando pagos).
   return { altas, centros, quitar, vivos: datosVivosParaApp(usuario),
-    correcciones: correccionesParaApp(usuario), ts: Date.now(), hoy: hoyMX() };
+    correcciones: correccionesParaApp(usuario), mora: moraParaApp(usuario),
+    ts: Date.now(), hoy: hoyMX() };
 }
 
 // LAS CORRECCIONES DE DIRECCIÓN, para que la ejecutiva las vea en su teléfono.

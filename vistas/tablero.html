@@ -1020,7 +1020,17 @@ function tarjetaCredito(c, i) {
                    : ' · <span class="rsindia">SIN DÍA DE PAGO</span>') + "</div>"
     + '<div class="rd"><span>saldo <b>' + dinero(saldoAct) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
-    + (c.pagado > 0 ? '<span class="rpago">pagó ' + dinero(c.pagado) + " esta sem.</span>" : "")
+    // POR SEMANA, no todo revuelto: «pagó $960 esta sem.» sumaba lo de dos
+    // semanas (Karina, 15-ago). Se dice lo de ESTA semana y, aparte, lo de las
+    // anteriores con su lunes — que es como ellas leen la cobranza.
+    + (c.pagadoEstaSemana > 0
+        ? '<span class="rpago">pagó ' + dinero(c.pagadoEstaSemana) + " esta sem.</span>" : "")
+    + ((c.porSemana || []).filter((w) => w.lunes !== c.lunesDeHoy).length
+        ? '<span class="rpago" style="background:#EDE9F7;color:#4A3F6B">antes: '
+          + (c.porSemana || []).filter((w) => w.lunes !== c.lunesDeHoy).slice(0, 4)
+              .map((w) => dinero(w.monto) + " (sem. " + hesc(w.lunes.slice(8, 10) + "-" + w.lunes.slice(5, 7)) + ")")
+              .join(" · ")
+          + "</span>" : "")
     + (c.mora > 0 ? '<span class="rmora">mora ' + dinero(c.mora) + "</span>" : "")
     + "</div>"
     + (esBaja ? "" : '<div class="racc"><button class="rbaja" onclick="pedirBaja(this,\'' + esc(c.id) + "','" + esc(c.producto) + '\')">Dar de baja</button></div>')

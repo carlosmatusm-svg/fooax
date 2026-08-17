@@ -3403,6 +3403,37 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const lunesDeLaSemanaJS = (iso) => { const d = new Date(iso + "T12:00:00");
     const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
     return d.toISOString().slice(0, 10); };
+  console.log("\n— 75. LO PAGADO SE DESGLOSA POR SEMANA (Karina, 15-ago) —");
+  // «La semana es de lunes a domingo, y aquí hicieron un pago una semana y a la
+  // siguiente le puso "pagó tanto esta semana".» La tarjeta de la clienta decía
+  // "pagó $960 esta sem." sumando TODO lo abonado desde el corte: los $480 del
+  // 6-ago eran de la semana ANTERIOR. Es el caso de ANA VICTORIA SANTIAGO.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const S75 = "70000009070";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S75, nombre: "ANA DOS SEMANAS 75", producto: "Grupal-Micro",
+      centro: "LA CONSENTIDA", ejecutivo: "Neri", saldo: 20160, cuota: 480, plazo: 42,
+      diaPago: "Jueves", desembolso: "2026-03-26" }) });
+  const K75 = S75 + "|Grupal-Micro|ANA DOS SEMANAS 75|0";
+  // Un pago la semana del 3-ago y otro la del 10-ago.
+  for (const [fch, dt] of [["2026-08-06", 100], ["2026-08-12", 101]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+      body: JSON.stringify({ fecha: fch, snapshot: { reg: { "LA CONSENTIDA": { [K75]: { pago: 480, forma: "E" } } } },
+        ts: Date.now() + dt }) });
+  const cr75 = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("ANA DOS SEMANAS"), { headers: H(cm) }));
+  const x75 = (cr75.resultados || []).find((x) => String(x.id) === S75) || {};
+  ok("lo abonado se desglosa POR SEMANA, con el lunes de cada una",
+    Array.isArray(x75.porSemana) && x75.porSemana.length === 2
+      && x75.porSemana.some((w) => w.lunes === "2026-08-10" && w.monto === 480)
+      && x75.porSemana.some((w) => w.lunes === "2026-08-03" && w.monto === 480),
+    JSON.stringify(x75.porSemana));
+  ok("«esta semana» es SOLO la semana en curso, no todo desde el corte",
+    x75.pagadoEstaSemana === 480 && x75.pagado === 960,
+    "estaSemana " + x75.pagadoEstaSemana + " · desde el corte " + x75.pagado);
+  ok("y el total desde el corte sigue cuadrando con el saldo (20160 − 960)",
+    x75.saldoActual === 19200, "saldoActual " + x75.saldoActual);
+
   console.log("\n— 74. LA QUE PAGA A MEDIAS VA EN «PAGO PARCIAL» (Karina, 15-ago) —");
   // «Esas tienen que ir en cartera en el área de pago parcial.» Antes, si su
   // día ya había pasado, la que pagó incompleto se iba al montón de la mora:

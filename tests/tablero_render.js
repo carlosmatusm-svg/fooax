@@ -224,6 +224,53 @@ for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
 // que el JavaScript compile: esta tarjeta arma HTML con comillas dentro de
 // comillas, que es justo donde se rompe y deja la tarjeta en "Cargando…".
 // Aquí se le da una respuesta de mentiras y se revisa lo que escribió.
+// LA MORA EN EL TELÉFONO DE LA EJECUTIVA (Karina, 15-ago). Se corre el
+// pintado de verdad: si se rompe, ella se queda sin ver a quién ir a cobrar.
+console.log("\n═══ LA MORA EN LA APP DE LA EJECUTIVA ═══\n");
+{
+  const src = fs.readFileSync(path.join(__dirname, "..", "public", "vivos.js"), "utf8");
+  const doc = { _n: {}, getElementById(id) { return this._n[id] || null; },
+    querySelector() { return this.host; },
+    createElement() { return { style: {}, setAttribute(k, v) { this[k] = v; },
+      getAttribute(k) { return this[k] || null; }, appendChild() {} }; },
+    addEventListener() {},
+    host: { firstChild: null, insertBefore(a2) { this.kid = a2; }, appendChild(a2) { this.kid = a2; } } };
+  const win = { addEventListener() {}, sessionStorage: { getItem() { return null; }, setItem() {} },
+    location: { reload() {} } };
+  const ctx = { document: doc, window: win, navigator: { onLine: false },
+    setInterval() {}, setTimeout() {}, fetch: () => Promise.resolve({ ok: false }),
+    console: { log() {}, error() {} } };
+  ctx.globalThis = ctx;
+  let corre = true, err2 = "";
+  try { vm.createContext(ctx); new vm.Script(src).runInContext(ctx); }
+  catch (e) { corre = false; err2 = e.message; }
+  ok("vivos.js corre y expone el pintado de la mora",
+    corre && typeof win.__pintarMora === "function", err2 || "no expone __pintarMora");
+  if (corre && typeof win.__pintarMora === "function") {
+    win.__pintarMora({ lunes: "2026-08-10", total: 1440, clientas: 3,
+      porCentro: [{ centro: "LA CONSENTIDA", falta: 960 }, { centro: "GHANIMA", falta: 480 }],
+      filas: [{ clienta: "ANA VICTORIA", centro: "LA CONSENTIDA", dia: "JUEVES",
+                producto: "Grupal-Micro", cuota: 480, pagado: 0, falta: 480 },
+              { clienta: "MARIA DEL ROSARIO", centro: "GHANIMA", dia: "LUNES",
+                producto: "Grupal-Basico 2", cuota: 576, pagado: 88, falta: 488 }] });
+    const h2 = (doc.host.kid || {}).innerHTML || "";
+    ok("la ejecutiva ve su TOTAL de mora", /1,440/.test(h2), h2.slice(0, 120));
+    ok("y el NOMBRE de cada clienta con lo que le falta",
+      /ANA VICTORIA/.test(h2) && /MARIA DEL ROSARIO/.test(h2) && /488/.test(h2), h2.slice(0, 160));
+    ok("de la que pagó a medias dice cuánto abonó y de cuánto",
+      /abonó/.test(h2) && /88/.test(h2) && /576/.test(h2), h2.slice(0, 200));
+    ok("y el desglose por centro, para ordenar el día",
+      /LA CONSENTIDA/.test(h2) && /GHANIMA/.test(h2), h2.slice(0, 160));
+    ok("sin etiquetas rotas",
+      (h2.match(/<div/g) || []).length === (h2.match(/<\/div>/g) || []).length, "desbalanceadas");
+    // Al corriente: mensaje distinto, no una tarjeta vacía.
+    win.__pintarMora({ lunes: "2026-08-10", total: 0, clientas: 0, porCentro: [], filas: [] });
+    const h3 = (doc.host.kid || {}).innerHTML || "";
+    ok("y si no debe nadie, se lo dice en verde en vez de dejar el hueco",
+      /al corriente/i.test(h3), h3.slice(0, 120));
+  }
+}
+
 console.log("\n═══ LA TARJETA DE RENOVACIONES PINTA ═══\n");
 {
   // Se corre SOLO la función que pinta esta tarjeta, con sus dos ayudantes.
