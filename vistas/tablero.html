@@ -1727,6 +1727,20 @@ async function cargarCartera() {
       det);
   }
 
+  // PAGOS DUPLICADOS: la misma clienta capturada en dos lugares el mismo día.
+  // Va en ALTA porque falsea lo pagado y el saldo hasta que se borre el
+  // renglón sobrante en la app de la ejecutiva.
+  if ((d.pagosDuplicados || []).length) {
+    const tot = d.pagosDuplicados.reduce((a2, x) => a2 + (x.montoIgnorado || 0), 0);
+    alto += aviso("alta", d.pagosDuplicados.length + " pagos capturados dos veces", dinero(tot),
+      "La misma clienta aparece con pago en <b>dos lugares el mismo día</b> (en dos centros, o en un "
+      + "centro y como individual). El sistema toma el del centro donde está en el padrón e ignora el "
+      + "otro — si los sumara, la clienta parecería haber pagado más de lo que pagó. <b>Hay que borrar "
+      + "el renglón sobrante en la app de la ejecutiva</b>, si no vuelve cada semana.",
+      d.pagosDuplicados.map((x) => "<b>" + hesc(x.clienta) + "</b> " + hesc(x.fecha)
+        + " · se tomó " + dinero(x.seTomoMonto) + " de <b>" + hesc(x.seTomo) + "</b>"
+        + " · se ignoró " + (x.seIgnoro || []).map((y) => dinero(y.monto) + " de " + hesc(y.origen)).join(", ")));
+  }
   // EL CORTE ADELANTADO. Va en ALTA: es dinero capturado que dejó de
   // descontarse, y la clienta aparece debiendo lo que ya pagó.
   if (d.corteAdelantado) {

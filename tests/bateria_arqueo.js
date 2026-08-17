@@ -3400,6 +3400,38 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el arqueo del martes cobra lo mismo que la mora semanal",
     !!na && na.faltante === 1144, JSON.stringify(na));
 
+  console.log("\n— 73. EL MISMO PAGO CAPTURADO DOS VECES (Karina, 15-ago) —");
+  // «Pagó 88 pesos, pero realmente debe 588, y le pone el sistema que pagó
+  // 588.» La clienta quedó listada en DOS lugares —dos centros, o un centro y
+  // como individual— y cada renglón traía su monto: el sistema los SUMABA
+  // (88 + 500 = 588) y aparecía pagando su cuota completa. Manda el padrón:
+  // vale la captura del centro donde está registrada, y la otra se reporta.
+  const S73 = "70000009050";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S73, nombre: "DOBLE CAPTURA 73", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 20,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-10",
+    snapshot: { reg: {
+      GHANIMA: { [S73 + "|Grupal-Basico|DOBLE CAPTURA 73|0"]: { pago: 88, forma: "E" } },
+      "LA JOYA": { [S73 + "|Grupal-Basico|DOBLE CAPTURA 73|0"]: { pago: 500, forma: "E" } } } },
+    ts: Date.now() + 80 }) });
+  const d73 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f73 = (d73.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S73);
+  ok("se toma lo que pagó en SU centro ($88), no la suma de los dos ($588)",
+    !!f73 && f73.pagado === 88, JSON.stringify(f73));
+  ok("y por eso sigue debiendo lo que de verdad debe ($500)",
+    !!f73 && f73.faltante === 500, JSON.stringify(f73));
+  const cl73 = await j(await fetch(U + "/api/clientes?q=" + S73, { headers: H(cm) }));
+  ok("el SALDO tampoco se le baja de más (5880 − 88)",
+    ((cl73.resultados || [])[0] || {}).saldoActual === 5792,
+    "saldoActual " + ((cl73.resultados || [])[0] || {}).saldoActual);
+  const cart73 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  const dup73 = (cart73.pagosDuplicados || []).find((x) => String(x.socio) === S73);
+  ok("y el tablero lo reporta: qué se tomó, qué se ignoró y de dónde",
+    !!dup73 && dup73.seTomoMonto === 88 && dup73.montoIgnorado === 500
+      && (dup73.seIgnoro || []).some((y) => /JOYA/i.test(y.origen)), JSON.stringify(dup73));
+
   console.log("\n— 72. PADRÓN POR EJECUTIVO, CON SUS ALTAS Y SUS BAJAS (Karina, 15-ago) —");
   // «Déjales un Excel donde se vean las bajas de padrón por ejecutivo... y si
   // agregan una clienta nueva, esa clienta tiene que aparecer en el padrón de

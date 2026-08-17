@@ -850,12 +850,23 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
   const pago = {}, gar = {}, detalle = {}, porFecha = {};
   const permitidas = new Set(idsEjecutivos(usuario));
   const snaps = store.respaldo().snapshots || {};
-  const sumar = (nodo, key, ej, fecha) => {
+  // MISMO CRÉDITO CAPTURADO EN DOS LUGARES EL MISMO DÍA (Karina, 15-ago: «pagó
+  // 88 pero le pone que pagó 588»). Si la clienta quedó listada en dos centros,
+  // o en un centro Y como individual, cada renglón traía su monto y el sistema
+  // los SUMABA: pagó $88 en uno y arrastraba $500 del otro, y aparecía pagando
+  // su cuota completa. Se guarda cada captura con su ORIGEN para poder decidir
+  // cuál vale, en vez de sumarlas a ciegas.
+  const crudo = {};      // clave → fecha → origen → { p, g }
+  const sumar = (nodo, key, ej, fecha, origen) => {
     if (!nodo || typeof nodo !== "object") return;
     const p = nodo.pago || 0, g = nodo.garantia || 0;
     if (p <= 0 && g <= 0) return;
     const partes = String(key).split("|");
     const clave = claveDelPago(partes[0], partes[1]);
+    const porF = crudo[clave] || (crudo[clave] = {});
+    const porO = porF[fecha] || (porF[fecha] = {});
+    const o = porO[origen] || (porO[origen] = { p: 0, g: 0 });
+    o.p += p; o.g += g;
     if (p > 0) pago[clave] = (pago[clave] || 0) + p;
     if (g > 0) gar[clave] = (gar[clave] || 0) + g;
     // Desglose por DÍA: lo necesitan las renovaciones. Como la llave es
@@ -877,18 +888,62 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
       if (fecha < lunes || fecha > hoy) continue;
       let data = snaps[ej][fecha].snapshot;
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
-      const rec = (st) => {
+      const rec = (st, origenFijo) => {
         if (!st || typeof st !== "object") return;
         for (const k in st) {
           const nd = st[k];
-          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) sumar(nd, k, ej, fecha);
-          else if (nd && typeof nd === "object") for (const kk in nd) sumar(nd[kk], kk, ej, fecha);
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd))
+            sumar(nd, k, ej, fecha, origenFijo || "individual");
+          // Un nivel más abajo: la llave de arriba es el CENTRO.
+          else if (nd && typeof nd === "object")
+            for (const kk in nd) sumar(nd[kk], kk, ej, fecha, origenFijo || String(k));
         }
       };
-      rec(data.reg); rec(data.regI);
+      rec(data.reg, null); rec(data.regI, "individual");
     }
   }
-  return { pago, gar, detalle, porFecha };
+
+  // RESOLVER LOS DUPLICADOS. Manda el padrón: la captura que viene del centro
+  // donde la clienta está registrada es la buena; la de otro lado es un
+  // remanente (la movieron de centro y quedó en los dos). No se suman: se
+  // elige, y la descartada se reporta para que Dirección la vea.
+  const duplicados = [];
+  for (const clave in crudo) {
+    for (const fecha in crudo[clave]) {
+      const orig = crudo[clave][fecha];
+      const nombres = Object.keys(orig);
+      if (nombres.length < 2) continue;
+      const c = PADRON.find((x) => x.activa !== false && x.estatus !== "BAJA"
+        && claveCredito(x.id, x.producto) === clave);
+      const suyo = c ? (/^c-?0$/i.test(String(c.centro || "")) ? "individual" : String(c.centro || "")) : null;
+      let bueno = suyo && nombres.find((n) => norm(n) === norm(suyo));
+      if (!bueno) bueno = nombres.reduce((a3, b3) => (orig[b3].p > orig[a3].p ? b3 : a3));
+      let quitadoP = 0, quitadoG = 0;
+      for (const n of nombres) {
+        if (n === bueno) continue;
+        quitadoP += orig[n].p; quitadoG += orig[n].g;
+      }
+      if (quitadoP <= 0 && quitadoG <= 0) continue;
+      pago[clave] = Math.round(((pago[clave] || 0) - quitadoP) * 100) / 100;
+      gar[clave] = Math.round(((gar[clave] || 0) - quitadoG) * 100) / 100;
+      const pf = porFecha[clave];
+      if (pf && pf[fecha]) {
+        pf[fecha].p = Math.round((pf[fecha].p - quitadoP) * 100) / 100;
+        pf[fecha].g = Math.round((pf[fecha].g - quitadoG) * 100) / 100;
+      }
+      if (detalle[clave]) {
+        detalle[clave].pago = Math.round((detalle[clave].pago - quitadoP) * 100) / 100;
+        detalle[clave].gar = Math.round((detalle[clave].gar - quitadoG) * 100) / 100;
+      }
+      duplicados.push({ clave, fecha, socio: c ? String(c.id) : String(clave).split("|")[0],
+        clienta: c ? c.nombre : "(sin identificar)", producto: c ? c.producto : "",
+        ejecutivo: c ? c.ejecutivo : "", centroPadron: suyo || "(sin centro)",
+        seTomo: bueno, seTomoMonto: Math.round(orig[bueno].p * 100) / 100,
+        seIgnoro: nombres.filter((n) => n !== bueno).map((n) => ({ origen: n, monto: Math.round(orig[n].p * 100) / 100 })),
+        montoIgnorado: Math.round(quitadoP * 100) / 100 });
+    }
+  }
+  return { pago, gar, detalle, porFecha, duplicados };
 }
 
 // Liquidaciones y recuperaciones de la semana, por socio: abonos al crédito
@@ -3470,6 +3525,11 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       moraSemana: moraPorEjec[e.nombre] || 0, pendienteSemana: r2(e.pendiente_),
       cumplimiento: e.esperadoALaFecha > 0 ? r2((e.cobrado / e.esperadoALaFecha) * 100) : 0 })),
     inconsistentes, vencidas: vencidas.sort((a, b) => b.saldoActual - a.saldoActual).slice(0, 50),
+    // MISMO CRÉDITO CAPTURADO EN DOS LUGARES (Karina, 15-ago). Se toma la
+    // captura del centro donde la clienta está en el padrón y se ignora la
+    // otra, pero se DICE: el renglón sobrante hay que borrarlo en la app, si no
+    // vuelve cada semana.
+    pagosDuplicados: (pagosDeLaSemana(req.usuario, corteSaldos()).duplicados || []).slice(0, 50),
     // EL CORTE ADELANTADO SIN PLANTILLA (Karina, 15-ago). Si el corte se movió
     // a mano por delante de la última plantilla cargada, los pagos hechos en
     // medio dejaron de descontar y las clientas aparecen debiendo lo que ya
