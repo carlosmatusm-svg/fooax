@@ -1736,6 +1736,19 @@ async function cargarCartera() {
       det);
   }
 
+  // EL CORTE ADELANTADO. Va en ALTA: es dinero capturado que dejó de
+  // descontarse, y la clienta aparece debiendo lo que ya pagó.
+  if (d.corteAdelantado) {
+    const ca = d.corteAdelantado;
+    alto += aviso("alta", ca.creditos + " créditos con pagos que dejaron de descontar", dinero(ca.monto),
+      "El corte de saldos está en <b>" + hesc(ca.corteActual) + "</b> pero la última plantilla cargada es del <b>"
+      + hesc(ca.desdeLaPlantilla) + "</b>. Los pagos hechos en medio ya no le bajan el saldo a nadie: "
+      + "esas clientas aparecen debiendo lo que <b>ya pagaron</b>. Se arregla regresando el corte al "
+      + hesc(ca.desdeLaPlantilla) + " (Créditos y saldos → corte), o cargando la plantilla con los saldos al "
+      + hesc(ca.corteActual) + ".",
+      (ca.clientas || []).map((x) => "<b>" + hesc(x.clienta) + "</b> " + hesc(x.centro || "")
+        + " · " + dinero(x.monto)));
+  }
   if ((d.cobranzaSinCredito || []).length) {
     const tot = d.cobranzaSinCredito.reduce((a, b) => a + (b.pago || 0) + (b.garantia || 0), 0);
     alto += aviso("alta", d.cobranzaSinCredito.length + " cobros sin dueño", dinero(tot),

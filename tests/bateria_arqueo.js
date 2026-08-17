@@ -295,7 +295,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // estas pruebas caen ANTES del corte y no cuentan. Se pone bien atrás para que
   // todo lo que capture la batería sí se descuente; las secciones que necesitan
   // un corte propio lo fijan aparte.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   const cal = await login("alejandra", "alejandra2026");  // admin, pero NO es Anel/Monse
   let cr = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", nombre: "CARTERA TEST", producto: "Credito Prueba", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
   ok("alta de clienta con saldo para la cartera", cr.ok === true, JSON.stringify(cr).slice(0, 60));
@@ -484,21 +484,21 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // sistema (que se mueve con cada plantilla nueva), este pago cae antes y la
   // prueba falla sin que nada esté mal. El corte va un día antes del abono.
   const CORTE20 = (() => { const d = new Date(LUN20); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
-  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: CORTE20 }) }));
+  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: CORTE20, confirmar: true }) }));
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: D5, snapshot: JSON.stringify({ fecha: D5, reg: { "C-88": { "70000000095|Credito Saldo": { pago: 200, forma: "E" } } }, regI: {}, movs: [] }), ts: Date.now() }) });
   const saldoDe = async () => { const s = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("SALDO TEST"), { headers: H(ca) })); return ((s.resultados || []).find((c) => String(c.id) === "70000000095") || {}).saldoActual; };
   ok("un pago de la SEMANA PASADA sigue bajando el saldo (1000 − 200 = 800)", (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
   let ct = await j(await fetch(U + "/api/saldos/corte", { headers: H(ca) }));
   ok("el corte de saldos es visible para dirección", /^\d{4}-\d{2}-\d{2}$/.test(ct.corte || ""), "corte " + ct.corte);
   const DC3 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cal), body: JSON.stringify({ fecha: DC3 }) }));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cal), body: JSON.stringify({ fecha: DC3, confirmar: true }) }));
   ok("otro admin NO puede mover el corte (solo Anel y Monse)", !!ct.error, (ct.error || "").slice(0, 50));
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: DC3 }) }));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: DC3, confirmar: true }) }));
   ok("Monse mueve el corte (cargó plantillas nuevas)", ct.ok === true && ct.corte === DC3, JSON.stringify(ct).slice(0, 50));
   ok("un pago ANTERIOR al corte ya no descuenta (la plantilla ya lo traía)", (await saldoDe()) === 1000, "saldoActual " + (await saldoDe()));
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) }));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) }));
   ok("y al regresar el corte, vuelve a descontar", ct.ok === true && (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2099-01-01" }) }));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2099-01-01", confirmar: true }) }));
   ok("un corte en el futuro se rechaza", !!ct.error, (ct.error || "").slice(0, 50));
 
   console.log("\n— 21. FASE 2 · cartera, mora de la semana y semáforo —");
@@ -558,7 +558,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const menosSem = (f, n) => { const d = new Date(f + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 7 * n); return d.toISOString().slice(0, 10); };
   const L0 = lunesDe2(HOY);
   const W = [menosSem(L0, 4), menosSem(L0, 3), menosSem(L0, 2), menosSem(L0, 1)];
-  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: W[0] }) }));
+  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: W[0], confirmar: true }) }));
   await fetch(U + "/api/centros", { method: "POST", headers: H(ca), body: JSON.stringify({ numero: "77", nombre: "CENTRO TENDENCIA", ejecutivo: "Neri", dia: "Lunes" }) });
   const SOC = "70000000123", PRD = "Credito Tendencia";
   await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: SOC, nombre: "TENDENCIA TEST", producto: PRD, centro: "CENTRO TENDENCIA", ejecutivo: "Neri", saldo: 4000, cuota: 1000, plazo: 4 }) }));
@@ -749,7 +749,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el corte dice desde qué día se descuenta, y es el corte MISMO",
     !!co.corte && co.desde === co.corte, JSON.stringify(co));
   // Mover el corte un día SÍ deja fuera el día anterior: es la palanca real.
-  const ant = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-04-08" }) }));
+  const ant = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-04-08", confirmar: true }) }));
   const co2 = await j(await fetch(U + "/api/saldos/corte", { headers: H(cd) }));
   ok("Monse puede mover el corte y el sistema lo respeta al instante",
     ant.ok === true && co2.corte === "2026-04-08", JSON.stringify(ant) + " → " + JSON.stringify(co2));
@@ -849,7 +849,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // (liquidan y renuevan el mismo día, y solo se guarda fecha, no hora): al cerrar
   // el ciclo se anota cuánto llevaba abonado y eso se descuenta.
   const cenR = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const renueva = async (soc, via) => {
     await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
       id: soc, nombre: "RENUEVA " + via, producto: "Grupal-Basico", centro: cenR,
@@ -991,7 +991,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // descuentan cuando traen clienta. Fallan en dos casos, y los dos son reales:
   // (1) capturadas ANTES del corte y (2) sin número de socio. La app ya exige la
   // clienta; el tablero de Dirección no, y por ahí se cuelan.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const cenL = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
     id: "70000000851", nombre: "LIQ CON CLIENTA", producto: "Grupal-Basico", centro: cenL,
@@ -1024,7 +1024,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // vencidos» — y ese dinero cuenta SOLO como recuperación, no también como
   // cobranza (opción A). Antes la recuperación la definía la ETIQUETA que ponía
   // la ejecutiva; ahora la define el ESTADO del crédito.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const cenR2 = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
   const altaR = (id, n) => fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
     id, nombre: n, producto: "Grupal-Basico", centro: cenR2, ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 24 }) });
@@ -1162,7 +1162,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // saldo de la plantilla). Para estos casos se regresa el corte al principio
   // del año, que es donde lo pone la batería al arrancar.
   await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
-    body: JSON.stringify({ fecha: "2026-01-01" }) });
+    body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   const sync40 = (fecha, reg, t) => fetch(U + "/api/sync", { method: "POST", headers: H(cCh),
     body: JSON.stringify({ fecha, snapshot: { reg }, ts: Date.now() + t }) });
   const K40 = (id, p, nom) => id + "|" + p + "|" + nom + "|0";
@@ -1316,7 +1316,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const x = (d.resultados || []).filter((y) => y.activa !== false)[0];
     return x ? x.saldoActual : null;
   };
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const antes44 = await s44();
   await new Promise((r) => setTimeout(r, 30));      // que la captura quede DESPUÉS del corte
   const VIE44 = new Date(new Date(HOY + "T12:00") - 4 * 864e5).toISOString().slice(0, 10);
@@ -1333,7 +1333,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // Contraprueba: si el corte se fija DESPUÉS de la captura, ya venía en la
   // plantilla y NO debe volver a descontarse.
   await new Promise((r) => setTimeout(r, 30));
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   ok("pero si el corte se fija después de la captura, deja de descontar",
     Math.abs((await s44()) - antes44) < 0.01, "quedó en " + (await s44()) + " y debía volver a " + antes44);
 
@@ -1343,7 +1343,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // con un socio que no existe, el dinero SÍ entra al arqueo pero NO le baja el
   // saldo a nadie. Antes eso pasaba en silencio; era el último hueco.
   const K44 = (id, p, nom) => id + "|" + p + "|" + nom + "|0";
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: "2026-06-03",
     snapshot: { reg: { C44: {
       [K44("11112926916", "Grupal Basico Mal Escrito", "HERALIA")]: { pago: 400, forma: "E" },
@@ -1589,7 +1589,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // cada una solo mira su propio mundo. Aquí se usa Neri (real) de punta a
   // punta, con su fecha propia y el corte atrás para que el pago cuente.
   const D44f = "2026-02-19";
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   const S44 = "70000000431", S45 = "70000000432";
   const reg44f = { "C-0": {} };
   reg44f["C-0"][S44 + "|Individual|CLIENTA DE PRUEBA 44|0"] = { pago: 200, forma: "E" };
@@ -2097,7 +2097,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // que se va, que se pueda ocupar de lunes a domingo.» El de saldos contesta
   // "¿cuánto debe cada quien?" y para eso necesita el corte; este contesta
   // "¿cuánto entró y cuánto salió?", y por eso NO lo mira.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   const K51 = "11112931059|COMADRE|BLANCA LUIS BERNAL|0";
   // Se mide POR DIFERENCIA: en ese rango ya hay cobranza de otras secciones de
   // la batería, así que comparar contra totales absolutos daba un número que no
@@ -2136,7 +2136,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     sube("pago") === 1500 && sube("garantia") === 200 && sube("salidas") === 450,
     JSON.stringify({ pago: sube("pago"), garantia: sube("garantia"), salidas: sube("salidas") }));
   // Y que NO le afecte mover el corte: es justo su razón de ser.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07", confirmar: true }) });
   const per2 = await j(await fetch(U + "/api/periodo?desde=2026-08-03&hasta=2026-08-09", { headers: H(cm) }));
   ok("mover el corte NO le cambia un solo peso a este reporte",
     per2.total.pago === per.total.pago && per2.total.garantia === per.total.garantia
@@ -2270,7 +2270,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   console.log("\n— 53. RENOVAR NO ARRASTRA LOS ABONOS DEL CICLO VIEJO (Karina, 10-ago) —");
   // El corte se fija aquí: secciones anteriores lo dejan donde les sirve, y sin
   // esto los abonos de la prueba caían antes del corte y no contaban.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   // «Cuando intentan dar un nuevo crédito, le resta lo que ya pagaron.» Pasó con
   // doña Alma Rosario: se renovó por $29,184, después se movió el corte al lunes
   // y el crédito NUEVO amaneció con $5,440 descontados — los del ciclo que ella
@@ -2284,7 +2284,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     return (d.resultados || []).find((c) => c.activa && c.producto === P52) || null;
   };
   const conCorte = async (f) => {
-    await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: f }) });
+    await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: f, confirmar: true }) });
     return nuevo52();
   };
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
@@ -2314,7 +2314,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
 
   // Y el contrario, que es donde esto se puede pasar de listo: los abonos del
   // crédito NUEVO sí tienen que contar.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
     body: JSON.stringify({ fecha: HOY, snapshot: { regI: { [K52]: { pago: 912, forma: "E" } } }, ts: Date.now() + 1 }) });
   let malos52b = [];
@@ -2327,7 +2327,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
 
   // El caso feo: liquidar, renovar y pagar el crédito nuevo el MISMO día.
   const S52b = "70000000953", K52b = S52b + "|" + P52 + "|BEATRIZ DE PRUEBA 52|0";
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S52b, nombre: "BEATRIZ DE PRUEBA 52", producto: P52, centro: "C-0",
       ejecutivo: "Julio", saldo: 8000, cuota: 400, plazo: 20 }) });
@@ -2339,7 +2339,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const n52b = (d52b.resultados || []).find((c) => c.activa && c.producto === P52);
   ok("liquidar, renovar y cobrar el mismo día no revuelve los dos ciclos",
     !!n52b && n52b.saldoActual === 20000, JSON.stringify(n52b));
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
 
   console.log("\n— 54. RENOVAR DEJA DOS REGISTROS: NO SE PUEDEN MEZCLAR (Karina, 10-ago) —");
   // La tarjeta de BLANCA VERONICA decía el disparate «saldo de la plantilla
@@ -2347,7 +2347,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // decía «pagó $288 esta sem.». Causa: al renovar quedan DOS registros con el
   // mismo socio y el mismo producto, y como la llave de la cartera es
   // socio+producto, el viejo heredaba los números del nuevo.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   const S54 = "70000000954", P54 = "Grupal-Basico 2";
   const K54 = S54 + "|" + P54 + "|BLANCA DE PRUEBA 54|0";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
@@ -2408,7 +2408,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // los ejecutivos también porque desaparece.» A Socorro Miguel y a Blanca
   // Verónica les quedaron TODOS los créditos de baja: no le aparecían a su
   // ejecutiva y desde la tarjeta no había ningún botón para devolverles uno.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   const S55 = "70000000992", P55 = "Grupal-Micro";
   const K55 = S55 + "|" + P55 + "|SOCORRO DE PRUEBA 55|0";
   const enApp55 = async () => {
@@ -2534,7 +2534,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // El corte se planta el DOMINGO: la cuota del día del corte ya viene saldada
   // dentro de la plantilla (regla del 14-ago), así que para exigir el lunes 03
   // el corte debe ser anterior a ese día.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02", confirmar: true }) });
   const mora56 = async () => j(await fetch(U + "/api/mora?lunes=" + L56, { headers: H(cm) }));
   const buscaMora = (d, socio) => {
     for (const g of d.dias || []) for (const x of g.filas) if (String(x.socio) === socio) return { g, x };
@@ -2588,8 +2588,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // cambia la foto — y por eso ya nunca se mueve (no hay más plantillas). Lo
   // que se garantiza es que sea reproducible: al regresarlo, el número regresa.
   const totalConCorteA = (await mora56()).total;
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07" }) });
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07", confirmar: true }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02", confirmar: true }) });
   const totalConCorteB = (await mora56()).total;
   ok("el corte es la base del arrastre: al regresarlo, la mora regresa idéntica",
     Math.abs(totalConCorteA - totalConCorteB) < 0.01, totalConCorteA + " vs " + totalConCorteB);
@@ -3081,7 +3081,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // de saldo y se le exigía la cuota completa. La regla es una: desde el corte,
   // cada día de cobro vencido exige una cuota, TODO lo abonado cuenta, y el
   // faltante se acota a una cuota y al saldo restante.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
 
   // (1) ARIELA: clienta de JUEVES que el jueves PASADO (06-ago) pagó DOBLE.
   const S63a = "70000001063";
@@ -3275,7 +3275,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // muro de LA CONSENTIDA: 46 clientas al corriente marcadas en mora). Y la
   // regla del plazo terminado le exigía el saldo COMPLETO a quien tiene el
   // plazo mal capturado (EPIFANIA: $5,616 habiendo pagado su cuota ese día).
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-07-30" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-07-30", confirmar: true }) });
 
   // (a) La CONSENTIDA real: jueves, pagó el 6 y el 12 — con el corte EN jueves
   // 30-jul NO debe nada (la cuota del 30 vive dentro de la plantilla).
@@ -3324,7 +3324,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // Y el caso LUCIA (que el plazo terminado SÍ exija el remanente chico) sigue
   // vivo en la sección 63 — estas dos reglas conviven.
 
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
 
   console.log("\n— 67. LOS CASOS REALES DEL EXCEL DE MORA (Karina, 15-ago: «eliminaste a varias») —");
   // Karina comparó el Excel de la mora antes y después y de 231 créditos
@@ -3338,7 +3338,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   //      asimetría se la acreditaba a la cuota de esta semana.
   // La regla correcta usa LA MISMA VARA: todo arranca en el primer día de
   // cobro de la clienta después del corte.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   const rn67 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
   const en67 = (d, soc) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === soc);
 
@@ -3400,6 +3400,62 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el arqueo del martes cobra lo mismo que la mora semanal",
     !!na && na.faltante === 1144, JSON.stringify(na));
 
+  console.log("\n— 71. ADELANTAR EL CORTE SIN PLANTILLA BORRA PAGOS (Karina, 15-ago) —");
+  // «En algunos créditos no se bajaron lo que pagaron.» El saldo del padrón es
+  // la FOTO de la plantilla. Si el corte se adelanta sin cargar una plantilla
+  // nueva, los pagos hechos en medio dejan de descontar: la clienta vuelve a
+  // aparecer debiendo lo que ya pagó. Pasó de verdad al mover el corte del
+  // 5-ago al 13-ago (el caso BEATRIZ CRESPO).
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const S71 = "70000009010";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S71, nombre: "PAGO Y SE BORRO 71", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-10", snapshot: { regI: {
+      [S71 + "|Grupal-Basico|PAGO Y SE BORRO 71|0"]: { pago: 500, forma: "E" } } }, ts: Date.now() + 70 }) });
+  const saldoDe71 = async () => {
+    const r = await j(await fetch(U + "/api/clientes?q=" + S71, { headers: H(cm) }));
+    return ((r.resultados || [])[0] || {}).saldoActual;
+  };
+  ok("con el corte en su lugar, su pago SÍ le baja el saldo (1000 − 500 = 500)",
+    (await saldoDe71()) === 500, "saldoActual " + (await saldoDe71()));
+
+  // EL CANDADO: mover el corte por delante de la plantilla se rechaza y dice
+  // cuánto dinero dejaría de contar y de quién.
+  const rC71 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-13" }) });
+  const jC71 = await j(rC71);
+  ok("adelantar el corte sin plantilla se RECHAZA, no se hace en silencio",
+    rC71.status === 409 && jC71.requiereConfirmar === true, "status " + rC71.status);
+  ok("y dice cuánto dinero dejaría de descontar y en cuántos créditos",
+    (jC71.impacto || {}).monto >= 500 && (jC71.impacto || {}).creditos >= 1,
+    JSON.stringify((jC71.impacto || {}).monto));
+  ok("nombrando a las clientas, para poder verificarlo",
+    ((jC71.impacto || {}).clientas || []).some((x) => String(x.socio) === S71),
+    JSON.stringify(((jC71.impacto || {}).clientas || []).slice(0, 3)));
+  const cAct71 = (await j(await fetch(U + "/api/saldos/corte", { headers: H(cm) }))).corte;
+  ok("y el corte NO se movió", cAct71 === "2026-08-05", "quedó en " + cAct71);
+
+  // Con plantilla nueva de verdad, se confirma y entonces sí procede.
+  const rOK71 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-13", confirmar: true }) });
+  ok("confirmando (porque sí se cargó plantilla nueva) el corte sí se mueve",
+    rOK71.status === 200, "status " + rOK71.status);
+  ok("y ahí se ve el daño: el pago del 10 ya no le baja el saldo",
+    (await saldoDe71()) === 1000, "saldoActual " + (await saldoDe71()));
+  // Y la cartera lo GRITA en vez de callarlo.
+  const cart71 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("la cartera avisa del corte adelantado, con su monto y sus clientas",
+    !!cart71.corteAdelantado && cart71.corteAdelantado.monto >= 500
+      && (cart71.corteAdelantado.clientas || []).some((x) => String(x.socio) === S71),
+    JSON.stringify(cart71.corteAdelantado || null).slice(0, 160));
+  // Regresar el corte lo repara: el dinero vuelve a descontar.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  ok("y al regresar el corte, el pago vuelve a bajarle el saldo",
+    (await saldoDe71()) === 500, "saldoActual " + (await saldoDe71()));
+
   console.log("\n— 70. LOS CINCO CASOS DE KARINA (15-ago, con el corte movido al 13) —");
   // «Esta pagó el lunes y la pusiste en mora.» (BEATRIZ CRESPO.) Y con ella,
   // toda la lista: que la recuperación actualice, que el adelanto dentro de la
@@ -3408,7 +3464,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // El corte movido al 13 es lo que destapó a BEATRIZ: la semana lo CRUZA, así
   // que su pago del lunes 10 ya venía descontado en el saldo de la plantilla y
   // el sistema se lo contaba OTRA VEZ como si fuera dinero nuevo.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-13" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-13", confirmar: true }) });
   const alta70 = (id, nom, prod, saldo, cuota, plazo, dia, des) =>
     fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
       body: JSON.stringify({ id, nombre: nom, producto: prod, centro: "C-0", ejecutivo: "Julio",
@@ -3459,7 +3515,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !(a70.centros || []).some((g) => g.filas.some((x) => String(x.socio) === "70000009003")),
     "sale en el arqueo del martes habiendo pagado el lunes");
 
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
 
   console.log("\n— 69. LA MORA SE MIDE CONTRA EL CALENDARIO DEL CRÉDITO (Karina, 15-ago) —");
   // «No mira el lunes, solo tienes a una persona, sigue mal.» El arrastre desde
@@ -3467,7 +3523,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // atrasada del lunes 3, y el lunes salía con una sola clienta. El método real
   // de Monse compara el SALDO contra el calendario: desembolsada tal día, con
   // N pagos, para hoy debería deberle tanto. Lo que exceda es su atraso.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   const cal69 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
   const f69 = (d, soc) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === soc);
 

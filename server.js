@@ -1478,6 +1478,11 @@ function inicioObligaciones(c) {
 // ANTERIOR (la plantilla ya la traía pendiente en el saldo) y el sistema se la
 // acreditaba a la cuota de esta semana. Así se cayeron del reporte ELVIRA,
 // GUIE y ARELI, que sí debían.
+// Pesos con formato, para los mensajes que lee Dirección.
+function pesosMX(n) {
+  return "$" + Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function diaAnterior(fISO) {
   const d = new Date(fISO + "T12:00:00"); d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
@@ -1626,6 +1631,11 @@ function moraDeLaSemana(usuario, lunesOpt) {
   // Cuántas traían adelanto: es la única corrección que se aplica al número,
   // así que se cuenta y se dice.
   const medidoCon = { conAdelanto: 0 };
+  // QUIÉNES traían adelanto y de cuánto. El adelanto es lo ÚNICO que puede
+  // sacar a una clienta de la mora sin que se vea el motivo en su renglón —
+  // así que no se calla: se lista con nombre y monto para que Monse lo pueda
+  // verificar una por una.
+  const adelantos = [];
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     if (!mios.has(norm(c.ejecutivo))) continue;
@@ -1702,7 +1712,13 @@ function moraDeLaSemana(usuario, lunesOpt) {
     const calAnt = calendarioDelCredito(c, idxDia(dia), diaAnterior(suFecha));
     const aFavor = (calAnt && !calAnt.termino)
       ? Math.max(0, Math.round((calAnt.restante - saldoAntes) * 100) / 100) : 0;
-    if (aFavor > 0) medidoCon.conAdelanto++;
+    if (aFavor > 0) {
+      medidoCon.conAdelanto++;
+      adelantos.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
+        socio: String(c.id), clienta: c.nombre, producto: c.producto, diaPago: dia,
+        cuota, adelanto: aFavor, cuotasAdelanto: Math.round((aFavor / cuota) * 100) / 100,
+        saldo: infoM.saldoActual, deberia: calAnt ? calAnt.restante : null });
+    }
     // El tope es su cuota, salvo que sea su ÚLTIMO pago: ahí se le pide todo lo
     // que queda, que puede ser un poco más (el cierre de LUCIA, $442).
     const calHoy = calendarioDelCredito(c, idxDia(dia), suFecha);
@@ -1754,7 +1770,8 @@ function moraDeLaSemana(usuario, lunesOpt) {
   }
   const sum = (f) => Math.round(lista.reduce((s, g) => s + f(g), 0) * 100) / 100;
   const sumV = (f) => Math.round(lista.filter((g) => g.vencido).reduce((s, g) => s + f(g), 0) * 100) / 100;
-  return { lunes, domingo, dias: lista, medidoCon,
+  adelantos.sort((x, y) => y.adelanto - x.adelanto);
+  return { lunes, domingo, dias: lista, medidoCon, adelantos,
     total: sum((g) => g.total),
     // Lo VENCIDO a hoy es el número comparable con el archivo de Monse: solo
     // los días cuyo cobro ya pasó. Lo demás es "por vencer", no mora.
@@ -1910,6 +1927,40 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     r.getCell(1).value = n;
     r.getCell(1).font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
   }
+  // HOJA 2 · LOS ADELANTOS. Es la única razón por la que una clienta puede
+  // desaparecer de la mora sin que su renglón lo explique, así que va con
+  // nombre, monto y a cuántas cuotas equivale. Si esta hoja crece de más, ahí
+  // está lo que hay que revisar.
+  if ((d.adelantos || []).length) {
+    const sa = wb.addWorksheet("Adelantos abonados");
+    sa.mergeCells("A1:J1");
+    const ta = sa.getCell("A1");
+    ta.value = "FOOAX · ADELANTOS ABONADOS EN LA SEMANA · " + d.adelantos.length + " clientas"
+      + " — traían pagado de más al cerrar la semana pasada, por eso no se les cobra mora";
+    ta.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    ta.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    ta.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    sa.getRow(1).height = 30;
+    const ha = [["Ejecutivo", 14], ["Centro", 20], ["Clienta", 30], ["Socio", 15], ["Producto", 17],
+      ["Día de cobro", 12], ["Cuota", 12], ["Adelanto abonado", 15], ["Equivale a (cuotas)", 14],
+      ["Saldo hoy", 13]];
+    const hra = sa.getRow(2);
+    ha.forEach(([h, w], i) => { const cc = hra.getCell(i + 1); cc.value = h; sa.getColumn(i + 1).width = w;
+      cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      cc.alignment = { horizontal: "center", wrapText: true }; });
+    let fa = 3;
+    for (const x of d.adelantos) {
+      const r = sa.getRow(fa++);
+      [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto, x.diaPago]
+        .forEach((v, i) => (r.getCell(i + 1).value = v));
+      r.getCell(7).value = x.cuota; r.getCell(7).numFmt = MONEDA;
+      r.getCell(8).value = x.adelanto; r.getCell(8).numFmt = MONEDA;
+      r.getCell(9).value = x.cuotasAdelanto;
+      r.getCell(10).value = x.saldo; r.getCell(10).numFmt = MONEDA;
+    }
+  }
+
   const buf = await wb.xlsx.writeBuffer();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Mora FOOAX ${d.lunes} al ${d.domingo}.xlsx"`);
@@ -3260,6 +3311,22 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       moraSemana: moraPorEjec[e.nombre] || 0, pendienteSemana: r2(e.pendiente_),
       cumplimiento: e.esperadoALaFecha > 0 ? r2((e.cobrado / e.esperadoALaFecha) * 100) : 0 })),
     inconsistentes, vencidas: vencidas.sort((a, b) => b.saldoActual - a.saldoActual).slice(0, 50),
+    // EL CORTE ADELANTADO SIN PLANTILLA (Karina, 15-ago). Si el corte se movió
+    // a mano por delante de la última plantilla cargada, los pagos hechos en
+    // medio dejaron de descontar y las clientas aparecen debiendo lo que ya
+    // pagaron. Es dinero real que se ve perdido, así que se avisa arriba.
+    corteAdelantado: (() => {
+      const cortes = store.cambiosPadron().filter((x) => x.tipo === "corte"
+        && /^\d{4}-\d{2}-\d{2}$/.test(x.fecha || ""));
+      const ultimoPlantilla = [...cortes].reverse().find((x) => x.dePlantilla);
+      const base = ultimoPlantilla ? ultimoPlantilla.fecha : null;
+      const actual = corteSaldos();
+      if (!base || !actual || actual <= base) return null;
+      const imp = pagosQueDejanDeContar(req.usuario, base, actual);
+      if (!(imp.monto > 0)) return null;
+      return { desdeLaPlantilla: base, corteActual: actual, monto: imp.monto,
+        creditos: imp.creditos, clientas: imp.clientas.slice(0, 20) };
+    })(),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
     // Las que SÍ traen clienta pero no dicen de cuál de sus créditos: el sistema
@@ -3855,11 +3922,84 @@ app.get("/api/saldos/corte", requiere("direccion", "admin"), (req, res) => {
   // haya que adivinar si el día del corte cuenta o no.
   res.json({ corte: corteSaldos(), desde: corteSaldos() });
 });
+// PAGOS QUE DEJARÍAN DE DESCONTAR AL ADELANTAR EL CORTE (Karina, 15-ago: «en
+// algunos créditos no se bajaron lo que pagaron»).
+//
+// El saldo del padrón es la foto de la plantilla. Si el corte se adelanta SIN
+// cargar una plantilla nueva de esa fecha, los pagos hechos entre la foto y el
+// corte nuevo dejan de descontar: el saldo se queda como estaba y el dinero de
+// la clienta se pierde de vista. Le pasó a BEATRIZ CRESPO, que pagó su lunes y
+// aparecía debiendo. Esto lo mide antes de que ocurra.
+function pagosQueDejanDeContar(usuario, desde, hasta) {
+  if (!desde || !hasta || hasta <= desde) return { monto: 0, creditos: 0, clientas: [] };
+  const finExc = diaAnterior(hasta);          // el día del corte nuevo SÍ sigue contando
+  if (finExc < desde) return { monto: 0, creditos: 0, clientas: [] };
+  const porClave = {};
+  const { porFecha } = pagosDeLaSemana(usuario, desde, finExc);
+  for (const clave in porFecha)
+    for (const f in porFecha[clave])
+      if (f >= desde && f <= finExc) porClave[clave] = (porClave[clave] || 0) + (porFecha[clave][f].p || 0);
+  for (let d = new Date(desde + "T12:00:00"); ; d.setDate(d.getDate() + 1)) {
+    const fISO = d.toISOString().slice(0, 10);
+    if (fISO > finExc) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+      const soc = socioDeMov(m); if (!soc) continue;
+      let prod = productoDeMov(m);
+      if (!prod) {
+        const suyos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === String(soc));
+        if (suyos.length === 1) prod = suyos[0].producto;
+      }
+      if (!prod) continue;
+      porClave[claveCredito(soc, prod)] = (porClave[claveCredito(soc, prod)] || 0) + (Number(m.monto) || 0);
+    }
+  }
+  const clientas = [];
+  let monto = 0;
+  for (const clave of Object.keys(porClave)) {
+    const v = Math.round(porClave[clave] * 100) / 100;
+    if (v <= 0) continue;
+    monto += v;
+    const [soc] = String(clave).split("|");
+    const c = PADRON.find((x) => x.activa !== false && x.estatus !== "BAJA" && claveCredito(x.id, x.producto) === clave);
+    clientas.push({ socio: String(soc), clienta: c ? c.nombre : "(sin identificar)",
+      producto: c ? c.producto : "", centro: c ? c.centro : "", ejecutivo: c ? c.ejecutivo : "", monto: v });
+  }
+  clientas.sort((a2, b2) => b2.monto - a2.monto);
+  return { monto: Math.round(monto * 100) / 100, creditos: clientas.length, desde, hasta: finExc, clientas };
+}
+
+app.get("/api/saldos/corte/impacto", requiere("direccion", "admin"), (req, res) => {
+  const fecha = String(req.query.fecha || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
+  res.json(pagosQueDejanDeContar(req.usuario, corteSaldos(), fecha));
+});
+
 app.post("/api/saldos/corte", soloAnelMonse, (req, res) => {
-  const fecha = String((req.body || {}).fecha || "").trim();
+  const b = req.body || {};
+  const fecha = String(b.fecha || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
   if (fecha > hoyMX()) return res.status(400).json({ error: "El corte no puede ser una fecha futura." });
-  store.agregarCambioPadron({ tipo: "corte", fecha, por: req.usuario.nombre, ts: Date.now() });
+  // EL CANDADO. Adelantar el corte sin plantilla nueva le borra a las clientas
+  // los pagos hechos en medio: el saldo es la foto de la plantilla vieja y esos
+  // abonos dejan de descontarse. Antes se hacía en silencio.
+  const actual = corteSaldos();
+  if (actual && fecha > actual && !b.confirmar) {
+    const imp = pagosQueDejanDeContar(req.usuario, actual, fecha);
+    if (imp.monto > 0) {
+      const ej = imp.clientas.slice(0, 5).map((x) => x.clienta + " (" + pesosMX(x.monto) + ")").join(", ");
+      return res.status(409).json({
+        error: "Al mover el corte del " + actual + " al " + fecha + " dejarían de descontar "
+          + pesosMX(imp.monto) + " en pagos de " + imp.creditos + " créditos: ese dinero ya está capturado "
+          + "pero el saldo del padrón todavía es la foto del " + actual + ", así que las clientas "
+          + "volverían a aparecer debiendo lo que ya pagaron. Ejemplo: " + ej + "."
+          + " Si cargaste una plantilla NUEVA con los saldos al " + fecha + ", vuelve a mandarlo confirmando.",
+        impacto: imp, requiereConfirmar: true,
+      });
+    }
+  }
+  store.agregarCambioPadron({ tipo: "corte", fecha, por: req.usuario.nombre, ts: Date.now(),
+    confirmado: !!b.confirmar });
   res.json({ ok: true, corte: fecha });
 });
 
