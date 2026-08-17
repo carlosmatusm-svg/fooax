@@ -3403,6 +3403,36 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const lunesDeLaSemanaJS = (iso) => { const d = new Date(iso + "T12:00:00");
     const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
     return d.toISOString().slice(0, 10); };
+  console.log("\n— 77. LA CLIENTA NUEVA LLEGA AL TELÉFONO DE SU EJECUTIVA (Karina, 15-ago) —");
+  // «Cuando agregan una clienta nueva y eligen el ejecutivo, aparece en el
+  // padrón de NERI al instante, con los datos que se dieron de alta.»
+  const S77 = "70000009100";
+  const rA77 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S77, nombre: "NUEVA PARA NERI 77", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 7200, cuota: 600, plazo: 12,
+      diaPago: "Martes", desembolso: "2026-08-14" }) }));
+  ok("el alta se registra con su ejecutiva", !rA77.error, rA77.error || "");
+  const vn77 = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const alta77 = (vn77.altas || []).find((x) => String(x.id) === S77);
+  ok("la clienta llega al teléfono de NERI en el siguiente sondeo (sin recargar)",
+    !!alta77 && alta77.nombre === "NUEVA PARA NERI 77" && alta77.centro === "GHANIMA",
+    JSON.stringify(alta77));
+  ok("con el saldo y la cuota que se capturaron",
+    !!alta77 && alta77.saldo === 7200 && alta77.cuota === 600, JSON.stringify(alta77));
+  const vivo77 = (vn77.vivos || []).find((x) => String(x.id) === S77);
+  ok("y con su DÍA DE COBRO, su plazo y su fecha de desembolso",
+    !!vivo77 && vivo77.dia === "MARTES" && vivo77.plazo === 12 && vivo77.desembolso === "2026-08-14",
+    JSON.stringify(vivo77));
+  const vj77 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+  ok("y NO se le aparece a otra ejecutiva: es de quien la dio de alta",
+    !(vj77.altas || []).some((x) => String(x.id) === S77)
+      && !(vj77.vivos || []).some((x) => String(x.id) === S77), "salió en el de Julio");
+  // Y en el padrón por ejecutivo que se le manda a Dirección.
+  const pad77 = await j(await fetch(U + "/api/padron", { headers: H(cm) }));
+  ok("y también entra al padrón de NERI que ve Dirección",
+    (pad77.porEjec["Neri"] || []).some((x) => String(x.socio) === S77),
+    "no está en el padrón de Neri");
+
   console.log("\n— 76. SEMANAS Y MES EN LA APP · CICLO · FECHA DE LIQUIDACIÓN (Karina, 15-ago) —");
   // «Pueden ver la semana pasada, esta semana y así... y overall de todo el
   // mes.» «Si alguien liquida su Grupal-Básico y renueva otro, ponerle un folio

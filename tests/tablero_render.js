@@ -224,6 +224,56 @@ for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
 // que el JavaScript compile: esta tarjeta arma HTML con comillas dentro de
 // comillas, que es justo donde se rompe y deja la tarjeta en "Cargando…".
 // Aquí se le da una respuesta de mentiras y se revisa lo que escribió.
+// LA CLIENTA NUEVA ATERRIZA EN SU TELÉFONO (Karina, 15-ago). El servidor ya la
+// manda —eso lo prueba la batería—; esto prueba el otro lado: que la app la
+// meta a su centro con TODOS sus datos, que es donde la ejecutiva la ve.
+console.log("\n═══ LA CLIENTA NUEVA LLEGA A LA APP ═══\n");
+{
+  const src2 = fs.readFileSync(path.join(__dirname, "..", "public", "vivos.js"), "utf8");
+  const CENTROS = { "C-12 · GHANIMA": [] };
+  const win2 = { addEventListener() {}, sessionStorage: { getItem: () => null, setItem() {} },
+    location: { reload() {} } };
+  const ctx2 = { CENTROS, INDIVIDUALES: [], datosCli: {}, reg: {}, regI: {},
+    guardar() {}, guardarDatosCli() {}, repintar() {},
+    document: { getElementById: () => null, querySelector: () => null, addEventListener() {},
+      createElement: () => ({ style: {}, setAttribute() {}, getAttribute: () => null, appendChild() {} }) },
+    window: win2, navigator: { onLine: false }, setInterval() {}, setTimeout() {},
+    fetch: () => Promise.resolve({ ok: false }), console: { log() {}, error() {} } };
+  ctx2.globalThis = ctx2;
+  let ok2 = true, e2 = "";
+  try { vm.createContext(ctx2); new vm.Script(src2).runInContext(ctx2); }
+  catch (e) { ok2 = false; e2 = e.message; }
+  ok("vivos.js corre con las listas de la app", ok2 && typeof win2.__aplicarVivos === "function", e2);
+  if (ok2 && typeof win2.__aplicarVivos === "function") {
+    win2.__aplicarVivos({
+      hoy: "2026-08-16",
+      altas: [{ id: "70000009100", nombre: "NUEVA PARA NERI", producto: "Grupal-Basico",
+                centro: "GHANIMA", saldo: 7200, cuota: 600 }],
+      centros: { ghanima: "C-12 · GHANIMA" }, quitar: [],
+      vivos: [{ id: "70000009100", producto: "Grupal-Basico", saldo: 7200, cuota: 600, plazo: 12,
+                unidad: "", dia: "MARTES", importe: 0, mora: 0, etiqueta: "", desembolso: "2026-08-14" }],
+      correcciones: [], mora: null,
+    });
+    const lista = CENTROS["C-12 · GHANIMA"];
+    const cl = lista[0] || {};
+    ok("la clienta nueva entra a SU centro, una sola vez", lista.length === 1, "quedaron " + lista.length);
+    ok("con su nombre, socio y producto",
+      cl.n === "NUEVA PARA NERI" && String(cl.f) === "70000009100" && cl.sub === "Grupal-Basico",
+      JSON.stringify(cl));
+    ok("con el saldo, la cuota y el plazo que se capturaron",
+      cl.saldo === 7200 && cl.esp === 600 && cl.plazo === 12, JSON.stringify(cl));
+    ok("y con su día de cobro y su fecha de desembolso",
+      cl.dia === "MARTES" && cl.des === "2026-08-14", JSON.stringify(cl));
+    // Segundo sondeo: no la duplica.
+    win2.__aplicarVivos({ hoy: "2026-08-16",
+      altas: [{ id: "70000009100", nombre: "NUEVA PARA NERI", producto: "Grupal-Basico",
+                centro: "GHANIMA", saldo: 7200, cuota: 600 }],
+      centros: { ghanima: "C-12 · GHANIMA" }, quitar: [], vivos: [], correcciones: [], mora: null });
+    ok("y en el siguiente sondeo no se duplica",
+      CENTROS["C-12 · GHANIMA"].length === 1, "quedaron " + CENTROS["C-12 · GHANIMA"].length);
+  }
+}
+
 // LA MORA EN EL TELÉFONO DE LA EJECUTIVA (Karina, 15-ago). Se corre el
 // pintado de verdad: si se rompe, ella se queda sin ver a quién ir a cobrar.
 console.log("\n═══ LA MORA EN LA APP DE LA EJECUTIVA ═══\n");
