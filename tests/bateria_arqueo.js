@@ -3403,6 +3403,28 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const lunesDeLaSemanaJS = (iso) => { const d = new Date(iso + "T12:00:00");
     const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
     return d.toISOString().slice(0, 10); };
+  console.log("\n— 78. LA MEJORA LLEGA AL TELÉFONO SIN ESPERAR OTRA ABIERTA (Karina, 15-ago) —");
+  // «No encontré lo de la mora en la app de Neri.» Estaba en el servidor, pero
+  // el service worker servía vivos.js DEL CACHE y solo lo refrescaba en
+  // segundo plano: la mejora llegaba hasta la siguiente vez que abriera. Ahora
+  // la lógica viva va a la red primero, y la página se auto-cura si detecta
+  // que cargó una versión vieja.
+  const sw78 = await (await fetch(U + "/sw.js")).text();
+  ok("el service worker ya NO sirve la lógica viva desde el cache",
+    /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
+  ok("y su versión de cache cambió, para que los teléfonos la tomen",
+    /fooax-v15/.test(sw78), "no se movió la versión del cache");
+  const vjs78 = await (await fetch(U + "/vivos.js")).text();
+  ok("vivos.js trae la tarjeta de mora y sus botones de semana",
+    /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
+    "vivos.js no trae la mora");
+  const appHtml78 = await (await fetch(U + "/app", { headers: H(cn) })).text();
+  ok("la app inyecta su paquete vivo, con la mora dentro",
+    /__VIVOS0/.test(appHtml78) && /"mora"/.test(appHtml78), "el paquete no trae mora");
+  ok("y trae la auto-curación: si cargó lógica vieja, se refresca UNA vez",
+    /__pintarMora/.test(appHtml78) && /fooax_refresco/.test(appHtml78),
+    "no está el rescate");
+
   console.log("\n— 77. LA CLIENTA NUEVA LLEGA AL TELÉFONO DE SU EJECUTIVA (Karina, 15-ago) —");
   // «Cuando agregan una clienta nueva y eligen el ejecutivo, aparece en el
   // padrón de NERI al instante, con los datos que se dieron de alta.»

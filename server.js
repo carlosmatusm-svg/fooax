@@ -6287,7 +6287,25 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   const inyecciones =
     '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' +
     "<script>window.__VIVOS0=" + JSON.stringify(paqueteVivo(req.usuario)) + ";</script>" +
-    '<script src="/vivos.js"></script>';
+    '<script src="/vivos.js"></script>' +
+    // AUTO-CURACIÓN DEL TELÉFONO (Karina, 15-ago: «no encontré lo de la mora en
+    // la app de Neri»). El service worker servía la lógica del cache, así que
+    // una mejora tardaba UNA ABIERTA COMPLETA en llegar y quien la buscaba no
+    // la encontraba. Esto lo detecta: si el vivos.js que cargó es viejo —no
+    // sabe pintar la mora— pide el archivo saltándose el cache, actualiza el
+    // service worker y recarga UNA sola vez. La marca en sessionStorage evita
+    // cualquier ciclo: si tras recargar sigue viejo, ya no vuelve a intentar.
+    '<script>(function(){setTimeout(function(){try{' +
+      'if(typeof window.__pintarMora==="function")return;' +
+      'if(sessionStorage.getItem("fooax_refresco"))return;' +
+      'sessionStorage.setItem("fooax_refresco","1");' +
+      'if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){' +
+        'navigator.serviceWorker.getRegistrations().then(function(rs){' +
+          'return Promise.all(rs.map(function(r){return r.update();}));' +
+        '}).then(function(){return fetch("/vivos.js",{cache:"reload"});})' +
+        '.then(function(){location.reload();}).catch(function(){location.reload();});' +
+      '}else{location.reload();}' +
+    '}catch(e){}},3000);})();</script>';
   let out = html.includes("</head>") ? html.replace("</head>", cabeza + "</head>") : cabeza + html;
   out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
   res.type("html").send(out);

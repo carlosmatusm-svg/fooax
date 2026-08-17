@@ -8,7 +8,14 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v14"; // v14: fuera el desglose por clienta — UN SOLO arqueo
+const CACHE = "fooax-v15"; // v15: vivos.js SIEMPRE fresco (la mora en la app)
+
+// LA LÓGICA VIVA NUNCA SE SIRVE VIEJA (Karina, 15-ago: «no encontré lo de la
+// mora en la app de Neri»). Estos archivos son el cerebro que baja del
+// servidor: si se sirven del cache, una mejora tarda UNA ABIERTA COMPLETA en
+// llegar al teléfono, y quien la busca no la encuentra. Van a la red primero;
+// si no hay señal, entonces sí sale la copia guardada.
+const SIEMPRE_FRESCO = ["/vivos.js", "/sync.js", "/captura-agil.js"];
 
 // La página pide activar la versión nueva de inmediato (auto-actualización).
 self.addEventListener("message", (e) => { if (e.data === "skip") self.skipWaiting(); });
@@ -67,10 +74,15 @@ self.addEventListener("fetch", (e) => {
           ))
       )
     );
+  } else if (SIEMPRE_FRESCO.includes(url.pathname)) {
+    // El cerebro de la app: red primero, cache solo si no hay señal.
+    e.respondWith(
+      fetch(req).then((r) => (r.ok ? guardar(req, r) : r))
+        .catch(() => caches.match(req).then((m) => m || Response.error()))
+    );
   } else {
-    // assets (js, imagen): responde del cache al instante (offline y rápido)
-    // pero SIEMPRE refresca en segundo plano — así las mejoras llegan al
-    // teléfono en la siguiente abierta, sin quedarse congeladas en el cache.
+    // El resto de assets (imágenes, íconos): del cache al instante y se
+    // refresca en segundo plano. Ahí sí conviene, y no cambian casi nunca.
     e.respondWith(
       caches.match(req).then((m) => {
         const red = fetch(req).then((r) => (r.ok ? guardar(req, r) : r)).catch(() => m);
