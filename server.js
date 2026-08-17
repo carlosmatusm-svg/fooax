@@ -2247,6 +2247,165 @@ app.get("/api/sin-desembolso/excel", requiere("direccion", "admin"), async (req,
   res.end(Buffer.from(buf));
 });
 
+// PADRÓN POR EJECUTIVO (Karina, 15-ago): «déjales un Excel donde se vean las
+// bajas de padrón por ejecutivo... y si agregan una clienta nueva, esa clienta
+// tiene que aparecer en el padrón de ese ejecutivo, como de las plantillas que
+// nos mandaban».
+//
+// Es el reemplazo del corte: en vez de mover fechas, cada ejecutiva tiene su
+// hoja con SU gente. Las altas salen marcadas —una clienta nueva aparece en el
+// padrón de su ejecutiva desde el momento en que se da de alta— y las bajas van
+// en su propia hoja, con fecha, motivo y quién.
+function padronPorEjecutivo(usuario) {
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  // LAS BAJAS. El padrón las conserva marcadas (activa:false) con su motivo,
+  // su fecha y quién la dio de baja: eso es justo lo que hay que poder ver.
+  const bajas = [];
+  for (const c of PADRON) {
+    if (!(c.activa === false || c.estatus === "BAJA")) continue;
+    const ejec = c.ejecutivo || "—";
+    if (!mios.has(norm(ejec))) continue;
+    bajas.push({ ejecutivo: ejec, centro: c.centro || "", socio: String(c.id),
+      clienta: c.nombre, producto: c.producto || "",
+      fecha: c.fecha_baja || "", motivo: c.motivo_baja || "",
+      por: c.baja_por || "", saldoAlDarDeBaja: Number(c.saldo) || 0 });
+  }
+  bajas.sort((a2, b2) => String(b2.fecha).localeCompare(String(a2.fecha)));
+
+  // Fecha de alta de cada crédito, para marcar a las que entraron.
+  const altaDe = {};
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "alta" && /^\d{4}-\d{2}-\d{2}$/.test(cb.fecha || ""))
+      altaDe[claveCredito(cb.id, cb.producto)] = { fecha: cb.fecha, por: cb.por || "", recredito: !!cb.recredito };
+
+  const porEjec = {};
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const ejec = c.ejecutivo || "—";
+    if (!mios.has(norm(ejec))) continue;
+    const info = infoCredito(cv, c);
+    const alta = altaDe[claveCredito(c.id, c.producto)] || null;
+    (porEjec[ejec] = porEjec[ejec] || []).push({
+      centro: c.centro || "Individual", socio: String(c.id), clienta: c.nombre,
+      producto: c.producto, saldo: Number(c.saldo) || 0, abonado: Math.round(((info.pagado || 0) + (info.liquidado || 0)) * 100) / 100,
+      saldoActual: info.saldoActual, cuota: Number(c.cuota) || 0, plazo: Number(c.plazo) || 0,
+      diaPago: c.diaPago || null, desembolso: c.desembolso || null, estatus: c.estatus || "",
+      alta: alta ? alta.fecha : null, esAlta: !!alta, esRecredito: !!(alta && alta.recredito),
+      altaPor: alta ? alta.por : "",
+    });
+  }
+  for (const e in porEjec)
+    porEjec[e].sort((a2, b2) => String(a2.centro).localeCompare(String(b2.centro), "es")
+      || String(a2.clienta).localeCompare(String(b2.clienta), "es"));
+
+  const bajasPorEjec = {};
+  for (const b2 of bajas) (bajasPorEjec[b2.ejecutivo] = bajasPorEjec[b2.ejecutivo] || []).push(b2);
+  return { hoy: hoyMX(), corte: corteSaldos(), porEjec, bajasPorEjec,
+    ejecutivos: Object.keys(porEjec).sort((a2, b3) => a2.localeCompare(b3, "es")),
+    totalClientas: Object.values(porEjec).reduce((n, l) => n + l.length, 0),
+    totalBajas: bajas.length };
+}
+
+app.get("/api/padron", requiere("direccion", "admin"), (req, res) => {
+  res.json(padronPorEjecutivo(req.usuario));
+});
+
+app.get("/api/padron/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = padronPorEjecutivo(req.usuario);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF0B7247", ROJO = "FF8E0019",
+        LAV = "FFF3F0FA", AMBAR = "FFFFF3CD";
+  const MONEDA = '"$"#,##0.00';
+  const encabezar = (s2, titulo, cols, color) => {
+    const ultima = String.fromCharCode(64 + cols.length);
+    s2.mergeCells("A1:" + ultima + "1");
+    const t = s2.getCell("A1");
+    t.value = titulo;
+    t.font = { bold: true, size: 12.5, color: { argb: "FFFFFFFF" } };
+    t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color || AURORA } };
+    t.alignment = { horizontal: "center", vertical: "middle" };
+    s2.getRow(1).height = 24;
+    const hr = s2.getRow(2);
+    cols.forEach(([h, w], i) => { const cc = hr.getCell(i + 1); cc.value = h; s2.getColumn(i + 1).width = w;
+      cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      cc.alignment = { horizontal: "center", wrapText: true }; });
+  };
+
+  for (const ejec of d.ejecutivos) {
+    const filas = d.porEjec[ejec] || [];
+    const s2 = wb.addWorksheet(String(ejec).slice(0, 28));
+    encabezar(s2, "PADRÓN DE " + String(ejec).toUpperCase() + " · " + filas.length
+      + " clientas · al " + d.hoy,
+      [["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18], ["Saldo original", 14],
+       ["Abonado", 13], ["Saldo actual", 14], ["Cuota", 12], ["Plazo", 8], ["Día de cobro", 12],
+       ["Desembolso", 13], ["Estatus", 20], ["ALTA", 13]]);
+    let f = 3;
+    for (const x of filas) {
+      const r = s2.getRow(f++);
+      [x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+      r.getCell(5).value = x.saldo; r.getCell(5).numFmt = MONEDA;
+      r.getCell(6).value = x.abonado || null; r.getCell(6).numFmt = MONEDA;
+      r.getCell(7).value = x.saldoActual; r.getCell(7).numFmt = MONEDA;
+      r.getCell(8).value = x.cuota; r.getCell(8).numFmt = MONEDA;
+      r.getCell(9).value = x.plazo || null;
+      r.getCell(10).value = x.diaPago || "SIN DÍA";
+      r.getCell(11).value = x.desembolso || "FALTA";
+      r.getCell(12).value = x.estatus;
+      // LA CLIENTA NUEVA SE VE. Es lo que pidió Karina: si la dan de alta, sale
+      // en el padrón de su ejecutiva y se distingue de las que ya venían.
+      if (x.esAlta) {
+        r.getCell(13).value = (x.esRecredito ? "RE-CRÉDITO " : "ALTA ") + x.alta;
+        r.getCell(13).font = { bold: true, color: { argb: VERDE } };
+        for (let i = 1; i <= 13; i++)
+          r.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } };
+      }
+      if (!x.diaPago) r.getCell(10).font = { bold: true, color: { argb: ROJO } };
+      if (!x.desembolso) r.getCell(11).font = { bold: true, color: { argb: ROJO } };
+      if (/vencid/i.test(x.estatus)) r.getCell(12).font = { bold: true, color: { argb: ROJO } };
+    }
+    const tr = s2.getRow(f++);
+    tr.getCell(2).value = "TOTAL · " + filas.length + " clientas";
+    tr.getCell(7).value = Math.round(filas.reduce((a2, x) => a2 + x.saldoActual, 0) * 100) / 100;
+    tr.getCell(7).numFmt = MONEDA;
+    [2, 7].forEach((i) => (tr.getCell(i).font = { bold: true }));
+  }
+
+  // LAS BAJAS, una hoja para todas: es lo que se pierde de vista si no se lista.
+  const sb = wb.addWorksheet("BAJAS del padrón");
+  encabezar(sb, "BAJAS DEL PADRÓN · " + d.totalBajas + " en total · al " + d.hoy,
+    [["Ejecutivo", 15], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+     ["Saldo al darla de baja", 16], ["Fecha de la baja", 14], ["Motivo", 34], ["Quién la dio de baja", 18]],
+    ROJO);
+  let fb = 3;
+  for (const ejec of d.ejecutivos.concat(Object.keys(d.bajasPorEjec).filter((e) => !d.ejecutivos.includes(e)))) {
+    for (const x of (d.bajasPorEjec[ejec] || [])) {
+      const r = sb.getRow(fb++);
+      [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+      r.getCell(6).value = x.saldoAlDarDeBaja; r.getCell(6).numFmt = MONEDA;
+      r.getCell(7).value = x.fecha;
+      r.getCell(8).value = x.motivo;
+      r.getCell(9).value = x.por;
+    }
+  }
+  if (fb === 3) {
+    const r = sb.getRow(3);
+    r.getCell(1).value = "No hay bajas registradas.";
+    r.getCell(1).font = { italic: true };
+  }
+  const nb = sb.getRow(fb + 1);
+  nb.getCell(1).value = "Una BAJA sale del padrón vivo: deja de contar en cartera, en la mora y en el arqueo. "
+    + "Las que dicen «Liquidó y renovó» no son bajas de verdad: es el ciclo anterior que se cerró al re-dar el crédito.";
+  nb.font = { italic: true };
+  nb.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Padron por ejecutivo FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
 app.get("/api/renovaciones", requiere("direccion", "admin"), (req, res) => {
   res.json(reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes));
 });
@@ -3975,29 +4134,31 @@ app.get("/api/saldos/corte/impacto", requiere("direccion", "admin"), (req, res) 
   res.json(pagosQueDejanDeContar(req.usuario, corteSaldos(), fecha));
 });
 
+// EL CORTE YA NO SE MUEVE (Karina, 15-ago: «quítales eso de mover el corte, ya
+// no va a haber corte»). Quedó fijo en la fecha de la última plantilla y esa es
+// la base de los saldos para siempre. Moverlo hacia adelante borraba pagos ya
+// capturados —las clientas volvían a aparecer debiendo lo que ya pagaron— y no
+// hay ningún caso que lo necesite ahora que no habrá más plantillas.
+//
+// La ruta se conserva y sigue exigiendo `confirmar` para no romper la carga de
+// una plantilla histórica ni las pruebas, pero desde el tablero ya no se puede.
 app.post("/api/saldos/corte", soloAnelMonse, (req, res) => {
   const b = req.body || {};
+  if (!b.confirmar) {
+    return res.status(409).json({
+      error: "El corte de saldos ya no se mueve: es la base de los saldos y quedó fija en la fecha "
+        + "de la última plantilla (" + corteSaldos() + "). Moverlo hacía que los pagos capturados en "
+        + "medio dejaran de descontar y las clientas aparecieran debiendo lo que ya pagaron. "
+        + "Para el padrón de cada ejecutiva, con sus altas y bajas, usa «Padrón por ejecutivo».",
+      corte: corteSaldos(), noSeMueve: true,
+    });
+  }
   const fecha = String(b.fecha || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
   if (fecha > hoyMX()) return res.status(400).json({ error: "El corte no puede ser una fecha futura." });
   // EL CANDADO. Adelantar el corte sin plantilla nueva le borra a las clientas
   // los pagos hechos en medio: el saldo es la foto de la plantilla vieja y esos
   // abonos dejan de descontarse. Antes se hacía en silencio.
-  const actual = corteSaldos();
-  if (actual && fecha > actual && !b.confirmar) {
-    const imp = pagosQueDejanDeContar(req.usuario, actual, fecha);
-    if (imp.monto > 0) {
-      const ej = imp.clientas.slice(0, 5).map((x) => x.clienta + " (" + pesosMX(x.monto) + ")").join(", ");
-      return res.status(409).json({
-        error: "Al mover el corte del " + actual + " al " + fecha + " dejarían de descontar "
-          + pesosMX(imp.monto) + " en pagos de " + imp.creditos + " créditos: ese dinero ya está capturado "
-          + "pero el saldo del padrón todavía es la foto del " + actual + ", así que las clientas "
-          + "volverían a aparecer debiendo lo que ya pagaron. Ejemplo: " + ej + "."
-          + " Si cargaste una plantilla NUEVA con los saldos al " + fecha + ", vuelve a mandarlo confirmando.",
-        impacto: imp, requiereConfirmar: true,
-      });
-    }
-  }
   store.agregarCambioPadron({ tipo: "corte", fecha, por: req.usuario.nombre, ts: Date.now(),
     confirmado: !!b.confirmar });
   res.json({ ok: true, corte: fecha });

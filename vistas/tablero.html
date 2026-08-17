@@ -629,15 +629,16 @@
     <div id="recBox"></div>
   </div>
 
-  <h3>Corte de saldos</h3>
+  <h3>Padrón por ejecutivo</h3>
   <div class="reccard">
-    <div class="rechint">Los saldos de las clientas descuentan TODO lo abonado desde esta fecha (el día en que se cargaron las plantillas). Cuando Monse cargue plantillas nuevas, muevan el corte a ese día — si no, lo ya descontado se restaría doble.</div>
+    <div class="rechint">El padrón completo, una hoja por ejecutiva, como las plantillas que les mandaban:
+      sus clientas con saldo, cuota, día de cobro y fecha de desembolso. Las que se dieron de
+      <b>ALTA</b> aparecen marcadas —una clienta nueva sale en el padrón de su ejecutiva desde ese
+      momento— y trae su hoja de <b>BAJAS</b>, con la fecha, el motivo y quién la dio de baja.</div>
     <div class="recbar">
-      <span style="font-size:12.5px;font-weight:700">Vigente: <b id="corteActual">…</b></span>
-      <input type="date" id="corteFecha" class="recinput">
-      <button class="recbtn" id="corteBtn" onclick="guardarCorte()" style="display:none">Mover corte</button>
+      <button class="recbtn" onclick="descargar('/api/padron/excel')">Descargar padrón por ejecutivo</button>
     </div>
-    <div class="rechint" id="corteMsg"></div>
+    <div class="rechint" id="padronMsg">Base de los saldos: <b id="corteActual">…</b> · ya no se mueve.</div>
   </div>
 
   <h3>Seguridad · borrado remoto</h3>
@@ -945,7 +946,6 @@ async function cargarYo() {
     window.__PUEDE_CREDITO = (d.usuario === "anel" || d.usuario === "monse");
     if (window.__PUEDE_CREDITO) {
       const p = $("credPanel"); if (p) p.style.display = "flex";
-      const b = $("corteBtn"); if (b) b.style.display = "inline-flex";
     }
   } catch {}
 }
@@ -953,21 +953,12 @@ async function cargarYo() {
 async function cargarCorte() {
   try {
     const d = await (await fetch("/api/saldos/corte", { credentials: "include" })).json();
-    if (d.corte) { $("corteActual").textContent = d.corte; $("corteFecha").value = d.corte; }
+    if (d.corte && $("corteActual")) $("corteActual").textContent = d.corte;
   } catch {}
 }
-async function guardarCorte() {
-  const f = $("corteFecha").value, msg = $("corteMsg");
-  if (!f) { msg.textContent = "Elige la fecha del corte."; return; }
-  if (!confirm("¿Mover el corte de saldos al " + f + "?\n\nDesde esa fecha se descuenta TODO lo abonado. Hazlo solo cuando se carguen plantillas nuevas.")) return;
-  try {
-    const r = await fetch("/api/saldos/corte", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ fecha: f }) });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) { msg.textContent = d.error || "No se pudo mover el corte."; return; }
-    msg.textContent = "Corte movido al " + d.corte + ". Los saldos ya descuentan desde esa fecha.";
-    cargarCorte();
-  } catch { msg.textContent = "Sin conexión con el servidor."; }
-}
+// El corte YA NO SE MUEVE (Karina, 15-ago: «quítales eso de mover el corte, ya
+// no va a haber corte»). Se quedó fijo en la fecha de la última plantilla: es
+// la base de los saldos y moverlo borraba pagos ya capturados.
 function credRow(i) { return (window.__CRED_ROWS || [])[i] || {}; }
 function refrescarLista() { if (window.__CRED_MODO && window.__CRED_MODO !== "buscar") verCreditos(window.__CRED_MODO); else buscar(); }
 function limpiarCreditos() { window.__CRED_MODO = "buscar"; resultados.innerHTML = ""; q.value = ""; }

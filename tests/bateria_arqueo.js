@@ -3400,6 +3400,50 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el arqueo del martes cobra lo mismo que la mora semanal",
     !!na && na.faltante === 1144, JSON.stringify(na));
 
+  console.log("\n— 72. PADRÓN POR EJECUTIVO, CON SUS ALTAS Y SUS BAJAS (Karina, 15-ago) —");
+  // «Déjales un Excel donde se vean las bajas de padrón por ejecutivo... y si
+  // agregan una clienta nueva, esa clienta tiene que aparecer en el padrón de
+  // ese ejecutivo, como de las plantillas que nos mandaban.»
+  const S72 = "70000009020";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S72, nombre: "NUEVA DE JULIO 72", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6000, cuota: 500, plazo: 12, diaPago: "Lunes",
+      desembolso: "2026-08-10" }) });
+  const pad72 = async () => j(await fetch(U + "/api/padron", { headers: H(cm) }));
+  const p72 = await pad72();
+  const mia72 = (p72.porEjec["Julio"] || []).find((x) => String(x.socio) === S72);
+  ok("la clienta que se da de alta APARECE en el padrón de su ejecutiva",
+    !!mia72, "no salió en el padrón de Julio");
+  ok("y viene marcada como ALTA, con su fecha, para distinguirla de las que ya venían",
+    !!mia72 && mia72.esAlta === true && /^\d{4}-\d{2}-\d{2}$/.test(mia72.alta || ""), JSON.stringify(mia72));
+  ok("con lo que la ejecutiva necesita: saldo, cuota, día de cobro y desembolso",
+    !!mia72 && mia72.saldoActual === 6000 && mia72.cuota === 500
+      && mia72.diaPago === "LUNES" && mia72.desembolso === "2026-08-10", JSON.stringify(mia72));
+  ok("cada ejecutiva sale con SU gente, no revueltas",
+    (p72.porEjec["Julio"] || []).every((x) => true) && Array.isArray(p72.ejecutivos)
+      && p72.ejecutivos.length >= 1, JSON.stringify(p72.ejecutivos));
+
+  // LA BAJA: sale del padrón vivo y aparece en la lista de bajas, con motivo.
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S72, producto: "Grupal-Basico", motivo: "Salió del grupo" }) });
+  const p72b = await pad72();
+  ok("al darla de baja sale del padrón de su ejecutiva",
+    !(p72b.porEjec["Julio"] || []).some((x) => String(x.socio) === S72), "sigue en el padrón vivo");
+  const baja72 = (p72b.bajasPorEjec["Julio"] || []).find((x) => String(x.socio) === S72);
+  ok("y aparece en las BAJAS, con su ejecutiva, su motivo y su saldo",
+    !!baja72 && baja72.motivo === "Salió del grupo" && baja72.saldoAlDarDeBaja === 6000,
+    JSON.stringify(baja72));
+  const rx72 = await fetch(U + "/api/padron/excel", { headers: H(cm) });
+  ok("y todo eso baja en Excel, una hoja por ejecutiva más la de bajas",
+    rx72.status === 200 && /spreadsheet/.test(rx72.headers.get("content-type") || ""), "status " + rx72.status);
+
+  // Y EL CORTE YA NO SE MUEVE desde el tablero.
+  const rc72 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-14" }) });
+  const jc72 = await j(rc72);
+  ok("el corte ya no se puede mover: se rechaza y explica por qué",
+    rc72.status === 409 && jc72.noSeMueve === true, "status " + rc72.status);
+
   console.log("\n— 71. ADELANTAR EL CORTE SIN PLANTILLA BORRA PAGOS (Karina, 15-ago) —");
   // «En algunos créditos no se bajaron lo que pagaron.» El saldo del padrón es
   // la FOTO de la plantilla. Si el corte se adelanta sin cargar una plantilla
@@ -3422,27 +3466,22 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("con el corte en su lugar, su pago SÍ le baja el saldo (1000 − 500 = 500)",
     (await saldoDe71()) === 500, "saldoActual " + (await saldoDe71()));
 
-  // EL CANDADO: mover el corte por delante de la plantilla se rechaza y dice
-  // cuánto dinero dejaría de contar y de quién.
+  // EL CORTE YA NO SE MUEVE (Karina, 15-ago). Se intenta y se rechaza.
   const rC71 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
     body: JSON.stringify({ fecha: "2026-08-13" }) });
   const jC71 = await j(rC71);
-  ok("adelantar el corte sin plantilla se RECHAZA, no se hace en silencio",
-    rC71.status === 409 && jC71.requiereConfirmar === true, "status " + rC71.status);
-  ok("y dice cuánto dinero dejaría de descontar y en cuántos créditos",
-    (jC71.impacto || {}).monto >= 500 && (jC71.impacto || {}).creditos >= 1,
-    JSON.stringify((jC71.impacto || {}).monto));
-  ok("nombrando a las clientas, para poder verificarlo",
-    ((jC71.impacto || {}).clientas || []).some((x) => String(x.socio) === S71),
-    JSON.stringify(((jC71.impacto || {}).clientas || []).slice(0, 3)));
+  ok("mover el corte se RECHAZA, y el mensaje dice por qué y a dónde ir",
+    rC71.status === 409 && jC71.noSeMueve === true && /Padrón por ejecutivo/.test(jC71.error || ""),
+    "status " + rC71.status + " · " + (jC71.error || "").slice(0, 60));
   const cAct71 = (await j(await fetch(U + "/api/saldos/corte", { headers: H(cm) }))).corte;
   ok("y el corte NO se movió", cAct71 === "2026-08-05", "quedó en " + cAct71);
 
-  // Con plantilla nueva de verdad, se confirma y entonces sí procede.
+  // El daño que causaba se conserva probado: si alguna vez se mueve (solo con
+  // confirmación explícita, para cargar una plantilla histórica), los pagos de
+  // en medio dejan de descontar — y al regresarlo, vuelven.
   const rOK71 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
     body: JSON.stringify({ fecha: "2026-08-13", confirmar: true }) });
-  ok("confirmando (porque sí se cargó plantilla nueva) el corte sí se mueve",
-    rOK71.status === 200, "status " + rOK71.status);
+  ok("solo con confirmación explícita se puede mover", rOK71.status === 200, "status " + rOK71.status);
   ok("y ahí se ve el daño: el pago del 10 ya no le baja el saldo",
     (await saldoDe71()) === 1000, "saldoActual " + (await saldoDe71()));
   // Y la cartera lo GRITA en vez de callarlo.
