@@ -1,0 +1,15 @@
+# Cómo se construye FOOAX en Railway.
+#
+# ÚNICA razón de este archivo: el aviso que salía en CADA despliegue,
+#   "npm warn config production Use `--omit=dev` instead."
+# Lo generaba el instalador por omisión, que todavía usa la bandera vieja
+# `--production`. npm la dejó obsoleta a favor de `--omit=dev`; las dos hacen
+# lo mismo (instalar solo lo que la app necesita para correr, sin las
+# herramientas de desarrollo). El aviso nunca rompió nada, pero ensuciaba los
+# logs y tapaba los errores que sí importan.
+#
+# Se deja el comando escrito para que use la bandera nueva y los logs queden
+# limpios. Si algún día el build falla por esto, basta con borrar el archivo:
+# Railway vuelve a su instalación por omisión.
+[phases.install]
+cmds = ["npm install --omit=dev"]
