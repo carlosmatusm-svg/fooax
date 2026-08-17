@@ -6031,10 +6031,9 @@ function altasParaApp(usuario) {
   // padrón base ya vienen escritas dentro del HTML de cada app.
   const mia = (c) => norm(c.ejecutivo) === norm(nombreEjec);
   const viva = (c) => c.activa !== false && c.estatus !== "BAJA";
-  const altas = PADRON
-    .filter((c) => c.origen === "alta" && viva(c) && mia(c))
-    .map((c) => ({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
-      saldo: c.saldo || 0, cuota: c.cuota || 0 }));
+  // La lista de altas se arma MÁS ABAJO, cuando ya se sabe quién terminó de
+  // pagar: una liquidada no debe ir en las dos listas a la vez.
+  let altas = [];
   // QUITAR: créditos de esta ejecutiva que ya se dieron de baja (liquidados y
   // renovados, o reasignados a otra). Sin esto el crédito viejo se le quedaba
   // pegado en el teléfono: los montos viven EMBEBIDOS en el HTML de cada app,
@@ -6081,6 +6080,21 @@ function altasParaApp(usuario) {
     .filter((c) => mia(c) && (!viva(c) || yaNoDebe(c)))
     .filter((c) => !vivasAhora.has(claveCredito(c.id, c.producto)))
     .map((c) => ({ id: String(c.id), producto: c.producto }));
+
+  // LA QUE YA TERMINÓ DE PAGAR NO SE VUELVE A AGREGAR. Iba en las DOS listas:
+  // en `quitar` por estar en cero y en `altas` por haber nacido en el tablero.
+  // Y como la app aplica primero `quitar` y luego `altas`, la borraba y la
+  // volvía a meter en el mismo sondeo: la ejecutiva la seguía viendo y la
+  // seguía cobrando. Es el punto 1 del reporte de Administración —«cinco
+  // clientas que terminaron el 16 y 17 de julio siguieron recibiendo cobro»—
+  // que solo se arreglaba para las clientas venidas de plantilla, no para las
+  // dadas de alta en el sistema.
+  const fuera = new Set(quitar.map((q) => claveCredito(q.id, q.producto)));
+  altas = PADRON
+    .filter((c) => c.origen === "alta" && viva(c) && mia(c))
+    .filter((c) => !fuera.has(claveCredito(c.id, c.producto)))
+    .map((c) => ({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
+      saldo: c.saldo || 0, cuota: c.cuota || 0 }));
   return { altas, centros, quitar };
 }
 

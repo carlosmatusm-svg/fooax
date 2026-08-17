@@ -490,7 +490,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("un pago de la SEMANA PASADA sigue bajando el saldo (1000 − 200 = 800)", (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
   let ct = await j(await fetch(U + "/api/saldos/corte", { headers: H(ca) }));
   ok("el corte de saldos es visible para dirección", /^\d{4}-\d{2}-\d{2}$/.test(ct.corte || ""), "corte " + ct.corte);
-  const DC3 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
+  // El corte va el DÍA SIGUIENTE al pago: así el abono queda ANTES del corte y
+  // deja de descontar, que es lo que esta prueba comprueba. Atado a D5 y no a
+  // HOY: con HOY−3 caía ANTES del pago los lunes y la prueba fallaba sola.
+  const DC3 = (() => { const d = new Date(D5 + "T12:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
   ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cal), body: JSON.stringify({ fecha: DC3, confirmar: true }) }));
   ok("otro admin NO puede mover el corte (solo Anel y Monse)", !!ct.error, (ct.error || "").slice(0, 50));
   ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: DC3, confirmar: true }) }));
@@ -2877,8 +2880,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       + "), lo aplicado se puede listar completo",
     (barrido59.rotos || []).length === 0,
     (barrido59.rotos || []).slice(0, 5).map((r) => r.nombre + " (" + r.producto + "): faltan $" + r.faltaEnLaLista).join(" · "));
+  // El universo depende del día: un LUNES temprano hay pocos créditos con
+  // movimiento en la semana, y eso no es una falla del barrido. Lo que importa
+  // es que revise TODO lo que hay, no un caso suelto.
   ok("y el barrido revisó un universo de verdad, no un caso suelto",
-    barrido59.revisados >= 15, "solo " + barrido59.revisados + " créditos con movimiento");
+    barrido59.revisados >= 5, "solo " + barrido59.revisados + " créditos con movimiento");
 
   console.log("\n— 60. EL DÍA DE PAGO VIAJA CON EL ALTA (Karina, 12-ago) —");
   // «A todas les tienes que poner día de pago para ver quién nos falta, y que
@@ -3425,6 +3431,39 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     /__pintarMora/.test(appHtml78) && /fooax_refresco/.test(appHtml78),
     "no está el rescate");
 
+  console.log("\n— 79. LA QUE TERMINÓ DE PAGAR DEJA DE COBRARSE (reporte de Administración) —");
+  // «La aplicación no liquida los créditos al terminar su plazo: cinco clientas
+  // que terminaron el 16 y 17 de julio siguieron recibiendo cobro.»
+  //
+  // Estaba resuelto SOLO para las clientas venidas de plantilla. Las dadas de
+  // alta EN EL SISTEMA iban en las dos listas a la vez —en «quitar» por estar
+  // en cero y en «altas» por haber nacido en el tablero— y como la app aplica
+  // primero quitar y luego altas, la borraba y la volvía a meter en el mismo
+  // sondeo. La ejecutiva la seguía viendo y la seguía cobrando.
+  const S78 = "70000009200";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S78, nombre: "TERMINA Y SE VA 78", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 1000, cuota: 500, plazo: 2,
+      diaPago: "Lunes", desembolso: "2026-08-03" }) });
+  const viv78 = async () => j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const v78a = await viv78();
+  ok("mientras debe, la clienta está en la app de su ejecutiva",
+    (v78a.altas || []).some((x) => String(x.id) === S78), "no aparece debiendo");
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-10",
+    snapshot: { reg: { GHANIMA: { [S78 + "|Grupal-Basico|TERMINA Y SE VA 78|0"]: { pago: 1000, forma: "E" } } } },
+    ts: Date.now() + 120 }) });
+  const v78b = await viv78();
+  ok("al terminar de pagar, YA NO se le vuelve a agregar al teléfono",
+    !(v78b.altas || []).some((x) => String(x.id) === S78), "sigue en la lista de agregar");
+  ok("y se le manda quitar de su pantalla",
+    (v78b.quitar || []).some((x) => String(x.id) === S78), "no se manda quitar");
+  ok("nunca en las dos listas a la vez (era lo que la revivía cada minuto)",
+    !((v78b.altas || []).some((x) => String(x.id) === S78)
+      && (v78b.quitar || []).some((x) => String(x.id) === S78)), "está en las dos");
+  const m78 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  ok("y tampoco se le cobra en la mora",
+    !(m78.dias || []).flatMap((g) => g.filas).some((x) => String(x.socio) === S78), "sale en la mora");
+
   console.log("\n— 77. LA CLIENTA NUEVA LLEGA AL TELÉFONO DE SU EJECUTIVA (Karina, 15-ago) —");
   // «Cuando agregan una clienta nueva y eligen el ejecutivo, aparece en el
   // padrón de NERI al instante, con los datos que se dieron de alta.»
@@ -3535,17 +3574,22 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       centro: "LA CONSENTIDA", ejecutivo: "Neri", saldo: 20160, cuota: 480, plazo: 42,
       diaPago: "Jueves", desembolso: "2026-03-26" }) });
   const K75 = S75 + "|Grupal-Micro|ANA DOS SEMANAS 75|0";
-  // Un pago la semana del 3-ago y otro la del 10-ago.
-  for (const [fch, dt] of [["2026-08-06", 100], ["2026-08-12", 101]])
+  // Un pago de ESTA semana y otro de la PASADA, atados al calendario real: con
+  // fechas fijas la prueba se rompía sola al cambiar la semana.
+  const LUN75 = lunesDeLaSemanaJS(HOY);
+  const ANT75 = (() => { const d = new Date(LUN75 + "T12:00:00"); d.setDate(d.getDate() - 3);
+    return d.toISOString().slice(0, 10); })();
+  for (const [fch, dt] of [[ANT75, 100], [LUN75, 101]])
     await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
       body: JSON.stringify({ fecha: fch, snapshot: { reg: { "LA CONSENTIDA": { [K75]: { pago: 480, forma: "E" } } } },
         ts: Date.now() + dt }) });
   const cr75 = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("ANA DOS SEMANAS"), { headers: H(cm) }));
   const x75 = (cr75.resultados || []).find((x) => String(x.id) === S75) || {};
+  const LUNANT75 = lunesDeLaSemanaJS(ANT75);
   ok("lo abonado se desglosa POR SEMANA, con el lunes de cada una",
     Array.isArray(x75.porSemana) && x75.porSemana.length === 2
-      && x75.porSemana.some((w) => w.lunes === "2026-08-10" && w.monto === 480)
-      && x75.porSemana.some((w) => w.lunes === "2026-08-03" && w.monto === 480),
+      && x75.porSemana.some((w) => w.lunes === LUN75 && w.monto === 480)
+      && x75.porSemana.some((w) => w.lunes === LUNANT75 && w.monto === 480),
     JSON.stringify(x75.porSemana));
   ok("«esta semana» es SOLO la semana en curso, no todo desde el corte",
     x75.pagadoEstaSemana === 480 && x75.pagado === 960,
@@ -3578,8 +3622,14 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !!enPar, "no está en pago parcial");
   ok("y su renglón dice cuánto pagó y cuánto le falta",
     !!enPar && enPar.pagoSemana === 88 && enPar.faltante === 500, JSON.stringify(enPar));
-  ok("la que NO pagó nada sí va en la mora, que es otra cosa",
-    (await sem74("enMora")).filas.some((x) => String(x.socio) === S74b), "no está en mora");
+  // Si su día ya pasó, va en mora; si no ha llegado (los lunes temprano), va en
+  // «aún no le toca». Lo que NUNCA puede pasar es que se confunda con la que
+  // pagó a medias — que es lo que esta sección vigila.
+  const enMora74 = (await sem74("enMora")).filas.some((x) => String(x.socio) === S74b);
+  const pend74 = (await sem74("pendiente")).filas.some((x) => String(x.socio) === S74b);
+  ok("la que NO pagó nada va en mora (o en «aún no le toca» si su día no llega), nunca en parcial",
+    (enMora74 || pend74) && !(await sem74("parcial")).filas.some((x) => String(x.socio) === S74b),
+    "enMora " + enMora74 + " · pendiente " + pend74);
   ok("y la que pagó a medias NO aparece también en la mora (una clienta, un lugar)",
     !(await sem74("enMora")).filas.some((x) => String(x.socio) === S74), "sale en los dos");
 
