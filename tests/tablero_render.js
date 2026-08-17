@@ -285,9 +285,12 @@ console.log("\n═══ LA MORA EN LA APP DE LA EJECUTIVA ═══\n");
       getAttribute(k) { return this[k] || null; }, appendChild() {} }; },
     addEventListener() {},
     host: { firstChild: null, insertBefore(a2) { this.kid = a2; }, appendChild(a2) { this.kid = a2; } } };
-  const win = { addEventListener() {}, sessionStorage: { getItem() { return null; }, setItem() {} },
+  const guardado = {};
+  const win = { addEventListener() {},
+    sessionStorage: { getItem(k) { return guardado[k] || null; }, setItem(k, v) { guardado[k] = v; } },
     location: { reload() {} } };
   const ctx = { document: doc, window: win, navigator: { onLine: false },
+    sessionStorage: win.sessionStorage,
     setInterval() {}, setTimeout() {}, fetch: () => Promise.resolve({ ok: false }),
     console: { log() {}, error() {} } };
   ctx.globalThis = ctx;
@@ -303,16 +306,29 @@ console.log("\n═══ LA MORA EN LA APP DE LA EJECUTIVA ═══\n");
                 producto: "Grupal-Micro", cuota: 480, pagado: 0, falta: 480 },
               { clienta: "MARIA DEL ROSARIO", centro: "GHANIMA", dia: "LUNES",
                 producto: "Grupal-Basico 2", cuota: 576, pagado: 88, falta: 488 }] });
+    // NACE CERRADA (Karina, 15-ago: «que aparezca pero que no les bloquee la
+    // vista»). Un renglón con el número; el detalle solo si lo toca.
     const h2 = (doc.host.kid || {}).innerHTML || "";
-    ok("la ejecutiva ve su TOTAL de mora", /1,440/.test(h2), h2.slice(0, 120));
-    ok("y el NOMBRE de cada clienta con lo que le falta",
-      /ANA VICTORIA/.test(h2) && /MARIA DEL ROSARIO/.test(h2) && /488/.test(h2), h2.slice(0, 160));
-    ok("de la que pagó a medias dice cuánto abonó y de cuánto",
-      /abonó/.test(h2) && /88/.test(h2) && /576/.test(h2), h2.slice(0, 200));
+    ok("la ejecutiva ve su TOTAL de mora de un vistazo", /1,440/.test(h2), h2.slice(0, 120));
+    ok("y NACE CERRADA: un solo renglón, sin taparle la captura",
+      (h2.match(/<div/g) || []).length === 1 && !/ANA VICTORIA/.test(h2),
+      (h2.match(/<div/g) || []).length + " bloques");
+    ok("el renglón invita a abrirla", /ver</.test(h2), h2.slice(-80));
+    // Al tocarla se abre con todo el detalle.
+    win.__moraToggle();
+    const h2b = (doc.host.kid || {}).innerHTML || "";
+    ok("al tocarla se abre con el NOMBRE de cada clienta y lo que le falta",
+      /ANA VICTORIA/.test(h2b) && /MARIA DEL ROSARIO/.test(h2b) && /488/.test(h2b), h2b.slice(0, 200));
+    ok("de la que pagó a medias dice cuánto abonó",
+      /abonó/.test(h2b) && /88/.test(h2b), h2b.slice(0, 240));
     ok("y el desglose por centro, para ordenar el día",
-      /LA CONSENTIDA/.test(h2) && /GHANIMA/.test(h2), h2.slice(0, 160));
+      /LA CONSENTIDA/.test(h2b) && /GHANIMA/.test(h2b), h2b.slice(0, 200));
     ok("sin etiquetas rotas",
-      (h2.match(/<div/g) || []).length === (h2.match(/<\/div>/g) || []).length, "desbalanceadas");
+      (h2b.match(/<div/g) || []).length === (h2b.match(/<\/div>/g) || []).length, "desbalanceadas");
+    // Y al tocarla otra vez se cierra: la ejecutiva decide.
+    win.__moraToggle();
+    ok("y al tocarla de nuevo se cierra",
+      ((doc.host.kid || {}).innerHTML || "").length === h2.length, "no volvió a cerrarse");
     // Al corriente: mensaje distinto, no una tarjeta vacía.
     win.__pintarMora({ lunes: "2026-08-10", total: 0, clientas: 0, porCentro: [], filas: [] });
     const h3 = (doc.host.kid || {}).innerHTML || "";

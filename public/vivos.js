@@ -238,11 +238,23 @@
     var host = document.querySelector(".wrap:not(.hidden)") || document.querySelector(".wrap") || document.body;
     box = document.createElement("div");
     box.id = "miMoraBox";
-    box.className = "card";
-    box.style.cssText = "border-left:5px solid #B00020";
+    // DISCRETA (Karina, 15-ago: «no me gustó, está muy apantalloso; que
+    // aparezca pero que no les bloquee la vista»). Un renglón delgado, no una
+    // tarjeta: la ejecutiva abre la app para CAPTURAR, y el muro de mora le
+    // empujaba su trabajo fuera de la pantalla. Se abre solo si ella la toca.
+    box.style.cssText = "margin:8px 0 2px;font-size:13px";
     if (host.firstChild) host.insertBefore(box, host.firstChild); else host.appendChild(box);
     return box;
   }
+  // Abierta o cerrada: se recuerda mientras dure la sesión, para no pelear con
+  // la ejecutiva que ya decidió cómo la quiere.
+  function moraAbierta() {
+    try { return sessionStorage.getItem("fooax_mora_abierta") === "1"; } catch (e) { return false; }
+  }
+  window.__moraToggle = function () {
+    try { sessionStorage.setItem("fooax_mora_abierta", moraAbierta() ? "0" : "1"); } catch (e) { }
+    pintaMora();
+  };
   // Qué está viendo: el lunes de la semana elegida, o "mes" para el acumulado.
   var moraVista = null;
   var moraDatos = null;
@@ -295,37 +307,49 @@
       + ';font:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;'
       + 'margin:0 6px 6px 0;cursor:pointer">Todo el mes · ' + pesos(m.totalMes || 0) + "</button>";
 
-    var cab = total > 0
-      ? '<div class="sectitle" style="color:#B00020">Mi mora · ' + pesos(total) + "</div>"
-        + '<div class="meta">' + cuantas + (cuantas === 1 ? " clienta" : " clientas")
-        + (esMes ? " en el mes de " + hesc(m.mes || "") : " en la semana del " + hesc(w ? w.lunes : ""))
-        + ". Cuando entre su pago o una recuperación, baja sola.</div>"
-      : '<div class="sectitle" style="color:#0B7247">Mi mora · al corriente</div>'
-        + '<div class="meta">Ninguna clienta con cuota vencida '
-        + (esMes ? "en el mes" : "en esa semana") + ". Bien ahí.</div>";
+    // EL RENGLÓN: siempre visible, chiquito, sin robar pantalla. Dice el
+    // número —que es lo que ella necesita traer en la cabeza— y se abre si lo
+    // toca. Cerrada ocupa una línea; abierta enseña el detalle completo.
+    var abierta = moraAbierta();
+    var color = total > 0 ? "#B00020" : "#0B7247";
+    var etiqueta = esMes ? "en el mes" : (w && w.lunes === hoyL ? "esta semana" : "esa semana");
+    var renglon =
+      '<div role="button" onclick="window.__moraToggle()" '
+      + 'style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:7px 10px;'
+      + "border:1px solid rgba(0,0,0,.12);border-radius:9px;background:"
+      + (total > 0 ? "rgba(176,0,32,.05)" : "rgba(11,114,71,.05)") + '">'
+      + '<span style="font-weight:800;color:' + color + '">Mi mora</span>'
+      + '<span style="font-weight:800;color:' + color + '">' + pesos(total) + "</span>"
+      + '<span style="opacity:.65;font-size:11.5px">'
+      + (total > 0 ? cuantas + (cuantas === 1 ? " clienta " : " clientas ") + etiqueta : "al corriente")
+      + "</span>"
+      + '<span style="margin-left:auto;opacity:.5;font-size:11px">' + (abierta ? "ocultar" : "ver") + "</span>"
+      + "</div>";
+
+    if (!abierta) { box.innerHTML = renglon; return; }
 
     var top = filas.slice(0, 15);
-    box.innerHTML = cab
-      + '<div style="margin-top:8px">' + btns + btnMes + "</div>"
-      + (porCentro.length ? '<div class="meta" style="margin-top:2px">'
+    box.innerHTML = renglon
+      + '<div style="border:1px solid rgba(0,0,0,.12);border-top:0;border-radius:0 0 9px 9px;'
+      + 'padding:8px 10px;margin-top:-3px">'
+      + '<div style="margin-bottom:4px">' + btns + btnMes + "</div>"
+      + (porCentro.length ? '<div style="opacity:.7;font-size:11.5px;margin-bottom:2px">'
           + porCentro.map(function (c) { return "<b>" + hesc(c.centro) + "</b> " + pesos(c.falta); })
               .join(" &nbsp;·&nbsp; ") + "</div>" : "")
-      + '<div id="miMoraLista" style="margin-top:8px">'
       + top.map(function (x) {
-          return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;'
-            + 'border-top:1px solid rgba(0,0,0,.08);font-size:13px">'
+          return '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;'
+            + 'border-top:1px solid rgba(0,0,0,.07);font-size:12.5px">'
             + "<span><b>" + hesc(x.clienta) + "</b><br>"
-            + '<span style="opacity:.7;font-size:11.5px">' + hesc(x.centro) + " · " + hesc(x.dia)
-            + " · " + hesc(x.producto)
+            + '<span style="opacity:.65;font-size:11px">' + hesc(x.centro) + " · " + hesc(x.dia)
             + (esMes && x.sem ? " · sem. " + diaCorto(x.sem) : "") + "</span></span>"
             + '<span style="text-align:right;white-space:nowrap">'
             + '<b style="color:#B00020">' + pesos(x.falta) + "</b><br>"
-            + '<span style="opacity:.7;font-size:11.5px">'
-            + (x.pagado > 0 ? "abonó " + pesos(x.pagado) + " de " + pesos(x.cuota) : "cuota " + pesos(x.cuota))
+            + '<span style="opacity:.65;font-size:11px">'
+            + (x.pagado > 0 ? "abonó " + pesos(x.pagado) : "cuota " + pesos(x.cuota))
             + "</span></span></div>";
         }).join("")
       + (filas.length > top.length
-          ? '<div class="meta" style="margin-top:6px">y ' + (filas.length - top.length)
+          ? '<div style="opacity:.65;font-size:11.5px;margin-top:5px">y ' + (filas.length - top.length)
             + " más — arriba van las que más deben.</div>" : "")
       + "</div>";
   }
