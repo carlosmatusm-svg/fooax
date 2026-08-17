@@ -243,44 +243,112 @@
     if (host.firstChild) host.insertBefore(box, host.firstChild); else host.appendChild(box);
     return box;
   }
-  function mora(m) {
-    if (!m || typeof m.total !== "number") return 0;
+  // Qué está viendo: el lunes de la semana elegida, o "mes" para el acumulado.
+  var moraVista = null;
+  var moraDatos = null;
+
+  function diaCorto(iso) {
+    return String(iso || "").slice(8, 10) + "-" + String(iso || "").slice(5, 7);
+  }
+
+  function pintaMora() {
+    var m = moraDatos;
+    if (!m) return;
     var box = cajaMora();
-    var firma = JSON.stringify([m.total, m.clientas, (m.filas || []).length]);
-    if (box.getAttribute("data-firma") === firma) return 0;
-    box.setAttribute("data-firma", firma);
-    if (!m.clientas) {
-      box.innerHTML = '<div class="sectitle" style="color:#0B7247">Mi mora · al corriente</div>'
-        + '<div class="meta">Ninguna clienta con cuota vencida esta semana. Bien ahí.</div>';
-      return 1;
-    }
-    var top = (m.filas || []).slice(0, 12);
-    box.innerHTML =
-      '<div class="sectitle" style="color:#B00020">Mi mora · ' + pesos(m.total) + "</div>"
-      + '<div class="meta">' + m.clientas + (m.clientas === 1 ? " clienta" : " clientas")
-      + " con cuota vencida en la semana del " + hesc(m.lunes) + "."
-      + " Cuando entre su pago o una recuperación, baja sola.</div>"
-      + '<div class="meta" style="margin-top:6px">'
-      + (m.porCentro || []).map(function (c) {
-          return "<b>" + hesc(c.centro) + "</b> " + pesos(c.falta);
-        }).join(" &nbsp;·&nbsp; ") + "</div>"
+    var semanas = m.semanas || [];
+    var esMes = moraVista === "mes";
+    var w = esMes ? null : (semanas.filter(function (x) { return x.lunes === moraVista; })[0]
+      || semanas[semanas.length - 1] || m);
+    var total = esMes ? (m.totalMes || 0) : (w ? w.total : 0);
+    var cuantas = esMes ? (m.clientasMes || 0) : (w ? w.clientas : 0);
+    var filas = esMes
+      // En el mes se junta todo, la que más debe primero. Una clienta puede
+      // salir en varias semanas: son cobranzas distintas y así se ve.
+      ? semanas.reduce(function (a2, x) { return a2.concat((x.filas || []).map(function (f) {
+          return Object.assign({}, f, { sem: x.lunes }); })); }, [])
+          .sort(function (a2, b2) { return b2.falta - a2.falta; })
+      : (w ? w.filas || [] : []);
+    var porCentro = esMes
+      ? (function () {
+          var t = {};
+          filas.forEach(function (f) { t[f.centro] = Math.round(((t[f.centro] || 0) + f.falta) * 100) / 100; });
+          return Object.keys(t).sort(function (a2, b2) { return t[b2] - t[a2]; })
+            .map(function (c) { return { centro: c, falta: t[c] }; });
+        })()
+      : (w ? w.porCentro || [] : []);
+
+    // Los botones: cada semana del mes y el acumulado. El de hoy va marcado.
+    var hoyL = semanas.length ? semanas[semanas.length - 1].lunes : m.lunes;
+    var btns = semanas.map(function (x) {
+      var sel = !esMes && x.lunes === (w ? w.lunes : "");
+      var et = x.lunes === hoyL ? "Esta semana" : "Sem. " + diaCorto(x.lunes);
+      return '<button type="button" onclick="window.__moraVer(\'' + x.lunes + '\')" '
+        + 'style="border:1px solid ' + (sel ? "#B00020" : "rgba(0,0,0,.18)") + ";background:"
+        + (sel ? "#FDECEC" : "transparent") + ";color:" + (sel ? "#B00020" : "inherit")
+        + ';font:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;'
+        + 'margin:0 6px 6px 0;cursor:pointer">' + et
+        + (x.total > 0 ? " · " + pesos(x.total) : " · 0") + "</button>";
+    }).join("");
+    var btnMes = '<button type="button" onclick="window.__moraVer(\'mes\')" '
+      + 'style="border:1px solid ' + (esMes ? "#324AB6" : "rgba(0,0,0,.18)") + ";background:"
+      + (esMes ? "#E5EAFB" : "transparent") + ";color:" + (esMes ? "#324AB6" : "inherit")
+      + ';font:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;'
+      + 'margin:0 6px 6px 0;cursor:pointer">Todo el mes · ' + pesos(m.totalMes || 0) + "</button>";
+
+    var cab = total > 0
+      ? '<div class="sectitle" style="color:#B00020">Mi mora · ' + pesos(total) + "</div>"
+        + '<div class="meta">' + cuantas + (cuantas === 1 ? " clienta" : " clientas")
+        + (esMes ? " en el mes de " + hesc(m.mes || "") : " en la semana del " + hesc(w ? w.lunes : ""))
+        + ". Cuando entre su pago o una recuperación, baja sola.</div>"
+      : '<div class="sectitle" style="color:#0B7247">Mi mora · al corriente</div>'
+        + '<div class="meta">Ninguna clienta con cuota vencida '
+        + (esMes ? "en el mes" : "en esa semana") + ". Bien ahí.</div>";
+
+    var top = filas.slice(0, 15);
+    box.innerHTML = cab
+      + '<div style="margin-top:8px">' + btns + btnMes + "</div>"
+      + (porCentro.length ? '<div class="meta" style="margin-top:2px">'
+          + porCentro.map(function (c) { return "<b>" + hesc(c.centro) + "</b> " + pesos(c.falta); })
+              .join(" &nbsp;·&nbsp; ") + "</div>" : "")
       + '<div id="miMoraLista" style="margin-top:8px">'
       + top.map(function (x) {
           return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;'
             + 'border-top:1px solid rgba(0,0,0,.08);font-size:13px">'
             + "<span><b>" + hesc(x.clienta) + "</b><br>"
             + '<span style="opacity:.7;font-size:11.5px">' + hesc(x.centro) + " · " + hesc(x.dia)
-            + " · " + hesc(x.producto) + "</span></span>"
+            + " · " + hesc(x.producto)
+            + (esMes && x.sem ? " · sem. " + diaCorto(x.sem) : "") + "</span></span>"
             + '<span style="text-align:right;white-space:nowrap">'
             + '<b style="color:#B00020">' + pesos(x.falta) + "</b><br>"
             + '<span style="opacity:.7;font-size:11.5px">'
             + (x.pagado > 0 ? "abonó " + pesos(x.pagado) + " de " + pesos(x.cuota) : "cuota " + pesos(x.cuota))
             + "</span></span></div>";
         }).join("")
-      + ((m.filas || []).length > top.length
-          ? '<div class="meta" style="margin-top:6px">y ' + ((m.filas || []).length - top.length)
+      + (filas.length > top.length
+          ? '<div class="meta" style="margin-top:6px">y ' + (filas.length - top.length)
             + " más — arriba van las que más deben.</div>" : "")
       + "</div>";
+  }
+
+  // Cambiar de semana NO vuelve a pedir nada al servidor: ya viene todo el mes
+  // en el paquete, así que funciona sin señal, en plena calle.
+  window.__moraVer = function (v) { moraVista = v; pintaMora(); };
+
+  function mora(m) {
+    if (!m || typeof m.total !== "number") return 0;
+    var firma = JSON.stringify([m.total, m.clientas, m.totalMes, (m.semanas || []).length,
+      (m.filas || []).length]);
+    var box = cajaMora();
+    if (box.getAttribute("data-firma") === firma) return 0;
+    box.setAttribute("data-firma", firma);
+    moraDatos = m;
+    // Al llegar datos nuevos se respeta lo que la ejecutiva está viendo; si es
+    // la primera vez, abre en su semana.
+    if (!moraVista || (moraVista !== "mes"
+        && !(m.semanas || []).some(function (x) { return x.lunes === moraVista; }))) {
+      moraVista = m.lunes;
+    }
+    pintaMora();
     return 1;
   }
   window.__pintarMora = mora;

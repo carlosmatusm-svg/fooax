@@ -1023,6 +1023,15 @@ function tarjetaCredito(c, i) {
     // POR SEMANA, no todo revuelto: «pagó $960 esta sem.» sumaba lo de dos
     // semanas (Karina, 15-ago). Se dice lo de ESTA semana y, aparte, lo de las
     // anteriores con su lunes — que es como ellas leen la cobranza.
+    // CICLO y FECHA DE LIQUIDACIÓN (Karina, 15-ago): saber que va en su tercer
+    // Grupal-Básico, y cuándo cerró el anterior, es lo que permite ver a quién
+    // se le ha renovado y llevar el orden de los cierres.
+    + ((c.ciclo || 1) > 1
+        ? '<span class="rbadge-eti" title="Cuántas veces ha tomado este producto">ciclo '
+          + String(c.ciclo).padStart(2, "0") + "</span>" : "")
+    + (c.liquidadoEl
+        ? '<span class="rpago" style="background:#EAF7EF;color:#0B7247">liquidó el '
+          + hesc(c.liquidadoEl) + "</span>" : "")
     + (c.pagadoEstaSemana > 0
         ? '<span class="rpago">pagó ' + dinero(c.pagadoEstaSemana) + " esta sem.</span>" : "")
     + ((c.porSemana || []).filter((w) => w.lunes !== c.lunesDeHoy).length

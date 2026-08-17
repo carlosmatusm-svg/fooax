@@ -3403,6 +3403,73 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const lunesDeLaSemanaJS = (iso) => { const d = new Date(iso + "T12:00:00");
     const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
     return d.toISOString().slice(0, 10); };
+  console.log("\n— 76. SEMANAS Y MES EN LA APP · CICLO · FECHA DE LIQUIDACIÓN (Karina, 15-ago) —");
+  // «Pueden ver la semana pasada, esta semana y así... y overall de todo el
+  // mes.» «Si alguien liquida su Grupal-Básico y renueva otro, ponerle un folio
+  // interno 02, 03.» «Cuando alguien liquida, ponerle la fecha de liquidación.»
+  const viv76 = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const m76 = viv76.mora || {};
+  ok("la app recibe la mora repartida SEMANA POR SEMANA del mes",
+    Array.isArray(m76.semanas) && m76.semanas.length >= 1
+      && m76.semanas.every((w) => /^\d{4}-\d{2}-\d{2}$/.test(w.lunes) && typeof w.total === "number"),
+    JSON.stringify((m76.semanas || []).map((w) => w.lunes)));
+  ok("y el acumulado del MES, con sus clientas contadas una sola vez",
+    typeof m76.totalMes === "number" && typeof m76.clientasMes === "number"
+      && /^\d{4}-\d{2}$/.test(m76.mes || ""), JSON.stringify({ mes: m76.mes, total: m76.totalMes, clientas: m76.clientasMes }));
+  ok("las semanas van completas (con sus clientas), para verlas sin señal",
+    (m76.semanas || []).every((w) => Array.isArray(w.filas)), "alguna semana viene sin sus filas");
+  ok("y el total del mes es la suma de sus semanas",
+    Math.abs((m76.totalMes || 0) - (m76.semanas || []).reduce((a2, w) => a2 + w.total, 0)) < 0.01,
+    JSON.stringify({ mes: m76.totalMes, suma: (m76.semanas || []).reduce((a2, w) => a2 + w.total, 0) }));
+
+  // EL CICLO: liquida su Grupal-Basico y renueva el mismo producto.
+  const S76 = "70000009080";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76, nombre: "RENUEVA CICLOS 76", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2,
+      diaPago: "Lunes", desembolso: "2026-08-03" }) });
+  const busca76 = async () => {
+    const r = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("RENUEVA CICLOS"), { headers: H(cm) }));
+    return (r.resultados || []).find((x) => String(x.id) === S76 && x.activa !== false) || {};
+  };
+  // Primero LIQUIDA su ciclo (el re-crédito se rechaza si aún debe), y luego
+  // renueva el MISMO producto: ahí es donde se gana el ciclo 02.
+  const liq76 = (monto, fecha) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto, concepto: "Liquidación · RENUEVA CICLOS 76",
+      metodo: "efectivo", socio: S76, producto: "Grupal-Basico", fecha }) });
+  await liq76(1000, "2026-08-10");
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76, producto: "Grupal-Basico", saldo: 6000, cuota: 500,
+      plazo: 12, ejecutivo: "Julio", motivo: "Renovación", desembolso: "2026-08-10" }) });
+  const c76 = await busca76();
+  ok("al renovar el MISMO producto se le pone su ciclo interno (02)",
+    c76.ciclo === 2, "ciclo " + c76.ciclo);
+  await liq76(6000, "2026-08-11");
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76, producto: "Grupal-Basico", saldo: 8000, cuota: 500,
+      plazo: 16, ejecutivo: "Julio", motivo: "Renovación 3", desembolso: "2026-08-11" }) });
+  ok("y a la siguiente, el 03 — así se ve cuántos ha renovado con nosotros",
+    (await busca76()).ciclo === 3, "ciclo " + (await busca76()).ciclo);
+  ok("el ciclo NO cambia el nombre del crédito (los pagos siguen casando)",
+    (await busca76()).producto === "Grupal-Basico", (await busca76()).producto);
+
+  // LA FECHA DE LIQUIDACIÓN: la del último abono que la dejó en cero.
+  const S76b = "70000009081";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76b, nombre: "LIQUIDA CON FECHA 76", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2,
+      diaPago: "Lunes", desembolso: "2026-08-03" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-12", snapshot: { regI: {
+      [S76b + "|Grupal-Basico|LIQUIDA CON FECHA 76|0"]: { pago: 1000, forma: "E" } } }, ts: Date.now() + 110 }) });
+  const r76b = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("LIQUIDA CON FECHA"), { headers: H(cm) }));
+  const c76b = (r76b.resultados || []).find((x) => String(x.id) === S76b) || {};
+  ok("a la que liquidó se le guarda la FECHA en que terminó de pagar",
+    c76b.liquidadoEl === "2026-08-12" && c76b.saldoActual === 0,
+    JSON.stringify({ liquidadoEl: c76b.liquidadoEl, saldo: c76b.saldoActual }));
+  ok("y a la que todavía debe no se le inventa fecha de liquidación",
+    (await busca76()).liquidadoEl == null, JSON.stringify((await busca76()).liquidadoEl));
+
   console.log("\n— 75. LO PAGADO SE DESGLOSA POR SEMANA (Karina, 15-ago) —");
   // «La semana es de lunes a domingo, y aquí hicieron un pago una semana y a la
   // siguiente le puso "pagó tanto esta semana".» La tarjeta de la clienta decía

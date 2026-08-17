@@ -1517,6 +1517,39 @@ function fechaNacimientoCredito(id, producto) {
 // EXENTAS de mora. El 15-ago eso sacó del reporte a NUBIA, HILARIA, SILVIA y
 // varias más que no habían abonado un peso desde el corte. Si falta el
 // desembolso, se mide desde el corte como todas: es lo conservador.
+// EN QUÉ CICLO VA ESE PRODUCTO CON ESA CLIENTA. Se cuentan sus altas
+// anteriores del mismo producto: la primera es el ciclo 1, la renovación el 2…
+// Sirve para contestar «¿cuántos Grupal-Básico ha renovado con nosotros?».
+function cicloSiguiente(id, producto) {
+  let n = 0;
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "alta" && String(cb.id) === String(id) && nprod(cb.producto) === nprod(producto)) n++;
+  // Si no hay ninguna alta registrada, el crédito venía de la plantilla: ese es
+  // el ciclo 1 y el que se está abriendo es el 2.
+  return n === 0 ? 2 : n + 1;
+}
+
+// CUÁNDO TERMINÓ DE PAGAR (Karina, 15-ago: «cuando alguien liquida, ponerle la
+// fecha de liquidación que se hizo, para llevar mejor orden»). Es la fecha del
+// último abono que la dejó en cero — de ficha o de caja.
+function fechaDeLiquidacion(c, cv, pfTodo) {
+  const info = infoCredito(cv, c);
+  if (info.saldoActual > 0.009) return null;
+  const clave = claveCredito(c.id, c.producto);
+  let ultima = "";
+  for (const f in ((pfTodo || {})[clave] || {}))
+    if ((pfTodo[clave][f].p || 0) > 0 && f > ultima) ultima = f;
+  for (const m of (store.respaldo().movimientos || [])) {
+    if (m.anulado || !/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+    if (String(socioDeMov(m)) !== String(c.id)) continue;
+    const prod = productoDeMov(m);
+    if (prod && nprod(prod) !== nprod(c.producto)) continue;
+    const f = String(m.fecha || "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(f) && f > ultima) ultima = f;
+  }
+  return ultima || null;
+}
+
 function inicioObligaciones(c) {
   const des = String(c.desembolso || "").slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(des)) return null;
@@ -2348,6 +2381,7 @@ function padronPorEjecutivo(usuario) {
       diaPago: c.diaPago || null, desembolso: c.desembolso || null, estatus: c.estatus || "",
       alta: alta ? alta.fecha : null, esAlta: !!alta, esRecredito: !!(alta && alta.recredito),
       altaPor: alta ? alta.por : "",
+      ciclo: Number(c.ciclo) || 1,
     });
   }
   for (const e in porEjec)
@@ -2393,38 +2427,42 @@ app.get("/api/padron/excel", requiere("direccion", "admin"), async (req, res) =>
     const s2 = wb.addWorksheet(String(ejec).slice(0, 28));
     encabezar(s2, "PADRÓN DE " + String(ejec).toUpperCase() + " · " + filas.length
       + " clientas · al " + d.hoy,
-      [["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18], ["Saldo original", 14],
-       ["Abonado", 13], ["Saldo actual", 14], ["Cuota", 12], ["Plazo", 8], ["Día de cobro", 12],
-       ["Desembolso", 13], ["Estatus", 20], ["ALTA", 13]]);
+      [["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18], ["Ciclo", 7],
+       ["Saldo original", 14], ["Abonado", 13], ["Saldo actual", 14], ["Cuota", 12], ["Plazo", 8],
+       ["Día de cobro", 12], ["Desembolso", 13], ["Estatus", 20], ["ALTA", 13]]);
     let f = 3;
     for (const x of filas) {
       const r = s2.getRow(f++);
       [x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
-      r.getCell(5).value = x.saldo; r.getCell(5).numFmt = MONEDA;
-      r.getCell(6).value = x.abonado || null; r.getCell(6).numFmt = MONEDA;
-      r.getCell(7).value = x.saldoActual; r.getCell(7).numFmt = MONEDA;
-      r.getCell(8).value = x.cuota; r.getCell(8).numFmt = MONEDA;
-      r.getCell(9).value = x.plazo || null;
-      r.getCell(10).value = x.diaPago || "SIN DÍA";
-      r.getCell(11).value = x.desembolso || "FALTA";
-      r.getCell(12).value = x.estatus;
+      // CICLO: en cuál va de ese producto con nosotros (02 = su primera
+      // renovación). Es folio interno, no cambia el nombre del crédito.
+      r.getCell(5).value = String(x.ciclo || 1).padStart(2, "0");
+      r.getCell(6).value = x.saldo; r.getCell(6).numFmt = MONEDA;
+      r.getCell(7).value = x.abonado || null; r.getCell(7).numFmt = MONEDA;
+      r.getCell(8).value = x.saldoActual; r.getCell(8).numFmt = MONEDA;
+      r.getCell(9).value = x.cuota; r.getCell(9).numFmt = MONEDA;
+      r.getCell(10).value = x.plazo || null;
+      r.getCell(11).value = x.diaPago || "SIN DÍA";
+      r.getCell(12).value = x.desembolso || "FALTA";
+      r.getCell(13).value = x.estatus;
       // LA CLIENTA NUEVA SE VE. Es lo que pidió Karina: si la dan de alta, sale
       // en el padrón de su ejecutiva y se distingue de las que ya venían.
       if (x.esAlta) {
-        r.getCell(13).value = (x.esRecredito ? "RE-CRÉDITO " : "ALTA ") + x.alta;
-        r.getCell(13).font = { bold: true, color: { argb: VERDE } };
-        for (let i = 1; i <= 13; i++)
+        r.getCell(14).value = (x.esRecredito ? "RE-CRÉDITO " : "ALTA ") + x.alta;
+        r.getCell(14).font = { bold: true, color: { argb: VERDE } };
+        for (let i = 1; i <= 14; i++)
           r.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } };
       }
-      if (!x.diaPago) r.getCell(10).font = { bold: true, color: { argb: ROJO } };
-      if (!x.desembolso) r.getCell(11).font = { bold: true, color: { argb: ROJO } };
-      if (/vencid/i.test(x.estatus)) r.getCell(12).font = { bold: true, color: { argb: ROJO } };
+      if ((x.ciclo || 1) > 1) r.getCell(5).font = { bold: true, color: { argb: RIO } };
+      if (!x.diaPago) r.getCell(11).font = { bold: true, color: { argb: ROJO } };
+      if (!x.desembolso) r.getCell(12).font = { bold: true, color: { argb: ROJO } };
+      if (/vencid/i.test(x.estatus)) r.getCell(13).font = { bold: true, color: { argb: ROJO } };
     }
     const tr = s2.getRow(f++);
     tr.getCell(2).value = "TOTAL · " + filas.length + " clientas";
-    tr.getCell(7).value = Math.round(filas.reduce((a2, x) => a2 + x.saldoActual, 0) * 100) / 100;
-    tr.getCell(7).numFmt = MONEDA;
-    [2, 7].forEach((i) => (tr.getCell(i).font = { bold: true }));
+    tr.getCell(8).value = Math.round(filas.reduce((a2, x) => a2 + x.saldoActual, 0) * 100) / 100;
+    tr.getCell(8).numFmt = MONEDA;
+    [2, 8].forEach((i) => (tr.getCell(i).font = { bold: true }));
   }
 
   // LAS BAJAS, una hoja para todas: es lo que se pierde de vista si no se lista.
@@ -3746,7 +3784,9 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
     const semanas = semanasDe(c);
     const estaSem = semanas.find((x) => x.lunes === lunesHoy);
     return { ...c, ...infoCredito(cv, c), porSemana: semanas,
-      pagadoEstaSemana: estaSem ? estaSem.monto : 0, lunesDeHoy: lunesHoy };
+      pagadoEstaSemana: estaSem ? estaSem.monto : 0, lunesDeHoy: lunesHoy,
+      ciclo: Number(c.ciclo) || 1,
+      liquidadoEl: fechaDeLiquidacion(c, cv, pfCred) };
   });
   let lista = conSaldo;
   if (estado === "liquidadas") lista = conSaldo.filter((c) => (c.saldo || 0) > 0 && c.saldoActual <= 0);
@@ -4141,6 +4181,11 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
   const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
+    // CICLO INTERNO (Karina, 15-ago): «si alguien liquida su Grupal-Básico y
+    // renueva otro Grupal-Básico, ponerle un folio interno 02, 03 — para ver
+    // cuántos renovó con nosotros». Es un CONTADOR, no parte del nombre: la
+    // llave del crédito sigue siendo socio+producto y los pagos siguen casando.
+    ciclo: cicloSiguiente(id, producto),
     desembolso: desembolsoRc || null,
     diaPago: diaPagoRc || String((choca || previa).diaPago || "").toUpperCase() || diaDelCentro(centro) || null,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
@@ -6110,8 +6155,8 @@ function datosVivosParaApp(usuario) {
 // Sale del MISMO reporte que ve Dirección —no se recalcula aparte— filtrado a
 // sus clientas. Así el número que ella trae en la mano y el que Anel ve en el
 // tablero son el mismo, y cuando entra una recuperación baja en los dos.
-function moraParaApp(usuario) {
-  const d = moraDeLaSemana(usuario);
+function moraDeUnaSemana(usuario, lunes) {
+  const d = moraDeLaSemana(usuario, lunes);
   const mias = [];
   for (const g of (d.dias || [])) {
     if (g.vencido === false) continue;          // su día aún no llega: no es mora
@@ -6134,6 +6179,42 @@ function moraParaApp(usuario) {
       .map((c) => ({ centro: c, falta: porCentro[c] })),
     filas: mias,
   };
+}
+
+// LA MORA DE LA EJECUTIVA, SEMANA POR SEMANA Y EL MES (Karina, 15-ago: «pueden
+// ver la semana pasada, esta semana y así... y overall de todo el mes»).
+//
+// Se mandan las semanas DEL MES EN CURSO (desde su día 1) y el acumulado del
+// mes. Van completas —con sus clientas— para que ella pueda mirar hacia atrás
+// sin señal: el teléfono anda en la calle.
+function moraParaApp(usuario) {
+  const hoy = hoyMX();
+  const mes = hoy.slice(0, 7);
+  const lunHoy = lunesDeLaSemana(hoy);
+  // Los lunes del mes: desde el lunes de la semana del día 1 hasta el de hoy.
+  const lunes = [];
+  {
+    let L = lunesDeLaSemana(mes + "-01");
+    for (let k = 0; k < 8 && L <= lunHoy; k++) {
+      lunes.push(L);
+      const d2 = new Date(L + "T12:00:00"); d2.setDate(d2.getDate() + 7);
+      L = d2.toISOString().slice(0, 10);
+    }
+  }
+  const semanas = lunes.map((L) => moraDeUnaSemana(usuario, L));
+  const actual = semanas[semanas.length - 1] || moraDeUnaSemana(usuario, lunHoy);
+  // EL MES: la misma clienta puede caer en varias semanas; para el total del mes
+  // se suma lo que faltó en cada una (es cobranza distinta), pero las clientas
+  // se cuentan UNA vez, que es lo que se pregunta ("¿a cuántas les debo ir?").
+  const socias = new Set();
+  for (const w of semanas) for (const x of w.filas) socias.add(x.socio + "|" + x.producto);
+  return Object.assign({}, actual, {
+    mes,
+    semanas: semanas.map((w) => ({ lunes: w.lunes, domingo: w.domingo, total: w.total,
+      clientas: w.clientas, porCentro: w.porCentro, filas: w.filas })),
+    totalMes: Math.round(semanas.reduce((a2, w) => a2 + w.total, 0) * 100) / 100,
+    clientasMes: socias.size,
+  });
 }
 
 function paqueteVivo(usuario) {
