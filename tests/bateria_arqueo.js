@@ -3067,9 +3067,13 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     "difieren $" + Math.round((md62b.pendiente - lun62.total) * 100) / 100
       + " en " + dif62.length + " créditos · " + dif62.slice(0, 4).join(" · "));
 
-  ok("y trae el TOTAL DE MORA acumulado de la semana",
-    typeof md62.totalSemanaAlDia === "number" && md62.totalSemanaAlDia >= md62.totalDia,
-    JSON.stringify({ dia: md62.totalDia, semana: md62.totalSemanaAlDia }));
+  // El acumulado va NETO de recuperaciones (Karina, 18-ago), así que se compara
+  // contra lo que SIGUE debiéndose del día, no contra el bruto.
+  ok("y trae el acumulado de la semana en sus DOS cifras: lo que faltó y lo que sigue debiéndose",
+    typeof md62.totalSemanaAlDia === "number" && typeof md62.totalSemanaSigueDebiendo === "number"
+      && md62.totalSemanaSigueDebiendo <= md62.totalSemanaAlDia + 0.01
+      && md62.totalSemanaAlDia >= md62.totalDia - 0.01,
+    JSON.stringify({ dia: md62.totalDia, semana: md62.totalSemanaAlDia, sigue: md62.totalSemanaSigueDebiendo }));
   // MISMA REGLA QUE LA MORA SEMANAL: los excluidos se cuentan, no se callan.
   ok("dice lo que dejó fuera, igual que la mora de la semana",
     md62.fuera && ["vencidos", "cuotaVariable", "sinCuota", "sinDesembolsar"]
@@ -3430,6 +3434,47 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y trae la auto-curación: si cargó lógica vieja, se refresca UNA vez",
     /__pintarMora/.test(appHtml78) && /fooax_refresco/.test(appHtml78),
     "no está el rescate");
+
+  console.log("\n— 81. EL ARQUEO DEL 18-AGO: SOBRANTE FALSO Y GASTO MAL MARCADO (Karina) —");
+  // Karina, 18-ago: «¿por qué dice SOBRAN contra lo contado $57,783?». El
+  // efectivo estaba PERFECTO —lo contado empataba al centavo con la cobranza—
+  // pero el arqueo comparaba el conteo contra «cobranza menos gastos», y los
+  // gastos eran de Dirección (nómina, garantías devueltas), que salen DESPUÉS
+  // y de la caja de la oficina. Sobraba siempre, por el total de los gastos.
+  const F81 = "2026-08-18";
+  const S81 = "70000009500";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S81, nombre: "ARQUEO 81", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 40000, cuota: 500, plazo: 80,
+      diaPago: "Martes", desembolso: "2026-03-24" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul), body: JSON.stringify({ fecha: F81,
+    snapshot: { regI: { [S81 + "|Grupal-Basico|ARQUEO 81|0"]: { pago: 1000, forma: "E" } },
+      arqueo: { "500": 2 } }, ts: Date.now() + 140 }) });
+  // Un gasto GRANDE de Dirección, en efectivo: no debe disparar la alarma.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 800, concepto: "Pago de nómina",
+      metodo: "efectivo", fecha: F81 }) });
+  const rx81 = await fetch(U + "/api/arqueo/excel?fecha=" + F81, { headers: H(cm) });
+  ok("el arqueo con gastos de Dirección se genera sin problema",
+    rx81.status === 200, "status " + rx81.status);
+
+  // EL GASTO MAL MARCADO: el concepto dice transferencia, la forma dice efectivo.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 33192,
+      concepto: "PAGO NOMINA EN TRANSFERENCIA", metodo: "efectivo", fecha: HOY }) });
+  const c81 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  const mal = (c81.gastosMalMarcados || []).find((x) => x.monto === 33192);
+  ok("se detecta el gasto que dice «transferencia» pero está marcado en efectivo",
+    !!mal, JSON.stringify((c81.gastosMalMarcados || []).slice(0, 2)));
+  ok("y se dice de cuánto y de qué concepto, para poder corregirlo",
+    !!mal && /TRANSFERENCIA/i.test(mal.concepto), JSON.stringify(mal));
+  // Un gasto normal en efectivo NO se marca: no queremos alarmas falsas.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 137, concepto: "Gasolina de campo",
+      metodo: "efectivo", fecha: HOY }) });
+  const c81b = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("un gasto normal en efectivo no dispara la alarma",
+    !(c81b.gastosMalMarcados || []).some((x) => x.monto === 137), "marcó la gasolina");
 
   console.log("\n— 80. EL CIERRE DE CAJA SIGUE EL DÍA QUE SE ESTÁ MIRANDO (Karina, 17-ago) —");
   // «Si me regreso al sábado, yo necesito ver lo del sábado, el cierre de caja

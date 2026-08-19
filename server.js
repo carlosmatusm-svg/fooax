@@ -3589,6 +3589,27 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       return { desdeLaPlantilla: base, corteActual: actual, monto: imp.monto,
         creditos: imp.creditos, clientas: imp.clientas.slice(0, 20) };
     })(),
+    // EL GASTO QUE DICE «TRANSFERENCIA» PERO SE ANOTÓ COMO EFECTIVO (Karina,
+    // 18-ago). En el arqueo del martes había «PAGO NOMINA EN TRANSFERENCIA» por
+    // $33,192 marcado en efectivo: ese dinero nunca salió de la caja, así que
+    // el arqueo pedía entregar $33,192 menos de los que había. El concepto lo
+    // dice con todas sus letras; solo hacía falta leerlo.
+    gastosMalMarcados: (() => {
+      const out = [];
+      const desde = lunesDeLaSemana(hoyMX());
+      for (let d = new Date(desde + "T12:00:00"); ; d.setDate(d.getDate() + 1)) {
+        const f = d.toISOString().slice(0, 10);
+        if (f > hoyMX()) break;
+        for (const m of movsDeFecha(f, req.usuario)) {
+          if (m.anulado || m.entrada || m.metodo !== "efectivo") continue;
+          const txt = String(m.concepto || "") + " " + String(m.tipo || "");
+          if (!/transferenc|deposit|dep[oó]sito|spei/i.test(txt)) continue;
+          out.push({ fecha: f, folio: m.folio, concepto: String(m.concepto || "").slice(0, 90),
+            monto: Math.abs(Number(m.monto) || 0), registradoPor: m.registradoPor || "" });
+        }
+      }
+      return out;
+    })(),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
     // Las que SÍ traen clienta pero no dicen de cuál de sus créditos: el sistema
@@ -5330,6 +5351,7 @@ function moraDelDia(usuario, fecha) {
   // ese día, menos lo abonado desde el corte hasta ese día. Los abonos por
   // fecha ya están en pfCorte; solo se corta la suma en cada día.
   let acumulado = 0;
+  let acumuladoNeto = 0;
   for (let k = 0; k < 7; k++) {
     const dd = new Date(lunes + "T12:00:00"); dd.setDate(dd.getDate() + k);
     const fISO = dd.toISOString().slice(0, 10);
@@ -5362,13 +5384,22 @@ function moraDelDia(usuario, fecha) {
       const calHoyK = calendarioDelCredito(c, idxDia(diaK), fISO);
       const exigibleK = (calHoyK && calHoyK.termino && infoK.saldoActual < cuotaK * 2)
         ? Math.round((saldoK + pagoK) * 100) / 100 : Math.min(cuotaK, saldoK + pagoK);
-      acumulado += Math.min(Math.max(0, exigibleK - pagoK - aFavorK), saldoK);
+      const faltoEseDia = Math.min(Math.max(0, exigibleK - pagoK - aFavorK), saldoK);
+      // DOS CIFRAS, NO UNA (Karina, 18-ago: «la mora acumulada está mal»). El
+      // acumulado sumaba el faltante de cada día tal cual, y así la clienta que
+      // no pagó el lunes seguía contada el martes aunque el martes ya hubiera
+      // pagado. Se reportan las dos, igual que el bloque del día: lo que faltó
+      // en la semana, y lo que de eso SIGUE debiéndose tras las recuperaciones.
+      const recuperadoK = Math.max(0, abonoEntre(claveK, diaSiguiente(fISO), hoyReal2 > f ? hoyReal2 : f));
+      acumulado += faltoEseDia;
+      acumuladoNeto += Math.max(0, faltoEseDia - recuperadoK);
     }
   }
   acumulado = Math.round(acumulado * 100) / 100;
+  acumuladoNeto = Math.round(acumuladoNeto * 100) / 100;
 
   return { fecha: f, dia, lunes, centros: lista, totalDia, recuperado, pendiente,
-    totalSemanaAlDia: acumulado, fuera,
+    totalSemanaAlDia: acumulado, totalSemanaSigueDebiendo: acumuladoNeto, fuera,
     clientas: lista.reduce((n, g) => n + g.filas.length, 0),
     seRegularizaron: lista.reduce((n, g) => n + g.filas.filter((x) => x.sigueDebiendo <= 0).length, 0) };
 }
@@ -5463,7 +5494,20 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   fila += 2;
 
   // ── BLOQUE 2: DE DÓNDE SALE ESE NÚMERO ───────────────────────────────────
-  const aEntregar = a.efectivo - egresosEfectivo;
+  // LO QUE LA EJECUTIVA ENTREGA vs LO QUE PAGA LA OFICINA (Karina, 18-ago).
+  //
+  // Ella cuenta el efectivo que trae: su cobranza, más lo que entró por caja,
+  // menos SUS gastos de campo (pasaje, papelería). Los gastos que registra
+  // Dirección —nómina, garantías devueltas, pagos a proveedores— salen DESPUÉS
+  // y de la caja de la oficina, no de lo que ella entrega.
+  //
+  // Al restarlos todos juntos, el conteo sobraba SIEMPRE y por exactamente el
+  // total de los gastos: el arqueo del 18-ago gritó $57,783 de alarma con el
+  // efectivo cuadrado al centavo. Ahora cada cosa va por su lado.
+  const deEjecutiva = (m) => m && (m.rol === "ejecutivo" || !!m.ejecutivo);
+  const egresosEjec = egresosEnEfectivo((movs || []).filter(deEjecutiva));
+  const egresosOficina = Math.round((egresosEfectivo - egresosEjec) * 100) / 100;
+  const aEntregar = a.efectivo - egresosEjec;
   const sinDesglosar = Math.round((aEntregar - totalEfe) * 100) / 100;
   s.mergeCells(fila, 1, fila, 4);
   const ch = s.getCell(fila, 1);
@@ -5479,9 +5523,14 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   // salía en cero y parecía un arqueo vacío.
   linea("Cobranza en efectivo del día", a.efectivo);
   // egresosEfectivo es el NETO: si es negativo, entró más de lo que salió.
-  if (egresosEfectivo >= 0) linea("− Gastos y retiros en efectivo", -egresosEfectivo);
-  else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEfectivo);
-  linea("= Efectivo a entregar", aEntregar, true);
+  if (egresosEjec >= 0) linea("− Gastos de campo de la ejecutiva", -egresosEjec);
+  else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEjec);
+  linea("= Efectivo que entrega la ejecutiva", aEntregar, true);
+  // Lo de Dirección va aparte y DESPUÉS: no es parte de lo que ella entrega.
+  if (Math.abs(egresosOficina) >= 0.01) {
+    linea("− Pagos y retiros de Dirección (salen de la caja de la oficina)", -egresosOficina);
+    linea("= Queda en caja al cierre del día", Math.round((aEntregar - egresosOficina) * 100) / 100, true);
+  }
   // La diferencia va AL FINAL, cuando el lector ya vio las cuentas de arriba.
   if (Math.abs(sinDesglosar) >= 0.01) {
     const r = s.getRow(fila++);
@@ -5656,13 +5705,26 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     const rg2 = s.getRow(fila++);
     s.mergeCells(fila - 1, 1, fila - 1, 3);
     const c = rg2.getCell(1);
-    c.value = "TOTAL DE MORA · acumulado de la semana al " + md.fecha;
-    c.font = { bold: true, size: 12 };
+    // DOS RENGLONES, NO UNO. El acumulado suma lo que faltó cada día; abajo va
+    // lo que de eso SIGUE debiéndose después de las recuperaciones. Con un solo
+    // número no se distinguía a la que no pagó el lunes y pagó el martes.
+    c.value = "SUMA DE LA MORA de los días de la semana al " + md.fecha;
+    c.font = { bold: true, size: 11 };
     c.alignment = { horizontal: "right" };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
     const cv2 = rg2.getCell(4); cv2.value = md.totalSemanaAlDia; cv2.numFmt = dinero;
-    cv2.font = { bold: true, size: 12, color: { argb: "FFB00020" } };
+    cv2.font = { bold: true, size: 11 };
     cv2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
+    const rg3 = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c3 = rg3.getCell(1);
+    c3.value = "TOTAL DE MORA · lo que SIGUE debiéndose de la semana (ya descontado lo recuperado)";
+    c3.font = { bold: true, size: 12 };
+    c3.alignment = { horizontal: "right" };
+    c3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
+    const cv3 = rg3.getCell(4); cv3.value = md.totalSemanaSigueDebiendo; cv3.numFmt = dinero;
+    cv3.font = { bold: true, size: 12, color: { argb: "FFB00020" } };
+    cv3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
   }
   // Lo que quedó fuera de esta mora, dicho — no se calla nada.
   {

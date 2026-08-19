@@ -1749,6 +1749,19 @@ async function cargarCartera() {
       det);
   }
 
+  // EL GASTO QUE DICE TRANSFERENCIA PERO SE ANOTÓ EN EFECTIVO. Va en ALTA
+  // porque descuadra el arqueo por su monto completo: pide entregar dinero que
+  // nunca salió de la caja.
+  if ((d.gastosMalMarcados || []).length) {
+    const tot = d.gastosMalMarcados.reduce((a2, x) => a2 + (x.monto || 0), 0);
+    alto += aviso("alta", d.gastosMalMarcados.length + " gastos dicen «transferencia» pero se anotaron en EFECTIVO",
+      dinero(tot),
+      "El concepto dice que se pagó por transferencia o depósito, pero el movimiento quedó marcado "
+      + "como efectivo. Ese dinero <b>no salió de la caja</b>, así que el arqueo pide entregar de "
+      + "menos por ese monto. Se corrige cambiándole la forma de pago al movimiento.",
+      d.gastosMalMarcados.map((x) => "<b>" + dinero(x.monto) + "</b> · " + hesc(x.fecha) + " · "
+        + hesc(x.concepto) + (x.registradoPor ? " · registró " + hesc(x.registradoPor) : "")));
+  }
   // PAGOS DUPLICADOS: la misma clienta capturada en dos lugares el mismo día.
   // Va en ALTA porque falsea lo pagado y el saldo hasta que se borre el
   // renglón sobrante en la app de la ejecutiva.
