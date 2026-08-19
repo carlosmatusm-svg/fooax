@@ -5352,6 +5352,7 @@ function moraDelDia(usuario, fecha) {
   // fecha ya están en pfCorte; solo se corta la suma en cada día.
   let acumulado = 0;
   let acumuladoNeto = 0;
+  const porDiaAcum = {}, fechaDeDia = {};
   for (let k = 0; k < 7; k++) {
     const dd = new Date(lunes + "T12:00:00"); dd.setDate(dd.getDate() + k);
     const fISO = dd.toISOString().slice(0, 10);
@@ -5377,7 +5378,13 @@ function moraDelDia(usuario, fecha) {
       // Misma regla que arriba: su cuota menos lo que abonó ESE día, con el
       // adelanto a favor si lo trae.
       const saldoK = Math.max(0, Math.round(((c.saldo || 0) - abonoEntre(claveK, corteHoy, fISO)) * 100) / 100);
-      const pagoK = abonoEntre(claveK, fISO, fISO);
+      // LA MISMA REGLA QUE EL BLOQUE DEL DÍA (Karina, 18-ago: «del lunes
+      // $2,976.50 y del martes $5,886 — eso está mal»). El acumulado contaba
+      // SOLO el pago hecho ESE día exacto, mientras el bloque de arriba cuenta
+      // lo abonado en la semana HASTA ese día. Por eso cobraba de más a la que
+      // se adelanta: pagaba el lunes su cuota del martes, el martes salía
+      // limpia arriba y morosa en el acumulado. Ahora las dos miran lo mismo.
+      const pagoK = abonoEntre(claveK, lunes, fISO);
       const calAntK = calendarioDelCredito(c, idxDia(diaK), diaAnterior(fISO));
       const aFavorK = (calAntK && !calAntK.termino)
         ? Math.max(0, Math.round((calAntK.restante - (saldoK + pagoK)) * 100) / 100) : 0;
@@ -5392,14 +5399,20 @@ function moraDelDia(usuario, fecha) {
       // en la semana, y lo que de eso SIGUE debiéndose tras las recuperaciones.
       const recuperadoK = Math.max(0, abonoEntre(claveK, diaSiguiente(fISO), hoyReal2 > f ? hoyReal2 : f));
       acumulado += faltoEseDia;
+      porDiaAcum[diaK] = Math.round(((porDiaAcum[diaK] || 0) + faltoEseDia) * 100) / 100;
+      fechaDeDia[diaK] = fISO;
       acumuladoNeto += Math.max(0, faltoEseDia - recuperadoK);
     }
   }
   acumulado = Math.round(acumulado * 100) / 100;
+  // El desglose día por día: es lo que permite comprobar la suma sin fe.
+  const acumuladoPorDia = Object.keys(porDiaAcum)
+    .map((d2) => ({ dia: d2, fecha: fechaDeDia[d2], total: porDiaAcum[d2] }))
+    .sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
   acumuladoNeto = Math.round(acumuladoNeto * 100) / 100;
 
   return { fecha: f, dia, lunes, centros: lista, totalDia, recuperado, pendiente,
-    totalSemanaAlDia: acumulado, totalSemanaSigueDebiendo: acumuladoNeto, fuera,
+    totalSemanaAlDia: acumulado, acumuladoPorDia, totalSemanaSigueDebiendo: acumuladoNeto, fuera,
     clientas: lista.reduce((n, g) => n + g.filas.length, 0),
     seRegularizaron: lista.reduce((n, g) => n + g.filas.filter((x) => x.sigueDebiendo <= 0).length, 0) };
 }
@@ -5708,6 +5721,17 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     // DOS RENGLONES, NO UNO. El acumulado suma lo que faltó cada día; abajo va
     // lo que de eso SIGUE debiéndose después de las recuperaciones. Con un solo
     // número no se distinguía a la que no pagó el lunes y pagó el martes.
+    // EL DESGLOSE, DÍA POR DÍA (Karina, 18-ago: «debería llevar del lunes
+    // $2,976.50 y del martes $5,886»). Un total suelto no se puede comprobar;
+    // con sus renglones, la suma se checa con el dedo.
+    for (const d3 of (md.acumuladoPorDia || [])) {
+      const rd = s.getRow(fila++);
+      s.mergeCells(fila - 1, 1, fila - 1, 3);
+      const cd = rd.getCell(1);
+      cd.value = "      " + d3.dia + " " + d3.fecha;
+      cd.alignment = { horizontal: "right" };
+      const cdv = rd.getCell(4); cdv.value = d3.total; cdv.numFmt = dinero;
+    }
     c.value = "SUMA DE LA MORA de los días de la semana al " + md.fecha;
     c.font = { bold: true, size: 11 };
     c.alignment = { horizontal: "right" };

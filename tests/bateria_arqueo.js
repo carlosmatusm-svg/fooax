@@ -3476,6 +3476,45 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("un gasto normal en efectivo no dispara la alarma",
     !(c81b.gastosMalMarcados || []).some((x) => x.monto === 137), "marcó la gasolina");
 
+  console.log("\n— 82. EL ACUMULADO ES LA SUMA DE LOS DÍAS, Y SE PUEDE COMPROBAR (Karina, 18-ago) —");
+  // «Del lunes $2,976.50 y del martes $5,886 — eso está mal.» El acumulado
+  // contaba SOLO el pago hecho ESE día exacto, mientras el bloque de arriba
+  // cuenta lo abonado en la semana HASTA ese día. Por eso cobraba de más a la
+  // que se adelanta: pagaba el lunes su cuota del martes, arriba salía limpia
+  // y en el acumulado seguía morosa. Y el total iba solo, sin forma de checarlo.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const acum81 = async () => j(await fetch(U + "/api/mora/dia?fecha=2026-08-18", { headers: H(cm) }));
+  const marDe = (d) => ((d.acumuladoPorDia || []).find((x) => x.dia === "MARTES") || {}).total || 0;
+  const base81 = marDe(await acum81());
+  const SACU81 = "70000009501";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SACU81, nombre: "ADELANTA SU MARTES 81", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 10000, cuota: 500, plazo: 20,
+      diaPago: "Martes", desembolso: "2026-03-23" }) });
+  const d81a = await acum81();
+  ok("sin pagar, su cuota entra al acumulado del martes",
+    Math.abs(marDe(d81a) - base81 - 500) < 0.01, "subió " + (marDe(d81a) - base81));
+  ok("y el acumulado es EXACTAMENTE la suma de sus días, comprobable renglón por renglón",
+    Math.abs((d81a.acumuladoPorDia || []).reduce((a2, x) => a2 + x.total, 0) - d81a.totalSemanaAlDia) < 0.01,
+    JSON.stringify(d81a.acumuladoPorDia));
+  // Paga el LUNES su cuota del MARTES: se adelantó.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-17",
+    snapshot: { reg: { GHANIMA: { [SACU81 + "|Grupal-Basico|ADELANTA SU MARTES 81|0"]: { pago: 500, forma: "E" } } } },
+    ts: Date.now() + 140 }) });
+  const d81b = await acum81();
+  ok("al adelantarse, el acumulado deja de contarla — igual que el bloque del día",
+    Math.abs(marDe(d81b) - base81) < 0.01, "quedó en " + marDe(d81b) + " y debía volver a " + base81);
+  ok("y no aparece en la lista del día",
+    !(d81b.centros || []).flatMap((g) => g.filas).some((x) => String(x.socio) === SACU81), "sale en la lista");
+  ok("el desglose trae su día y su fecha, para poder checar la suma con el dedo",
+    (d81b.acumuladoPorDia || []).every((x) => x.dia && /^\d{4}-\d{2}-\d{2}$/.test(x.fecha || "")),
+    JSON.stringify(d81b.acumuladoPorDia));
+  // Y el total del día de arriba coincide con su renglón en el desglose.
+  ok("el total del día coincide al centavo con su renglón del acumulado",
+    Math.abs(d81b.totalDia - marDe(d81b)) < 0.01,
+    "día " + d81b.totalDia + " vs acumulado " + marDe(d81b));
+
   console.log("\n— 80. EL CIERRE DE CAJA SIGUE EL DÍA QUE SE ESTÁ MIRANDO (Karina, 17-ago) —");
   // «Si me regreso al sábado, yo necesito ver lo del sábado, el cierre de caja
   // del sábado, y así sucesivamente.» La tarjeta y el Excel salían SIEMPRE con
