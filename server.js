@@ -265,8 +265,9 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
   // La app manda su lista completa de la sesión. Si un folio ya guardado no
   // viene, la ejecutiva lo BORRÓ → se marca ANULADO (nunca se borra; queda el
   // rastro y deja de contar); si vuelve a venir, revive.
-  if (!Array.isArray(snapshot && snapshot.movs)) return;
+  if (!Array.isArray(snapshot && snapshot.movs)) return [];
   const lista = snapshot.movs;
+  const rechazados = [];
   const prefijo = "EJE-" + usuario.id.toUpperCase() + "-";
   const presentes = new Set(lista.filter((m) => Number(m && m.monto) > 0)
     .map((m) => prefijo + (m.folio || Math.abs(Number(m.monto)) + "-" + String(m.concepto || "").toUpperCase())));
@@ -286,6 +287,17 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
     const monto = Number(m && m.monto);
     if (!(monto > 0)) continue;
     const cve = String(m.concepto || "").toUpperCase();
+    // MÓDULOS QUE NO EXISTEN NO ENTRAN POR LA CAJA (Karina, 19-ago). Si llega
+    // un desembolso o una devolución de garantía, NO se guarda: se anota como
+    // rechazado para que Dirección lo vea y sepa que ese dinero no está
+    // registrado en ningún lado. Callarlo sería peor: el arqueo cuadraría
+    // mintiendo.
+    const veto = conceptoProhibido(cve, [m.concepto, m.nota, m.tipoGasto].filter(Boolean).join(" "));
+    if (veto) {
+      rechazados.push({ concepto: m.concepto || "", nota: m.nota || "", monto,
+        clienta: m.clienta || null, socio: m.socio ? String(m.socio) : null, motivo: veto });
+      continue;
+    }
     const def = CONCEPTOS_EJEC[cve] || { etiqueta: m.concepto || "Otro", categoria: "Otro", entrada: false };
     const quien = [m.clienta, m.socio].filter(Boolean).join(" · ");
     const nuevo = {
@@ -346,6 +358,7 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
     }
     store.agregarMovimiento(nuevo);
   }
+  return rechazados;
 }
 
 // ---------- fusión post-cierre ----------
@@ -4336,7 +4349,11 @@ const CONCEPTOS_DIR = {
   // SALIDAS · dinero que SALE de la caja
   "Gasto operativo":             { entrada: false, categoria: "Gasto operativo" },
   "Retiro de dirección":         { entrada: false, categoria: "Retiro de dirección" },
-  "Autorización / préstamo":     { entrada: false, categoria: "Autorización / préstamo" },
+  // "Autorización / préstamo" queda FUERA (Karina, 19-ago). Con ese concepto se
+  // registraban las ENTREGAS DE CRÉDITO: el 13-ago salieron $86,000 en un día
+  // —$31,000 a una sola clienta— por una caja que es CHICA, para gastos de
+  // campo. El arqueo entonces pedía entregar de menos y parecía que el arqueo
+  // estaba mal. La tesorería es otro módulo y no está desarrollado.
   // "Desembolso (crédito nuevo)" queda FUERA de esta lista (Karina, 6-ago): el
   // crédito nuevo se abre con "Dar de alta" o "Re-dar crédito", que además le
   // ponen su ancla y su plazo. Registrarlo aquí como movimiento suelto lo dejaba
@@ -4367,9 +4384,37 @@ const CONCEPTOS_EJEC = {
   RECUPERACION: { etiqueta: "Recuperación / adelanto",  categoria: "Otro",            entrada: true },
   GARANTIA:     { etiqueta: "Garantía",                 categoria: "Otro",            entrada: true },
   LIQUIDACION:  { etiqueta: "Liquidación",              categoria: "Otro",            entrada: true },
-  DESEMBOLSO:   { etiqueta: "Desembolso (crédito nuevo)", categoria: "Autorización / préstamo", entrada: false },
   GASTO:        { etiqueta: "Gasto",                    categoria: "Gasto operativo", entrada: false },
 };
+// DESEMBOLSO y DEVOLUCIÓN DE GARANTÍA quedan FUERA (Karina, 19-ago). No es un
+// olvido: son módulos que NO están desarrollados ni contratados. La caja de la
+// app es una CAJA CHICA para gastos de campo, y se estaba usando como si fuera
+// tesorería — se metían desembolsos de crédito y entregas de garantía por ahí,
+// el arqueo dejaba de cuadrar y la culpa parecía del arqueo.
+//
+// Un crédito nuevo se abre con «Dar de alta» o «Re-dar crédito», que además le
+// ponen su fecha, su plazo y su día de cobro. Un movimiento suelto en la caja
+// no crea el crédito: solo saca el dinero y deja el saldo sin nacer.
+const CONCEPTOS_PROHIBIDOS = {
+  ENTREGA: "La ENTREGA DE UN CRÉDITO no se registra en la caja. El crédito se abre con «Dar de "
+    + "alta» o «Re-dar crédito», que además le ponen su monto, su plazo, su día de cobro y su "
+    + "fecha de desembolso. Capturado aquí, el dinero sale de la caja chica pero el crédito no "
+    + "nace en ningún lado: el arqueo pide entregar de menos y la clienta no aparece debiendo.",
+  DEVOLUCION: "La DEVOLUCIÓN DE GARANTÍA todavía no tiene módulo. Registrarla como gasto "
+    + "descuadra el arqueo y deja la garantía viva en el saldo de la clienta.",
+};
+// Lo que intenta colarse por la caja chica: entregas de crédito —vengan como
+// «préstamo», «autorización» o «desembolso»— y devoluciones de garantía.
+function conceptoProhibido(cve, texto) {
+  const c = String(cve || "").toUpperCase();
+  const t = norm(String(texto || ""));
+  if (c === "DESEMBOLSO" || /^autorizaci/i.test(String(cve || ""))) return CONCEPTOS_PROHIBIDOS.ENTREGA;
+  // «Comisión de desembolso» SÍ es válida: es lo que la clienta paga, no lo que se le entrega.
+  if (/(desembols|prestamo|préstamo)/.test(t) && !/comision/.test(t)) return CONCEPTOS_PROHIBIDOS.ENTREGA;
+  if (/garant/.test(t) && /(devoluc|devolv|entrega|regres|reembols)/.test(t))
+    return CONCEPTOS_PROHIBIDOS.DEVOLUCION;
+  return null;
+}
 // Efectivo que SALE de la caja. Un movimiento marcado como entrada resta aquí
 // (mete dinero), por eso no se puede sumar a secas.
 function egresosEnEfectivo(movs) {
@@ -4586,6 +4631,15 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   if (fecha > hoyMX()) return res.status(400).json({ error: "El gasto no puede ser de una fecha futura." });
   if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
   if (!concepto) return res.status(400).json({ error: "Escribe un concepto para el movimiento." });
+  // LA CAJA CHICA NO ES TESORERÍA (Karina, 19-ago). Una entrega de crédito o una
+  // devolución de garantía capturadas aquí sacan dinero de una caja que es para
+  // gastos de campo, y dejan el arqueo pidiendo entregar de menos. Va ANTES de
+  // validar la categoría: si no, el concepto retirado del catálogo caía en el
+  // «elige de qué es el movimiento» y nadie entendía por qué.
+  // La categoría también se revisa: se puede mandar suelta, sin el concepto del
+  // catálogo, y por ahí se colaría igual.
+  const vetoDir = conceptoProhibido(b.tipo, [b.tipo, b.categoria, concepto].filter(Boolean).join(" "));
+  if (vetoDir) return res.status(400).json({ error: vetoDir, moduloSinDesarrollar: true });
   if (!categoria) return res.status(400).json({ error: "Elige de qué es el movimiento." });
   // Una liquidación o recuperación SIN clienta entra a la caja y no le baja el
   // saldo a nadie: por eso aquí se exige, no se sugiere.

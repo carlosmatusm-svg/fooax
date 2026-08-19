@@ -84,7 +84,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     { folio: "B2", concepto: "LIQUIDACION", monto: 200, via: "E" },
     { folio: "B3", concepto: "GASTO", monto: 50, via: "E" },
     { folio: "B4", concepto: "RECUPERACION", monto: 300, via: "T" },   // por transferencia
-    { folio: "B5", concepto: "DESEMBOLSO", monto: 400, via: "E" },
+    // Era un DESEMBOLSO: desde el 19-ago la caja chica no acepta entregas de
+    // crédito. Se usa un gasto de campo, que es lo que esta prueba mide (una
+    // salida en efectivo que baja lo que hay que entregar).
+    { folio: "B5", concepto: "GASTO", monto: 400, via: "E", tipoGasto: "Casetas / transporte" },
   ] });
   a = await arqueo();
   // a entregar = 1000 + 100 + 200 − 50 − 400 = 850 (la recuperación por T no toca el efectivo)
@@ -1544,9 +1547,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: dia44(0),
     snapshot: { reg: regC, movs: [{ folio: "cs1", concepto: "GASTO", monto: 300, via: "E", tipoGasto: "Gasolina", nota: "ruta" }] },
     ts: Date.now() }) });
+  // El ejemplo de salida era un «Autorización / préstamo», que desde el 19-ago
+  // está prohibido en la caja (era el disfraz de las entregas de crédito). Se
+  // usa un RETIRO DE DIRECCIÓN, que es lo que esta prueba siempre quiso medir.
   await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
     body: JSON.stringify({ fecha: dia44(1), monto: 2000, concepto: "BANCARIZACION",
-      categoria: "Autorización / préstamo", metodo: "efectivo" }) }));
+      tipo: "Retiro de dirección", metodo: "efectivo" }) }));
   const caja = await j(await fetch(U + "/api/semana/caja", { headers: H(cm) }));
   ok("el cierre semanal cuenta lo que ENTRÓ en efectivo",
     caja.entroCobranza >= 5000, "entró de cobranza " + caja.entroCobranza);
@@ -1554,7 +1560,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     caja.salio >= 2300 && (caja.salidasPorTipo || {})["Gasto · Gasolina"] === 300,
     JSON.stringify(caja.salidasPorTipo));
   ok("el retiro de dirección aparece como salida (antes no se restaba en la semana)",
-    Object.keys(caja.salidasPorTipo || {}).some((k) => /BANCARIZACION/i.test(k)), JSON.stringify(caja.salidasPorTipo));
+    (caja.salidasPorTipo || {})["Retiro de dirección"] === 2000, JSON.stringify(caja.salidasPorTipo));
   ok("lo que debe quedar el sábado es entró − salió",
     Math.abs(caja.quedaEnCaja - (caja.entro - caja.salio)) < 0.01,
     caja.entro + " − " + caja.salio + " = " + caja.quedaEnCaja);
@@ -3475,6 +3481,45 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const c81b = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
   ok("un gasto normal en efectivo no dispara la alarma",
     !(c81b.gastosMalMarcados || []).some((x) => x.monto === 137), "marcó la gasolina");
+
+  console.log("\n— 83. LA CAJA CHICA NO ES TESORERÍA (Karina, 19-ago) —");
+  // «No quiero que metan desembolso ni entrega de garantías: son módulos sin
+  // desarrollar. Lo que les vendí fue una caja chiquita, y están haciendo mal
+  // uso de ella y luego saltan porque el arqueo no es como ellos dicen.»
+  //
+  // Con «Autorización / préstamo» se registraban las ENTREGAS DE CRÉDITO: el
+  // 13-ago salieron $86,000 en un día —$31,000 a una sola clienta— por una caja
+  // que es para gastos de campo. El arqueo entonces pedía entregar de menos y
+  // parecía que el arqueo estaba mal.
+  const movVeto = (b2) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify(Object.assign({ metodo: "efectivo", fecha: HOY }, b2)) });
+  const r83a = await movVeto({ tipo: "Autorización / préstamo", monto: 31000,
+    concepto: "PRESTAMO a TENEXPAM/CATALINA PETRA" });
+  const j83a = await j(r83a);
+  ok("la ENTREGA DE CRÉDITO ya no se puede registrar en la caja",
+    r83a.status === 400 && j83a.moduloSinDesarrollar === true, "status " + r83a.status);
+  ok("y el mensaje dice dónde SÍ va: «Dar de alta» o «Re-dar crédito»",
+    /Dar de alta/.test(j83a.error || ""), String(j83a.error || "").slice(0, 80));
+  const r83b = await movVeto({ categoria: "Autorización / préstamo", monto: 10000, concepto: "PRESTAMO" });
+  ok("tampoco mandando la categoría suelta, sin el concepto del catálogo",
+    r83b.status === 400, "status " + r83b.status);
+  const r83c = await movVeto({ tipo: "Gasto operativo", monto: 7000, concepto: "Desembolso a Juliana" });
+  ok("ni disfrazada de gasto: se reconoce por el texto",
+    r83c.status === 400, "status " + r83c.status);
+  const r83d = await movVeto({ tipo: "Gasto operativo", monto: 500, concepto: "Devolución de garantía a Rosa" });
+  const j83d = await j(r83d);
+  ok("la DEVOLUCIÓN DE GARANTÍA tampoco, y se dice que no tiene módulo",
+    r83d.status === 400 && /no tiene módulo/i.test(j83d.error || ""), String(j83d.error || "").slice(0, 70));
+
+  // Y LO LEGÍTIMO SIGUE PASANDO: la caja chica sirve para lo que es.
+  const r83e = await movVeto({ tipo: "Gasto operativo", monto: 350, concepto: "Gasolina" });
+  ok("un gasto de campo real sigue entrando sin problema", r83e.status === 200, "status " + r83e.status);
+  const r83f = await movVeto({ tipo: "Retiro de dirección", monto: 2000, concepto: "Retiro" });
+  ok("y un retiro de dirección también", r83f.status === 200, "status " + r83f.status);
+  const r83g = await movVeto({ tipo: "Comisión de desembolso", monto: 200, concepto: "Comisión",
+    socio: "11113028250" });
+  ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
+    r83g.status === 200, "status " + r83g.status);
 
   console.log("\n— 82. EL ACUMULADO ES LA SUMA DE LOS DÍAS, Y SE PUEDE COMPROBAR (Karina, 18-ago) —");
   // «Del lunes $2,976.50 y del martes $5,886 — eso está mal.» El acumulado
