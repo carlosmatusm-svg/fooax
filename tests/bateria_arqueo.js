@@ -3511,6 +3511,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     (d81b.acumuladoPorDia || []).every((x) => x.dia && /^\d{4}-\d{2}-\d{2}$/.test(x.fecha || "")),
     JSON.stringify(d81b.acumuladoPorDia));
   // Y el total del día de arriba coincide con su renglón en el desglose.
+  // CADA DÍA CON SUS TRES CIFRAS (Karina, 18-ago: comparó el $4,290.50 del
+  // acumulado contra el $2,976.50 del arqueo del lunes y parecían pelearse —
+  // son el mismo lunes en dos momentos, antes y después de lo recuperado).
+  ok("cada día del acumulado trae lo que faltó, lo recuperado y lo que sigue debiendo",
+    (d81b.acumuladoPorDia || []).every((x) =>
+      typeof x.total === "number" && typeof x.recuperado === "number"
+      && Math.abs(x.total - x.recuperado - x.sigueDebiendo) < 0.01),
+    JSON.stringify(d81b.acumuladoPorDia));
+  ok("y lo que sigue debiéndose de la semana es la suma de esos renglones",
+    Math.abs((d81b.acumuladoPorDia || []).reduce((a2, x) => a2 + x.sigueDebiendo, 0)
+      - d81b.totalSemanaSigueDebiendo) < 0.01,
+    "renglones " + (d81b.acumuladoPorDia || []).reduce((a2, x) => a2 + x.sigueDebiendo, 0)
+      + " vs total " + d81b.totalSemanaSigueDebiendo);
   ok("el total del día coincide al centavo con su renglón del acumulado",
     Math.abs(d81b.totalDia - marDe(d81b)) < 0.01,
     "día " + d81b.totalDia + " vs acumulado " + marDe(d81b));

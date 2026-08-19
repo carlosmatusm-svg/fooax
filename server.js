@@ -5352,7 +5352,7 @@ function moraDelDia(usuario, fecha) {
   // fecha ya están en pfCorte; solo se corta la suma en cada día.
   let acumulado = 0;
   let acumuladoNeto = 0;
-  const porDiaAcum = {}, fechaDeDia = {};
+  const porDiaAcum = {}, fechaDeDia = {}, recupDia = {};
   for (let k = 0; k < 7; k++) {
     const dd = new Date(lunes + "T12:00:00"); dd.setDate(dd.getDate() + k);
     const fISO = dd.toISOString().slice(0, 10);
@@ -5400,6 +5400,12 @@ function moraDelDia(usuario, fecha) {
       const recuperadoK = Math.max(0, abonoEntre(claveK, diaSiguiente(fISO), hoyReal2 > f ? hoyReal2 : f));
       acumulado += faltoEseDia;
       porDiaAcum[diaK] = Math.round(((porDiaAcum[diaK] || 0) + faltoEseDia) * 100) / 100;
+      // Y lo que de ESE día ya se recuperó: sin esto, el renglón del acumulado
+      // (lo que faltó ese día) y el arqueo de ese día (lo que sigue debiendo)
+      // dan distinto y parecen contradecirse — el $4,290.50 contra el $2,976.50
+      // que Karina comparó el 18-ago. Son el mismo lunes en dos momentos.
+      recupDia[diaK] = Math.round(((recupDia[diaK] || 0)
+        + Math.min(recuperadoK, faltoEseDia)) * 100) / 100;
       fechaDeDia[diaK] = fISO;
       acumuladoNeto += Math.max(0, faltoEseDia - recuperadoK);
     }
@@ -5407,7 +5413,9 @@ function moraDelDia(usuario, fecha) {
   acumulado = Math.round(acumulado * 100) / 100;
   // El desglose día por día: es lo que permite comprobar la suma sin fe.
   const acumuladoPorDia = Object.keys(porDiaAcum)
-    .map((d2) => ({ dia: d2, fecha: fechaDeDia[d2], total: porDiaAcum[d2] }))
+    .map((d2) => ({ dia: d2, fecha: fechaDeDia[d2], total: porDiaAcum[d2],
+      recuperado: recupDia[d2] || 0,
+      sigueDebiendo: Math.round((porDiaAcum[d2] - (recupDia[d2] || 0)) * 100) / 100 }))
     .sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
   acumuladoNeto = Math.round(acumuladoNeto * 100) / 100;
 
@@ -5728,11 +5736,18 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
       const rd = s.getRow(fila++);
       s.mergeCells(fila - 1, 1, fila - 1, 3);
       const cd = rd.getCell(1);
-      cd.value = "      " + d3.dia + " " + d3.fecha;
+      // Cada día dice sus TRES cifras: lo que faltó ese día, lo que ya se
+      // recuperó y lo que sigue debiéndose. Así el renglón empata con el
+      // arqueo de ese día en vez de parecer que se contradicen.
+      cd.value = "      " + d3.dia + " " + d3.fecha
+        + (d3.recuperado > 0
+            ? "  ·  faltó " + d3.total.toFixed(2) + " − recuperado " + d3.recuperado.toFixed(2)
+              + " = sigue debiendo " + d3.sigueDebiendo.toFixed(2)
+            : "  ·  nada se ha recuperado de ese día");
       cd.alignment = { horizontal: "right" };
       const cdv = rd.getCell(4); cdv.value = d3.total; cdv.numFmt = dinero;
     }
-    c.value = "SUMA DE LA MORA de los días de la semana al " + md.fecha;
+    c.value = "SUMA DE LO QUE FALTÓ cada día de la semana al " + md.fecha;
     c.font = { bold: true, size: 11 };
     c.alignment = { horizontal: "right" };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
@@ -5742,7 +5757,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     const rg3 = s.getRow(fila++);
     s.mergeCells(fila - 1, 1, fila - 1, 3);
     const c3 = rg3.getCell(1);
-    c3.value = "TOTAL DE MORA · lo que SIGUE debiéndose de la semana (ya descontado lo recuperado)";
+    c3.value = "MENOS lo que ya se recuperó  =  LO QUE SIGUE DEBIÉNDOSE de la semana";
     c3.font = { bold: true, size: 12 };
     c3.alignment = { horizontal: "right" };
     c3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFEDF5" } };
