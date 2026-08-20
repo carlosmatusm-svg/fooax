@@ -3521,6 +3521,68 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 86. EL ESTATUS DE RENOVACIÓN SE GUARDA Y NO SE BORRA (Nery, 19-ago) —");
+  // «Marcan a cada clienta —renovó, no renovó, pendiente— y al día siguiente el
+  // sistema las regresa en blanco.» El estatus vivía en el localStorage del
+  // teléfono, junto a la captura del día, y al enviar el arqueo se borraba
+  // (`gestRenov={}`). Ahora vive en el servidor, por CRÉDITO y no por día.
+  // Con `monse` (admin real) porque la burbuja de prueba no tiene cartera: sin
+  // clientas por terminar no hay a quién marcarle estatus. Escribe sobre la
+  // copia desechable del día, como todo lo demás de la batería.
+  const cd86 = cm;
+  const ren86 = async () => j(await fetch(U + "/api/renovaciones", { headers: H(cd86) }));
+  const r86 = await ren86();
+  ok("el reporte de renovaciones responde", !!r86 && !r86.error, JSON.stringify(r86).slice(0, 70));
+  ok("y trae el catálogo de estados", Array.isArray(r86.estados) && r86.estados.length >= 6,
+    JSON.stringify(r86.estados));
+  ok("«Solo recuperación» está entre los estados (lo pidió Nery)",
+    (r86.estados || []).includes("Solo recuperación"));
+
+  // Se marca una clienta real de la cartera de prueba.
+  const cand = (r86.porTerminar || [])[0] || (r86.sinRenovar || [])[0];
+  ok("hay al menos una clienta a la que marcarle estatus", !!cand);
+  if (cand) {
+    const set86 = (estado) => j(fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+      body: JSON.stringify({ socio: cand.socio, producto: cand.producto, estado }) }).then((x) => x));
+    const g1 = await j(await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+      body: JSON.stringify({ socio: cand.socio, producto: cand.producto, estado: "Solo recuperación" }) }));
+    ok("se puede marcar «Solo recuperación»", g1.ok === true, JSON.stringify(g1).slice(0, 80));
+    ok("y queda con el nombre de quien la marcó", !!(g1.gestion && g1.gestion.por));
+
+    // LO QUE FALLABA: volver a pedir el reporte y que el estatus siga ahí.
+    const r86b = await ren86();
+    const todas = (r86b.porTerminar || []).concat(r86b.sinRenovar || []);
+    const mismo = todas.find((x) => String(x.socio) === String(cand.socio) && x.producto === cand.producto);
+    ok("al releer el reporte, el estatus SIGUE puesto (antes se borraba)",
+      mismo && mismo.estado === "Solo recuperación", "estado=" + String(mismo && mismo.estado));
+    ok("y deja de contar como renovación", mismo && mismo.esRenovacion === false);
+
+    // El conteo que pidió Dirección: de las por terminar, cuántas son reales.
+    const T = r86b.totales || {};
+    ok("el reporte separa renovación real de solo recuperación",
+      typeof T.porTerminarRenovacion === "number" && typeof T.porTerminarSoloRecuperacion === "number",
+      JSON.stringify(T).slice(0, 130));
+    ok("y los sumandos cuadran con el total",
+      (T.porTerminarRenovacion || 0) + (T.porTerminarSoloRecuperacion || 0) + (T.porTerminarNoQuiso || 0)
+        === (T.porTerminar || 0),
+      T.porTerminarRenovacion + "+" + T.porTerminarSoloRecuperacion + "+" + T.porTerminarNoQuiso
+        + " vs " + T.porTerminar);
+
+    // Se puede cambiar de opinión: el último estado manda.
+    const g2 = await j(await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+      body: JSON.stringify({ socio: cand.socio, producto: cand.producto, estado: "Renovó" }) }));
+    ok("se puede corregir el estatus", g2.ok === true);
+    const r86c = await ren86();
+    const otra = (r86c.porTerminar || []).concat(r86c.sinRenovar || [])
+      .find((x) => String(x.socio) === String(cand.socio) && x.producto === cand.producto);
+    ok("manda el último que se puso", otra && otra.estado === "Renovó", String(otra && otra.estado));
+    ok("y «Renovó» sí cuenta como renovación", otra && otra.esRenovacion === true);
+  }
+  // Un estado inventado no entra: si no, cada quien escribiría el suyo.
+  const malo = await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+    body: JSON.stringify({ socio: "999", producto: "X", estado: "Ahí la llevo" }) });
+  ok("un estado que no existe se rechaza", malo.status === 400, "status " + malo.status);
+
   console.log("\n— 85. LA ANULACIÓN DE DIRECCIÓN NO LA DESHACE EL SYNC (Karina, 19-ago) —");
   // Dirección DENTRO de la burbuja: `monse` es cuenta real y no ve los
   // movimientos del usuario de prueba (movsDeFecha separa las dos burbujas).

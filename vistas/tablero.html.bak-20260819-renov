@@ -2452,20 +2452,6 @@ async function cargarRenovaciones() {
         mm.montoTerminanEnElMes ? "les falta " + dinero(mm.montoTerminanEnElMes) + " por pagar" : "")
     + "</div>";
 
-  // EL DESGLOSE QUE PIDIÓ DIRECCIÓN (19-ago): «tengo 53 clientas por terminar y
-  // no puedo saber cuántas son renovación real». Ahora se dice, y se dice
-  // cuántas faltan por marcar — que es el trabajo pendiente de las ejecutivas.
-  const T = d.totales || {};
-  const desglose = T.porTerminar
-    ? '<div class="renrow" style="border-top:1px solid var(--linea);margin-top:8px;padding-top:10px">'
-      + '<span>De las <b>' + T.porTerminar + '</b> por terminar</span>'
-      + '<span class="rq"><b style="color:#0B7247">' + (T.porTerminarRenovacion || 0) + ' renovación real</b>'
-      + ' · <b style="color:#8E0019">' + (T.porTerminarSoloRecuperacion || 0) + ' solo recuperación</b>'
-      + (T.porTerminarNoQuiso ? ' · ' + T.porTerminarNoQuiso + ' no quiso' : "")
-      + (T.porTerminarSinMarcar ? ' · <b>' + T.porTerminarSinMarcar + ' sin marcar</b>' : "")
-      + "</span></div>"
-    : "";
-
   const ejec = (d.porEjecutivo || []).filter((g) => g.renovaron || g.terminaronEnElMes)
     .map((g) => "<b>" + hesc(g.ejecutivo) + "</b> renovó " + g.renovaron + ", no volvieron " + g.terminaronEnElMes
       + (g.tasa == null ? "" : ' (<b style="color:' + (g.tasa < 50 ? "#8E0019" : "#0B7247") + '">' + g.tasa + "%</b>)"))
@@ -2480,15 +2466,7 @@ async function cargarRenovaciones() {
     + '</span><span class="rq">' + (x.dias == null ? "" : '<b style=\"color:'
       + (x.dias >= 30 ? "#8E0019" : "#3A3350") + '\">' + x.dias + " días</b> · ")
     + "terminó " + dinero(x.monto) + "</span></div>").join("");
-  // El estado va junto al nombre: sin él, la lista no dice si alguien ya la
-  // trabajó. Gris cuando nadie la ha tocado, rojo cuando ya no va a renovar.
-  const etq = (x) => {
-    const e = x.estado || "Pendiente";
-    if (e === "Pendiente") return ' <span style="color:#6B6480;font-size:11px">sin marcar</span>';
-    const col = x.esRenovacion === false ? "#8E0019" : "#0B7247";
-    return ' <span style="color:' + col + ';font-size:11px;font-weight:700">' + hesc(e) + "</span>";
-  };
-  const l2 = (d.porTerminar || []).slice(0, 8).map((x) => '<div class="renrow"><span>' + quien(x) + etq(x)
+  const l2 = (d.porTerminar || []).slice(0, 8).map((x) => '<div class="renrow"><span>' + quien(x)
     + '</span><span class="rq"><b>' + x.semanas + (x.semanas === 1 ? " cuota" : " cuotas") + "</b> · debe "
     + dinero(x.saldoActual) + "</span></div>").join("");
   const t = d.totales || {};
@@ -2503,7 +2481,6 @@ async function cargarRenovaciones() {
     + '<div class="rensec">Por terminar (' + (d.semanasAviso || 3) + " cuotas o menos) — <span style=\"color:#324AB6\">"
     + (t.porTerminar || 0) + "</span> clientas · ofrecerles la renovación antes de que cierren</div>"
     + (l2 || '<div class="permeta">Ninguna por ahora.</div>')
-    + desglose
     + ((t.sinRenovar || 0) + (t.porTerminar || 0) > 16
         ? '<div class="permeta">Arriba van las que más urgen. La lista completa, con socio y día de cobro, está en el Excel.</div>' : "")
     + '<div class="permeta" style="color:#8E0019">Fuera de esta cuenta: ' + (f.vencidos || 0)

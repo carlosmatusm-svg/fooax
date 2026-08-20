@@ -2098,6 +2098,18 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
 // Lo que NO entra se cuenta y se dice, nunca se calla: un VENCIDO no es
 // renovación (va a recuperación, regla de la Ing. Monse del 4-ago), y los de
 // cuota variable (MAGNUS) no se pueden proyectar con la cuota del padrón.
+// LOS ESTADOS DE LA GESTIÓN DE RENOVACIÓN. Viven aquí, en el servidor, para
+// que la app y el tablero hablen el mismo idioma: si cada uno tuviera su lista,
+// una marca puesta en el teléfono no se entendería en Dirección.
+//
+// «Solo recuperación» lo pidió Nery (19-ago, y ya lo había pedido antes): son
+// las clientas que YA NO van a renovar y a las que nada más se les está
+// cobrando el saldo. Sin ese estado, la lista de «por terminar» mezclaba a las
+// que sí van a renovar con las que no, y el número no servía para planear.
+const ESTADOS_RENOV = ["Pendiente", "Contactada", "Interesada", "Renovó", "No quiso", "Solo recuperación"];
+// Las que ya NO cuentan como renovación por venir.
+const RENOV_FUERA = new Set(["No quiso", "Solo recuperación"]);
+
 function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
   const cv = carteraViva(usuario);
   const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
@@ -2154,6 +2166,10 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
 
   const sinRenovar = [], porTerminar = [];
   const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0 };
+  // En qué va cada clienta según la marcó su ejecutiva. Se lee del store, no
+  // del teléfono: antes vivía en el localStorage del aparato y se borraba al
+  // enviar el arqueo.
+  const gestion = store.gestionRenovaciones();
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     if (!mios.has(norm(c.ejecutivo))) continue;
@@ -2171,7 +2187,8 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
       const fin = [ultimoAbono[clave] || "", ultimaLiq[String(c.id)] || ""].sort().pop() || null;
       sinRenovar.push({ ...comun, monto: Number(c.saldo) || 0,
         fechaFin: fin, dias: fin ? diasEntre(fin, hoy) : null,
-        eraVencido: venc, cuota: Number(c.cuota) || 0 });
+        eraVencido: venc, cuota: Number(c.cuota) || 0,
+        gestion: gestion[clave] || null, estado: (gestion[clave] || {}).estado || "Pendiente" });
       continue;
     }
     if (info.saldoActual <= 0.009) continue;          // sin saldo original: nada que renovar
@@ -2182,9 +2199,14 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
     const faltan = Math.ceil((info.saldoActual - 0.009) / cuota);
     if (faltan > semanasAviso) continue;
     const fEstimada = fechaDeLaUltima(c.diaPago, faltan);
+    const gEst = (gestion[clave] || {}).estado || "Pendiente";
     porTerminar.push({ ...comun, saldoActual: Math.round(info.saldoActual * 100) / 100,
       cuota, semanas: faltan, monto: Number(c.saldo) || 0,
-      fechaEstimada: fEstimada, terminaEnElMes: !!fEstimada && fEstimada.slice(0, 7) === mes });
+      fechaEstimada: fEstimada, terminaEnElMes: !!fEstimada && fEstimada.slice(0, 7) === mes,
+      gestion: gestion[clave] || null, estado: gEst,
+      // ¿Sigue contando como renovación por venir? Una marcada «Solo
+      // recuperación» o «No quiso» ya no: se le está cobrando el saldo y ya.
+      esRenovacion: !RENOV_FUERA.has(gEst) });
   }
 
   // La que lleva MÁS tiempo sin renovar va primero: es la que más urge.
@@ -2266,9 +2288,17 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
       sinMovimiento: renovaron.length === 0 && (antesDelCorte || terminaronEnElMes.length === 0),
     },
     porEjecutivo: Object.values(porEjecutivo).sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo), "es")),
+    estados: ESTADOS_RENOV,
     totales: {
       sinRenovar: sinRenovar.length, montoSinRenovar: suma(sinRenovar),
       porTerminar: porTerminar.length, montoPorTerminar: suma(porTerminar),
+      // «Hoy tengo 53 clientas por terminar y no puedo saber cuántas son
+      // renovación real» (19-ago). Estas dos líneas son esa respuesta.
+      porTerminarRenovacion: porTerminar.filter((x) => x.esRenovacion).length,
+      porTerminarSoloRecuperacion: porTerminar.filter((x) => x.estado === "Solo recuperación").length,
+      porTerminarNoQuiso: porTerminar.filter((x) => x.estado === "No quiso").length,
+      porTerminarSinMarcar: porTerminar.filter((x) => x.estado === "Pendiente").length,
+      montoPorTerminarRenovacion: suma(porTerminar.filter((x) => x.esRenovacion)),
     },
     fuera,
   };
@@ -2532,6 +2562,52 @@ app.get("/api/renovaciones", requiere("direccion", "admin"), (req, res) => {
   res.json(reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes));
 });
 
+// LA GESTIÓN DE RENOVACIONES · leer y marcar
+//
+// La ejecutiva ve y marca LO SUYO; Dirección ve y marca todo. El estado se
+// guarda por CRÉDITO (socio + producto), no por día: es una decisión sobre la
+// clienta, no una captura de la jornada. Por eso sobrevive al cierre del día,
+// al cambio de teléfono y a que la app se reinstale.
+app.get("/api/renovaciones/gestion", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const mias = new Set(idsEjecutivos(req.usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const todo = store.gestionRenovaciones();
+  const out = {};
+  for (const clave in todo) {
+    const c = PADRON.find((x) => claveCredito(x.id, x.producto) === clave);
+    // Sin clienta en el padrón no se puede saber de quién es: se omite en vez
+    // de enseñársela a quien no le toca.
+    if (c && mias.has(norm(c.ejecutivo))) out[clave] = todo[clave];
+  }
+  res.json({ estados: ESTADOS_RENOV, gestion: out });
+});
+
+app.post("/api/renovaciones/gestion", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const b2 = req.body || {};
+  // La app manda socio + producto y el servidor arma la clave: así el teléfono
+  // no tiene que reproducir la normalización ("Foxi Plus - 2" vs "Foxi Plus 2")
+  // y no hay dos versiones de la misma regla que se puedan desincronizar.
+  const clave = b2.socio
+    ? claveCredito(String(b2.socio), String(b2.producto || ""))
+    : String(b2.clave || "").trim();
+  const estado = String(b2.estado || "").trim();
+  if (!clave) return res.status(400).json({ error: "Falta de qué crédito es." });
+  if (!ESTADOS_RENOV.includes(estado))
+    return res.status(400).json({ error: "Ese estado no existe. Válidos: " + ESTADOS_RENOV.join(", ") });
+  const c = PADRON.find((x) => claveCredito(x.id, x.producto) === clave);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito en el padrón." });
+  // Una ejecutiva no marca la cartera de otra. Dirección sí, porque a veces
+  // corrige lo que la ejecutiva dejó mal.
+  const mias = new Set(idsEjecutivos(req.usuario).map((id) => norm(USUARIOS[id].nombre)));
+  if (!mias.has(norm(c.ejecutivo)))
+    return res.status(403).json({ error: "Esa clienta no es de tu cartera." });
+  const g = store.setGestionRenovacion({
+    clave, estado, por: req.usuario.nombre, rol: req.usuario.rol,
+    clienta: c.nombre, socio: String(c.id), producto: c.producto,
+    ejecutivo: c.ejecutivo, fecha: hoyMX(), ts: Date.now(),
+  });
+  res.json({ ok: true, gestion: g });
+});
+
 app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, res) => {
   const d = reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
@@ -2559,7 +2635,8 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
 
   const s1 = hoja("No renovaron", "FOOAX · YA TERMINARON Y NO HAN RENOVADO (todas, sin importar el mes) · al " + d.hoy,
     [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
-     ["Monto del crédito que terminó", 18], ["Terminó de pagar el", 16], ["Días sin renovar", 14], ["Nota", 26]]);
+     ["Monto del crédito que terminó", 18], ["Terminó de pagar el", 16], ["Días sin renovar", 14],
+     ["Gestión", 17], ["Marcó", 14], ["Nota", 26]]);
   let f = 3;
   for (const x of d.sinRenovar) {
     const r = s1.getRow(f++);
@@ -2567,7 +2644,9 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
     r.getCell(6).value = x.monto; r.getCell(6).numFmt = MONEDA;
     r.getCell(7).value = x.fechaFin || "—";
     r.getCell(8).value = x.dias == null ? "—" : x.dias;
-    r.getCell(9).value = x.eraVencido ? "Era crédito VENCIDO: fue recuperación" : "";
+    r.getCell(9).value = x.estado || "Pendiente";
+    r.getCell(10).value = (x.gestion && x.gestion.por) || "—";
+    r.getCell(11).value = x.eraVencido ? "Era crédito VENCIDO: fue recuperación" : "";
     // Más de un mes sin renovar se ve en rojo: es la que se está enfriando.
     if ((x.dias || 0) >= 30) r.getCell(8).font = { bold: true, color: { argb: ROJO } };
   }
@@ -2579,7 +2658,7 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
   const s2 = hoja("Por terminar", "FOOAX · POR TERMINAR — RENOVACIÓN PENDIENTE (" + d.semanasAviso + " cuotas o menos) · al " + d.hoy,
     [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
      ["Día de cobro", 13], ["Saldo que le queda", 16], ["Cuota", 12], ["Cuotas que le faltan", 14],
-     ["Termina (estimado)", 15]]);
+     ["Termina (estimado)", 15], ["Gestión", 17], ["¿Renovación?", 13], ["Marcó", 14]]);
   f = 3;
   for (const x of d.porTerminar) {
     const r = s2.getRow(f++);
@@ -2589,11 +2668,23 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
     r.getCell(8).value = x.cuota; r.getCell(8).numFmt = MONEDA;
     r.getCell(9).value = x.semanas;
     r.getCell(10).value = x.fechaEstimada || "—";
+    r.getCell(11).value = x.estado || "Pendiente";
+    // La columna que contesta «¿cuántas son renovación real?» de un vistazo.
+    r.getCell(12).value = x.esRenovacion ? "Sí" : "No";
+    r.getCell(13).value = (x.gestion && x.gestion.por) || "—";
     if (x.semanas <= 1) r.getCell(9).font = { bold: true, color: { argb: ROJO } };
     if (x.terminaEnElMes) r.getCell(10).font = { bold: true, color: { argb: RIO } };
+    if (!x.esRenovacion) r.getCell(12).font = { bold: true, color: { argb: ROJO } };
   }
   const t2 = s2.getRow(f++);
   t2.getCell(5).value = "TOTAL · " + d.totales.porTerminar + " clientas";
+  // El desglose que pidió Dirección: de las que están por terminar, cuántas
+  // son renovación de verdad y cuántas solo se están recuperando.
+  t2.getCell(11).value = d.totales.porTerminarRenovacion + " renovación · "
+    + d.totales.porTerminarSoloRecuperacion + " solo recuperación · "
+    + d.totales.porTerminarNoQuiso + " no quiso · "
+    + d.totales.porTerminarSinMarcar + " sin marcar";
+  t2.getCell(11).font = { bold: true };
   t2.getCell(7).value = Math.round(d.porTerminar.reduce((a2, x) => a2 + (x.saldoActual || 0), 0) * 100) / 100;
   t2.getCell(7).numFmt = MONEDA;
   [5, 7].forEach((i) => (t2.getCell(i).font = { bold: true }));

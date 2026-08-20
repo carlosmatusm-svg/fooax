@@ -566,7 +566,10 @@ function __despuesDeEnviar(){
   try{localStorage.removeItem(STORE_KEY);}catch(e){}
   reg={};regI={};movs=[];folioSeq=0;
   arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
-  if(typeof gestRenov!=='undefined')gestRenov={};
+  // El estatus de renovación NO se borra al enviar el arqueo (Nery, 19-ago:
+  // «marcan y al día siguiente el sistema las regresa en blanco»). Es una
+  // decisión sobre la clienta, no una captura del día. Vive en el servidor
+  // y se vuelve a leer; aquí solo se conserva lo que ya se tenía en pantalla.
   if(typeof tareasGerente!=='undefined')tareasGerente={};
   window._reporteEnviado=false;
   try{document.getElementById('inpFecha').value=(window.__hoyServidor||hoyISO());}catch(e){}
@@ -1571,7 +1574,11 @@ function clientasRenov(){
   out.sort((a,b)=>b.avance-a.avance);
   return out;
 }
-const ESTADOS_RENOV=['Pendiente','Contactada','Interesada','Renovó','No quiso'];
+// 'Solo recuperación' lo pidió Nery: las que YA NO van a renovar y a las que
+// nada más se les cobra el saldo. Sin ese estado, la lista de pendientes
+// mezclaba a las que sí van a renovar con las que no.
+const ESTADOS_RENOV=['Pendiente','Contactada','Interesada','Renovó','No quiso','Solo recuperación'];
+const RENOV_FUERA=['No quiso','Solo recuperación'];
 function renderRenov(){
   const cont=document.getElementById('listaRenov');if(!cont)return;
   const lista=clientasRenov();
@@ -1625,14 +1632,79 @@ function renderRenov(){
   h+='</div>';cont.innerHTML=h;
 }
 function setRenov(k,estado){
+  // Se pinta de inmediato (que no se sienta lento) y se manda al servidor. Si
+  // el envío falla, se avisa y se vuelve a leer lo que sí está guardado: más
+  // vale que se vea el estado real a que se quede una marca que no existe.
+  const antes=gestRenov[k]?JSON.parse(JSON.stringify(gestRenov[k])):null;
   gestRenov[k]={estado:estado,fecha:document.getElementById('inpFecha').value||hoyISO(),por:EJECUTIVO,ts:Date.now()};
   renderRenov();guardar();recalc();
+  const r=(clientasRenov()||[]).find(function(x){return x.k===k;});
+  if(!r)return;
+  fetch('/api/renovaciones/gestion',{method:'POST',headers:{'Content-Type':'application/json'},
+    credentials:'include',body:JSON.stringify({socio:r.f,producto:r.sub,estado:estado})})
+    .then(function(res){return res.json().catch(function(){return {};});})
+    .then(function(j){
+      if(j&&j.error){
+        if(antes)gestRenov[k]=antes;else delete gestRenov[k];
+        renderRenov();guardar();
+        alert('No se pudo guardar el estatus: '+j.error);
+      }
+    })
+    .catch(function(){
+      // Sin señal no se deshace: queda marcado en el teléfono y se reintenta
+      // al volver a abrir. Perder la marca por una raya de red sería peor.
+      pendienteRenov[k]={socio:r.f,producto:r.sub,estado:estado};
+      try{localStorage.setItem('fooax_renov_pend_'+EJECUTIVO_BASE,JSON.stringify(pendienteRenov));}catch(e){}
+    });
+}
+// Marcas que no alcanzaron a subir por falta de señal. Se reintentan al abrir.
+let pendienteRenov={};
+try{pendienteRenov=JSON.parse(localStorage.getItem('fooax_renov_pend_'+EJECUTIVO_BASE)||'{}');}catch(e){pendienteRenov={};}
+// Trae del servidor en qué va cada clienta. Es la fuente de verdad: el
+// teléfono solo la muestra.
+function cargarGestionRenov(){
+  return fetch('/api/renovaciones/gestion',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d||!d.gestion)return;
+      // El servidor entrega la clave ya normalizada; aquí se busca a qué
+      // clienta de la pantalla le toca, por socio y producto.
+      const porSocio={};
+      for(const cl in d.gestion){const g=d.gestion[cl];(porSocio[String(g.socio)]=porSocio[String(g.socio)]||[]).push(g);}
+      (clientasRenov()||[]).forEach(function(r2){
+        const cands=porSocio[String(r2.f)];if(!cands||!cands.length)return;
+        const np=function(x){return String(x||'').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g,'');};
+        const g=cands.find(function(c){return np(c.producto)===np(r2.sub);})||(cands.length===1?cands[0]:null);
+        if(g)gestRenov[r2.k]={estado:g.estado,fecha:g.fecha,por:g.por,ts:g.ts};
+      });
+      renderRenov();recalc();
+    })
+    .catch(function(){});
+}
+// Reintenta lo que quedó sin subir. Se llama al abrir, después de cargar.
+function reintentarRenov(){
+  const ks=Object.keys(pendienteRenov||{});if(!ks.length)return;
+  ks.forEach(function(k){
+    const x=pendienteRenov[k];
+    fetch('/api/renovaciones/gestion',{method:'POST',headers:{'Content-Type':'application/json'},
+      credentials:'include',body:JSON.stringify(x)})
+      .then(function(r){return r.json().catch(function(){return {};});})
+      .then(function(j){if(j&&j.ok){delete pendienteRenov[k];
+        try{localStorage.setItem('fooax_renov_pend_'+EJECUTIVO_BASE,JSON.stringify(pendienteRenov));}catch(e){}}})
+      .catch(function(){});
+  });
 }
 function renovPendientes(){
   const lista=clientasRenov();
-  let pend=0;
-  lista.forEach(r=>{const g=gestRenov[r.k];if(!g||g.estado==='Pendiente')pend++;});
-  return {total:lista.length, pendientes:pend};
+  let pend=0, recup=0, renovables=0;
+  lista.forEach(r=>{
+    const g=gestRenov[r.k];
+    const est=(g&&g.estado)||'Pendiente';
+    if(RENOV_FUERA.indexOf(est)>=0){recup++;return;}   // ya no es renovación
+    renovables++;
+    if(est==='Pendiente')pend++;
+  });
+  return {total:lista.length, pendientes:pend, soloRecuperacion:recup, renovables:renovables};
 }
 function buildExportRenov(){
   const fecha=document.getElementById('inpFecha').value||hoyISO();
@@ -2303,6 +2375,7 @@ function preguntarPostCierre(){
   };
 }
 initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();preguntarPostCierre();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
+if(typeof cargarGestionRenov==='function'){cargarGestionRenov().then(function(){reintentarRenov();});}
 avisarWebView();reforzarToque();
 // reforzar toque cada vez que se redibuja contenido
 const _obs=new MutationObserver(()=>reforzarToque());

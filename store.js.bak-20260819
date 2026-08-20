@@ -16,14 +16,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;
-const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [],
-  // Gestión de renovaciones: en qué va cada clienta que está por terminar
-  // (Pendiente, Contactada, Renovó, Solo recuperación…). Vivía en el
-  // localStorage del teléfono junto con la captura del día, así que al
-  // enviar el arqueo se borraba y había que remarcar todo al día siguiente
-  // (lo reportó Nery el 19-ago). Append-only, como los ajustes: cada marca
-  // se agrega encima y queda quién la puso y cuándo.
-  renov: [] };
+const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [] };
 
 // ¿ENTRA O SALE ESE DINERO? Desde el 6-ago el movimiento lo trae escrito
 // (`entrada`), porque el concepto se elige de un catálogo. Los ANTERIORES no lo
@@ -150,9 +143,6 @@ async function init() {
     // garantías, arqueo). Append-only: nunca se borra nada, se agrega la
     // corrección encima y queda quién la hizo y por qué.
     await pool.query("CREATE TABLE IF NOT EXISTS cobranza_ajustes (id serial PRIMARY KEY, data jsonb, ts bigint)");
-    // Gestión de renovaciones por crédito. Append-only: el estado vigente es
-    // el último de cada clave, y el historial queda para saber quién movió qué.
-    await pool.query("CREATE TABLE IF NOT EXISTS renov_gestion (id serial PRIMARY KEY, data jsonb, ts bigint)");
     // Historial de snapshots: cada vez que un sync REEMPLAZA la foto de un día,
     // la versión anterior se archiva aquí (append-only). Así una captura con
     // fecha equivocada nunca destruye cobranza real: siempre es recuperable.
@@ -181,8 +171,6 @@ async function init() {
     // base y NUNCA tumba el arranque.
     const aj = await pool.query("SELECT data FROM cobranza_ajustes ORDER BY ts");
     mem.ajustes = aj.rows.map((r) => r.data);
-    const gr = await pool.query("SELECT data FROM renov_gestion ORDER BY ts");
-    mem.renov = gr.rows.map((r) => r.data);
     const cb = await pool.query("SELECT data FROM padron_cambios ORDER BY ts");
     mem.cambios = cb.rows.map((r) => r.data);
 
@@ -211,7 +199,6 @@ async function init() {
     try { mem.padronBase = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8")); } catch { mem.padronBase = []; }
     try { mem.cambios = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron_cambios.json"), "utf8")); } catch { mem.cambios = []; }
     try { mem.ajustes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "cobranza_ajustes.json"), "utf8")); } catch { mem.ajustes = []; }
-    try { mem.renov = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "renov_gestion.json"), "utf8")); } catch { mem.renov = []; }
     try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
@@ -375,27 +362,6 @@ module.exports = {
   // habría que acordarse de aplicarla en cada cálculo — y tarde o temprano se
   // olvida uno. Así, TODO lo que lea un snapshot ya lo lee corregido.
   ajustesCobranza() { return mem.ajustes; },
-
-  // ---- GESTIÓN DE RENOVACIONES ----
-  // El estado VIGENTE de cada crédito es el último que se guardó. Se devuelve
-  // ya resuelto en un mapa clave→estado para que nadie tenga que recorrer el
-  // historial: quien pregunta quiere saber en qué va la clienta HOY.
-  gestionRenovaciones() {
-    const out = {};
-    for (const g of mem.renov) if (g && g.clave) out[g.clave] = g;
-    return out;
-  },
-  // Historial completo de una clave (para auditar quién la movió y cuándo).
-  historialRenovacion(clave) { return mem.renov.filter((g) => g && g.clave === clave); },
-  setGestionRenovacion(g) {
-    mem.renov.push(g);
-    if (usePg) {
-      pool.query("INSERT INTO renov_gestion (data, ts) VALUES ($1,$2)", [g, g.ts])
-        .catch((e) => console.error("[store] renov:", e.message));
-    } else escribirJSON("renov_gestion.json", mem.renov);
-    return g;
-  },
-
   agregarAjusteCobranza(a) {
     mem.ajustes.push(a);
     persistAjuste(a);
