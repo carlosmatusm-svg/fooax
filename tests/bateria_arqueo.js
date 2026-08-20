@@ -3521,6 +3521,39 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 84. UNA ANULACIÓN EQUIVOCADA SE PUEDE DESHACER (Karina, 19-ago) —");
+  // Monse anuló dos liquidaciones «por error de captura» y luego resultó que
+  // no eran las que había que anular. Anular nunca borra —el movimiento se
+  // tacha— pero NO había forma de destacharlo desde la pantalla: el endpoint
+  // aceptaba `anular:false` desde siempre y nadie lo llamaba. Una anulación
+  // equivocada solo se deshacía entrando a la base de datos.
+  const mov84 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 1234.56, metodo: "efectivo",
+      concepto: "Gasolina", fecha: HOY }) }));
+  const f84 = mov84.folio || (mov84.movimiento && mov84.movimiento.folio);
+  const dame84 = async () => ((await j(await fetch(U + "/api/movimientos?fecha=" + HOY,
+    { headers: H(cm) }))).lista || []).find((x) => x.folio === f84);
+  ok("se registra el movimiento de la prueba", !!f84, JSON.stringify(mov84).slice(0, 70));
+  const an84 = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ folio: f84, motivo: "ERROR DE CAPTURA", fecha: HOY }) }));
+  ok("se anula, con su motivo obligatorio", an84.ok === true && an84.anulado === true);
+  const v84a = await dame84();
+  ok("queda tachado, con quién lo anuló y por qué",
+    v84a && v84a.anulado === true && !!v84a.anuladoPor, JSON.stringify(v84a || {}).slice(0, 90));
+  // REACTIVAR: el reverso exacto
+  const re84 = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ folio: f84, anular: false, fecha: HOY }) }));
+  ok("REACTIVAR deshace la anulación", re84.ok === true && re84.anulado === false);
+  const v84b = await dame84();
+  ok("el movimiento vuelve a estar vivo", v84b && v84b.anulado !== true);
+  ok("y no se perdió nada: mismo folio y mismo monto",
+    v84b && v84b.folio === f84 && Number(v84b.monto) === 1234.56);
+  ok("reactivar no exige motivo (anular sí, porque cambia la caja del día)", re84.ok === true);
+  // Y se puede volver a anular: la operación es reversible en los dos sentidos.
+  const an84b = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ folio: f84, motivo: "otra vez", fecha: HOY }) }));
+  ok("se puede volver a anular después de reactivar", an84b.ok === true && an84b.anulado === true);
+
   console.log("\n— 82. EL ACUMULADO ES LA SUMA DE LOS DÍAS, Y SE PUEDE COMPROBAR (Karina, 18-ago) —");
   // «Del lunes $2,976.50 y del martes $5,886 — eso está mal.» El acumulado
   // contaba SOLO el pago hecho ESE día exacto, mientras el bloque de arriba

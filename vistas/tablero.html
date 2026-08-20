@@ -250,6 +250,12 @@
   .mi-anular{background:none;border:1px solid var(--linea);color:var(--gris);font:700 11px inherit;
     border-radius:99px;padding:3px 10px;margin-left:10px;cursor:pointer;flex:0 0 auto}
   .mi-anular:hover{border-color:#B00020;color:#B00020}
+  /* Reactivar: el reverso de Anular. El endpoint siempre lo soportó
+     (anular:false «revive»), pero no había forma de llamarlo desde la pantalla:
+     una anulación por error solo se podía deshacer entrando a la base. */
+  .mi-revivir{background:none;border:1px solid var(--linea);color:var(--gris);font:700 11px inherit;
+    border-radius:8px;padding:3px 9px;cursor:pointer;white-space:nowrap}
+  .mi-revivir:hover{border-color:#0B7247;color:#0B7247}
   .movitem{background:var(--tarjeta);border:1px solid var(--linea);border-radius:13px;
     padding:11px 13px;display:flex;align-items:center;gap:10px}
   .movitem .mi-info{flex:1;min-width:0}
@@ -1366,6 +1372,32 @@ async function anularMov(folio) {
   await cargarMovs();
   if (typeof cargarArqueo === "function") cargarArqueo();   // el arqueo cambia al anular
 }
+// REACTIVAR un movimiento anulado. Es el reverso exacto de anularMov: el
+// endpoint acepta `anular:false` desde siempre («con false se revive»), pero
+// nadie lo llamaba, así que una anulación equivocada no tenía vuelta atrás
+// desde la pantalla.
+//
+// El aviso de las liquidaciones no es adorno: «liquidado» NO es una marca que
+// se prenda aparte, es un CÁLCULO — saldo − pagado − liquidado — y los
+// movimientos anulados se saltan. Reactivar una liquidación vuelve a bajar el
+// saldo del crédito a cero en el mismo acto. Quien lo reactiva tiene que
+// saberlo antes, no después.
+async function reactivarMov(folio) {
+  const m = (MOVS_VISTA || []).find((x) => x.folio === folio) || {};
+  const esLiq = /(liquidaci|recuperaci)/i.test(String(m.categoria || "") + " " + String(m.concepto || ""));
+  const aviso = "Se va a DESHACER la anulación de este movimiento: vuelve a contar en la caja del día."
+    + (esLiq ? "\n\nOJO: es una " + String(m.concepto || "liquidación").split(" · ")[0]
+             + ". Al reactivarla, el crédito de esa clienta vuelve a quedar LIQUIDADO (saldo en cero),"
+             + " porque el saldo se calcula descontando las liquidaciones vivas." : "")
+    + "\n\n¿Continuar?";
+  if (!confirm(aviso)) return;
+  const r = await fetch("/api/movimiento/anular", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folio, anular: false, fecha: FECHA_VISTA || undefined }) });
+  const j = await r.json().catch(() => ({}));
+  if (j.error) { alert(j.error); return; }
+  await cargarMovs();
+  if (typeof cargarArqueo === "function") cargarArqueo();   // el arqueo cambia al reactivar
+}
 async function registrarMov(e) {
   e.preventDefault();
   const err = $("movErr"); err.classList.remove("on");
@@ -1519,12 +1551,16 @@ async function cargarCajaSemana() {
     + '<path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M4 19h16"/></svg>'
     + "<span>Descargar este cierre en Excel</span></button>";
 }
+// La última lista pintada. La usa reactivarMov para saber si el movimiento
+// que se va a revivir es una liquidación (y avisar de la consecuencia).
+let MOVS_VISTA = [];
 async function cargarMovs() {
   cargarEjecutivos(); armarBuscadorClienta(); cargarCajaSemana(); cargarConceptos();
   let d;
   try { d = await (await fetch("/api/movimientos" + fq(), { credentials: "include" })).json(); }
   catch { return; }
   const cont = $("movLista");
+  MOVS_VISTA = d.lista || [];
   if (!d.lista || !d.lista.length) { cont.innerHTML = ""; return; }
   // Título del movimiento: si la categoría es el genérico "Otro", mostramos el
   // TIPO real (Liquidación, Comisión, Recuperación…) que viene al inicio del
@@ -1551,7 +1587,9 @@ async function cargarMovs() {
     // Anular: nunca borra, deja el movimiento tachado con quién y por qué. Los
     // que captura la ejecutiva se anulan en SU app; este botón es para los que
     // registra Dirección (folio DIR-…), que antes no tenían forma de quitarse.
-    + (m.anulado ? "" : '<button class="mi-anular" title="Anular este movimiento" onclick="anularMov(\'' + m.folio + '\')">Anular</button>')
+    + (m.anulado
+        ? '<button class="mi-revivir" title="Deshacer la anulación de este movimiento" onclick="reactivarMov(\'' + m.folio + '\')">Reactivar</button>'
+        : '<button class="mi-anular" title="Anular este movimiento" onclick="anularMov(\'' + m.folio + '\')">Anular</button>')
     + "</div>"
   ).join("")
   // Los netos (entradas − salidas), no los brutos: al lado de "Salidas −$100" un
