@@ -280,7 +280,23 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
     for (const viejo of store.movimientosDeFecha(fecha)) {
       if (!String(viejo.folio).startsWith(prefijo)) continue;   // solo los SUYOS
       if (!presentes.has(viejo.folio) && !viejo.anulado) store.setMovimientoAnulado(viejo.folio, true);
-      if (presentes.has(viejo.folio) && viejo.anulado) store.setMovimientoAnulado(viejo.folio, false);
+      // REVIVIR SOLO LO QUE ANULÓ LA PROPIA SINCRONIZACIÓN (Karina, 19-ago).
+      //
+      // Antes esta línea revivía CUALQUIER anulado que la app volviera a mandar,
+      // y con eso deshacía las decisiones de Dirección: Monse anulaba dos
+      // liquidaciones de Julio por error de captura, la app de Julio seguía
+      // trayéndolas en su lista y al siguiente sync el servidor las revivía
+      // solo. Los créditos volvían a quedar liquidados y el arqueo le pedía a
+      // Julio el DOBLE ($324,999.94 por $162,499.97 de cobranza), porque el
+      // mismo dinero contaba como su efectivo y otra vez como "otros".
+      //
+      // La diferencia está en `anuladoPor`: cuando anula una PERSONA desde el
+      // tablero se guarda su nombre y su motivo; cuando lo anula esta misma
+      // función (porque la ejecutiva lo quitó de su app) va sin nombre. Solo se
+      // revive lo segundo. Una anulación de Dirección se deshace a mano, con el
+      // botón «Reactivar» — que para eso existe.
+      if (presentes.has(viejo.folio) && viejo.anulado && !viejo.anuladoPor)
+        store.setMovimientoAnulado(viejo.folio, false);
     }
   }
   for (const m of lista) {

@@ -3521,6 +3521,47 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 85. LA ANULACIÓN DE DIRECCIÓN NO LA DESHACE EL SYNC (Karina, 19-ago) —");
+  // Dirección DENTRO de la burbuja: `monse` es cuenta real y no ve los
+  // movimientos del usuario de prueba (movsDeFecha separa las dos burbujas).
+  const cd85 = await login("pruebadir", "PruebaFOOAX2026");
+  // «Entró Monse al crédito y lo anuló… es que ya están liquidados… ahora le
+  // pide lo doble.» Monse anuló dos liquidaciones de Julio por error de
+  // captura. La app de Julio las seguía trayendo en su lista, y en el siguiente
+  // sync el servidor las REVIVÍA solo. Resultado: los créditos volvían a quedar
+  // liquidados, y el arqueo le pedía a Julio $324,999.94 por $162,499.97 de
+  // cobranza — el mismo dinero contado como su efectivo Y otra vez como "otros".
+  const sync85 = (movs) => fetch(U + "/api/sync", { method: "POST", headers: H(ce),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs } }) });
+  const M85 = [{ folio: "L85", monto: 4321, concepto: "GASTO", nota: "Gasolina de la ruta" }];
+  await sync85(M85);
+  const mios85 = async () => ((await j(await fetch(U + "/api/movimientos?fecha=" + HOY,
+    { headers: H(cd85) }))).lista || []).filter((x) => /L85$/.test(String(x.folio)));
+  const n85 = (await mios85())[0];
+  ok("la ejecutiva captura un movimiento en su app y llega al tablero", !!n85,
+    JSON.stringify(n85 || {}).slice(0, 80));
+
+  // Dirección lo anula, con nombre y motivo.
+  const anD = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cd85),
+    body: JSON.stringify({ folio: n85.folio, motivo: "ERROR DE CAPTURA", fecha: HOY }) }));
+  ok("Dirección lo anula desde el tablero", anD.ok === true);
+  ok("y queda con el nombre de quien lo anuló", !!(await mios85())[0].anuladoPor);
+
+  // La app vuelve a sincronizar CON el movimiento todavía en su lista.
+  await sync85(M85);
+  const tras = (await mios85())[0];
+  ok("tras el sync, la anulación de Dirección SIGUE puesta (antes revivía sola)",
+    tras && tras.anulado === true, "anulado=" + String(tras && tras.anulado));
+  ok("y conserva quién y por qué", !!(tras && tras.anuladoPor) && !!(tras && tras.anuladoMotivo));
+
+  // El automatismo de la app (quitarlo de la lista lo anula, volverlo a poner lo
+  // revive) NO se toca con este cambio y no se re-verifica aquí: depende de
+  // `permitirAnular`, que se apaga cuando el día ya está cerrado — y a esta
+  // altura de la batería el día de `prueba` ya cerró. Lo que sí importa probar
+  // es que la decisión de Dirección sobreviva, que es lo de arriba.
+  await sync85(M85);
+  ok("y tras otro sync más, la de Dirección sigue anulada", (await mios85())[0]?.anulado === true);
+
   console.log("\n— 84. UNA ANULACIÓN EQUIVOCADA SE PUEDE DESHACER (Karina, 19-ago) —");
   // Monse anuló dos liquidaciones «por error de captura» y luego resultó que
   // no eran las que había que anular. Anular nunca borra —el movimiento se
