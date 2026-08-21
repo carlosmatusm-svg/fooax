@@ -2169,7 +2169,15 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
   // En qué va cada clienta según la marcó su ejecutiva. Se lee del store, no
   // del teléfono: antes vivía en el localStorage del aparato y se borraba al
   // enviar el arqueo.
-  const gestion = store.gestionRenovaciones();
+  const gestionCruda = store.gestionRenovaciones();
+  // Solo vale la marca puesta en el ciclo que la clienta trae HOY. La de un
+  // ciclo anterior se ignora (queda en el historial, pero no manda).
+  const gestionDe = (clave, c) => {
+    const g = gestionCruda[clave];
+    if (!g) return null;
+    const cicloHoy = Number(c.ciclo) || 1;
+    return (Number(g.ciclo) || 1) === cicloHoy ? g : null;
+  };
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     if (!mios.has(norm(c.ejecutivo))) continue;
@@ -2188,7 +2196,7 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
       sinRenovar.push({ ...comun, monto: Number(c.saldo) || 0,
         fechaFin: fin, dias: fin ? diasEntre(fin, hoy) : null,
         eraVencido: venc, cuota: Number(c.cuota) || 0,
-        gestion: gestion[clave] || null, estado: (gestion[clave] || {}).estado || "Pendiente" });
+        gestion: gestionDe(clave, c), estado: (gestionDe(clave, c) || {}).estado || "Pendiente" });
       continue;
     }
     if (info.saldoActual <= 0.009) continue;          // sin saldo original: nada que renovar
@@ -2199,11 +2207,12 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
     const faltan = Math.ceil((info.saldoActual - 0.009) / cuota);
     if (faltan > semanasAviso) continue;
     const fEstimada = fechaDeLaUltima(c.diaPago, faltan);
-    const gEst = (gestion[clave] || {}).estado || "Pendiente";
+    const gAct = gestionDe(clave, c);
+    const gEst = (gAct || {}).estado || "Pendiente";
     porTerminar.push({ ...comun, saldoActual: Math.round(info.saldoActual * 100) / 100,
       cuota, semanas: faltan, monto: Number(c.saldo) || 0,
       fechaEstimada: fEstimada, terminaEnElMes: !!fEstimada && fEstimada.slice(0, 7) === mes,
-      gestion: gestion[clave] || null, estado: gEst,
+      gestion: gAct, estado: gEst,
       // ¿Sigue contando como renovación por venir? Una marcada «Solo
       // recuperación» o «No quiso» ya no: se le está cobrando el saldo y ya.
       esRenovacion: !RENOV_FUERA.has(gEst) });
@@ -2247,19 +2256,37 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
     for (const x of lista) {
       const e = x.ejecutivo || "—";
       porEjecutivo[e] = porEjecutivo[e] || { ejecutivo: e, sinRenovar: 0, montoSinRenovar: 0,
-        porTerminar: 0, montoPorTerminar: 0, renovaron: 0, montoRenovado: 0, terminaronEnElMes: 0 };
+        porTerminar: 0, montoPorTerminar: 0, renovaron: 0, montoRenovado: 0, terminaronEnElMes: 0,
+        // SEGUIMIENTO: en qué va cada ejecutiva con su propia lista. Es lo que
+        // Dirección preguntó — no solo cuántas hay, sino quién las está
+        // trabajando y a quién le falta.
+        marcadas: 0, sinMarcar: 0, soloRecuperacion: 0, renovacionReal: 0 };
       porEjecutivo[e][campo]++;
       porEjecutivo[e][montoCampo] = Math.round((porEjecutivo[e][montoCampo] + (x.monto || 0)) * 100) / 100;
     }
+  };
+  // El seguimiento se cuenta sobre las que están POR TERMINAR: son las que
+  // todavía se pueden trabajar. Las que ya cerraron sin renovar son historia.
+  const seguimiento = (x) => {
+    const e = x.ejecutivo || "—";
+    if (!porEjecutivo[e]) return;
+    if ((x.estado || "Pendiente") === "Pendiente") porEjecutivo[e].sinMarcar++;
+    else porEjecutivo[e].marcadas++;
+    if (x.estado === "Solo recuperación") porEjecutivo[e].soloRecuperacion++;
+    if (x.esRenovacion) porEjecutivo[e].renovacionReal++;
   };
   cuenta(sinRenovar, "sinRenovar", "montoSinRenovar");
   cuenta(porTerminar, "porTerminar", "montoPorTerminar");
   cuenta(renovaron, "renovaron", "montoRenovado");
   cuenta(terminaronEnElMes, "terminaronEnElMes", "montoSinRenovarDelMes");
   // La tasa por ejecutivo se calcula al final, ya con las dos cuentas hechas.
+  for (const x of porTerminar) seguimiento(x);
   for (const g of Object.values(porEjecutivo)) {
     const cierra = g.renovaron + g.terminaronEnElMes;
     g.tasa = (!antesDelCorte && cierra > 0) ? Math.round((g.renovaron / cierra) * 100) : null;
+    // Qué tanto de SU lista ya trabajó. Sin esto, "tiene 20 por terminar" no
+    // dice si ya las visitó o si no las ha tocado.
+    g.avanceGestion = g.porTerminar > 0 ? Math.round((g.marcadas / g.porTerminar) * 100) : null;
   }
 
   const suma = (l) => Math.round(l.reduce((a, x) => a + (x.monto || 0), 0) * 100) / 100;
@@ -2603,6 +2630,13 @@ app.post("/api/renovaciones/gestion", requiere("ejecutivo", "direccion", "admin"
   const g = store.setGestionRenovacion({
     clave, estado, por: req.usuario.nombre, rol: req.usuario.rol,
     clienta: c.nombre, socio: String(c.id), producto: c.producto,
+    // EL CICLO ES PARTE DE LA MARCA. La clave es socio+producto, así que una
+    // clienta que renueva el MISMO producto conserva la clave — y sin esto
+    // arrastraría el "Renovó" del ciclo anterior a su crédito nuevo, y llegaría
+    // al final del ciclo siguiente ya marcada como trabajada sin que nadie la
+    // haya tocado. Al abrirse un ciclo nuevo, la marca vieja deja de aplicar y
+    // la clienta vuelve a Pendiente, que es lo correcto: es otro crédito.
+    ciclo: Number(c.ciclo) || 1,
     ejecutivo: c.ejecutivo, fecha: hoyMX(), ts: Date.now(),
   });
   res.json({ ok: true, gestion: g });
@@ -2714,7 +2748,11 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
   const s3 = hoja("Por ejecutivo", "FOOAX · RENOVACIONES POR EJECUTIVO · " + d.mes + " · al " + d.hoy,
     [["Ejecutivo", 16], ["Renovó en el mes", 14], ["Monto renovado", 16], ["Cerró y no volvió (mes)", 15],
      ["Tasa de renovación", 14], ["No renovaron (todas)", 15], ["Monto que terminó", 17],
-     ["Por terminar", 13], ["Monto por terminar", 17]]);
+     ["Por terminar", 13], ["Monto por terminar", 17],
+     // SEGUIMIENTO: lo que Dirección preguntó — no cuántas tiene, sino cuántas
+     // ya trabajó y cuántas ni ha tocado.
+     ["Ya marcadas", 12], ["Sin marcar", 12], ["Avance gestión", 13],
+     ["Renovación real", 14], ["Solo recuperación", 15]]);
   f = 3;
   for (const g of d.porEjecutivo) {
     const r = s3.getRow(f++);
@@ -2726,6 +2764,15 @@ app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, r
     if (g.tasa != null && g.tasa < 50) r.getCell(5).font = { bold: true, color: { argb: ROJO } };
     r.getCell(6).value = g.sinRenovar;
     r.getCell(7).value = g.montoSinRenovar; r.getCell(7).numFmt = MONEDA;
+    r.getCell(10).value = g.marcadas || 0;
+    r.getCell(11).value = g.sinMarcar || 0;
+    r.getCell(12).value = g.avanceGestion == null ? "—" : g.avanceGestion + "%";
+    r.getCell(13).value = g.renovacionReal || 0;
+    r.getCell(14).value = g.soloRecuperacion || 0;
+    // Lo que no se ha tocado se ve: es la tarea pendiente de esa ejecutiva.
+    if ((g.sinMarcar || 0) > 0) r.getCell(11).font = { bold: true, color: { argb: ROJO } };
+    if (g.avanceGestion != null && g.avanceGestion < 50)
+      r.getCell(12).font = { bold: true, color: { argb: ROJO } };
     r.getCell(8).value = g.porTerminar;
     r.getCell(9).value = g.montoPorTerminar; r.getCell(9).numFmt = MONEDA;
   }

@@ -2480,6 +2480,21 @@ async function cargarRenovaciones() {
       + (g.tasa == null ? "" : ' (<b style="color:' + (g.tasa < 50 ? "#8E0019" : "#0B7247") + '">' + g.tasa + "%</b>)"))
     .join(" · ");
 
+  // SEGUIMIENTO POR EJECUTIVA. Lo pidió Dirección: no cuántas tiene cada una,
+  // sino CUÁNTAS YA TRABAJÓ. Una lista de 20 sin marcar y una de 20 al día se
+  // veían idénticas.
+  const seg = (d.porEjecutivo || []).filter((g) => g.porTerminar > 0)
+    .sort((a2, b2) => (a2.avanceGestion || 0) - (b2.avanceGestion || 0))
+    .map((g) => '<div class="renrow"><span><b>' + hesc(g.ejecutivo) + "</b> "
+      + '<span style="color:#6B6480">' + g.porTerminar + " por terminar</span></span>"
+      + '<span class="rq">'
+      + (g.sinMarcar ? '<b style="color:#8E0019">' + g.sinMarcar + " sin marcar</b> · " : "")
+      + g.renovacionReal + " renovación"
+      + (g.soloRecuperacion ? " · " + g.soloRecuperacion + " recuperación" : "")
+      + (g.avanceGestion == null ? "" : ' · <b style="color:'
+          + (g.avanceGestion < 50 ? "#8E0019" : "#0B7247") + '">' + g.avanceGestion + "% trabajado</b>")
+      + "</span></div>").join("");
+
   // Las listas son renglones de acción: nombre a la izquierda, el dato que
   // decide a la derecha. Arriba va la que más urge; el resto vive en el Excel.
   const quien = (x) => "<b>" + hesc(x.clienta) + "</b> <span style=\"color:#6B6480\">"
@@ -2513,6 +2528,7 @@ async function cargarRenovaciones() {
     + (t.porTerminar || 0) + "</span> clientas · ofrecerles la renovación antes de que cierren</div>"
     + (l2 || '<div class="permeta">Ninguna por ahora.</div>')
     + desglose
+    + (seg ? '<div class="rensec">Seguimiento por ejecutiva — quién ya trabajó su lista</div>' + seg : "")
     + ((t.sinRenovar || 0) + (t.porTerminar || 0) > 16
         ? '<div class="permeta">Arriba van las que más urgen. La lista completa, con socio y día de cobro, está en el Excel.</div>' : "")
     + '<div class="permeta" style="color:#8E0019">Fuera de esta cuenta: ' + (f.vencidos || 0)

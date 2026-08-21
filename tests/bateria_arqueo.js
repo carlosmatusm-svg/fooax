@@ -3521,6 +3521,48 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 88. LA MARCA ES DEL CICLO, Y DIRECCIÓN VE QUIÉN TRABAJÓ SU LISTA (19-ago) —");
+  // Dos preguntas de Dirección: (1) «¿nos da un resumen de las renovaciones y
+  // el seguimiento de los ejecutivos?» y (2) «una vez marcado el estatus ya no
+  // se elimina y hay que volver a hacer esa tarea?».
+  //
+  // La segunda tenía un hoyo: la clave es socio+producto, así que una clienta
+  // que renueva el MISMO producto conserva la clave. Sin atar la marca al
+  // CICLO, el "Renovó" del ciclo pasado se arrastraba al crédito nuevo y la
+  // clienta llegaba al final del siguiente ciclo ya marcada como trabajada.
+  const r88 = await j(await fetch(U + "/api/renovaciones", { headers: H(cm) }));
+  const c88 = (r88.porTerminar || [])[0];
+  ok("hay clienta para la prueba del ciclo", !!c88);
+  if (c88) {
+    await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ socio: c88.socio, producto: c88.producto, estado: "Renovó" }) });
+    const g88 = await j(await fetch(U + "/api/renovaciones/gestion", { headers: H(cm) }));
+    const guardada = Object.values(g88.gestion || {})
+      .find((x) => String(x.socio) === String(c88.socio) && x.producto === c88.producto);
+    ok("la marca guarda el CICLO en el que se puso", guardada && typeof guardada.ciclo === "number",
+      JSON.stringify(guardada || {}).slice(0, 110));
+    const r88b = await j(await fetch(U + "/api/renovaciones", { headers: H(cm) }));
+    const v = (r88b.porTerminar || []).find((x) => String(x.socio) === String(c88.socio)
+      && x.producto === c88.producto);
+    ok("mientras siga el MISMO ciclo, la marca se respeta (no hay que rehacer la tarea)",
+      v && v.estado === "Renovó", String(v && v.estado));
+  }
+
+  // EL RESUMEN PARA DIRECCIÓN: por ejecutiva, cuántas ya trabajó y cuántas no.
+  const pe = r88.porEjecutivo || [];
+  ok("el reporte trae el corte por ejecutiva", Array.isArray(pe) && pe.length > 0);
+  const conLista = pe.filter((g) => g.porTerminar > 0);
+  ok("cada ejecutiva dice cuántas marcó y cuántas le faltan",
+    conLista.every((g) => typeof g.marcadas === "number" && typeof g.sinMarcar === "number"),
+    JSON.stringify(conLista[0] || {}).slice(0, 150));
+  ok("marcadas + sin marcar = su lista por terminar",
+    conLista.every((g) => g.marcadas + g.sinMarcar === g.porTerminar),
+    conLista.map((g) => g.ejecutivo + ":" + g.marcadas + "+" + g.sinMarcar + "/" + g.porTerminar).join(" "));
+  ok("y trae el avance en porcentaje",
+    conLista.every((g) => g.avanceGestion === null || (g.avanceGestion >= 0 && g.avanceGestion <= 100)));
+  ok("separa renovación real de solo recuperación por ejecutiva",
+    conLista.every((g) => typeof g.renovacionReal === "number" && typeof g.soloRecuperacion === "number"));
+
   console.log("\n— 87. LOS CENTAVOS QUE NO SE PUEDEN PAGAR NO DESCUADRAN (Karina, 19-ago) —");
   // «¿Cómo quedaría de que no cuadra por punto cero tres? En esas como Magnus
   // los centavos son la diferencia.» El monto a entregar de Julio era
