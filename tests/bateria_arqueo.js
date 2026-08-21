@@ -3521,6 +3521,51 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 89. LAS RESPUESTAS DE CONTADURÍA QUEDAN ASENTADAS (Lic. Consuelo, 19-ago) —");
+  // De las 5 preguntas del cuestionario, Contaduría cerró dos (centavos e IVA),
+  // concuerda con una pero la remite a Dirección (tasas mensuales) y deja dos
+  // abiertas (moratorio y tabla FOXI). Lo que esta sección cuida es que lo
+  // cerrado quede escrito con su fuente, y que lo ABIERTO siga sin calcularse:
+  // el riesgo real no es que falte un dato, es que alguien lo rellene a ojo.
+  // Se lee el archivo del repo (el que se despliega), no la copia desechable:
+  // lo que se está verificando es lo que va a producción.
+  const REG = JSON.parse(require("fs").readFileSync(
+    require("path").join(__dirname, "..", "data", "reglas-productos.json"), "utf8"));
+
+  ok("los centavos del ajuste van en la ÚLTIMA cuota (cerrado por Contaduría)",
+    REG.redondeo.ajusteDeCentavos === "ultima", String(REG.redondeo.ajusteDeCentavos));
+  ok("y queda escrito quién lo confirmó", /Consuelo/i.test(REG.redondeo.confirmadoPor || ""),
+    String(REG.redondeo.confirmadoPor || "").slice(0, 60));
+  ok("el IVA es 16% (cerrado por Contaduría)", REG.iva === 0.16, String(REG.iva));
+  ok("y también dice quién lo confirmó", /Consuelo/i.test(REG.ivaConfirmadoPor || ""));
+
+  // LO QUE SIGUE ABIERTO NO SE INVENTA.
+  ok("la tasa moratoria sigue en null: sin ella no se calcula mora",
+    REG.moratorio.tasaMoratoriaMensual === null && REG.moratorio.pendiente === true,
+    JSON.stringify(REG.moratorio.tasaMoratoriaMensual));
+  ok("y el 10% del ejemplo NO se coló como tasa de la casa",
+    REG.moratorio.tasaMoratoriaMensual !== 0.1);
+  const pend = (REG.productos || []).filter((x) => x.pendiente);
+  ok("FOXI y FOXI+ siguen sin tasa (falta la tabla ciclo por ciclo)",
+    pend.length === 2 && pend.every((x) => x.tasaMensual === null),
+    pend.map((x) => x.clave + ":" + x.tasaMensual).join(" "));
+  ok("ninguno de los pendientes se rellenó con un promedio del rango",
+    pend.every((x) => x.tasaMensual == null));
+
+  // La de 4.5 veces sigue SIN cerrar, y el archivo lo dice.
+  ok("la interpretación mensual sigue marcada como NO confirmada por Dirección",
+    REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.confirmadoPor === null,
+    String(REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.confirmadoPor));
+  ok("aunque Contaduría ya dijo que las considera mensuales",
+    /MENSUALES/i.test(REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.contaduria19ago || ""));
+  ok("el motor sigue configurado en mensual (que es lo que reproduce los ejemplos)",
+    REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.interpretacion === "mensual");
+
+  // Los 10 productos que SÍ tienen tasa siguen intactos: nada se movió al
+  // asentar las respuestas.
+  const conTasa = (REG.productos || []).filter((x) => typeof x.tasaMensual === "number");
+  ok("los 10 productos con tasa siguen con su tasa", conTasa.length === 10, String(conTasa.length));
+
   console.log("\n— 88. LA MARCA ES DEL CICLO, Y DIRECCIÓN VE QUIÉN TRABAJÓ SU LISTA (19-ago) —");
   // Dos preguntas de Dirección: (1) «¿nos da un resumen de las renovaciones y
   // el seguimiento de los ejecutivos?» y (2) «una vez marcado el estatus ya no
