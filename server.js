@@ -4980,6 +4980,27 @@ app.post("/api/movimiento/anular", requiere("direccion", "admin"), (req, res) =>
 // ejecutivo, efectivo total, menos egresos (gastos/retiros), efectivo a
 // entregar, depósitos (transferencias) y mora del día (faltantes).
 const DENOMS_ARQUEO = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5];
+// LA MONEDA MÁS CHICA QUE EXISTE SON $0.50 (Karina, 19-ago).
+//
+// Los productos que prorratean por días —Magnus, Pago Único— dejan el monto a
+// entregar en centavos que NO SE PUEDEN PAGAR: nadie entrega $162,499.97; lo
+// más cerca que hay es $162,499.50 o $162,500. En los dos casos el arqueo
+// marcaba "no cuadra" por unos centavos que no son error de nadie — y un rojo
+// que aparece siempre deja de leerse, que es peor que no avisar.
+//
+// La regla estricta de UN CENTAVO no se toca cuando la cifra SÍ se puede pagar
+// (múltiplo de $0.50): ahí o cuadra o no cuadra, como se decidió el 6-ago. La
+// holgura existe SOLO cuando el monto es impagable, y nunca llega a $0.50: si
+// la diferencia alcanza una moneda de cincuenta, esa moneda sí existía y el
+// descuadre es real.
+const CAMBIO_MIN = 0.5;
+function cuadreDe(aEntregar, contado) {
+  const dif = Math.round((contado - aEntregar) * 100) / 100;
+  const exacto = Math.abs(dif) < 0.01;
+  const impagable = Math.round(Math.abs(aEntregar) * 100) % 50 !== 0;
+  const redondeo = !exacto && impagable && Math.abs(dif) < CAMBIO_MIN;
+  return { dif, cuadra: exacto || redondeo, exacto, redondeo };
+}
 
 // Cálculo del arqueo de un día (reusado por /api/arqueo y por el Excel).
 function calcularArqueo(fecha, ids) {
@@ -5091,7 +5112,10 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     // que entró en efectivo (recuperaciones/liquidaciones). Solo efectivo: la
     // transferencia va al banco y no toca la caja.
     e.aEntregar = Math.round((e.efectivo - (e.egresoEfectivo || 0)) * 100) / 100;
-    e.dif = Math.round((e.contado - e.aEntregar) * 100) / 100;
+    const cq = cuadreDe(e.aEntregar, e.contado);
+    e.dif = cq.dif;
+    e.cuadra = cq.cuadra;             // el veredicto lo da el servidor, no la pantalla
+    e.difRedondeo = cq.redondeo;      // cuadra, pero por redondeo al cambio más chico
     // Si lo que le SOBRA coincide con un gasto suyo en efectivo, se nombra: es
     // casi siempre un gasto anotado cuyo dinero todavía no salió de la caja, y
     // así la ejecutiva no tiene que deducirlo (Karina, 5-ago).
@@ -5691,6 +5715,9 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   const egresosOficina = Math.round((egresosEfectivo - egresosEjec) * 100) / 100;
   const aEntregar = a.efectivo - egresosEjec;
   const sinDesglosar = Math.round((aEntregar - totalEfe) * 100) / 100;
+  // Misma regla que por ejecutiva: si los centavos del monto no se pueden pagar
+  // con la moneda más chica, la diferencia no es un descuadre.
+  const cqDia = cuadreDe(aEntregar, totalEfe);
   s.mergeCells(fila, 1, fila, 4);
   const ch = s.getCell(fila, 1);
   ch.value = "CUENTAS DEL DÍA · así se llega a lo que debe entregar";
@@ -5714,7 +5741,17 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     linea("= Queda en caja al cierre del día", Math.round((aEntregar - egresosOficina) * 100) / 100, true);
   }
   // La diferencia va AL FINAL, cuando el lector ya vio las cuentas de arriba.
-  if (Math.abs(sinDesglosar) >= 0.01) {
+  if (cqDia.redondeo) {
+    // Se DICE, no se esconde: queda escrito que la diferencia es el redondeo y
+    // de cuánto, para que nadie la ande buscando.
+    const r0 = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c0 = r0.getCell(1);
+    c0.value = "El día CUADRA. La diferencia de " + Math.abs(sinDesglosar).toFixed(2)
+      + " es redondeo: el monto a entregar cae en centavos y la moneda más chica es $0.50.";
+    c0.font = { italic: true, color: { argb: "FF0B7247" } };
+    r0.getCell(4).value = sinDesglosar; r0.getCell(4).numFmt = dinero;
+  } else if (Math.abs(sinDesglosar) >= 0.01) {
     const r = s.getRow(fila++);
     s.mergeCells(fila - 1, 1, fila - 1, 3);
     const c = r.getCell(1);

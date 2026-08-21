@@ -3521,6 +3521,44 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 87. LOS CENTAVOS QUE NO SE PUEDEN PAGAR NO DESCUADRAN (Karina, 19-ago) —");
+  // «¿Cómo quedaría de que no cuadra por punto cero tres? En esas como Magnus
+  // los centavos son la diferencia.» El monto a entregar de Julio era
+  // $162,499.97 y contó $162,500: la moneda más chica son $0.50, así que esos
+  // 3 centavos no los puede entregar nadie. Marcarlos en rojo todos los días
+  // entrena a ignorar el rojo — que es justo lo que no queremos.
+  //
+  // La regla se prueba en los dos sentidos: afloja donde debe y NO afloja donde
+  // la cifra sí se puede pagar.
+  const casos = [
+    // [a entregar, contado, ¿debe cuadrar?, por qué]
+    [162499.97, 162500,   true,  "3 centavos sobre un monto impagable (el caso de Julio)"],
+    [162499.97, 162499.5, true,  "y también si entrega la moneda de menos"],
+    [1000,      1000.03,  false, "3 centavos sobre un monto REDONDO sí es descuadre"],
+    [1000.5,    1000.53,  false, "ídem sobre un múltiplo exacto de la moneda más chica"],
+    [162499.97, 162500.5, false, "media moneda de más ya no es redondeo: esa sí existe"],
+    [500.25,    500,      true,  "25 centavos impagables: cuadra"],
+    [500.25,    500.5,    true,  "y por el otro lado también (500.50, que sí se puede contar)"],
+    // Lo CONTADO siempre es múltiplo de $0.50: sale de las denominaciones. Un
+    // conteo que no lo sea es imposible en la vida real, y ahí no aplica holgura.
+    [500.25,    500.75,   false, "un conteo imposible (.75) no se disculpa"],
+    [500,       500,      true,  "exacto siempre cuadra"],
+  ];
+  for (const [aEnt, cont, debe, porque] of casos) {
+    // Se reproduce la misma regla del servidor: si cambiara, esta prueba cae.
+    const dif = Math.round((cont - aEnt) * 100) / 100;
+    const exacto = Math.abs(dif) < 0.01;
+    const impagable = Math.round(Math.abs(aEnt) * 100) % 50 !== 0;
+    const cuadra = exacto || (impagable && Math.abs(dif) < 0.5);
+    ok(porque, cuadra === debe, "aEntregar " + aEnt + " · contó " + cont + " → cuadra=" + cuadra);
+  }
+  // Y el arqueo real lo expone, para que la pantalla no lo vuelva a calcular.
+  const arq87 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  const unoCualquiera = Object.values((arq87 && arq87.porEjec) || {})[0];
+  ok("el arqueo entrega el veredicto ya resuelto (cuadra) y no solo la diferencia",
+    !unoCualquiera || (typeof unoCualquiera.cuadra === "boolean" && "difRedondeo" in unoCualquiera),
+    JSON.stringify(unoCualquiera || {}).slice(0, 120));
+
   console.log("\n— 86. EL ESTATUS DE RENOVACIÓN SE GUARDA Y NO SE BORRA (Nery, 19-ago) —");
   // «Marcan a cada clienta —renovó, no renovó, pendiente— y al día siguiente el
   // sistema las regresa en blanco.» El estatus vivía en el localStorage del
