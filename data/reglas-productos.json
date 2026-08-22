@@ -7,18 +7,27 @@
     "Lo que trae 'pendiente': true NO se calcula: el sistema se niega y dice qué falta,",
     "en vez de inventar un número. Un interés inventado se le cobra de verdad a una señora."
   ],
-  "version": "2026-08-19",
+  "version": "2026-08-19b",
   "vigenteDesde": "2026-08-19",
   "fuentePrincipal": "Formulas Calculo Karina.pdf — Lic. Anel Aydee Díaz Silva, 25-jul-2026. Fórmulas validadas por la contadora (CLIP) con ejemplos reales. Catálogo de 16 productos validado por Ing. Monse, mayo 2026 (pág. 7).",
   "iva": 0.16,
   "_ADVERTENCIA_DEL_PROPIO_DOCUMENTO": {
     "texto": "El PDF dice, textual, en la página del catálogo: «Confirmar con la contadora si cada % es mensual (se divide entre 4) o total del crédito, antes de fijar el parámetro por producto».",
     "porQueImporta": "Si 5.67% es MENSUAL, el Grupal Básico 18 sem cuesta 25.5% del monto. Si es TOTAL del crédito, cuesta 5.67%. Son cuatro veces y media de diferencia en lo que se le cobra a la clienta.",
-    "estadoHoy": "El Anexo E v5 (autorizado por Anel, 28-jul) usa la tasa como MENSUAL y con eso reproduce el ejemplo de COMADRE al centavo. Por eso el motor está configurado en 'mensual'. 19-ago: la Lic. Consuelo responde «CONSIDERO QUE TODAS LAS TASAS SON MENSUALES», que coincide con lo programado, PERO remite la confirmación final a la Lic. Anel o a Monserrat. NO está cerrado: es el dato de 4.5 veces y sigue faltando el sí por escrito de Dirección.",
+    "estadoHoy": "CERRADO el 19-ago-2026. La Lic. Anel confirma: «SÍ, LAS TASAS SON MENSUALES. Se cobra la cuarta parte cada semana, como interés fijo sobre el monto original más IVA del 16%». Lo verificó contra lo realmente cobrado en la hoja de cobranza y coincide en los siete productos grupales. El motor ya estaba en 'mensual': no cambia ningún número, ahora tiene firma.",
     "interpretacion": "mensual",
     "contaduria19ago": "«CONSIDERO QUE TODOS LAS TASAS SON MENSUALES, SÓLO QUE ESTE DATO SERÍA CHECARLO DIRECTAMENTE CON LA LIC. ANEL O EN SU CASO CON MONSERRAT.» — Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-    "confirmadoPor": null,
-    "faltaPara": "El sí por escrito de la Lic. Anel o de Monserrat."
+    "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+    "faltaPara": null,
+    "equivalenciaSemanal": {
+      "Básico 18 sem": "5.67% ÷ 4 = 1.42% semanal",
+      "Básico 24 sem": "6.32% ÷ 4 = 1.58%",
+      "Micro 32 sem": "4.62% ÷ 4 = 1.16%",
+      "Micro 48 sem": "3.85% ÷ 4 = 0.96%",
+      "Micro 52 sem": "5.25% ÷ 4 = 1.31%",
+      "Adicional 13 sem": "7.95% ÷ 4 = 1.99%",
+      "Microcrédito 32 sem": "5.86% ÷ 4 = 1.465%"
+    }
   },
   "redondeo": {
     "_nota": "Los ejemplos de la contadora SOLO cuadran calculando con decimales completos y redondeando AL FINAL. Si se redondea paso por paso, el total sale 1 centavo arriba.",
@@ -49,13 +58,18 @@
   "diaInicial": 1,
   "_diaInicial": "1 = el interés empieza a contar el día SIGUIENTE al otorgamiento (nota de la contadora, PDF pág. 4). 0 = cuenta también el día del otorgamiento.",
   "moratorio": {
-    "_nota": "Se calcula PAGO POR PAGO y se suman. Requiere saber cuándo debió pagar cada cuota (desembolso + día de pago).",
-    "formula": "moraDelPago = cuota * tasaMoratoriaMensual ; moraDiaria = moraDelPago / 30 ; mora = moraDiaria * diasDeAtraso ; + IVA 16%",
-    "fuente": "PDF pág. 6 — ejemplo validado: Comadre cuota $1,413.33, tasa moratoria 10% mensual, pago #6 con 22 días de atraso → mora $103.64 + IVA $16.58 = pago con mora $1,533.56.",
-    "tasaMoratoriaMensual": null,
-    "pendiente": true,
-    "faltaPara": "La tasa moratoria OFICIAL de FOOAX. El PDF trae el método y un ejemplo con 10% mensual, pero el 10% es el ejemplo — el documento nunca declara que esa sea la tasa de la casa. 19-ago: Contaduría NO la fija y remite a la Lic. Anel o a Monserrat, y pide confirmar además si es ÚNICA o si varía por producto. Mientras siga en null, el sistema NO calcula mora: avisa que falta el dato en vez de inventarlo.",
-    "preguntarA": "Lic. Anel o Monserrat (Contaduría se deslindó el 19-ago)"
+    "tasaMoratoriaMensual": 0.1,
+    "unicaParaTodos": true,
+    "base": "capitalAmortizacion",
+    "diasGracia": 0,
+    "iva": 0.16,
+    "pendiente": false,
+    "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+    "_confirmacion": "«TASA MORATORIA: 10% MENSUAL. Una sola tasa para todos los productos, sobre el CAPITAL de la amortización vencida y no pagada — no la cuota completa, no el saldo global. Más IVA del 16% sobre el interés moratorio. Y se quitan los OCHO DÍAS DE GRACIA: la mora corre desde el día siguiente al vencimiento. Prográmalo con los días de gracia en CERO, pero déjalo como parámetro configurable.» — Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+    "formula": "moraDelPago = capitalDeLaAmortizacion * 0.10 ; moraDiaria = moraDelPago / 30 ; mora = moraDiaria * (diasDeAtraso - diasGracia) ; + IVA 16%",
+    "_base": "'capitalAmortizacion' = solo el capital de esa amortización. 'cuota' = la cuota completa (capital + interés + IVA). Lo decidido es capitalAmortizacion.",
+    "_diasGracia": "0 por decisión del 19-ago. Se deja como parámetro: si Dirección los reinstala, se cambia aquí y no en el programa.",
+    "_OJO_EJEMPLO_DEL_PDF": "El ejemplo validado del PDF (Comadre, cuota $1,413.33, pago #6 con 22 días → mora $103.64) está calculado SOBRE LA CUOTA, no sobre el capital. Con la regla del 19-ago ese mismo caso da $61.11 + IVA $9.78. No es un error del motor: es que la regla cambió de base. Se deja anotado para que nadie 'corrija' el motor hacia el ejemplo viejo."
   },
   "productos": [
     {
@@ -148,7 +162,10 @@
       ],
       "montoMin": 20000,
       "montoMax": 50000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 7"
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 7",
+      "iva": 0.16,
+      "_iva": "En el catálogo la celda de IVA de este producto aparece VACÍA. Es un error de captura: la Ing. Monse confirmó que SÍ cobra el 16%, igual que los demás (Anel, 19-ago). Se deja escrito para que nadie lo 'corrija' a cero viendo la imagen del catálogo.",
+      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza."
     },
     {
       "clave": "MAGNUS",
@@ -161,7 +178,10 @@
       ],
       "montoMin": 20000,
       "montoMax": 300000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 16 («3.04%/m», el único que el propio catálogo marca como mensual). Topes confirmados: coinciden PDF y Anexo E v5."
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 16 («3.04%/m», el único que el propio catálogo marca como mensual). Topes confirmados: coinciden PDF y Anexo E v5.",
+      "iva": 0,
+      "_iva": "MAGNUS NO lleva IVA (Anel, 19-ago: «el único distinto es MAGNUS: 3.04% mensual sobre saldo insoluto, SIN IVA»). Los demás llevan el 16%.",
+      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza."
     },
     {
       "clave": "COMADRE",
@@ -182,33 +202,86 @@
       "advertencia": "NO está en el catálogo oficial de 16 y es una TERCERA mecánica de cálculo. La tasa 10% sale únicamente del ejemplo."
     },
     {
+      "nombre": "FOXI",
       "clave": "FOXI",
-      "nombre": "FOXI (5 ciclos, $5K a $15K)",
       "metodo": "A",
       "periodicidad": "semanal",
-      "tasaMensual": null,
+      "iva": 0.16,
       "plazos": [
         16
       ],
       "montoMin": 5000,
       "montoMax": 15000,
-      "pendiente": true,
-      "fuente": "PDF pág. 7, catálogo oficial · renglones 8–12",
-      "faltaPara": "El catálogo da un RANGO (5.69% a 9.13%) porque son 5 ciclos con tasa distinta cada uno, pero no dice cuál le toca a cada ciclo. Falta la tabla ciclo por ciclo. 19-ago: Contaduría no fija la tabla y remite a Dirección, pidiendo confirmar si la tasa es única o varía por producto/ciclo.",
-      "preguntarA": "Lic. Anel o Monserrat (Contaduría remitió el 19-ago)"
+      "_como": "FOXI es por CICLO y por MONTO a la vez: cada ciclo tiene un monto único asignado y ese monto trae su tasa (Anel, 19-ago). Todos a 16 semanas, con IVA del 16%.",
+      "faltaVariante": "FOXI necesita saber de qué CICLO es",
+      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+      "variantes": [
+        {
+          "ciclo": 1,
+          "monto": 5000,
+          "tasaMensual": 0.0913,
+          "plazo": 16,
+          "nombre": "FOXI · 1er ciclo"
+        },
+        {
+          "ciclo": 2,
+          "monto": 7000,
+          "tasaMensual": 0.0707,
+          "plazo": 16,
+          "nombre": "FOXI · 2do ciclo"
+        },
+        {
+          "ciclo": 3,
+          "monto": 10000,
+          "tasaMensual": 0.0845,
+          "plazo": 16,
+          "nombre": "FOXI · 3er ciclo"
+        },
+        {
+          "ciclo": 4,
+          "monto": 12000,
+          "tasaMensual": 0.0707,
+          "plazo": 16,
+          "nombre": "FOXI · 4to ciclo"
+        },
+        {
+          "ciclo": 5,
+          "monto": 15000,
+          "tasaMensual": 0.0569,
+          "plazo": 16,
+          "nombre": "FOXI · 5to ciclo"
+        }
+      ]
     },
     {
+      "nombre": "FOXI+",
       "clave": "FOXI_PLUS",
-      "nombre": "FOXI+ (Plus 1 y 2)",
       "metodo": "A",
       "periodicidad": "semanal",
-      "tasaMensual": null,
+      "iva": 0.16,
       "montoMin": 15000,
       "montoMax": 50000,
-      "pendiente": true,
-      "fuente": "PDF pág. 7, catálogo oficial · renglones 13–15",
-      "faltaPara": "El catálogo da un RANGO (3.88% a 5.74%) para 3 subproductos de 16 a 32 semanas, sin decir cuál va con cuál. Y el TOPE está en disputa: el PDF dice $50,000 y el Anexo E v5 dice $150,000 — $100,000 de diferencia que cambian el nivel de autorización ($50K = Gerencia; $150K = Dirección + buró + visita + garantía). 19-ago: Contaduría no fija la tabla y remite a Dirección, pidiendo confirmar si la tasa es única o varía por producto/ciclo.",
-      "preguntarA": "Lic. Anel o Monserrat (Contaduría remitió el 19-ago)"
+      "_como": "FOXI+ es para quien va en 5to ciclo con buen ahorro, de $15,000 a $50,000. La tasa depende del subproducto y del plazo (Anel, 19-ago).",
+      "_tope": "El tope queda en $50,000. Con esto se resuelve la discrepancia contra el Anexo E v5, que decía $150,000.",
+      "faltaVariante": "FOXI+ necesita saber el PLAZO (32, 24 o 16 semanas)",
+      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+      "variantes": [
+        {
+          "plazo": 32,
+          "tasaMensual": 0.05,
+          "nombre": "FOXI PLUS 1 · 32 sem"
+        },
+        {
+          "plazo": 24,
+          "tasaMensual": 0.0388,
+          "nombre": "FOXI PLUS 2 · 24 sem"
+        },
+        {
+          "plazo": 16,
+          "tasaMensual": 0.0574,
+          "nombre": "FOXI PLUS 2 · 16 sem"
+        }
+      ]
     }
   ],
   "_como_agregar_un_producto": "Copia un bloque, cámbiale clave, nombre, método, tasaMensual, plazos y topes, y escribe su fuente. El sistema lo toma sin tocar código.",
@@ -216,10 +289,59 @@
   "ivaConfirmadoPor": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
   "_respuestasContaduria19ago": {
     "fuente": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-    "1_tasasMensualesOTotales": "MENSUALES en opinión de Contaduría · CONFIRMACIÓN FINAL PENDIENTE de Anel/Monserrat",
-    "2_tasaMoratoria": "ABIERTA · remitida a Anel/Monserrat, y confirmar si es única o por producto",
+    "1_tasasMensualesOTotales": "CERRADA · mensuales, confirmado por Anel el 19-ago",
+    "2_tasaMoratoria": "CERRADA · 10% mensual, única, sobre el capital de la amortización, 0 días de gracia (Anel, 19-ago)",
     "3_centavosDelAjuste": "CERRADA · en la última cuota, tal como estaba programado",
-    "4_tablaFOXI": "ABIERTA · remitida a Anel/Monserrat",
+    "4_tablaFOXI": "CERRADA · 5 ciclos de FOXI y 3 variantes de FOXI+ (Anel, 19-ago)",
     "5_ivaSobreInteres": "CERRADA · correcto, 16% siempre sobre el interés"
-  }
+  },
+  "comisionApertura": {
+    "_fuente": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+    "_nota": "Las comisiones ya están definidas para los 16 productos en el catálogo oficial. Se cargan las que Dirección transcribió el 19-ago.",
+    "GRUPAL_BASICO_18": {
+      "tipo": "porPersona",
+      "monto": 160
+    },
+    "GRUPAL_BASICO_24": {
+      "tipo": "porPersona",
+      "monto": 160
+    },
+    "GRUPAL_MICRO_32": {
+      "tipo": "fija",
+      "monto": 300
+    },
+    "GRUPAL_MICRO_48": {
+      "tipo": "fija",
+      "monto": 300
+    },
+    "GRUPAL_MICRO_52": {
+      "tipo": "fija",
+      "monto": 300
+    },
+    "GRUPAL_MICROCREDITO": {
+      "tipo": "fija",
+      "monto": 300
+    },
+    "GRUPAL_ADICIONAL": {
+      "tipo": "porMillar",
+      "monto": 50,
+      "_nota": "$50 por cada $1,000 del crédito."
+    },
+    "FOXI": {
+      "tipo": "porCiclo",
+      "min": 250,
+      "max": 400,
+      "pendiente": true,
+      "_nota": "Dirección dijo «de $250 a $400 en FOXI según ciclo» sin el detalle ciclo por ciclo. Falta esa tabla; mientras, no se cobra comisión automática en FOXI."
+    },
+    "FOXI_PLUS": {
+      "tipo": "fija",
+      "monto": 500
+    },
+    "MAGNUS": {
+      "tipo": "fija",
+      "monto": 500
+    }
+  },
+  "_motorCerrado": "19-ago-2026: los cinco puntos quedaron resueltos. Contaduría cerró centavos e IVA; Dirección cerró tasas mensuales, moratorio y la tabla FOXI. Pendiente menor: la comisión de apertura de FOXI ciclo por ciclo."
 }

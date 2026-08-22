@@ -65,43 +65,10 @@ function buscarProducto(nombre) {
   return cands.sort((a, b) => norm(b.clave).length - norm(a.clave).length)[0] || null;
 }
 
-// VARIANTES DE UN MISMO PRODUCTO (Anel, 19-ago: «FOXI es por ciclo Y por monto
-// a la vez — cada ciclo tiene un monto único asignado, y ese monto trae su
-// tasa»). En vez de 8 productos sueltos, FOXI y FOXI+ son uno con sus
-// variantes: así el catálogo se lee como lo lee la operación.
-//
-// Se resuelve por CICLO primero (es lo que la ejecutiva sabe), luego por PLAZO
-// (FOXI+ 2 existe a 24 y a 16 semanas con tasas distintas) y al final por
-// MONTO, que en FOXI es único por ciclo y sirve de desempate.
-function variantePara(p, o) {
-  const vs = p && Array.isArray(p.variantes) ? p.variantes : null;
-  if (!vs || !vs.length) return null;
-  const num = (x) => (x == null || x === "" ? null : Number(x));
-  const ciclo = num(o && o.ciclo), plazo = num(o && o.plazo), monto = num(o && o.monto);
-  return (ciclo != null && vs.find((v) => num(v.ciclo) === ciclo))
-    || (plazo != null && vs.find((v) => num(v.plazo) === plazo))
-    || (monto != null && vs.find((v) => num(v.monto) === monto))
-    || null;
-}
-// El producto ya resuelto: la variante gana sobre el padre.
-function productoResuelto(p, o) {
-  const v = variantePara(p, o);
-  return v ? Object.assign({}, p, v, { variante: v, variantes: undefined }) : p;
-}
-
 // ¿Se puede calcular este producto? Si no, POR QUÉ no.
-function estadoDe(nombre, opciones) {
-  const base = buscarProducto(nombre);
-  if (!base) return { ok: false, motivo: "Ese producto no está en el motor de reglas.", producto: null };
-  const p = productoResuelto(base, opciones || {});
-  // Un producto con variantes SIN decir cuál se pide no se adivina: se dice qué
-  // falta. Inventarle un ciclo a un crédito es cobrarle de más o de menos.
-  if (Array.isArray(base.variantes) && base.variantes.length && !p.variante)
-    return { ok: false, producto: base,
-      motivo: (base.faltaVariante || "Falta decir el ciclo o el plazo") + ". Opciones: "
-        + base.variantes.map((v) => (v.ciclo ? "ciclo " + v.ciclo : "") 
-            + (v.plazo ? (v.ciclo ? " · " : "") + v.plazo + " sem" : "")
-            + (v.monto ? " ($" + v.monto.toLocaleString("es-MX") + ")" : "")).join(" | ") };
+function estadoDe(nombre) {
+  const p = buscarProducto(nombre);
+  if (!p) return { ok: false, motivo: "Ese producto no está en el motor de reglas.", producto: null };
   if (p.pendiente || p.tasaMensual == null)
     return { ok: false, motivo: p.faltaPara || "Le falta la tasa en el motor de reglas.", producto: p };
   return { ok: true, producto: p };
@@ -109,11 +76,6 @@ function estadoDe(nombre, opciones) {
 
 // ---------- MÉTODO A · interés fijo sobre el monto original (cuota pareja) ----
 // El divisor sale de la periodicidad: semanal = tasa mensual ÷ 4.
-// EL IVA PUEDE SER DEL PRODUCTO (Anel, 19-ago: «el único distinto es MAGNUS:
-// 3.04% mensual sobre saldo insoluto, SIN IVA»). Si el producto no dice nada,
-// manda el 16% general.
-function ivaDe(p, R) { return (p && p.iva != null) ? Number(p.iva) : R.iva; }
-
 function metodoA(p, monto, nPagos, iva) {
   const porPeriodo = p.periodicidad === "mensual" ? 1 : 4;
   const capital = monto / nPagos;
@@ -138,11 +100,10 @@ function metodoADias(p, monto, dias, iva) {
 function tablaAmortizacion(opciones) {
   const R = reglas();
   const { producto, monto, plazo } = opciones;
-  // Se le pasan las opciones para que resuelva la variante (ciclo/plazo/monto).
-  const est = estadoDe(producto, opciones);
+  const est = estadoDe(producto);
   if (!est.ok) return { ok: false, motivo: est.motivo, producto: est.producto };
   const p = est.producto;
-  const iva = ivaDe(p, R);
+  const iva = R.iva;
   const m = Number(monto) || 0;
   const n = Number(plazo) || 0;
   if (m <= 0) return { ok: false, motivo: "El monto debe ser mayor a 0." };
@@ -219,45 +180,19 @@ function tablaAmortizacion(opciones) {
 }
 
 // ---------- INTERÉS MORATORIO ----------
-// MORATORIO · pago por pago: base × tasa mensual ÷ 30 × días de atraso, + IVA.
-//
-// SOBRE QUÉ SE COBRA (Anel, 19-ago): «sobre el CAPITAL de la amortización
-// vencida y no pagada — no la cuota completa, no el saldo global». Por eso la
-// base por omisión es `capitalAmortizacion` y no la cuota. Queda como parámetro
-// porque es justo el renglón que cambia el dinero: si mañana Dirección decide
-// otra base, se mueve aquí y no en el programa.
-//
-// DÍAS DE GRACIA (Anel, 19-ago): «se quitan los OCHO DÍAS DE GRACIA, la mora
-// corre desde el día siguiente al vencimiento». Van en CERO, configurables.
+// Pago por pago: cuota × tasa moratoria mensual ÷ 30 × días de atraso, + IVA.
 function moratorio(atrasos) {
   const R = reglas();
   const cfg = R.moratorio || {};
   if (cfg.pendiente || cfg.tasaMoratoriaMensual == null)
     return { ok: false, motivo: cfg.faltaPara || "Falta la tasa moratoria en el motor de reglas." };
   const iva = R.iva;
-  const gracia = Number(cfg.diasGracia) || 0;
-  const sobreCuota = cfg.base === "cuota";
   const filas = (atrasos || []).map((a) => {
-    // Los días de gracia se descuentan del atraso, nunca dejan días negativos.
-    const dias = Math.max(0, (Number(a.diasAtraso) || 0) - gracia);
-    // La base: el capital de esa amortización. Si no viene, se deduce de la
-    // cuota menos su interés e IVA; y si tampoco se puede, se dice — antes de
-    // cobrar sobre una base adivinada, mejor no cobrar.
-    const base = sobreCuota
-      ? (Number(a.cuota) || 0)
-      : (a.capital != null ? Number(a.capital) : null);
-    if (base == null)
-      return { pago: a.pago, cuota: r2(a.cuota), diasAtraso: a.diasAtraso, ok: false,
-        motivo: "Falta el capital de esa amortización para calcular su moratorio." };
-    const interes = base * cfg.tasaMoratoriaMensual / 30 * dias;
+    const interes = (Number(a.cuota) || 0) * cfg.tasaMoratoriaMensual / 30 * (Number(a.diasAtraso) || 0);
     const ivaM = interes * iva;
-    return { pago: a.pago, cuota: r2(a.cuota), base: r2(base), diasAtraso: a.diasAtraso,
-      diasCobrados: dias, interes: r2(interes), iva: r2(ivaM), total: r2(interes + ivaM), ok: true };
+    return { pago: a.pago, cuota: r2(a.cuota), diasAtraso: a.diasAtraso, interes: r2(interes), iva: r2(ivaM), total: r2(interes + ivaM) };
   });
-  const malas = filas.filter((x) => x.ok === false);
-  return { ok: malas.length === 0, filas, faltantes: malas.length,
-    base: cfg.base || "capitalAmortizacion", diasGracia: gracia,
-    total: r2(filas.filter((x) => x.ok !== false).reduce((t, x) => t + x.total, 0)) };
+  return { ok: true, filas, total: r2(filas.reduce((t, x) => t + x.total, 0)) };
 }
 
 // ---------- AUTOPRUEBA contra los ejemplos que validó la contadora ----------

@@ -2990,14 +2990,20 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     JSON.stringify((mg.d.pagos || []).slice(1, 3).map((x) => x.cuota)));
 
   // LO QUE NO SE PUEDE CALCULAR SE NIEGA — no se inventa un interés.
+  //
+  // 19-ago: FOXI y FOXI+ YA tienen sus tasas (Anel mandó el catálogo). Lo que
+  // el motor sigue negándose a hacer es adivinar CUÁL de las variantes se pide:
+  // FOXI+ existe a 32, 24 y 16 semanas con tasas distintas, y elegirle una al
+  // azar es cobrarle de más o de menos a la clienta. La protección es la misma,
+  // el disparador cambió.
   const fx = await sim("producto=Foxi%20Plus%20-%201&monto=30000&plazo=18");
-  ok("un producto sin tasa NO se calcula: se niega y dice qué falta",
-    fx.status === 400 && /tope|tasa/i.test(fx.d.motivo || ""), JSON.stringify(fx.d));
-  ok("y el motor lista aparte los que esperan dato, para poder pedirlos",
-    (reg61.esperando || []).length > 0 && (reg61.esperando || []).every((p) => p.faltaPara),
-    JSON.stringify((reg61.esperando || []).map((p) => p.nombre)));
-  ok("el moratorio tampoco se inventa: espera su tasa",
-    reg61.moratorio && reg61.moratorio.pendiente === true, JSON.stringify(reg61.moratorio));
+  ok("un plazo que no existe en FOXI+ NO se calcula: se niega y dice cuáles hay",
+    fx.status === 400 && /plazo|tope|tasa/i.test(fx.d.motivo || ""), JSON.stringify(fx.d).slice(0, 160));
+  ok("y cuando SÍ se dice el plazo, ya calcula",
+    (await sim("producto=Foxi%20Plus%20-%201&monto=30000&plazo=32")).status === 200);
+  ok("el moratorio ya tiene su tasa, y es el 10% que confirmó Dirección",
+    reg61.moratorio && reg61.moratorio.pendiente === false
+      && reg61.moratorio.tasaMoratoriaMensual === 0.10, JSON.stringify(reg61.moratorio || {}).slice(0, 90));
 
   console.log("\n— 62. MORA DE CENTROS EN EL ARQUEO DEL DÍA (idea de Karina, 12-ago) —");
   // Su boceto: cada centro con su monto, la clienta debajo, «Total de Mora del
@@ -3521,6 +3527,93 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 90. EL CATÁLOGO OFICIAL, CARGADO Y CERRADO (Anel, 19-ago) —");
+  // Anel mandó los tres datos que faltaban, sobre el catálogo que la Ing. Monse
+  // validó en mayo: tasas mensuales confirmadas, moratoria 10% y la tabla FOXI
+  // ciclo por ciclo. Con esto el motor queda cerrado.
+  const MOT90 = require(require("path").join(__dirname, "..", "motor-reglas.js"));
+  const REG90 = JSON.parse(require("fs").readFileSync(
+    require("path").join(__dirname, "..", "data", "reglas-productos.json"), "utf8"));
+  const c90 = (x) => Math.round(Number(x) * 100) / 100;
+
+  // --- Los ejemplos que validó la contadora siguen saliendo al centavo ---
+  const ap90 = MOT90.autoprueba();
+  ok("los 4 ejemplos validados siguen reproduciéndose al centavo", ap90.ok,
+    ap90.casos.filter((x) => !x.ok).map((x) => x.caso + " → " + x.obtuvo).join(" | "));
+
+  // --- 1 · mensuales, ya con firma ---
+  ok("las tasas mensuales quedan CONFIRMADAS por Dirección",
+    /Anel/i.test(REG90._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.confirmadoPor || ""));
+  ok("y los 7 grupales conservan su tasa del catálogo",
+    [["GRUPAL_BASICO_18", 0.0567], ["GRUPAL_BASICO_24", 0.0632], ["GRUPAL_MICRO_32", 0.0462],
+     ["GRUPAL_MICRO_48", 0.0385], ["GRUPAL_MICRO_52", 0.0525], ["GRUPAL_ADICIONAL", 0.0795],
+     ["GRUPAL_MICROCREDITO", 0.0586]]
+      .every(([k, t]) => (REG90.productos.find((x) => x.clave === k) || {}).tasaMensual === t));
+
+  // --- MAGNUS sin IVA; Microcrédito CON IVA pese a la celda vacía ---
+  const mg90 = MOT90.tablaAmortizacion({ producto: "MAGNUS", monto: 100000, plazo: 24 });
+  ok("MAGNUS no cobra IVA", mg90.ok && c90(mg90.totales.iva) === 0, String(mg90.ok && mg90.totales.iva));
+  const mc90 = MOT90.tablaAmortizacion({ producto: "GRUPAL_MICROCREDITO", monto: 30000, plazo: 32 });
+  ok("el Microcrédito SÍ cobra IVA (la celda vacía del catálogo era error de captura)",
+    mc90.ok && mc90.totales.iva > 0, String(mc90.ok && mc90.totales.iva));
+
+  // --- 2 · moratorio: 10%, sobre el CAPITAL, sin días de gracia ---
+  const M90 = REG90.moratorio;
+  ok("la tasa moratoria es 10% mensual y única para todos",
+    M90.tasaMoratoriaMensual === 0.10 && M90.unicaParaTodos === true && M90.pendiente === false);
+  ok("se cobra sobre el CAPITAL de la amortización, no sobre la cuota",
+    M90.base === "capitalAmortizacion", String(M90.base));
+  ok("los 8 días de gracia quedaron en CERO", M90.diasGracia === 0, String(M90.diasGracia));
+  const t90 = MOT90.tablaAmortizacion({ producto: "COMADRE", monto: 10000, plazo: 12 });
+  const p690 = t90.pagos[5];
+  const mor90 = MOT90.moratorio([{ pago: 6, cuota: p690.cuota, capital: p690.capital, diasAtraso: 22 }]);
+  ok("el caso del PDF con la regla nueva da $61.11 + IVA $9.78",
+    mor90.ok && c90(mor90.filas[0].interes) === 61.11 && c90(mor90.filas[0].iva) === 9.78,
+    JSON.stringify(mor90.filas[0] || {}).slice(0, 110));
+  ok("y NO da los $103.64 del ejemplo viejo, que iba sobre la cuota",
+    c90(mor90.filas[0].interes) !== 103.64);
+  ok("sin el capital de la amortización, se dice que falta en vez de cobrar sobre una base adivinada",
+    MOT90.moratorio([{ pago: 1, cuota: 1413.33, diasAtraso: 10 }]).ok === false);
+  // El parámetro de gracia sigue vivo: si Dirección los reinstala, se mueve aquí.
+  ok("los días de gracia son un parámetro, no una constante del programa",
+    typeof M90.diasGracia === "number" && "diasGracia" in M90);
+
+  // --- 3 · FOXI por ciclo y FOXI+ por plazo ---
+  const CICLOS90 = [[1, 5000, 0.0913], [2, 7000, 0.0707], [3, 10000, 0.0845],
+                  [4, 12000, 0.0707], [5, 15000, 0.0569]];
+  ok("FOXI tiene sus 5 ciclos, cada uno con su monto y su tasa",
+    CICLOS90.every(([c, mo, ta]) => {
+      const e = MOT90.estadoDe("FOXI", { ciclo: c });
+      return e.ok && e.producto.monto === mo && e.producto.tasaMensual === ta;
+    }));
+  ok("cada ciclo de FOXI ya calcula su tabla a 16 semanas",
+    CICLOS90.every(([c, mo]) => MOT90.tablaAmortizacion({ producto: "FOXI", ciclo: c, monto: mo, plazo: 16 }).ok));
+  ok("FOXI sin decir el ciclo NO se adivina: avisa qué falta",
+    MOT90.estadoDe("FOXI", {}).ok === false && /CICLO/i.test(MOT90.estadoDe("FOXI", {}).motivo || ""));
+  const PLUS90 = [[32, 0.05], [24, 0.0388], [16, 0.0574]];
+  ok("FOXI+ tiene sus 3 variantes por plazo",
+    PLUS90.every(([pl, ta]) => {
+      const e = MOT90.estadoDe("FOXI_PLUS", { plazo: pl });
+      return e.ok && e.producto.tasaMensual === ta;
+    }));
+  ok("el tope de FOXI+ queda en $50,000 (no los $150,000 del Anexo E v5)",
+    (REG90.productos.find((x) => x.clave === "FOXI_PLUS") || {}).montoMax === 50000);
+
+  // --- comisiones de apertura ---
+  const CA90 = REG90.comisionApertura || {};
+  ok("las comisiones de apertura están cargadas",
+    CA90.GRUPAL_BASICO_18 && CA90.GRUPAL_BASICO_18.monto === 160
+    && CA90.GRUPAL_MICRO_32.monto === 300 && CA90.FOXI_PLUS.monto === 500 && CA90.MAGNUS.monto === 500);
+  ok("la del Adicional es por millar, no fija", CA90.GRUPAL_ADICIONAL.tipo === "porMillar");
+  ok("y la de FOXI queda marcada pendiente: falta el detalle ciclo por ciclo",
+    CA90.FOXI && CA90.FOXI.pendiente === true);
+
+  // --- ya no queda nada pendiente de calcular ---
+  ok("ningún producto queda sin poder calcularse",
+    (REG90.productos || []).every((x) => x.tasaMensual != null || (x.variantes || []).length > 0),
+    (REG90.productos || []).filter((x) => x.tasaMensual == null && !(x.variantes || []).length)
+      .map((x) => x.clave).join(" "));
+
   console.log("\n— 89. LAS RESPUESTAS DE CONTADURÍA QUEDAN ASENTADAS (Lic. Consuelo, 19-ago) —");
   // De las 5 preguntas del cuestionario, Contaduría cerró dos (centavos e IVA),
   // concuerda con una pero la remite a Dirección (tasas mensuales) y deja dos
@@ -3539,32 +3632,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el IVA es 16% (cerrado por Contaduría)", REG.iva === 0.16, String(REG.iva));
   ok("y también dice quién lo confirmó", /Consuelo/i.test(REG.ivaConfirmadoPor || ""));
 
-  // LO QUE SIGUE ABIERTO NO SE INVENTA.
-  ok("la tasa moratoria sigue en null: sin ella no se calcula mora",
-    REG.moratorio.tasaMoratoriaMensual === null && REG.moratorio.pendiente === true,
-    JSON.stringify(REG.moratorio.tasaMoratoriaMensual));
-  ok("y el 10% del ejemplo NO se coló como tasa de la casa",
-    REG.moratorio.tasaMoratoriaMensual !== 0.1);
-  const pend = (REG.productos || []).filter((x) => x.pendiente);
-  ok("FOXI y FOXI+ siguen sin tasa (falta la tabla ciclo por ciclo)",
-    pend.length === 2 && pend.every((x) => x.tasaMensual === null),
-    pend.map((x) => x.clave + ":" + x.tasaMensual).join(" "));
-  ok("ninguno de los pendientes se rellenó con un promedio del rango",
-    pend.every((x) => x.tasaMensual == null));
-
-  // La de 4.5 veces sigue SIN cerrar, y el archivo lo dice.
-  ok("la interpretación mensual sigue marcada como NO confirmada por Dirección",
-    REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.confirmadoPor === null,
-    String(REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.confirmadoPor));
-  ok("aunque Contaduría ya dijo que las considera mensuales",
+  // LO QUE CONTADURÍA DEJÓ ABIERTO lo cerró Dirección ese mismo día (sección
+  // 90). Aquí solo se conserva el rastro: que quede escrito que Contaduría
+  // remitió, y que el motor NO se quedó con el 10% del ejemplo por su cuenta
+  // sino porque Dirección lo confirmó después.
+  ok("queda escrito que Contaduría remitió el moratorio a Dirección",
+    /Anel|Monserrat/i.test(REG.moratorio.preguntarA || REG.moratorio._confirmacion || ""));
+  ok("y que la tasa que quedó viene CONFIRMADA, no supuesta",
+    /Anel/i.test(REG.moratorio.confirmadoPor || ""),
+    String(REG.moratorio.confirmadoPor || "").slice(0, 50));
+  ok("aunque Contaduría ya había dicho que las considera mensuales",
     /MENSUALES/i.test(REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.contaduria19ago || ""));
   ok("el motor sigue configurado en mensual (que es lo que reproduce los ejemplos)",
     REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.interpretacion === "mensual");
 
-  // Los 10 productos que SÍ tienen tasa siguen intactos: nada se movió al
-  // asentar las respuestas.
+  // Los 10 productos que ya tenían tasa siguen intactos: cargar el catálogo no
+  // movió ninguno de los que ya estaban validados.
   const conTasa = (REG.productos || []).filter((x) => typeof x.tasaMensual === "number");
-  ok("los 10 productos con tasa siguen con su tasa", conTasa.length === 10, String(conTasa.length));
+  ok("los 10 productos que ya tenían tasa siguen igual", conTasa.length === 10, String(conTasa.length));
 
   console.log("\n— 88. LA MARCA ES DEL CICLO, Y DIRECCIÓN VE QUIÉN TRABAJÓ SU LISTA (19-ago) —");
   // Dos preguntas de Dirección: (1) «¿nos da un resumen de las renovaciones y
