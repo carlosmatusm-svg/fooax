@@ -3522,12 +3522,20 @@ app.get("/api/reglas", requiere("direccion", "admin"), (req, res) => {
   const R = motor.reglas(true);   // relee al vuelo: si acaban de editar una tasa, se ve
   const listos = [], esperando = [];
   for (const p of R.productos || []) {
+    // FOXI y FOXI+ no traen tasa en el padre: la traen sus VARIANTES (por ciclo
+    // o por plazo). No están esperando dato — están listos, solo hay que decir
+    // cuál. Antes caían en "esperando" y parecía que faltaba información que ya
+    // había llegado.
+    const conVariantes = Array.isArray(p.variantes) && p.variantes.length > 0;
     const fila = { clave: p.clave, nombre: p.nombre, metodo: p.metodo,
       periodicidad: p.periodicidad, tasaMensual: p.tasaMensual,
       montoMin: p.montoMin || null, montoMax: p.montoMax || null,
       plazos: p.plazos || null, fuente: p.fuente || null,
+      iva: p.iva != null ? p.iva : R.iva,
+      variantes: conVariantes ? p.variantes : null,
+      comoElegir: conVariantes ? (p.faltaVariante || null) : null,
       advertencia: p.advertencia || null, faltaPara: p.faltaPara || null };
-    (p.pendiente || p.tasaMensual == null ? esperando : listos).push(fila);
+    (!conVariantes && (p.pendiente || p.tasaMensual == null) ? esperando : listos).push(fila);
   }
   res.json({ version: R.version, vigenteDesde: R.vigenteDesde, iva: R.iva,
     redondeo: R.redondeo, moratorio: R.moratorio,
@@ -3540,6 +3548,10 @@ app.get("/api/reglas/simular", requiere("direccion", "admin"), (req, res) => {
   const dias = String(q.diasPorPeriodo || "").trim();
   const t = motor.tablaAmortizacion({
     producto: q.producto, monto: Number(q.monto), plazo: Number(q.plazo),
+    // EL CICLO (Anel, 19-ago): FOXI cambia de tasa y de monto en cada uno de
+    // sus 5 ciclos. Sin este parámetro el simulador no podía cotizar FOXI —
+    // el motor pedía el ciclo y la ruta no lo mandaba.
+    ciclo: q.ciclo != null && q.ciclo !== "" ? Number(q.ciclo) : null,
     dias: Number(q.dias) || 0,
     diasPorPeriodo: dias ? dias.split(",").map((x) => Number(x.trim())) : null,
   });

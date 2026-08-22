@@ -77,10 +77,20 @@ function variantePara(p, o) {
   const vs = p && Array.isArray(p.variantes) ? p.variantes : null;
   if (!vs || !vs.length) return null;
   const num = (x) => (x == null || x === "" ? null : Number(x));
-  const ciclo = num(o && o.ciclo), plazo = num(o && o.plazo), monto = num(o && o.monto);
-  return (ciclo != null && vs.find((v) => num(v.ciclo) === ciclo))
-    || (plazo != null && vs.find((v) => num(v.plazo) === plazo))
-    || (monto != null && vs.find((v) => num(v.monto) === monto))
+  // UN CRITERIO SOLO SIRVE SI DISTINGUE. En FOXI los cinco ciclos son a 16
+  // semanas, así que el PLAZO no distingue nada: si se tomara el primero que
+  // empata, un FOXI de $6,000 se cobraría al 9.13% del primer ciclo sin que
+  // nadie lo pidiera. Por eso un criterio que deja más de una variante viva se
+  // descarta y se pasa al siguiente; si ninguno deja exactamente una, se
+  // devuelve null y el motor pide el dato en vez de elegir por su cuenta.
+  const porCampo = (campo, valor) => {
+    if (valor == null) return null;
+    const hits = vs.filter((v) => num(v[campo]) === valor);
+    return hits.length === 1 ? hits[0] : null;
+  };
+  return porCampo("ciclo", num(o && o.ciclo))
+    || porCampo("plazo", num(o && o.plazo))
+    || porCampo("monto", num(o && o.monto))
     || null;
 }
 // El producto ya resuelto: la variante gana sobre el padre.

@@ -3001,6 +3001,32 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     fx.status === 400 && /plazo|tope|tasa/i.test(fx.d.motivo || ""), JSON.stringify(fx.d).slice(0, 160));
   ok("y cuando SÍ se dice el plazo, ya calcula",
     (await sim("producto=Foxi%20Plus%20-%201&monto=30000&plazo=32")).status === 200);
+  // El simulador tiene que poder pedir un CICLO de FOXI: sin ese parámetro la
+  // ruta no podía cotizar FOXI aunque el motor ya supiera hacerlo.
+  const fx1 = await sim("producto=FOXI&ciclo=1&monto=5000&plazo=16");
+  ok("el simulador cotiza FOXI por ciclo", fx1.status === 200
+    && Math.abs(fx1.d.cuota - 444.89) < 0.01, JSON.stringify(fx1.d).slice(0, 90));
+  const fx5 = await sim("producto=FOXI&ciclo=5&monto=15000&plazo=16");
+  ok("y cada ciclo da su propia cuota", fx5.status === 200 && fx5.d.cuota !== fx1.d.cuota,
+    String(fx5.d && fx5.d.cuota));
+  // Con un monto que SÍ es de un ciclo ($5,000 = ciclo 1), el motor lo deduce:
+  // Anel dijo que cada ciclo trae su monto único, así que el monto identifica.
+  ok("con el monto de un ciclo, lo deduce sin que se lo digan",
+    (await sim("producto=FOXI&monto=5000&plazo=16")).status === 200);
+  // Pero con un monto que no es de ningún ciclo NO se inventa cuál aplicar.
+  const fxAmb = await sim("producto=FOXI&monto=6000&plazo=16");
+  ok("con un monto que no es de ningún ciclo, se niega y dice cuáles hay",
+    fxAmb.status === 400 && /ciclo/i.test(fxAmb.d.motivo || ""),
+    JSON.stringify(fxAmb.d).slice(0, 110));
+  // Y FOXI/FOXI+ ya NO aparecen como "esperando dato": tienen sus tasas en las
+  // variantes, solo hay que decir cuál.
+  ok("ningún producto queda listado como esperando dato",
+    (reg61.esperando || []).length === 0,
+    JSON.stringify((reg61.esperando || []).map((x) => x.clave)));
+  const foxiListo = (reg61.listos || []).find((x) => x.clave === "FOXI");
+  ok("FOXI aparece entre los listos, con sus 5 variantes",
+    foxiListo && (foxiListo.variantes || []).length === 5,
+    JSON.stringify(foxiListo && foxiListo.variantes && foxiListo.variantes.length));
   ok("el moratorio ya tiene su tasa, y es el 10% que confirmó Dirección",
     reg61.moratorio && reg61.moratorio.pendiente === false
       && reg61.moratorio.tasaMoratoriaMensual === 0.10, JSON.stringify(reg61.moratorio || {}).slice(0, 90));
