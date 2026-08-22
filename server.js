@@ -2371,6 +2371,110 @@ app.get("/api/sin-desembolso", requiere("direccion", "admin"), (req, res) => {
   res.json(sinFechaDesembolso(req.usuario));
 });
 
+// ---------- CRÉDITOS QUE NO ENGANCHAN CON EL CATÁLOGO ----------
+// El motor ya sabe calcular los 16 productos, pero un crédito solo se puede
+// calcular si se sabe QUÉ producto es. El puente
+// (data/equivalencias-productos.json) resuelve el nombre usando el plazo que el
+// propio crédito trae; los que no traen plazo se quedan fuera y hay que
+// completarlos a mano. Esta lista es esa tarea, y se vacía sola.
+function sinCatalogo(usuario) {
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const cv = carteraViva(usuario);
+  const filas = [], fuera = [];
+  let listos = 0;
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    if (infoCredito(cv, c).saldoActual <= 0.009) continue;   // ya liquidado
+    const r = motor.resolverCredito(c);
+    if (r.ok) { listos++; continue; }
+    const renglon = { ejecutivo: c.ejecutivo, centro: c.centro, clienta: c.nombre,
+      socio: String(c.id), producto: c.producto, plazo: c.plazo || null,
+      cuota: Number(c.cuota) || 0, saldo: Math.round(infoCredito(cv, c).saldoActual * 100) / 100,
+      motivo: r.motivo, falta: r.faltaPlazo ? "plazo" : (r.sinEquivalencia ? "equivalencia" : "otro"),
+      opciones: r.equivalencia && r.equivalencia.porPlazo ? Object.keys(r.equivalencia.porPlazo).join(" / ") : "" };
+    // Las reestructuras y los especiales NO son un pendiente de nadie: van
+    // aparte para que no se lean como trabajo por hacer.
+    if (r.fueraDeCatalogo) fuera.push(renglon); else filas.push(renglon);
+  }
+  filas.sort((a2, b2) => String(a2.ejecutivo).localeCompare(String(b2.ejecutivo), "es")
+    || b2.saldo - a2.saldo);
+  return { hoy: hoyMX(), listos, total: filas.length,
+    saldo: Math.round(filas.reduce((t, x) => t + x.saldo, 0) * 100) / 100,
+    filas, fueraDeCatalogo: fuera };
+}
+
+app.get("/api/sin-catalogo", requiere("direccion", "admin"), (req, res) => {
+  res.json(sinCatalogo(req.usuario));
+});
+
+app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = sinCatalogo(req.usuario);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", AMBAR = "FFFFF3CD", MONEDA = '"$"#,##0.00';
+  const s = wb.addWorksheet("Falta el plazo");
+  s.mergeCells("A1:J1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · CRÉDITOS QUE NO SE PUEDEN CALCULAR · al " + d.hoy;
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center" }; s.getRow(1).height = 22;
+  s.mergeCells("A2:J2");
+  const t2 = s.getCell("A2");
+  t2.value = "Al día de hoy " + d.listos + " créditos ya calculan solos. Estos " + d.total
+    + " no, y casi siempre es porque falta el PLAZO: sin él no se sabe si un Grupal Básico es de 18 "
+    + "semanas (5.67%) o de 24 (6.32%). Llena la columna en amarillo y la lista se vacía sola.";
+  t2.font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
+  t2.alignment = { wrapText: true, vertical: "top" }; s.getRow(2).height = 34;
+  const cols = [["Ejecutivo", 14], ["Centro", 20], ["Clienta", 30], ["Socio", 15], ["Producto", 20],
+    ["Cuota", 12], ["Saldo", 14], ["Qué falta", 40], ["Plazos válidos", 14], ["PLAZO (llenar)", 15]];
+  const hr = s.getRow(3);
+  cols.forEach(([h, w], i) => { const cc = hr.getCell(i + 1); cc.value = h;
+    s.getColumn(i + 1).width = w;
+    cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } }; });
+  let f = 4;
+  for (const x of d.filas) {
+    const r = s.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(6).value = x.cuota; r.getCell(6).numFmt = MONEDA;
+    r.getCell(7).value = x.saldo; r.getCell(7).numFmt = MONEDA;
+    r.getCell(8).value = x.motivo;
+    r.getCell(9).value = x.opciones || "—";
+    // La columna que hay que llenar, en amarillo, como la de fecha de desembolso.
+    r.getCell(10).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+  }
+  const tt = s.getRow(f++);
+  tt.getCell(5).value = "TOTAL · " + d.total + " créditos";
+  tt.getCell(7).value = d.saldo; tt.getCell(7).numFmt = MONEDA;
+  [5, 7].forEach((i) => (tt.getCell(i).font = { bold: true }));
+
+  // Los que están fuera del catálogo a propósito: no son tarea de nadie.
+  if (d.fueraDeCatalogo.length) {
+    const s2 = wb.addWorksheet("Fuera del catálogo");
+    s2.mergeCells("A1:F1");
+    const u = s2.getCell("A1");
+    u.value = "FOOAX · FUERA DEL CATÁLOGO A PROPÓSITO — no son un pendiente";
+    u.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    u.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    const h2 = s2.getRow(2);
+    [["Ejecutivo", 14], ["Clienta", 30], ["Socio", 15], ["Producto", 20], ["Saldo", 14], ["Por qué", 60]]
+      .forEach(([h, w], i) => { const cc = h2.getCell(i + 1); cc.value = h;
+        s2.getColumn(i + 1).width = w; cc.font = { bold: true }; });
+    let g = 3;
+    for (const x of d.fueraDeCatalogo) {
+      const r = s2.getRow(g++);
+      [x.ejecutivo, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+      r.getCell(5).value = x.saldo; r.getCell(5).numFmt = MONEDA;
+      r.getCell(6).value = x.motivo;
+    }
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Creditos sin catalogo FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
 app.get("/api/sin-desembolso/excel", requiere("direccion", "admin"), async (req, res) => {
   const d = sinFechaDesembolso(req.usuario);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";

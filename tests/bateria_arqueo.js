@@ -3553,6 +3553,103 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 91. EL PUENTE PADRÓN → CATÁLOGO (Karina, 19-ago) —");
+  // El motor sabía calcular los 16 productos, pero solo 88 de 638 créditos
+  // enganchaban: el padrón dice «Grupal-Basico» sin plazo y el catálogo tiene
+  // Básico 18 (5.67%) y Básico 24 (6.32%); el «2» de «Grupal-Basico 2» es el
+  // CICLO; y «Individual N» resultó ser el ciclo N de FOXI —no estaba escrito
+  // en ningún lado, se dedujo de la cuota y coincide al peso.
+  const MT = require(require("path").join(__dirname, "..", "motor-reglas.js"));
+  const res91 = (o) => MT.resolverCredito(o);
+
+  ok("Grupal-Basico a 24 semanas cae en el Básico 24 del catálogo",
+    res91({ producto: "Grupal-Basico", plazo: 24 }).clave === "GRUPAL_BASICO_24");
+  ok("y a 18 semanas cae en el Básico 18, que es otra tasa",
+    res91({ producto: "Grupal-Basico", plazo: 18 }).clave === "GRUPAL_BASICO_18");
+  ok("el «2» de «Grupal-Basico 2» se lee como CICLO, no como plazo",
+    res91({ producto: "Grupal-Basico 2", plazo: 18 }).ciclo === 2
+    && res91({ producto: "Grupal-Basico 2", plazo: 18 }).clave === "GRUPAL_BASICO_18");
+  ok("Grupal-Micro reparte bien entre 32, 48 y 52 semanas",
+    res91({ producto: "Grupal-Micro", plazo: 32 }).clave === "GRUPAL_MICRO_32"
+    && res91({ producto: "Grupal-Micro", plazo: 48 }).clave === "GRUPAL_MICRO_48"
+    && res91({ producto: "Grupal-Micro", plazo: 52 }).clave === "GRUPAL_MICRO_52");
+
+  // «Individual N» = FOXI ciclo N, verificado contra la cuota real.
+  const CUOTAS_REALES = [[1, 445], [2, 581], [3, 870], [5, 1185]];
+  ok("«Individual N» resuelve al ciclo N de FOXI",
+    CUOTAS_REALES.every(([c]) => {
+      const r = res91({ producto: "Individual " + c });
+      return r.ok && r.clave === "FOXI" && r.ciclo === c;
+    }));
+  ok("y la cuota que da el catálogo coincide con la que se cobra hoy (± $1)",
+    CUOTAS_REALES.every(([c, real]) => {
+      const r = res91({ producto: "Individual " + c });
+      const t = MT.tablaAmortizacion({ producto: "FOXI", ciclo: c, monto: r.producto.monto, plazo: 16 });
+      return t.ok && Math.abs(t.cuota - real) < 1;
+    }),
+    CUOTAS_REALES.map(([c, real]) => {
+      const r = res91({ producto: "Individual " + c });
+      const t = MT.tablaAmortizacion({ producto: "FOXI", ciclo: c, monto: r.producto.monto, plazo: 16 });
+      return "c" + c + ":" + (t.ok ? t.cuota.toFixed(2) : "?") + "vs" + real;
+    }).join(" "));
+
+  ok("Foxi Plus - 1 es el de 32 semanas", res91({ producto: "Foxi Plus - 1" }).ok === true);
+  ok("Foxi Plus - 2 usa el plazo del crédito (24 o 16)",
+    res91({ producto: "Foxi Plus - 2", plazo: 24 }).ok === true
+    && res91({ producto: "Foxi Plus - 2", plazo: 16 }).ok === true);
+
+  // LO QUE NO SE ADIVINA.
+  const sinPlazo = res91({ producto: "Grupal-Basico" });
+  ok("sin plazo NO se elige «la más común»: se dice qué falta",
+    sinPlazo.ok === false && sinPlazo.faltaPlazo === true, String(sinPlazo.motivo).slice(0, 60));
+  ok("y el aviso dice las dos tasas que están en juego",
+    /5\.67|18 y a 24/.test(sinPlazo.motivo || ""));
+  const raro = res91({ producto: "Grupal-Basico", plazo: 99 });
+  ok("un plazo que no existe en el catálogo se rechaza con sus opciones",
+    raro.ok === false && /18, 24/.test(raro.motivo || ""), String(raro.motivo).slice(0, 60));
+
+  // Las reestructuras NO son un pendiente: van marcadas aparte.
+  const rees = res91({ producto: "REESTRUCTURA", plazo: 58 });
+  ok("una reestructura queda FUERA del catálogo a propósito, no como error",
+    rees.ok === false && rees.fueraDeCatalogo === true);
+  ok("y explica por qué (plazo y cuota propios)", /renegociado/i.test(rees.motivo || ""));
+
+  // El reporte de lo que falta por completar.
+  const sc = await j(await fetch(U + "/api/sin-catalogo", { headers: H(cm) }));
+  ok("el reporte de créditos sin catálogo responde", !!sc && typeof sc.total === "number",
+    JSON.stringify(sc).slice(0, 80));
+  ok("dice cuántos YA calculan, no solo cuántos faltan", typeof sc.listos === "number" && sc.listos > 0,
+    "listos=" + sc.listos + " faltan=" + sc.total);
+  ok("los que faltan son muchos menos que los que ya calculan", sc.listos > sc.total,
+    sc.listos + " vs " + sc.total);
+  ok("cada renglón dice QUÉ falta y qué plazos son válidos",
+    (sc.filas || []).every((x) => !!x.motivo) 
+    && (sc.filas || []).filter((x) => x.falta === "plazo").every((x) => !!x.opciones),
+    JSON.stringify((sc.filas || [])[0] || {}).slice(0, 120));
+  ok("las reestructuras van en su propia lista, no en la de pendientes",
+    Array.isArray(sc.fueraDeCatalogo)
+    && (sc.filas || []).every((x) => !/reestructur/i.test(x.producto || "")),
+    "fuera=" + JSON.stringify(sc.fueraDeCatalogo && sc.fueraDeCatalogo.length)
+      + " coladas=" + JSON.stringify((sc.filas || []).filter((x) => /reestructur/i.test(x.producto || ""))
+          .map((x) => x.producto)));
+  // EL NÚMERO DEL FINAL ES EL CICLO, y vale para cualquier producto: al
+  // re-acreditar, "REESTRUCTURA" se vuelve "Reestructura 2". Sin esta regla
+  // habría que dar de alta cada ciclo a mano en la tabla de equivalencias.
+  ok("un ciclo nuevo de un producto fuera de catálogo sigue fuera",
+    res91({ producto: "Reestructura 2", plazo: 58 }).fueraDeCatalogo === true);
+  ok("un ciclo que no está listado se resuelve solo, tomando el número como ciclo",
+    res91({ producto: "Grupal-Basico 4", plazo: 24 }).clave === "GRUPAL_BASICO_24"
+    && res91({ producto: "Grupal-Basico 4", plazo: 24 }).ciclo === 4);
+  ok("pero el nombre EXACTO gana, para los casos donde el número no es ciclo",
+    res91({ producto: "Foxi Plus - 2", plazo: 24 }).clave === "FOXI_PLUS"
+    && res91({ producto: "Individual 3" }).clave === "FOXI");
+  ok("y un producto que de verdad no existe se reporta, no se adivina",
+    res91({ producto: "Producto Inventado", plazo: 10 }).sinEquivalencia === true);
+
+  const xl = await fetch(U + "/api/sin-catalogo/excel", { headers: H(cm) });
+  ok("y baja en Excel con su columna en amarillo para llenar", xl.status === 200,
+    "status " + xl.status);
+
   console.log("\n— 90. EL CATÁLOGO OFICIAL, CARGADO Y CERRADO (Anel, 19-ago) —");
   // Anel mandó los tres datos que faltaban, sobre el catálogo que la Ing. Monse
   // validó en mayo: tasas mensuales confirmadas, moratoria 10% y la tabla FOXI

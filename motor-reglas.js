@@ -25,6 +25,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ARCHIVO = path.join(__dirname, "data", "reglas-productos.json");
+const EQUIVALENCIAS = path.join(__dirname, "data", "equivalencias-productos.json");
 
 let REGLAS = null, cargadoEn = 0;
 function reglas(forzar) {
@@ -40,6 +41,15 @@ function reglas(forzar) {
     if (!REGLAS) throw new Error("No se pudo leer el motor de reglas (" + ARCHIVO + "): " + e.message);
   }
   return REGLAS;
+}
+
+let EQ = null, eqEn = 0;
+function equivalencias(forzar) {
+  const ahora = Date.now();
+  if (!forzar && EQ && ahora - eqEn < 30000) return EQ;
+  try { EQ = JSON.parse(fs.readFileSync(EQUIVALENCIAS, "utf8")); eqEn = ahora; }
+  catch (e) { if (!EQ) EQ = { equivalencias: [], fueraDeCatalogo: [] }; }
+  return EQ;
 }
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -270,6 +280,70 @@ function moratorio(atrasos) {
     total: r2(filas.filter((x) => x.ok !== false).reduce((t, x) => t + x.total, 0)) };
 }
 
+// ---------- EL PUENTE · de un crédito del padrón al catálogo ----------
+// El padrón y el catálogo no se llaman igual, y no por descuido: el padrón
+// viene de las plantillas que se llenaban a mano. Esto traduce, usando lo que
+// el propio crédito ya trae — su PLAZO y el ciclo que va en el nombre.
+//
+// Lo que NO hace: adivinar. Si a un Grupal-Básico le falta el plazo, no elige
+// entre 18 y 24 semanas «por ser la más común»: dice que falta el dato. Son
+// tasas de 5.67% y 6.32% sobre créditos de miles de pesos.
+function resolverCredito(credito) {
+  const c = credito || {};
+  const E = equivalencias();
+  const nom = norm(c.producto);
+  if (!nom) return { ok: false, motivo: "El crédito no dice de qué producto es.", falta: "producto" };
+
+  // EL NÚMERO DEL FINAL ES EL CICLO. Al re-acreditar, el sistema le pega el
+  // ciclo al nombre: "REESTRUCTURA" se vuelve "Reestructura 2", "Grupal-Basico"
+  // se vuelve "Grupal-Basico 2". Por eso se busca primero el nombre EXACTO —que
+  // gana siempre, para los casos donde el número NO es el ciclo, como
+  // "Individual 3" (ciclo 3 de FOXI) o "Foxi Plus - 2" (subproducto)— y solo si
+  // no aparece se le quita el número y se usa como ciclo. Sin esto, cada ciclo
+  // nuevo de cada producto habría que darlo de alta a mano en la tabla.
+  const mSufijo = /^(.*?)(\d+)$/.exec(nom);
+  const base = mSufijo ? mSufijo[1] : null;
+  const cicloDelNombre = mSufijo ? Number(mSufijo[2]) : null;
+  const buscar = (lista) => (lista || []).find((x) => norm(x.padron) === nom)
+    || (base ? (lista || []).find((x) => norm(x.padron) === base) : null);
+
+  const fuera = buscar(E.fueraDeCatalogo);
+  if (fuera) return { ok: false, fueraDeCatalogo: true, motivo: fuera.porQue, padron: c.producto };
+
+  const eqExacta = (E.equivalencias || []).find((x) => norm(x.padron) === nom);
+  const eqBase = !eqExacta && base
+    ? (E.equivalencias || []).find((x) => norm(x.padron) === base) : null;
+  const eq = eqExacta || (eqBase ? Object.assign({}, eqBase, { ciclo: cicloDelNombre }) : null);
+  if (!eq) return { ok: false, sinEquivalencia: true, padron: c.producto,
+    motivo: "«" + c.producto + "» no tiene equivalencia con el catálogo. Se agrega en "
+      + "data/equivalencias-productos.json, sin tocar el programa." };
+
+  const plazo = eq.plazoFijo != null ? Number(eq.plazoFijo) : (Number(c.plazo) || null);
+
+  // Los que dependen del plazo para saber CUÁL producto del catálogo son.
+  if (eq.porPlazo) {
+    if (!plazo) return { ok: false, faltaPlazo: true, padron: c.producto, equivalencia: eq,
+      motivo: eq.faltaPlazo || "Falta el plazo del crédito para saber qué producto del catálogo es." };
+    const clave = eq.porPlazo[String(plazo)];
+    if (!clave) return { ok: false, plazoDesconocido: true, padron: c.producto, plazo, equivalencia: eq,
+      motivo: "«" + c.producto + "» a " + plazo + " semanas no existe en el catálogo. "
+        + "Los plazos válidos son: " + Object.keys(eq.porPlazo).join(", ") + "." };
+    const est = estadoDe(clave, { plazo, ciclo: eq.ciclo, monto: c.saldo });
+    return est.ok
+      ? { ok: true, clave, producto: est.producto, plazo, ciclo: eq.ciclo || null, equivalencia: eq }
+      : { ok: false, motivo: est.motivo, clave, producto: est.producto, equivalencia: eq };
+  }
+
+  // Los que ya saben su clave; el ciclo o el plazo eligen la variante.
+  const opciones = { ciclo: eq.ciclo, monto: c.saldo,
+    plazo: eq.usarPlazoDelCredito || eq.plazoFijo != null ? plazo : (plazo || undefined) };
+  const est = estadoDe(eq.clave, opciones);
+  if (!est.ok) return { ok: false, motivo: (eq.faltaPlazo && !plazo) ? eq.faltaPlazo : est.motivo,
+    clave: eq.clave, producto: est.producto, equivalencia: eq, faltaPlazo: !plazo && !!eq.faltaPlazo };
+  return { ok: true, clave: eq.clave, producto: est.producto,
+    plazo: plazo || est.producto.plazo || null, ciclo: eq.ciclo || null, equivalencia: eq };
+}
+
 // ---------- AUTOPRUEBA contra los ejemplos que validó la contadora ----------
 // Corre al arrancar. Si el motor deja de reproducirlos, se grita en el log:
 // vale más un servidor que avisa que uno que cobra mal en silencio.
@@ -293,4 +367,5 @@ function autoprueba() {
   return { ok: casos.every((x) => x.ok), casos };
 }
 
-module.exports = { reglas, buscarProducto, estadoDe, tablaAmortizacion, moratorio, autoprueba, ARCHIVO };
+module.exports = { reglas, equivalencias, buscarProducto, estadoDe, resolverCredito,
+  tablaAmortizacion, moratorio, autoprueba, ARCHIVO, EQUIVALENCIAS };
