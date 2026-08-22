@@ -706,6 +706,8 @@
     <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg><span>Cierre de caja de la semana</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Saldos actualizados de la semana</span></button>
     <button class="dlbtn" id="btnSinDes" onclick="descargar('/api/sin-desembolso/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18M12 15v3"/></svg><span>Créditos sin fecha de desembolso</span></button>
+    <!-- Mismo patrón: dice cuántos faltan y se esconde solo al llegar a cero. -->
+    <button class="dlbtn" id="btnSinCat" style="display:none" onclick="descargar('/api/sin-catalogo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18.5" cy="17" r="3"/><path d="M18.5 15.6v1.4l1 .7"/></svg><span>Créditos sin plazo</span></button>
     <button class="dlbtn secun" onclick="descargar('/api/respaldo')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v6h8V4M8 20v-5h8v5"/></svg><span>Respaldo completo (toda la cobranza)</span></button>
   </div>
   <div class="dlhint" id="dlAviso" style="display:none"></div>
@@ -1999,6 +2001,24 @@ async function cargarSinDesembolso() {
   et.textContent = d.total + (d.total === 1 ? " crédito sin fecha de desembolso" : " créditos sin fecha de desembolso");
 }
 
+// CRÉDITOS QUE NO ENGANCHAN CON EL CATÁLOGO. Casi siempre les falta el PLAZO:
+// sin él no se sabe si un Grupal Básico es de 18 semanas (5.67%) o de 24
+// (6.32%), y el motor no lo adivina. El botón dice cuántos son y desaparece
+// solo cuando la lista queda vacía — igual que el de fechas de desembolso.
+async function cargarSinCatalogo() {
+  const b = document.getElementById("btnSinCat");
+  if (!b) return;
+  let d;
+  try { d = await (await fetch("/api/sin-catalogo", { credentials: "include" })).json(); }
+  catch { return; }
+  const et = b.querySelector("span");
+  if (!et || d.error) return;
+  if (!d.total) { b.style.display = "none"; return; }
+  b.style.display = "";
+  et.textContent = d.total + (d.total === 1 ? " crédito sin plazo" : " créditos sin plazo")
+    + " · " + d.listos + " ya calculan";
+}
+
 // LOS MOROSOS (Karina, 15-ago: «que cuando le pique descargue los morosos»).
 // Sale del MISMO reporte que baja en Excel, así el número de arriba y la lista
 // de abajo no pueden contarse distinto.
@@ -2729,6 +2749,7 @@ cargarPeriodo();
 cargarMora();
 cargarRenovaciones();
 cargarSinDesembolso();
+cargarSinCatalogo();
 { const e = document.getElementById("moraLunes"); if (e) e.addEventListener("change", cargarMora); }
 // Al cambiar el rango se recalcula el resumen, para ver el número antes de bajar el Excel.
 ["perDesde", "perHasta"].forEach((id) => {
