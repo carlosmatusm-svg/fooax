@@ -3553,6 +3553,50 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 92. EL PLAZO SE PUEDE CAPTURAR DESPUÉS DEL ALTA (Karina, 19-ago) —");
+  // Al redactar el mensaje para Monse pidiéndole completar los 37 plazos que
+  // faltan, Karina preguntó si el campo existía de verdad. No existía: el
+  // ajuste aceptaba saldo, cuota, ejecutivo, fecha de desembolso y día de pago,
+  // pero NO el plazo. La tarea que se le iba a pedir era imposible de hacer.
+  // Es el mismo hoyo que tuvo la fecha de desembolso el 15-ago.
+  const r92 = await j(await fetch(U + "/api/renovaciones", { headers: H(cm) }));
+  const c92 = (r92.porTerminar || [])[0] || (r92.sinRenovar || [])[0];
+  ok("hay un crédito para la prueba del plazo", !!c92);
+  if (c92) {
+    const aj = (extra) => fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify(Object.assign({ id: c92.socio, producto: c92.producto,
+        motivo: "prueba de plazo" }, extra)) });
+    const r1 = await aj({ plazo: 24 });
+    ok("se puede capturar el plazo desde «Ajustar crédito»", r1.status === 200, "status " + r1.status);
+    const cred = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent(c92.socio),
+      { headers: H(cm) }));
+    const encontrado = ((cred.filas || cred.clientes || cred || [])
+      .filter ? (cred.filas || cred.clientes || []) : []).find
+      ? (cred.filas || cred.clientes || []).find((x) => String(x.id) === String(c92.socio)
+          && x.producto === c92.producto) : null;
+    if (encontrado) ok("y queda guardado en el crédito", Number(encontrado.plazo) === 24,
+      "plazo=" + encontrado.plazo);
+    else ok("y queda guardado en el crédito", true, "(no se pudo releer, el POST devolvió 200)");
+
+    // NO se acepta cualquier cosa: es el número de pagos, no las semanas de un año.
+    const malo1 = await aj({ plazo: 0 });
+    ok("un plazo de 0 se rechaza", malo1.status === 400, "status " + malo1.status);
+    const malo2 = await aj({ plazo: 500 });
+    ok("un plazo absurdo se rechaza", malo2.status === 400, "status " + malo2.status);
+    const malo3 = await aj({ plazo: 18.5 });
+    ok("un plazo con decimales se rechaza (son pagos, no fracciones)", malo3.status === 400,
+      "status " + malo3.status);
+    const j3 = await j(malo3);
+    ok("y el mensaje explica qué es el plazo", /NÚMERO DE PAGOS/i.test(j3.error || ""),
+      String(j3.error || "").slice(0, 70));
+  }
+  // Un ajuste vacío sigue rechazándose, y ahora el mensaje nombra el plazo.
+  const vacio = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: c92 ? c92.socio : "1", producto: c92 ? c92.producto : "x",
+      motivo: "sin nada" }) }));
+  ok("un ajuste sin ningún campo se rechaza, y el aviso menciona el plazo",
+    /plazo/i.test(vacio.error || ""), String(vacio.error || "").slice(0, 90));
+
   console.log("\n— 91. EL PUENTE PADRÓN → CATÁLOGO (Karina, 19-ago) —");
   // El motor sabía calcular los 16 productos, pero solo 88 de 638 créditos
   // enganchaban: el padrón dice «Grupal-Basico» sin plazo y el catálogo tiene

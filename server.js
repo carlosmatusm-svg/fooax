@@ -4334,7 +4334,17 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
     if (!idxDia(dp)) return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
     campos.diaPago = dp;
   }
-  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota, el ejecutivo, la fecha de desembolso o el día de pago." });
+  // PLAZO (Karina, 19-ago). Es lo que decide QUÉ producto del catálogo es el
+  // crédito: un Grupal Básico de 18 semanas cobra 5.67% y uno de 24 cobra
+  // 6.32%. Sin plazo el motor no calcula —y no debe adivinar—, así que hacía
+  // falta poder capturarlo después del alta, igual que la fecha de desembolso.
+  if (b.plazo != null && String(b.plazo).trim() !== "") {
+    const pl = Number(b.plazo);
+    if (!Number.isInteger(pl) || pl < 1 || pl > 200)
+      return res.status(400).json({ error: "El plazo es el NÚMERO DE PAGOS del crédito (por ejemplo 18 o 24), entre 1 y 200." });
+    campos.plazo = pl;
+  }
+  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota, el plazo, el ejecutivo, la fecha de desembolso o el día de pago." });
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
     saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),

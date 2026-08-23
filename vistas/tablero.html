@@ -1158,6 +1158,11 @@ function pedirAjuste(btn, i) {
   box.innerHTML = '<span>Ajustar saldo de ' + hesc(c.nombre) + " (hoy " + dinero((c.saldoActual != null ? c.saldoActual : c.saldo) || 0) + "):</span>"
     + '<input class="credin" id="ajSaldo" inputmode="decimal" placeholder="nuevo saldo">'
     + '<input class="credin" id="ajCuota" inputmode="decimal" placeholder="cuota (opcional)">'
+    // El PLAZO decide qué producto del catálogo es el crédito (Básico 18 cobra
+    // 5.67%, Básico 24 cobra 6.32%). Sin él, el motor no calcula esa clienta.
+    + '<input class="credin" id="ajPlazo" inputmode="numeric" placeholder="plazo · n° de pagos'
+    + (c.plazo ? ' (hoy ' + c.plazo + ')' : ' — LE FALTA') + '"'
+    + (c.plazo ? '' : ' style="border-color:#D68910;background:#FFF6E9"') + '>'
     + '<input class="credin ancho" id="ajMotivo" placeholder="motivo (ej. condonación, error de captura)">'
     + '<button class="credok" onclick="hacerAjuste(this,' + i + ')">Guardar</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1166,7 +1171,8 @@ function pedirAjuste(btn, i) {
 }
 async function hacerAjuste(btn, i) {
   const c = credRow(i), err = $("ajErr"); btn.disabled = true;
-  const body = { id: c.id, producto: c.producto, saldo: $("ajSaldo").value, cuota: $("ajCuota").value, motivo: $("ajMotivo").value };
+  const body = { id: c.id, producto: c.producto, saldo: $("ajSaldo").value, cuota: $("ajCuota").value,
+    plazo: $("ajPlazo") ? $("ajPlazo").value : "", motivo: $("ajMotivo").value };
   try {
     const r = await fetch("/api/creditos/ajuste", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
