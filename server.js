@@ -3648,8 +3648,86 @@ app.get("/api/reglas", requiere("direccion", "admin"), (req, res) => {
   }
   res.json({ version: R.version, vigenteDesde: R.vigenteDesde, iva: R.iva,
     redondeo: R.redondeo, moratorio: R.moratorio,
-    listos, esperando, autoprueba: motor.autoprueba() });
+    listos, esperando, autoprueba: motor.autoprueba(),
+    consistencia: consistenciaCatalogo() });
 });
+
+// EL DESGLOSE DE UN CRÉDITO VIVO (Karina, 23-ago: «cuando le dé clic en el
+// saldo buscando a la clienta, que aparezca la cuota, total a pagar y los
+// intereses más el IVA, más desglosado»).
+//
+// El monto sale del IMPORTE guardado; los créditos viejos no lo traen, así que
+// se DEDUCE de la cuota invirtiendo la fórmula del método A — y se dice que fue
+// deducido, nunca se presenta como capturado.
+function desgloseDeCredito(c) {
+  const r = motor.resolverCredito(c);
+  if (!r.ok) return { ok: false, motivo: r.motivo, fueraDeCatalogo: !!r.fueraDeCatalogo };
+  const p = r.producto;
+  const plazo = Number(c.plazo) || p.plazo || 0;
+  let monto = Number(c.importe) || 0, deducido = false;
+  if (!(monto > 0)) {
+    if (p.metodo !== "A" || !(Number(c.cuota) > 0) || !(plazo > 0))
+      return { ok: false, motivo: "Sin el importe original no se puede desglosar este crédito (" + (p.nombre || c.producto) + ")." };
+    const f = p.tasaMensual / (p.periodicidad === "mensual" ? 1 : 4);
+    const iva = p.iva != null ? p.iva : (motor.reglas().iva || 0.16);
+    const exacto = Number(c.cuota) / (1 / plazo + f * (1 + iva));
+    // A los montos redondos que FOOAX presta: si el redondeo a centenas
+    // reproduce la cuota, ese es; si no, se usa el exacto y se avisa.
+    const redondo = Math.round(exacto / 100) * 100;
+    monto = redondo; deducido = true;
+    const t0 = motor.tablaAmortizacion({ producto: r.clave, monto: redondo, plazo, ciclo: r.ciclo });
+    if (!(t0.ok && Math.abs(t0.cuota - Number(c.cuota)) < 1.5)) monto = Math.round(exacto * 100) / 100;
+  }
+  const t = motor.tablaAmortizacion({ producto: r.clave, monto, plazo, ciclo: r.ciclo });
+  if (!t.ok) return { ok: false, motivo: t.motivo };
+  const p0 = t.pagos[0] || {};
+  return { ok: true, producto: t.producto, clave: r.clave, ciclo: r.ciclo || null, plazo,
+    monto, deducido, cuota: t.cuota || p0.cuota || 0,
+    primerPago: { capital: p0.capital, interes: p0.interes, iva: p0.iva },
+    totales: t.totales,
+    cuotaCapturada: Number(c.cuota) || 0,
+    coincide: Math.abs((t.cuota || 0) - (Number(c.cuota) || 0)) < 1.5 };
+}
+
+app.get("/api/creditos/desglose", requiere("direccion", "admin"), (req, res) => {
+  const q = req.query || {};
+  const c = PADRON.find((x) => String(x.id) === String(q.socio || "").trim()
+    && nprod(x.producto) === nprod(q.producto || ""));
+  if (!c) return res.status(404).json({ ok: false, motivo: "No encuentro ese crédito en el padrón." });
+  res.json(desgloseDeCredito(c));
+});
+
+// LA CONSISTENCIA CATÁLOGO ↔ PADRÓN (Karina, 23-ago: «busca cualquier falla de
+// desactualización o que se actualicen juntos»). Tres archivos hablan de
+// productos —el catálogo, el puente y el padrón— y si uno cambia sin los
+// otros, el hueco se nota semanas después en un crédito mal cobrado. Esto los
+// coteja completos y se enseña donde alguien está a punto de cotizar.
+function consistenciaCatalogo() {
+  const R = motor.reglas(true), E = motor.equivalencias(true);
+  const cat = {}; for (const p of R.productos || []) cat[p.clave] = p;
+  const fallas = [], avisos = [];
+  const usados = new Set();
+  for (const eq of (E.equivalencias || [])) {
+    const claves = eq.porPlazo ? Object.values(eq.porPlazo) : (eq.clave ? [eq.clave] : []);
+    for (const cl of claves) {
+      usados.add(cl);
+      if (!cat[cl]) fallas.push("El puente apunta a «" + cl + "» (" + eq.padron + ") y esa clave NO está en el catálogo.");
+    }
+  }
+  for (const p of R.productos || []) {
+    if (!usados.has(p.clave) && !p.sinPadron)
+      avisos.push("«" + p.nombre + "» está en el catálogo pero ningún nombre del padrón llega a él: nadie lo puede dar de alta.");
+  }
+  let sinEquivalencia = 0, muestras = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const r = motor.resolverCredito(c);
+    if (!r.ok && r.sinEquivalencia) { sinEquivalencia++; if (muestras.length < 5) muestras.push(c.producto); }
+  }
+  if (sinEquivalencia) fallas.push(sinEquivalencia + " crédito(s) vivos con producto sin equivalencia: "
+    + muestras.join(", ") + ". Se agregan en data/equivalencias-productos.json.");
+  return { ok: fallas.length === 0, fallas, avisos };
+}
 
 // LOS PRODUCTOS COMO LOS VE EL ALTA (Karina, 23-ago: «que seleccione el
 // producto que nosotros creamos —Grupal Básico 18, 24, FOXI, FOXI+— como en el

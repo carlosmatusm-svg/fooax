@@ -1027,6 +1027,37 @@ async function cargarCorte() {
 // no va a haber corte»). Se quedó fijo en la fecha de la última plantilla: es
 // la base de los saldos y moverlo borraba pagos ya capturados.
 function credRow(i) { return (window.__CRED_ROWS || [])[i] || {}; }
+// EL DESGLOSE DE UN CRÉDITO (Karina, 23-ago). Se pide al servidor —que lo saca
+// del motor— y se pinta bajo la tarjeta. Clic otra vez lo cierra.
+async function verDesglose(el, i) {
+  const c = credRow(i), card = el.closest(".rcard"); if (!card) return;
+  const ya = card.querySelector(".desgbox");
+  if (ya) { ya.remove(); return; }
+  const box = document.createElement("div");
+  box.className = "desgbox permeta";
+  box.style.cssText = "margin-top:6px;line-height:1.7;border-top:1px dashed var(--linea);padding-top:6px";
+  box.textContent = "Calculando…";
+  card.appendChild(box);
+  let d;
+  try {
+    d = await (await fetch("/api/creditos/desglose?socio=" + encodeURIComponent(c.id)
+      + "&producto=" + encodeURIComponent(c.producto), { credentials: "include" })).json();
+  } catch { box.textContent = "Sin conexión con el servidor."; return; }
+  if (!d || !d.ok) {
+    box.innerHTML = '<span style="color:#8E0019">' + hesc(String((d && d.motivo) || "No se pudo desglosar.")) + "</span>";
+    return;
+  }
+  const t = d.totales || {}, p0 = d.primerPago || {};
+  box.innerHTML = "Cuota <b>" + dinero(d.cuota) + "</b> = capital " + dinero(p0.capital || 0)
+    + " + interés " + dinero(p0.interes || 0) + (p0.iva ? " + IVA " + dinero(p0.iva) : " (sin IVA)")
+    + "<br>Total a pagar <b>" + dinero(t.aPagar || 0) + "</b> · interés total " + dinero(t.interes || 0)
+    + (t.iva ? " + IVA " + dinero(t.iva) : "")
+    + "<br>Sobre un préstamo de <b>" + dinero(d.monto) + "</b>"
+    + (d.deducido ? ' <span style="color:#6B6480">(deducido de la cuota: el importe no quedó capturado)</span>' : "")
+    + " · " + hesc(d.producto || "")
+    + (d.coincide ? "" : '<br><b style="color:#8E0019">Ojo: la cuota capturada (' + dinero(d.cuotaCapturada)
+        + ") no coincide con la del catálogo (" + dinero(d.cuota) + ").</b>");
+}
 function refrescarLista() { if (window.__CRED_MODO && window.__CRED_MODO !== "buscar") verCreditos(window.__CRED_MODO); else buscar(); }
 function limpiarCreditos() { window.__CRED_MODO = "buscar"; resultados.innerHTML = ""; q.value = ""; }
 async function verCreditos(estado) {
@@ -1085,7 +1116,11 @@ function tarjetaCredito(c, i) {
       // la mora semanal y hay que ponérselo.
       + (c.diaPago ? ' · <b>' + hesc(String(c.diaPago).toUpperCase()) + "</b>"
                    : ' · <span class="rsindia">SIN DÍA DE PAGO</span>') + "</div>"
-    + '<div class="rd"><span>saldo <b>' + dinero(saldoAct) + "</b></span>"
+    // El SALDO es clic (Karina, 23-ago): abre el desglose del motor — cuota
+    // con su capital+interés+IVA, total a pagar y el préstamo del que sale.
+    + '<div class="rd"><span role="button" style="cursor:pointer;text-decoration:underline dotted" '
+    + 'title="Ver el desglose: cuota, interés, IVA y total a pagar" '
+    + 'onclick="verDesglose(this,' + i + ')">saldo <b>' + dinero(saldoAct) + "</b></span>"
     + "<span>cuota <b>" + dinero(c.cuota) + "</b></span>"
     // POR SEMANA, no todo revuelto: «pagó $960 esta sem.» sumaba lo de dos
     // semanas (Karina, 15-ago). Se dice lo de ESTA semana y, aparte, lo de las
@@ -1612,8 +1647,31 @@ function armarBuscadorClienta() {
       $("mCliHint").textContent = con.length
         ? "Elige el CRÉDITO, no sólo a la clienta: el abono le baja el saldo a ese y a ningún otro."
         : "No hay clientas activas con saldo que empaten con “" + q + "”.";
+      if (con.length === 1) desgloseDelMov();
     }, 250);
   });
+  // AL ELEGIR EL CRÉDITO, SU DESGLOSE (Karina, 23-ago): quien captura una
+  // liquidación ve la cuota, el total a pagar y el interés + IVA del crédito
+  // que está tocando — antes de mover un peso.
+  sel.addEventListener("change", desgloseDelMov);
+}
+async function desgloseDelMov() {
+  const sel = $("mSocio"), hint = $("mCliHint");
+  if (!sel || !hint) return;
+  const v = sel.value || "";
+  if (!v || v.indexOf("|") < 0) return;
+  const [socio, producto] = v.split("|");
+  let d;
+  try {
+    d = await (await fetch("/api/creditos/desglose?socio=" + encodeURIComponent(socio)
+      + "&producto=" + encodeURIComponent(producto), { credentials: "include" })).json();
+  } catch { return; }
+  if (!d || !d.ok) return;   // sin desglose no se estorba: el hint normal se queda
+  const t = d.totales || {};
+  hint.innerHTML = "Este crédito: cuota <b>" + dinero(d.cuota) + "</b> · total a pagar <b>"
+    + dinero(t.aPagar || 0) + "</b> · interés " + dinero(t.interes || 0)
+    + (t.iva ? " + IVA " + dinero(t.iva) : " (sin IVA)")
+    + ' <span style="color:#6B6480">· el abono le baja el saldo a ESTE crédito y a ningún otro</span>';
 }
 let ejecsCargadas = false;
 async function cargarEjecutivos() {
@@ -2578,6 +2636,18 @@ async function cargarSimulador() {
     const r = document.getElementById("simResumen");
     if (r) r.innerHTML = '<b style="color:#8E0019">OJO: el motor no está reproduciendo los '
       + "ejemplos validados por la contadora. No cotices con él hasta revisarlo.</b>";
+  }
+  // LA CONSISTENCIA catálogo↔padrón se grita AQUÍ, donde alguien está a punto
+  // de cotizar («busca cualquier falla de desactualización», Karina 23-ago).
+  const cons = d.consistencia || {};
+  if (cons.ok === false || (cons.avisos || []).length) {
+    const r2 = document.getElementById("simResumen");
+    if (r2) r2.innerHTML = ((cons.fallas || []).length
+        ? '<b style="color:#8E0019">Catálogo y padrón DESACTUALIZADOS entre sí:</b><br>'
+          + (cons.fallas || []).map(hesc).join("<br>") + "<br>"
+        : "")
+      + (cons.avisos || []).map((a2) => '<span style="color:#D68910">' + hesc(a2) + "</span>").join("<br>")
+      + (r2.textContent && cons.ok !== false ? "<br>" + r2.innerHTML : "");
   }
 }
 function simProducto() { return SIM_PRODS.find((p) => p.clave === (($("simProd") || {}).value || "")); }

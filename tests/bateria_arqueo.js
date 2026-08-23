@@ -3553,6 +3553,54 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 96. DESGLOSE AL CLIC Y CONSISTENCIA CATÁLOGO↔PADRÓN (Karina, 23-ago) —");
+  // «Cuando le dé clic en el saldo, que aparezca la cuota, total a pagar y los
+  // intereses más el IVA» + «busca cualquier falla de desactualización».
+  const cli96 = await j(await fetch(U + "/api/clientes?q=cruz", { headers: H(cm) }));
+  const c96 = (cli96.resultados || []).find((x) => x.producto === "Grupal-Basico"
+    && Number(x.plazo) === 24 && Number(x.cuota) > 0);
+  ok("hay una clienta real de Grupal-Basico 24 para la prueba", !!c96,
+    JSON.stringify((cli96.resultados || []).length));
+  if (c96) {
+    const d96 = await j(await fetch(U + "/api/creditos/desglose?socio=" + c96.id
+      + "&producto=" + encodeURIComponent(c96.producto), { headers: H(cm) }));
+    ok("el desglose responde para un crédito vivo", d96.ok === true, JSON.stringify(d96).slice(0, 90));
+    ok("trae la cuota partida en capital + interés + IVA",
+      d96.ok && d96.primerPago && d96.primerPago.capital > 0 && d96.primerPago.interes > 0
+      && d96.primerPago.iva > 0);
+    ok("y el total a pagar con su interés e IVA totales",
+      d96.ok && d96.totales && d96.totales.aPagar > 0 && d96.totales.interes > 0);
+    ok("el importe no capturado se DEDUCE y se dice que fue deducido",
+      d96.ok && d96.deducido === true && d96.monto > 0, "monto=" + d96.monto);
+    ok("y la cuota deducida coincide con la capturada",
+      d96.ok && d96.coincide === true, d96.cuota + " vs " + d96.cuotaCapturada);
+  }
+  // Una reestructura no se desglosa, y lo dice.
+  const todos96 = await j(await fetch(U + "/api/clientes?q=re", { headers: H(cm) }));
+  const rees96 = (todos96.resultados || []).find((x) => /reestructur/i.test(x.producto || ""));
+  if (rees96) {
+    const dr = await j(await fetch(U + "/api/creditos/desglose?socio=" + rees96.id
+      + "&producto=" + encodeURIComponent(rees96.producto), { headers: H(cm) }));
+    ok("una reestructura no se desglosa y explica por qué", dr.ok !== true && !!dr.motivo,
+      String(dr.motivo || "").slice(0, 60));
+  } else ok("una reestructura no se desglosa y explica por qué", true, "(sin reestructuras en esta copia)");
+
+  // LA CONSISTENCIA: los tres archivos de productos, cotejados completos.
+  const reg96 = await j(await fetch(U + "/api/reglas", { headers: H(cm) }));
+  const cons96 = reg96.consistencia || {};
+  ok("la auditoría de consistencia viene con las reglas",
+    typeof cons96.ok === "boolean" && Array.isArray(cons96.fallas) && Array.isArray(cons96.avisos));
+  // La copia de la batería trae créditos que las propias secciones dan de alta
+  // con productos inventados ("Credito Prueba", "Credito Semaforo"…): que la
+  // auditoría los cace es la PRUEBA de que funciona. Lo que no se tolera es
+  // una falla sobre un producto REAL — Grupal, Individual, Foxi, MAGNUS…
+  ok("la auditoría caza los productos inventados, y ninguno REAL está desalineado",
+    cons96.ok === true || (cons96.fallas || []).every((f) =>
+      /sin equivalencia/.test(f) && !/Grupal|Individual|Foxi|MAGNUS|COMADRE|Reestructura|apunta a/i.test(f)),
+    (cons96.fallas || []).join(" | "));
+  ok("y sin avisos sueltos (Pago Único está marcado sinPadron a propósito)",
+    (cons96.avisos || []).length === 0, (cons96.avisos || []).join(" | "));
+
   console.log("\n— 95. EL ALTA ELIGE DEL CATÁLOGO Y GUARDA EL NOMBRE DEL PADRÓN (Karina, 23-ago) —");
   // «Que seleccione el producto que nosotros creamos —Grupal Básico 18, 24,
   // FOXI, FOXI+, como en el simulador— y que se linkee al producto que ellos

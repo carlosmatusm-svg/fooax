@@ -199,7 +199,9 @@
       "periodicidad": "unico",
       "tasaMensual": 0.1,
       "fuente": "PDF pág. 4 — ejemplo validado ($50,000 / 37 días / 10% = $57,153.33)",
-      "advertencia": "NO está en el catálogo oficial de 16 y es una TERCERA mecánica de cálculo. La tasa 10% sale únicamente del ejemplo."
+      "advertencia": "NO está en el catálogo oficial de 16 y es una TERCERA mecánica de cálculo. La tasa 10% sale únicamente del ejemplo.",
+      "sinPadron": true,
+      "_sinPadron": "No existe como producto del padrón: se usa solo en el simulador y en cotizaciones. La auditoría de consistencia no lo reporta como hueco por esta marca."
     },
     {
       "nombre": "FOXI",
