@@ -3553,6 +3553,39 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 97. EL LINKEO DEL PASO 2, DE PUNTA A PUNTA (Karina, 23-ago) —");
+  // «¿Sí funciona como decimos o no lo hace?» El caso exacto de su pantalla:
+  // Grupal Básico 24 · préstamo $9,000 → cuota $539.95 · total $12,958.80.
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "97", nombre: "CENTRO LINKEO", ejecutivo: "Neri" }) });
+  const a97 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009970", nombre: "PRUEBA LINKEO", producto: "Grupal-Basico",
+      centro: "CENTRO LINKEO", ejecutivo: "Neri", importe: 9000, saldo: 12958.80, cuota: 539.95,
+      plazo: 24, desembolso: HOY, diaPago: "LUNES" }) }));
+  ok("el alta del paso 2 entra con el nombre del padrón", !a97.error
+    && a97.clienta && a97.clienta.producto === "Grupal-Basico", JSON.stringify(a97).slice(0, 80));
+  const s97 = await j(await fetch(U + "/api/reglas/simular?producto=Grupal-Basico&monto=9000&plazo=24",
+    { headers: H(cm) }));
+  ok("la cuota que el paso 2 enseñó ES la del catálogo ($539.95)",
+    s97.ok && Math.abs(s97.cuota - 539.95) < 0.01, String(s97.cuota));
+  const d97 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009970&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("el desglose del crédito nuevo usa el importe GUARDADO, sin deducir",
+    d97.ok && d97.monto === 9000 && d97.deducido === false && d97.coincide === true,
+    JSON.stringify({ m: d97.monto, ded: d97.deducido }));
+  // Un producto del catálogo que AÚN no existe en el padrón también entra: el
+  // linkeo no depende de que ya haya créditos de ese tipo.
+  const a97b = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009971", nombre: "PRUEBA FOXI4", producto: "Individual 4",
+      centro: "CENTRO LINKEO", ejecutivo: "Neri", importe: 12000, saldo: 15936.64, cuota: 996.04,
+      plazo: 16, desembolso: HOY, diaPago: "LUNES" }) }));
+  ok("un producto del catálogo sin créditos previos también entra (Individual 4)", !a97b.error,
+    JSON.stringify(a97b).slice(0, 80));
+  const d97b = await j(await fetch(U + "/api/creditos/desglose?socio=70000009971&producto="
+    + encodeURIComponent("Individual 4"), { headers: H(cm) }));
+  ok("y resuelve al 4to ciclo de FOXI", d97b.ok && /4to ciclo/.test(d97b.producto || ""),
+    String(d97b.producto || d97b.motivo));
+
   console.log("\n— 96. DESGLOSE AL CLIC Y CONSISTENCIA CATÁLOGO↔PADRÓN (Karina, 23-ago) —");
   // «Cuando le dé clic en el saldo, que aparezca la cuota, total a pagar y los
   // intereses más el IVA» + «busca cualquier falla de desactualización».
