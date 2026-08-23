@@ -17,51 +17,139 @@
   ],
   "version": "2026-08-19",
   "equivalencias": [
-    { "padron": "Grupal-Basico", "ciclo": 1,
-      "porPlazo": { "18": "GRUPAL_BASICO_18", "24": "GRUPAL_BASICO_24" },
-      "faltaPlazo": "Grupal Básico existe a 18 y a 24 semanas, con tasas distintas (5.67% y 6.32%). Sin el plazo del crédito no se puede saber cuál es." },
-    { "padron": "Grupal-Basico 2", "ciclo": 2,
-      "porPlazo": { "18": "GRUPAL_BASICO_18", "24": "GRUPAL_BASICO_24" },
-      "faltaPlazo": "Grupal Básico existe a 18 y a 24 semanas, con tasas distintas. Sin el plazo del crédito no se puede saber cuál es." },
-    { "padron": "Grupal-Basico 3", "ciclo": 3,
-      "porPlazo": { "18": "GRUPAL_BASICO_18", "24": "GRUPAL_BASICO_24" },
-      "faltaPlazo": "Grupal Básico existe a 18 y a 24 semanas. Falta el plazo del crédito." },
-    { "padron": "Grupal-Micro", "ciclo": 1,
-      "porPlazo": { "32": "GRUPAL_MICRO_32", "48": "GRUPAL_MICRO_48", "52": "GRUPAL_MICRO_52" },
-      "faltaPlazo": "Grupal Micro existe a 32, 48 y 52 semanas, con tasas distintas (4.62%, 3.85% y 5.25%). Falta el plazo del crédito." },
-    { "padron": "Grupal-Micro 2", "ciclo": 2,
-      "porPlazo": { "32": "GRUPAL_MICRO_32", "48": "GRUPAL_MICRO_48", "52": "GRUPAL_MICRO_52" },
-      "faltaPlazo": "Grupal Micro existe a 32, 48 y 52 semanas. Falta el plazo del crédito." },
-    { "padron": "Grupal-Micro 3", "ciclo": 3,
-      "porPlazo": { "32": "GRUPAL_MICRO_32", "48": "GRUPAL_MICRO_48", "52": "GRUPAL_MICRO_52" },
-      "faltaPlazo": "Grupal Micro existe a 32, 48 y 52 semanas. Falta el plazo del crédito." },
-    { "padron": "Grupal-Adicional", "clave": "GRUPAL_ADICIONAL", "ciclo": 1 },
-    { "padron": "Grupal-Microcredito", "clave": "GRUPAL_MICROCREDITO", "ciclo": 1 },
-
-    { "padron": "Individual 1", "clave": "FOXI", "ciclo": 1,
-      "_nota": "«Individual N» es el ciclo N de FOXI. Cuota real $445 · el catálogo da $444.89." },
-    { "padron": "Individual 2", "clave": "FOXI", "ciclo": 2,
-      "_nota": "Cuota real $581 · el catálogo da $581.03." },
-    { "padron": "Individual 3", "clave": "FOXI", "ciclo": 3,
-      "_nota": "Cuota real $870 · el catálogo da $870.05." },
-    { "padron": "Individual 4", "clave": "FOXI", "ciclo": 4 },
-    { "padron": "Individual 5", "clave": "FOXI", "ciclo": 5,
-      "_nota": "Cuota real $1,185 · el catálogo da $1,185.02." },
-
-    { "padron": "Foxi Plus - 1", "clave": "FOXI_PLUS", "plazoFijo": 32,
-      "_nota": "FOXI PLUS 1 es el de 32 semanas al 5.00%." },
-    { "padron": "Foxi Plus - 2", "clave": "FOXI_PLUS", "usarPlazoDelCredito": true,
-      "faltaPlazo": "FOXI PLUS 2 existe a 24 semanas (3.88%) y a 16 (5.74%). Falta el plazo del crédito." },
-
-    { "padron": "MAGNUS", "clave": "MAGNUS" },
-    { "padron": "COMADRE", "clave": "COMADRE" }
+    {
+      "padron": "Grupal-Basico",
+      "ciclo": 1,
+      "porPlazo": {
+        "18": "GRUPAL_BASICO_18",
+        "24": "GRUPAL_BASICO_24"
+      },
+      "faltaPlazo": "Grupal Básico existe a 18 y a 24 semanas, con tasas distintas (5.67% y 6.32%). Sin el plazo del crédito no se puede saber cuál es."
+    },
+    {
+      "padron": "Grupal-Basico 2",
+      "ciclo": 2,
+      "porPlazo": {
+        "18": "GRUPAL_BASICO_18",
+        "24": "GRUPAL_BASICO_24"
+      },
+      "faltaPlazo": "Grupal Básico existe a 18 y a 24 semanas, con tasas distintas. Sin el plazo del crédito no se puede saber cuál es."
+    },
+    {
+      "padron": "Grupal-Basico 3",
+      "ciclo": 3,
+      "porPlazo": {
+        "18": "GRUPAL_BASICO_18",
+        "24": "GRUPAL_BASICO_24"
+      },
+      "faltaPlazo": "Grupal Básico existe a 18 y a 24 semanas. Falta el plazo del crédito."
+    },
+    {
+      "padron": "Grupal-Micro",
+      "ciclo": 1,
+      "porPlazo": {
+        "32": "GRUPAL_MICRO_32",
+        "48": "GRUPAL_MICRO_48",
+        "52": "GRUPAL_MICRO_52"
+      },
+      "faltaPlazo": "Grupal Micro existe a 32, 48 y 52 semanas, con tasas distintas (4.62%, 3.85% y 5.25%). Falta el plazo del crédito."
+    },
+    {
+      "padron": "Grupal-Micro 2",
+      "ciclo": 2,
+      "porPlazo": {
+        "32": "GRUPAL_MICRO_32",
+        "48": "GRUPAL_MICRO_48",
+        "52": "GRUPAL_MICRO_52"
+      },
+      "faltaPlazo": "Grupal Micro existe a 32, 48 y 52 semanas. Falta el plazo del crédito."
+    },
+    {
+      "padron": "Grupal-Micro 3",
+      "ciclo": 3,
+      "porPlazo": {
+        "32": "GRUPAL_MICRO_32",
+        "48": "GRUPAL_MICRO_48",
+        "52": "GRUPAL_MICRO_52"
+      },
+      "faltaPlazo": "Grupal Micro existe a 32, 48 y 52 semanas. Falta el plazo del crédito."
+    },
+    {
+      "padron": "Grupal-Adicional",
+      "clave": "GRUPAL_ADICIONAL",
+      "ciclo": 1
+    },
+    {
+      "padron": "Grupal-Microcredito",
+      "clave": "GRUPAL_MICROCREDITO",
+      "ciclo": 1
+    },
+    {
+      "padron": "Individual 1",
+      "clave": "FOXI",
+      "ciclo": 1,
+      "_nota": "«Individual N» es el ciclo N de FOXI. Cuota real $445 · el catálogo da $444.89."
+    },
+    {
+      "padron": "Individual 2",
+      "clave": "FOXI",
+      "ciclo": 2,
+      "_nota": "Cuota real $581 · el catálogo da $581.03."
+    },
+    {
+      "padron": "Individual 3",
+      "clave": "FOXI",
+      "ciclo": 3,
+      "_nota": "Cuota real $870 · el catálogo da $870.05."
+    },
+    {
+      "padron": "Individual 4",
+      "clave": "FOXI",
+      "ciclo": 4
+    },
+    {
+      "padron": "Individual 5",
+      "clave": "FOXI",
+      "ciclo": 5,
+      "_nota": "Cuota real $1,185 · el catálogo da $1,185.02."
+    },
+    {
+      "padron": "Foxi Plus - 1",
+      "clave": "FOXI_PLUS",
+      "plazoFijo": 32,
+      "_nota": "FOXI PLUS 1 es el de 32 semanas al 5.00%."
+    },
+    {
+      "padron": "Foxi Plus - 2",
+      "clave": "FOXI_PLUS",
+      "usarPlazoDelCredito": true,
+      "faltaPlazo": "FOXI PLUS 2 existe a 24 semanas (3.88%) y a 16 (5.74%). Falta el plazo del crédito."
+    },
+    {
+      "padron": "MAGNUS",
+      "clave": "MAGNUS"
+    },
+    {
+      "padron": "COMADRE",
+      "clave": "COMADRE"
+    }
   ],
   "fueraDeCatalogo": [
-    { "padron": "Micro-Especial",
-      "porQue": "No está en el catálogo oficial de 16 productos. Es un caso especial y hay que decidir con Dirección si se le asigna un producto o se deja aparte." },
-    { "padron": "REESTRUCTURA",
-      "porQue": "Una reestructura no es un producto del catálogo: es un crédito renegociado con su propio plazo y su propia cuota. No se le calcula tasa de catálogo." },
-    { "padron": "Reestructuración",
-      "porQue": "Igual que REESTRUCTURA: crédito renegociado, con plazo y cuota propios." }
+    {
+      "padron": "Micro-Especial",
+      "porQue": "No está en el catálogo oficial de 16 productos. Es un caso especial y hay que decidir con Dirección si se le asigna un producto o se deja aparte."
+    },
+    {
+      "padron": "REESTRUCTURA",
+      "porQue": "Una reestructura no es un producto del catálogo: es un crédito renegociado con su propio plazo y su propia cuota. No se le calcula tasa de catálogo."
+    },
+    {
+      "padron": "Reestructuración",
+      "porQue": "Igual que REESTRUCTURA: crédito renegociado, con plazo y cuota propios."
+    },
+    {
+      "padron": "Restructurado",
+      "porQue": "Tercera grafía de reestructura que vive en el padrón de producción (la cazó la auditoría de consistencia el 23-ago, en su primer corrida). Igual que REESTRUCTURA y Reestructuración: crédito renegociado con plazo y cuota propios, sin tasa de catálogo."
+    }
   ]
 }
