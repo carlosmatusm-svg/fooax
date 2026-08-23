@@ -1027,6 +1027,35 @@ async function cargarCorte() {
 // no va a haber corte»). Se quedó fijo en la fecha de la última plantilla: es
 // la base de los saldos y moverlo borraba pagos ya capturados.
 function credRow(i) { return (window.__CRED_ROWS || [])[i] || {}; }
+// LA RENOVACIÓN COTIZA COMO EL ALTA (Karina, 23-ago: «que se linkeen entre
+// ellos y todo se actualice»): producto del padrón + préstamo + plazo → el
+// puente resuelve el producto del catálogo («Grupal-Basico 2» e «Individual 3»
+// solos) y el motor llena saldo y cuota.
+async function rcCotiza() {
+  const box = $("rcMotor"); if (!box) return;
+  const prod = productoElegido("rcProd", "rcProdNuevo");
+  const monto = Number(($("rcPrestamo") || {}).value) || 0;
+  const plazo = Number(($("rcPlazo") || {}).value) || 0;
+  if (!prod || monto <= 0) { box.style.display = "none"; return; }
+  let d;
+  try {
+    d = await (await fetch("/api/reglas/simular?producto=" + encodeURIComponent(prod)
+      + "&monto=" + monto + (plazo ? "&plazo=" + plazo : ""), { credentials: "include" })).json();
+  } catch { box.style.display = "none"; return; }
+  box.style.display = "";
+  if (!d || !d.ok) {
+    box.innerHTML = '<span style="color:#6B6480">El motor no cotiza este producto: '
+      + hesc(String((d && d.motivo) || "falta un dato")) + " · captura saldo y cuota a mano.</span>";
+    return;
+  }
+  const t = d.totales || {};
+  $("rcSaldo").value = (t.aPagar || 0).toFixed(2);
+  $("rcCuota").value = (d.cuota || 0).toFixed(2);
+  if (!plazo && (d.pagos || []).length) $("rcPlazo").value = d.pagos.length;
+  box.innerHTML = "Cuota <b>" + dinero(d.cuota || 0) + "</b> · paga en total <b>" + dinero(t.aPagar || 0)
+    + "</b> · interés " + dinero(t.interes || 0) + (t.iva ? " + IVA " + dinero(t.iva) : " (sin IVA)")
+    + ' <span style="color:#6B6480">· ' + hesc(d.producto || "") + "</span>";
+}
 // EL DESGLOSE DE UN CRÉDITO (Karina, 23-ago). Se pide al servidor —que lo saca
 // del motor— y se pinta bajo la tarjeta. Clic otra vez lo cierra.
 async function verDesglose(el, i) {
@@ -1316,14 +1345,16 @@ function pedirRecredito(btn, i) {
     + '<option value="__nuevo__">➕ Producto NUEVO…</option>';
   box.innerHTML = "<span>Crédito NUEVO para " + hesc(c.nombre) + " · mismo grupo (" + hesc(c.centro) + "):</span>"
     + '<span class="credlbl">Tipo de crédito:</span>'
-    + '<select class="credin ancho" id="rcProd" onchange="document.getElementById(\'rcProdNuevo\').style.display=(this.value===\'__nuevo__\')?\'block\':\'none\'">' + opsProd + "</select>"
+    + '<select class="credin ancho" id="rcProd" onchange="document.getElementById(\'rcProdNuevo\').style.display=(this.value===\'__nuevo__\')?\'block\':\'none\';rcCotiza()">' + opsProd + "</select>"
     + '<input class="credin ancho" id="rcProdNuevo" style="display:none" placeholder="nombre del producto nuevo (ej. Grupal-Especial)">'
-    + '<input class="credin" id="rcSaldo" inputmode="decimal" placeholder="monto $">'
-    + '<input class="credin" id="rcCuota" inputmode="decimal" placeholder="cuota $">'
+    + '<input class="credin" id="rcPrestamo" inputmode="decimal" placeholder="préstamo sin intereses $" oninput="rcCotiza()">'
+    + '<input class="credin" id="rcSaldo" inputmode="decimal" placeholder="saldo total $ (lo llena el motor)">'
+    + '<input class="credin" id="rcCuota" inputmode="decimal" placeholder="cuota $ (la llena el motor)">'
     // EL PLAZO FALTABA. Sin él el crédito nuevo nacía con plazo 0 y se quedaba
     // fuera del "pago 13 de 18", del esperado y del semáforo. Le pasó a SOCORRO
     // MIGUEL el 10-ago. Se calcula solo (monto ÷ cuota) y se puede corregir.
-    + '<input class="credin" id="rcPlazo" inputmode="numeric" placeholder="plazo (n° de pagos)">'
+    + '<input class="credin" id="rcPlazo" inputmode="numeric" placeholder="plazo (n° de pagos)" oninput="rcCotiza()">'
+    + '<div id="rcMotor" class="permeta" style="width:100%;display:none"></div>'
     // FECHA DE DESEMBOLSO (Karina, 12-ago): sin ella, una renovación que
     // desembolsa después (PILAR, 28-ago) salía en la mora antes de recibir el
     // dinero. Puede ser futura — ese es justo el caso.
@@ -1346,6 +1377,7 @@ async function hacerRecredito(btn, i) {
   const body = { id: c.id, nombre: c.nombre, centro: c.centro,
     ejecutivo: ($("rcEjec") && $("rcEjec").value) || c.ejecutivo,
     producto: productoElegido("rcProd", "rcProdNuevo"), saldo: $("rcSaldo").value, cuota: $("rcCuota").value,
+    importe: ($("rcPrestamo") || {}).value || "",
     // Si no lo escriben, se deduce de monto ÷ cuota: es exactamente el número de
     // pagos del crédito. Vale más eso que dejarlo en cero, que era lo de antes.
     plazo: ($("rcPlazo") && $("rcPlazo").value)
@@ -3010,24 +3042,31 @@ async function cargarCentros() {
   // El producto dejó de ser texto libre: se elige de los que YA existen. Un
   // dedazo ("Grupal Basico" por "Grupal-Basico") creaba un tipo de crédito
   // nuevo y el pago no cuadraba con el crédito de la clienta.
-  const selP = $("aProducto");
-  if (selP && window.__PRODS.length) {
-    const cur = selP.value;
-    // ARRIBA va el CATÁLOGO (Karina, 23-ago: «como en el simulador») — cada
-    // opción sabe su plazo, su tope y el nombre del padrón con el que se
-    // guarda. Abajo quedan los nombres sueltos del padrón, para lo que el
-    // catálogo no cubre (reestructuras y especiales).
-    const cat = (window.__ALTA_PRODS || []).map((p, i) =>
-      '<option value="cat:' + i + '">' + hesc(p.etiqueta) + "</option>").join("");
-    selP.innerHTML = '<option value="" disabled' + (cur ? "" : " selected") + '>— Elige el tipo de crédito —</option>'
-      + (cat ? '<optgroup label="Catálogo oficial">' + cat + "</optgroup>" : "")
-      + '<optgroup label="Fuera de catálogo (reestructuras y especiales)">'
-      + window.__PRODS.filter((p) => /reestructur|especial/i.test(p.producto))
-        .map((p) => '<option value="' + hesc(p.producto) + '">' + hesc(p.producto)
-          + " (" + p.creditos + ")</option>").join("")
-      + '<option value="__nuevo__">➕ Producto NUEVO…</option></optgroup>';
-    if (cur && cur !== "__nuevo__") selP.value = cur;
-  }
+  armarSelectProductosAlta();
+}
+// EL SELECT DEL ALTA se arma desde DOS cargas asíncronas (los productos del
+// padrón y el catálogo) y quien llegara al último ganaba: si el catálogo
+// tardaba, el menú se quedaba con la lista vieja del padrón (el pantallazo de
+// Karina, 23-ago). Ahora las dos cargas llaman aquí y el menú se rearma con lo
+// que haya — la última siempre lo deja completo.
+function armarSelectProductosAlta() {
+  const selP = $("aProducto"); if (!selP) return;
+  const cur = selP.value;
+  // CADA OPCIÓN TRAE LOS DOS NOMBRES («que se linkeen entre ellos»): la
+  // etiqueta del catálogo y el nombre del padrón con el que se guarda. Quien
+  // busca «Individual 3» lo encuentra en «FOXI · 3er ciclo — Individual 3».
+  const cat = (window.__ALTA_PRODS || []).map((p, i) =>
+    '<option value="cat:' + i + '">' + hesc(p.etiqueta)
+    + (p.padron && p.padron !== p.etiqueta ? " — " + hesc(p.padron) : "") + "</option>").join("");
+  const fuera = (window.__PRODS || []).filter((p) => /reestructur|especial/i.test(p.producto))
+    .map((p) => '<option value="' + hesc(p.producto) + '">' + hesc(p.producto)
+      + " (" + p.creditos + ")</option>").join("");
+  if (!cat && !fuera) return;   // sin datos aún: no se pisa lo que haya
+  selP.innerHTML = '<option value="" disabled' + (cur ? "" : " selected") + '>— Elige el tipo de crédito —</option>'
+    + (cat ? '<optgroup label="Catálogo oficial">' + cat + "</optgroup>" : "")
+    + '<optgroup label="Fuera de catálogo (reestructuras y especiales)">' + fuera
+    + '<option value="__nuevo__">➕ Producto NUEVO…</option></optgroup>';
+  if (cur && cur !== "__nuevo__") selP.value = cur;
 }
 // El catálogo del alta se pide UNA vez y se guarda; sin él, el select cae a
 // los nombres del padrón como antes (nada se rompe si la ruta no responde).
@@ -3036,6 +3075,7 @@ async function cargarAltaProductos() {
     const d = await (await fetch("/api/reglas/alta-productos", { credentials: "include" })).json();
     window.__ALTA_PRODS = d.productos || [];
   } catch { window.__ALTA_PRODS = []; }
+  armarSelectProductosAlta();   // gane quien gane la carrera, el menú queda completo
 }
 // Al elegir un producto del catálogo: su plazo se pone solo, su monto fijo
 // también (FOXI trae monto único por ciclo), y el motor calcula.
