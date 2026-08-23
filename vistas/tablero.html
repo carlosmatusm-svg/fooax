@@ -497,10 +497,16 @@
   <div class="altawrap">
     <button class="altatoggle" id="altaToggle" onclick="toggleAlta()">+ Dar de alta a una clienta</button>
     <form class="altaform" id="altaForm" onsubmit="registrarAlta(event)" style="display:none">
+      <!-- EL ALTA EN DOS PANTALLAS (Karina, 23-ago: «vamos a dividirlo por
+           pantallas»). La 1 es QUIÉN + la cotización, igual que el simulador:
+           producto del catálogo, monto y plazo (el plazo se pone solo), con el
+           desglose en vivo. La 2 abre ya con todo linkeado al producto de
+           siempre y la cajita del dinero llena; solo quedan la fecha de
+           desembolso y el día de pago. Mismos IDs de siempre: registrarAlta no
+           cambia. -->
+      <div id="altaPaso1">
+      <div class="permeta" style="font-weight:800;color:#324AB6">Paso 1 de 2 · La clienta y su crédito</div>
       <div class="acampo"><label>Nombre de la clienta</label><input id="aNombre" required></div>
-      <!-- EL ORDEN DEL ALTA (Karina, 23-ago): primero QUIÉN (nombre, socio,
-           centro, ejecutivo), luego QUÉ crédito (producto del catálogo, monto,
-           plazo), y el dinero sale del motor. La fecha y el día van al final. -->
       <div class="arow">
         <div class="acampo"><label>Socio (ID)</label><input id="aSocio" inputmode="numeric" required></div>
         <div class="acampo"><label>Centro</label>
@@ -546,20 +552,31 @@
         <div class="acampo"><label>Préstamo (sin intereses)</label><input id="aPrestamo" type="number" inputmode="decimal" placeholder="9500" oninput="calcularCuotaAlta()" title="Lo que se le presta a la clienta, SIN intereses. Con el producto y el plazo, el sistema calcula solo la cuota y el saldo total."></div>
         <div class="acampo"><label>Plazo (nº de pagos)</label><input id="aPlazo" type="number" inputmode="numeric" placeholder="18" oninput="calcularCuotaAlta()" title="Cuántos pagos tiene el crédito EN TOTAL: semanas si cobra semanal, mensualidades si cobra mensual (Magnus). No lo conviertas."></div>
       </div>
+      <!-- El desglose en vivo, igual que el simulador -->
+      <div id="aCuotaMotor" class="permeta" style="margin:2px 0 6px;display:none"></div>
+      <button type="button" class="altasubmit" onclick="altaIrPaso2()">Continuar →</button>
+      <div class="altaerr" id="altaErr1"></div>
+      </div>
+
+      <!-- ============ PANTALLA 2: el linkeo y el remate ============ -->
+      <div id="altaPaso2" style="display:none">
+      <div class="permeta" style="font-weight:800;color:#324AB6">Paso 2 de 2 · Confirmar y registrar</div>
+      <div id="aLink" class="cnuevo" style="display:block;margin:8px 0"></div>
       <div class="arow">
-        <div class="acampo"><label>Saldo (total a pagar)</label><input id="aSaldo" type="number" inputmode="decimal" oninput="window.__saldoTecleado=true" title="Lo que la clienta va a pagar EN TOTAL (capital + interés + IVA). Se llena solo al poner el préstamo; solo captúralo a mano si el crédito no está en el catálogo."></div>
+        <div class="acampo"><label>Saldo (total a pagar)</label><input id="aSaldo" type="number" inputmode="decimal" oninput="window.__saldoTecleado=true" title="Lo que la clienta va a pagar EN TOTAL (capital + interés + IVA). Viene puesto por el motor; solo captúralo a mano si el crédito no está en el catálogo."></div>
         <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal" oninput="window.__cuotaTecleada=true"></div>
       </div>
-      <!-- El desglose del motor va a lo ANCHO, no dentro de la celda de la
-           cuota: metido ahí deformaba la fila entera. -->
-      <div id="aCuotaMotor" class="permeta" style="margin:2px 0 6px;display:none"></div>
       <div class="arow">
         <div class="acampo"><label>Fecha de desembolso</label><input id="aDesem" type="date" title="Cuándo se le entrega (o entregó) el dinero. Puede ser una fecha futura: hasta ese día el crédito no debe nada y no aparece en la mora."></div>
         <div class="acampo"><label>Día de pago</label>
           <select id="aDia"><option value="">— el del centro —</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option></select></div>
       </div>
-      <button class="altasubmit" type="submit">Registrar alta</button>
+      <div class="arow">
+        <button type="button" class="altasubmit" style="background:none;border:1px solid var(--linea);color:var(--gris)" onclick="altaVolverPaso1()">← Regresar</button>
+        <button class="altasubmit" type="submit">Registrar alta</button>
+      </div>
       <div class="altaerr" id="altaErr"></div>
+      </div>
     </form>
   </div>
   </div>
@@ -1365,6 +1382,7 @@ async function _calcularCuotaAlta() {
     return;
   }
   const t = d.totales || {};
+  window.__ultimaCotiza = d;   // el paso 2 la pinta en la cajita del linkeo
   // Si todavía no ha tecleado nada, se le ponen la cuota Y el saldo calculados.
   // El saldo del padrón es lo que la clienta va a PAGAR (capital+interés+IVA):
   // es el total del motor, no el préstamo.
@@ -1436,6 +1454,8 @@ async function registrarAlta(e) {
     }
     err.innerHTML = "✓ " + hesc(d.clienta.nombre) + " dada de alta (" + hesc(d.clienta.producto) + ")" + extra;
     err.className = "altaerr ok";
+    // De vuelta al paso 1, listo para la siguiente clienta del mismo centro.
+    if (typeof altaVolverPaso1 === "function") altaVolverPaso1();
     setTimeout(() => { err.textContent = ""; }, extra ? 20000 : 3500);
   } catch { err.textContent = "Sin conexión con el servidor."; err.className = "altaerr err"; }
   btn.disabled = false;
@@ -2959,7 +2979,51 @@ function altaEligeProducto() {
       if (p.monto) $("aPrestamo").value = p.monto;
     }
   }
-  calcularCuotaAlta();
+  // DIRECTO, sin el debounce («no se actualiza automático», Karina 23-ago):
+  // el debounce está para no disparar en cada tecla del monto, pero elegir un
+  // producto es UNA acción y el desglose debe salir al instante. La cuota y el
+  // saldo se recalculan al cambiar de producto aunque ya tuvieran valor: son
+  // del producto anterior, no una captura de Monse.
+  window.__cuotaTecleada = false; window.__saldoTecleado = false;
+  _calcularCuotaAlta();
+}
+
+// ---- LAS DOS PANTALLAS DEL ALTA (Karina, 23-ago) ----
+// La 1 cotiza; la 2 confirma. Validar ANTES de pasar: llegar al paso 2 con
+// campos vacíos convertiría el "Registrar" en una tómbola de errores.
+function altaIrPaso2() {
+  const err = $("altaErr1"); if (err) { err.textContent = ""; err.classList.remove("on"); }
+  const falla = (t2) => { if (err) { err.textContent = t2; err.classList.add("on"); } };
+  if (!$("aNombre").value.trim()) return falla("Falta el nombre de la clienta.");
+  if (!$("aSocio").value.trim()) return falla("Falta el socio (ID).");
+  if (!$("aCentro").value || $("aCentro").value === "__nuevo__") return falla("Elige el centro (o registra el nuevo primero).");
+  const prod = productoElegido("aProducto", "aProductoNuevo");
+  if (!prod) return falla("Elige el tipo de crédito.");
+  const sel = $("aProducto");
+  const m2 = /^cat:(\d+)$/.exec(sel.value || "");
+  const cat = m2 ? (window.__ALTA_PRODS || [])[Number(m2[1])] : null;
+  if (cat && !(Number($("aPrestamo").value) > 0)) return falla("Pon el monto del préstamo.");
+  // La cajita del linkeo: a qué producto de siempre se pega, con qué plazo, y
+  // el desglose que calculó el motor.
+  const d = window.__ultimaCotiza;
+  const caja = $("aLink");
+  if (caja) {
+    caja.innerHTML = cat
+      ? '<div class="cn-t">Se linkea al producto de siempre: <b>' + hesc(cat.padron) + "</b></div>"
+        + '<div class="permeta" style="line-height:1.7">Plazo <b>' + hesc(String($("aPlazo").value || "—"))
+        + " pagos</b>, puesto automático · préstamo " + dinero(Number($("aPrestamo").value) || 0)
+        + (d && d.ok ? "<br>Cuota <b>" + dinero(d.cuota || 0) + "</b> · interés total "
+            + dinero((d.totales || {}).interes || 0) + " + IVA " + dinero((d.totales || {}).iva || 0)
+            + " · paga en total <b>" + dinero((d.totales || {}).aPagar || 0) + "</b>" : "") + "</div>"
+      : '<div class="cn-t">Producto fuera de catálogo: <b>' + hesc(prod) + "</b></div>"
+        + '<div class="permeta">El motor no lo cotiza (cuota negociada): captura abajo el saldo y la cuota a mano.</div>';
+  }
+  document.getElementById("altaPaso1").style.display = "none";
+  document.getElementById("altaPaso2").style.display = "";
+}
+function altaVolverPaso1() {
+  document.getElementById("altaPaso2").style.display = "none";
+  document.getElementById("altaPaso1").style.display = "";
 }
 async function registrarCentro() {
   const err = $("cnErr"); err.textContent = "";
