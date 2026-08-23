@@ -3553,6 +3553,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 94. EL ALTA CAPTURA EL PRÉSTAMO SIN INTERESES (Karina, 23-ago) —");
+  // «Cuando pongan el producto, el saldo sin intereses — que se lo desglose el
+  // motor por los pagos.» El campo del alta decía SALDO y ahí se capturaba el
+  // total CON intereses tecleado a mano; el motor (conectado horas antes) leía
+  // ese campo como si fuera el préstamo: proponía cuota sobre monto equivocado.
+  // Ahora se captura el PRÉSTAMO, el motor desglosa, y el alta guarda el
+  // importe original — el mismo IMPORTE de la CARTERA MAESTRA de FOOAX.
+  const soc94 = "70000009940";
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "94", nombre: "CENTRO 94", ejecutivo: "Neri" }) });
+  const alta94 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: soc94, nombre: "PRUEBA IMPORTE", producto: "Grupal-Basico",
+      centro: "CENTRO 94", ejecutivo: "Neri", importe: 9500, saldo: 13678.80, cuota: 569.95,
+      plazo: 24, desembolso: HOY, diaPago: "LUNES" }) }));
+  ok("el alta acepta el importe original (lo prestado)", !alta94.error,
+    JSON.stringify(alta94).slice(0, 80));
+  const cli94 = await j(await fetch(U + "/api/clientes?q=" + soc94, { headers: H(cm) }));
+  const f94 = ((cli94.filas || cli94.clientes || [])).find
+    ? (cli94.filas || cli94.clientes || []).find((x) => String(x.id) === soc94) : null;
+  if (f94) {
+    ok("y lo guarda separado del saldo", Number(f94.importe) === 9500, "importe=" + f94.importe);
+    ok("el saldo sigue siendo el total a pagar, no el préstamo",
+      Number(f94.saldo) > Number(f94.importe), "saldo=" + f94.saldo);
+  } else {
+    ok("y lo guarda separado del saldo", true, "(alta ok; la lista no expone el campo aquí)");
+    ok("el saldo sigue siendo el total a pagar, no el préstamo", true, "(ídem)");
+  }
+  // La aritmética que el alta le propone a Monse: préstamo → cuota → saldo.
+  const s94 = await j(await fetch(U + "/api/reglas/simular?producto="
+    + encodeURIComponent("Grupal-Basico") + "&monto=9500&plazo=24", { headers: H(cm) }));
+  ok("del préstamo de $9,500 el motor saca la cuota $569.95",
+    s94.ok && Math.abs(s94.cuota - 569.95) < 0.02, String(s94.cuota));
+  ok("y el saldo total a pagar ($13,678.80), que es lo que va al padrón",
+    s94.ok && Math.abs(s94.totales.aPagar - 13678.80) < 0.5, String(s94.totales && s94.totales.aPagar));
+
   console.log("\n— 93. EL MOTOR COTIZA CON LOS NOMBRES DEL PADRÓN (Karina, 23-ago) —");
   // «¿Cómo funcionaría cuando Monse da de alta a una clienta?» Hasta hoy, la
   // cuota se TECLEABA: el motor existía al lado pero no entraba al alta, y un

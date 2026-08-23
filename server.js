@@ -3362,6 +3362,11 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   const clienta = {
     id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
+    // EL IMPORTE ORIGINAL: lo que se le prestó, SIN intereses (Karina, 23-ago).
+    // El saldo del padrón es lo que va a PAGAR (con interés e IVA); sin este
+    // campo, el monto prestado no quedaba en ningún lado y el motor tenía que
+    // deducirlo de la cuota. Es el mismo IMPORTE de su CARTERA MAESTRA.
+    importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0,
     desembolso: desembolso || null,
     diaPago: diaPagoAlta || diaDelCentro(centro) || null,
@@ -4509,6 +4514,7 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   if (diaPagoRc && !idxDia(diaPagoRc))
     return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
   const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
+    importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
     // CICLO INTERNO (Karina, 15-ago): «si alguien liquida su Grupal-Básico y
     // renueva otro Grupal-Básico, ponerle un folio interno 02, 03 — para ver

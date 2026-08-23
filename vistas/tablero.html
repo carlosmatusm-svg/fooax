@@ -532,7 +532,15 @@
         <div class="altaerr" id="cnErr"></div>
       </div>
       <div class="arow">
-        <div class="acampo"><label>Saldo</label><input id="aSaldo" type="number" inputmode="decimal" oninput="calcularCuotaAlta()"></div>
+        <!-- LO QUE SE CAPTURA ES EL PRÉSTAMO, SIN INTERESES (Karina, 23-ago).
+             Antes se capturaba el "saldo" —el total CON intereses— tecleado a
+             mano, y el motor leía ese campo como si fuera el préstamo: cuota
+             equivocada propuesta sobre un monto equivocado. Ahora Monse pone lo
+             que se le presta a la clienta y el motor desglosa: cuota, interés,
+             IVA y el saldo total. Saldo y cuota quedan editables para lo que el
+             catálogo no cubre (reestructuras, cuota negociada). -->
+        <div class="acampo"><label>Préstamo (sin intereses)</label><input id="aPrestamo" type="number" inputmode="decimal" placeholder="9500" oninput="calcularCuotaAlta()" title="Lo que se le presta a la clienta, SIN intereses. Con el producto y el plazo, el sistema calcula solo la cuota y el saldo total."></div>
+        <div class="acampo"><label>Saldo (total a pagar)</label><input id="aSaldo" type="number" inputmode="decimal" oninput="window.__saldoTecleado=true" title="Lo que la clienta va a pagar EN TOTAL (capital + interés + IVA). Se llena solo al poner el préstamo; solo captúralo a mano si el crédito no está en el catálogo."></div>
         <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal" oninput="window.__cuotaTecleada=true">
           <!-- El motor calcula la cuota en cuanto hay producto, monto y plazo.
                No la impone: la propone. Hay créditos fuera del catálogo
@@ -1336,7 +1344,8 @@ async function _calcularCuotaAlta() {
   const inp = document.getElementById("aCuota");
   if (!box || !inp) return;
   const prod = productoElegido("aProducto", "aProductoNuevo");
-  const monto = Number(($("aSaldo") || {}).value) || 0;
+  // El monto es el PRÉSTAMO sin intereses — nunca el saldo, que ya los trae.
+  const monto = Number(($("aPrestamo") || {}).value) || 0;
   const plazo = Number(($("aPlazo") || {}).value) || 0;
   if (!prod || monto <= 0 || plazo <= 0) { box.style.display = "none"; return; }
   let d;
@@ -1352,8 +1361,12 @@ async function _calcularCuotaAlta() {
     return;
   }
   const t = d.totales || {};
-  // Si todavía no ha tecleado nada, se le pone la cuota calculada.
+  // Si todavía no ha tecleado nada, se le ponen la cuota Y el saldo calculados.
+  // El saldo del padrón es lo que la clienta va a PAGAR (capital+interés+IVA):
+  // es el total del motor, no el préstamo.
   if (!window.__cuotaTecleada || !inp.value) inp.value = (d.cuota || 0).toFixed(2);
+  const sal = document.getElementById("aSaldo");
+  if (sal && (!window.__saldoTecleado || !sal.value)) sal.value = (t.aPagar || 0).toFixed(2);
   const tecleada = Number(inp.value) || 0;
   const dif = Math.abs(tecleada - (d.cuota || 0));
   box.innerHTML = '<b style="color:#0B7247">Cuota ' + dinero(d.cuota || 0) + "</b>"
@@ -1361,7 +1374,8 @@ async function _calcularCuotaAlta() {
     + " + interés " + dinero((d.pagos && d.pagos[0] ? d.pagos[0].interes : 0))
     + " + IVA " + dinero((d.pagos && d.pagos[0] ? d.pagos[0].iva : 0)) + "</span>"
     + '<br><span style="color:#6B6480">' + hesc(d.producto || "") + " · "
-    + (d.pagos || []).length + " pagos · total a pagar " + dinero(t.aPagar || 0) + "</span>"
+    + (d.pagos || []).length + " pagos · presta " + dinero(monto)
+    + " y paga en total <b>" + dinero(t.aPagar || 0) + "</b> — ese total es el SALDO</span>"
     + (dif > 0.5
         ? '<br><b style="color:#8E0019">Ojo: capturaste ' + dinero(tecleada)
           + " y el catálogo dice " + dinero(d.cuota || 0) + " (" + dinero(dif) + " de diferencia).</b>"
@@ -1376,6 +1390,7 @@ async function registrarAlta(e) {
     nombre: $("aNombre").value, id: $("aSocio").value, producto: productoElegido("aProducto", "aProductoNuevo"),
     centro: $("aCentro").value, ejecutivo: $("aEjecutivo").value,
     saldo: $("aSaldo").value, cuota: $("aCuota").value, plazo: $("aPlazo").value,
+    importe: ($("aPrestamo") || {}).value || "",
     desembolso: $("aDesem") ? $("aDesem").value : "",
     diaPago: $("aDia") ? $("aDia").value : "",
   };
