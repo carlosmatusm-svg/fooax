@@ -3651,6 +3651,61 @@ app.get("/api/reglas", requiere("direccion", "admin"), (req, res) => {
     listos, esperando, autoprueba: motor.autoprueba() });
 });
 
+// LOS PRODUCTOS COMO LOS VE EL ALTA (Karina, 23-ago: «que seleccione el
+// producto que nosotros creamos —Grupal Básico 18, 24, FOXI, FOXI+— como en el
+// simulador, y que se linkee al producto que ellos ya tienen»).
+//
+// Cada opción trae DOS nombres: la etiqueta del catálogo (lo que Monse ve al
+// elegir) y `padron`, el nombre con el que se GUARDA — el que las apps, la
+// clave de crédito y los reportes ya conocen. Se arma al revés del puente:
+// misma tabla de equivalencias, leída de catálogo → padrón, así un producto
+// nuevo sigue siendo una entrada en el JSON y nada más.
+app.get("/api/reglas/alta-productos", requiere("direccion", "admin"), (req, res) => {
+  const R = motor.reglas(true), E = motor.equivalencias(true);
+  const cat = {}; for (const p of R.productos || []) cat[p.clave] = p;
+  const out = [];
+  const mx = (n2) => "$" + Number(n2 || 0).toLocaleString("es-MX");
+  for (const eq of (E.equivalencias || [])) {
+    if (eq.porPlazo) {
+      // Solo el ciclo 1: los ciclos siguientes nacen por «Re-dar crédito»,
+      // que les pega su número al nombre.
+      if ((eq.ciclo || 1) !== 1) continue;
+      for (const pl of Object.keys(eq.porPlazo)) {
+        const p = cat[eq.porPlazo[pl]]; if (!p) continue;
+        out.push({ etiqueta: p.nombre, padron: eq.padron, clave: p.clave, plazo: Number(pl),
+          montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+      }
+      continue;
+    }
+    const p = cat[eq.clave]; if (!p) continue;
+    if (Array.isArray(p.variantes) && p.variantes.length) {
+      if (eq.ciclo != null) {           // Individual N = FOXI ciclo N
+        const v = p.variantes.find((x) => Number(x.ciclo) === Number(eq.ciclo));
+        if (v) out.push({ etiqueta: v.nombre + (v.monto ? " · " + mx(v.monto) : ""),
+          padron: eq.padron, clave: p.clave, ciclo: eq.ciclo, plazo: v.plazo || null,
+          monto: v.monto || null, montoMin: v.monto || null, montoMax: v.monto || null });
+      } else if (eq.plazoFijo != null) { // Foxi Plus - 1 = el de 32 sem
+        const v = p.variantes.find((x) => Number(x.plazo) === Number(eq.plazoFijo));
+        if (v) out.push({ etiqueta: v.nombre, padron: eq.padron, clave: p.clave,
+          plazo: v.plazo, montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+      } else if (eq.usarPlazoDelCredito) { // Foxi Plus - 2 = 24 o 16 sem
+        const tomados = new Set((E.equivalencias || [])
+          .filter((x) => x !== eq && x.clave === eq.clave && x.plazoFijo != null)
+          .map((x) => Number(x.plazoFijo)));
+        for (const v of p.variantes)
+          if (v.plazo && !tomados.has(Number(v.plazo)))
+            out.push({ etiqueta: v.nombre, padron: eq.padron, clave: p.clave,
+              plazo: v.plazo, montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+      }
+    } else {                             // MAGNUS, COMADRE: directos
+      out.push({ etiqueta: p.nombre, padron: eq.padron, clave: p.clave,
+        plazo: (p.plazos && p.plazos.length === 1) ? p.plazos[0] : null,
+        montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+    }
+  }
+  res.json({ productos: out });
+});
+
 // Simula un crédito y devuelve su tabla de amortización completa.
 app.get("/api/reglas/simular", requiere("direccion", "admin"), (req, res) => {
   const q = req.query || {};

@@ -3553,6 +3553,45 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 95. EL ALTA ELIGE DEL CATÁLOGO Y GUARDA EL NOMBRE DEL PADRÓN (Karina, 23-ago) —");
+  // «Que seleccione el producto que nosotros creamos —Grupal Básico 18, 24,
+  // FOXI, FOXI+, como en el simulador— y que se linkee al producto que ellos
+  // ya tienen.» Cada opción trae la etiqueta del catálogo y el nombre del
+  // padrón con el que se guarda; el plazo viene puesto desde el catálogo.
+  const ap95 = await j(await fetch(U + "/api/reglas/alta-productos", { headers: H(cm) }));
+  const L95 = ap95.productos || [];
+  ok("la lista del alta responde", L95.length > 0, "n=" + L95.length);
+  const por = (et) => L95.find((x) => (x.etiqueta || "").includes(et));
+
+  const b18 = por("18 semanas"), b24 = por("24 semanas");
+  ok("Grupal Básico viene DOS veces: 18 y 24 semanas, cada una con su plazo puesto",
+    b18 && b24 && b18.plazo === 18 && b24.plazo === 24,
+    JSON.stringify([b18 && b18.plazo, b24 && b24.plazo]));
+  ok("y las dos se guardan como «Grupal-Basico», el nombre de siempre",
+    b18 && b24 && b18.padron === "Grupal-Basico" && b24.padron === "Grupal-Basico");
+
+  const f3 = por("3er ciclo");
+  ok("FOXI 3er ciclo se guarda como «Individual 3» con su monto fijo",
+    f3 && f3.padron === "Individual 3" && f3.monto === 10000 && f3.plazo === 16,
+    JSON.stringify(f3 || {}));
+  const p1 = por("PLUS 1"), p216 = L95.find((x) => /PLUS 2/.test(x.etiqueta || "") && x.plazo === 16);
+  ok("FOXI PLUS 1 → «Foxi Plus - 1» a 32 sem", p1 && p1.padron === "Foxi Plus - 1" && p1.plazo === 32);
+  ok("FOXI PLUS 2 · 16 sem → «Foxi Plus - 2» con plazo 16",
+    p216 && p216.padron === "Foxi Plus - 2", JSON.stringify(p216 || {}));
+  ok("los ciclos 2+ de los grupales NO aparecen: esos nacen por re-crédito",
+    !L95.some((x) => /Basico 2|Micro 2/.test(x.padron || "")));
+  ok("MAGNUS y COMADRE están, directos",
+    L95.some((x) => x.padron === "MAGNUS") && L95.some((x) => x.padron === "COMADRE"));
+
+  // El circuito completo: opción del catálogo → nombre del padrón → el motor
+  // cotiza ese nombre → misma cuota que el catálogo.
+  if (b24) {
+    const c95 = await j(await fetch(U + "/api/reglas/simular?producto="
+      + encodeURIComponent(b24.padron) + "&monto=9500&plazo=" + b24.plazo, { headers: H(cm) }));
+    ok("el circuito cierra: la opción de 24 sem cotiza $569.95 con el nombre del padrón",
+      c95.ok && Math.abs(c95.cuota - 569.95) < 0.02, String(c95.cuota));
+  }
+
   console.log("\n— 94. EL ALTA CAPTURA EL PRÉSTAMO SIN INTERESES (Karina, 23-ago) —");
   // «Cuando pongan el producto, el saldo sin intereses — que se lo desglose el
   // motor por los pagos.» El campo del alta decía SALDO y ahí se capturaba el

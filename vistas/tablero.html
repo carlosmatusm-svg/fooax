@@ -498,10 +498,21 @@
     <button class="altatoggle" id="altaToggle" onclick="toggleAlta()">+ Dar de alta a una clienta</button>
     <form class="altaform" id="altaForm" onsubmit="registrarAlta(event)" style="display:none">
       <div class="acampo"><label>Nombre de la clienta</label><input id="aNombre" required></div>
+      <!-- EL ORDEN DEL ALTA (Karina, 23-ago): primero QUIÉN (nombre, socio,
+           centro, ejecutivo), luego QUÉ crédito (producto del catálogo, monto,
+           plazo), y el dinero sale del motor. La fecha y el día van al final. -->
       <div class="arow">
         <div class="acampo"><label>Socio (ID)</label><input id="aSocio" inputmode="numeric" required></div>
+        <div class="acampo"><label>Centro</label>
+          <select id="aCentro" required onchange="document.getElementById('centroNuevo').style.display=(this.value==='__nuevo__')?'block':'none'">
+            <option value="" disabled selected>— Elige el centro —</option>
+            <option value="__nuevo__">➕ Centro NUEVO…</option>
+          </select></div>
+      </div>
+      <div class="arow">
+        <div class="acampo"><label>Ejecutivo</label><select id="aEjecutivo"><option>Neri</option><option>Karina</option><option>Christopher</option></select></div>
         <div class="acampo"><label>Producto</label>
-          <select id="aProducto" required onchange="document.getElementById('prodNuevoBox').style.display=(this.value==='__nuevo__')?'block':'none';calcularCuotaAlta()">
+          <select id="aProducto" required onchange="document.getElementById('prodNuevoBox').style.display=(this.value==='__nuevo__')?'block':'none';altaEligeProducto()">
             <option value="" disabled selected>— Elige el tipo de crédito —</option>
             <option value="__nuevo__">➕ Producto NUEVO…</option>
           </select></div>
@@ -509,14 +520,6 @@
       <div class="acampo" id="prodNuevoBox" style="display:none">
         <label>Nombre del producto nuevo</label>
         <input id="aProductoNuevo" placeholder="ej. Grupal-Especial">
-      </div>
-      <div class="arow">
-        <div class="acampo"><label>Centro</label>
-          <select id="aCentro" required onchange="document.getElementById('centroNuevo').style.display=(this.value==='__nuevo__')?'block':'none'">
-            <option value="" disabled selected>— Elige el centro —</option>
-            <option value="__nuevo__">➕ Centro NUEVO…</option>
-          </select></div>
-        <div class="acampo"><label>Ejecutivo</label><select id="aEjecutivo"><option>Neri</option><option>Karina</option><option>Christopher</option></select></div>
       </div>
       <div id="centroNuevo" class="cnuevo" style="display:none">
         <div class="cn-t">➕ Alta de centro nuevo</div>
@@ -2615,13 +2618,37 @@ async function simular() {
     + '<div class="rm">+ IVA ' + dinero(t.iva || 0) + "</div></div>"
     + "</div>"
     + '<div class="permeta" style="margin-top:6px">' + hesc(d.producto || "") + "</div>";
-  // La tabla completa: es lo que se le enseña a la clienta y lo que va al pagaré.
-  const filas = (d.pagos || []).map((x) => "<div class=\"renrow\"><span>Pago <b>" + x.n + "</b>"
-    + (x.dias ? ' <span style="color:#6B6480">' + x.dias + " días</span>" : "")
-    + '</span><span class="rq">' + dinero(x.cuota) + ' <span style="color:#6B6480">(cap '
-    + dinero(x.capital) + " + int " + dinero(x.interes) + (x.iva ? " + IVA " + dinero(x.iva) : "")
-    + ") · queda " + dinero(x.saldo) + "</span></span></div>").join("");
-  tab.innerHTML = '<div class="rensec">Tabla de amortización</div>' + filas;
+  // La tabla completa: es lo que se le enseña a la clienta y lo que va al
+  // pagaré. TABLA de verdad, con columnas alineadas — el renglón corrido
+  // partía el «Pago 1» en dos líneas y los montos bailaban («se ve mal»,
+  // Karina 23-ago). Números tabulares y a la derecha, como en un estado de
+  // cuenta; la columna de días solo aparece cuando el producto la usa (MAGNUS).
+  const conDias = (d.pagos || []).some((x) => x.dias);
+  const th = (t2, der) => '<th style="padding:7px 6px;font-size:10.5px;color:#6B6480;'
+    + 'text-transform:uppercase;letter-spacing:.4px;text-align:' + (der ? "right" : "left")
+    + ';border-bottom:2px solid var(--linea)">' + t2 + "</th>";
+  const td = (v2, opts) => '<td style="padding:7px 6px;white-space:nowrap;text-align:'
+    + ((opts && opts.izq) ? "left" : "right") + ';border-bottom:1px solid var(--linea)'
+    + ((opts && opts.gris) ? ";color:#6B6480" : "") + ((opts && opts.b) ? ";font-weight:800" : "")
+    + '">' + v2 + "</td>";
+  const filas = (d.pagos || []).map((x) =>
+    "<tr>" + td("<b>" + x.n + "</b>", { izq: 1 })
+    + (conDias ? td(x.dias || "—", { gris: 1 }) : "")
+    + td(dinero(x.cuota), { b: 1 })
+    + td(dinero(x.capital), { gris: 1 }) + td(dinero(x.interes), { gris: 1 })
+    + td(x.iva ? dinero(x.iva) : "—", { gris: 1 })
+    + td(dinero(x.saldo)) + "</tr>").join("");
+  const t2 = d.totales || {};
+  const totRow = "<tr>" + td("<b>TOTAL</b>", { izq: 1 }) + (conDias ? td("", {}) : "")
+    + td(dinero(t2.aPagar || 0), { b: 1 }) + td(dinero(t2.capital || 0), { gris: 1 })
+    + td(dinero(t2.interes || 0), { gris: 1 }) + td(t2.iva ? dinero(t2.iva) : "—", { gris: 1 })
+    + td("$0.00") + "</tr>";
+  tab.innerHTML = '<div class="rensec">Tabla de amortización</div>'
+    + '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;'
+    + 'font-size:12px;font-variant-numeric:tabular-nums">'
+    + "<tr>" + th("Pago") + (conDias ? th("Días", 1) : "") + th("Cuota", 1)
+    + th("Capital", 1) + th("Interés", 1) + th("IVA", 1) + th("Queda", 1) + "</tr>"
+    + filas + totRow + "</table></div>";
 }
 
 // ---------- renovaciones: las que no renovaron y las que están por terminar ----------
@@ -2857,6 +2884,11 @@ async function restaurarVersion(ejec, fecha, archivado) {
 function productoElegido(idSel, idNuevo) {
   const sel = $(idSel); if (!sel) return "";
   if (sel.value === "__nuevo__") { const n = $(idNuevo); return n ? n.value.trim() : ""; }
+  // Una opción del catálogo (cat:N) se guarda con SU NOMBRE DEL PADRÓN: el que
+  // las apps y la clave de crédito ya conocen. La etiqueta bonita es solo para
+  // elegir; lo que viaja al servidor es el nombre de siempre.
+  const m2 = /^cat:(\d+)$/.exec(sel.value || "");
+  if (m2) { const p = (window.__ALTA_PRODS || [])[Number(m2[1])]; return p ? p.padron : ""; }
   return sel.value;
 }
 
@@ -2891,12 +2923,43 @@ async function cargarCentros() {
   const selP = $("aProducto");
   if (selP && window.__PRODS.length) {
     const cur = selP.value;
+    // ARRIBA va el CATÁLOGO (Karina, 23-ago: «como en el simulador») — cada
+    // opción sabe su plazo, su tope y el nombre del padrón con el que se
+    // guarda. Abajo quedan los nombres sueltos del padrón, para lo que el
+    // catálogo no cubre (reestructuras y especiales).
+    const cat = (window.__ALTA_PRODS || []).map((p, i) =>
+      '<option value="cat:' + i + '">' + hesc(p.etiqueta) + "</option>").join("");
     selP.innerHTML = '<option value="" disabled' + (cur ? "" : " selected") + '>— Elige el tipo de crédito —</option>'
-      + window.__PRODS.map((p) => '<option value="' + hesc(p.producto) + '">' + hesc(p.producto)
-        + " (" + p.creditos + ")</option>").join("")
-      + '<option value="__nuevo__">➕ Producto NUEVO…</option>';
+      + (cat ? '<optgroup label="Catálogo oficial">' + cat + "</optgroup>" : "")
+      + '<optgroup label="Fuera de catálogo (reestructuras y especiales)">'
+      + window.__PRODS.filter((p) => /reestructur|especial/i.test(p.producto))
+        .map((p) => '<option value="' + hesc(p.producto) + '">' + hesc(p.producto)
+          + " (" + p.creditos + ")</option>").join("")
+      + '<option value="__nuevo__">➕ Producto NUEVO…</option></optgroup>';
     if (cur && cur !== "__nuevo__") selP.value = cur;
   }
+}
+// El catálogo del alta se pide UNA vez y se guarda; sin él, el select cae a
+// los nombres del padrón como antes (nada se rompe si la ruta no responde).
+async function cargarAltaProductos() {
+  try {
+    const d = await (await fetch("/api/reglas/alta-productos", { credentials: "include" })).json();
+    window.__ALTA_PRODS = d.productos || [];
+  } catch { window.__ALTA_PRODS = []; }
+}
+// Al elegir un producto del catálogo: su plazo se pone solo, su monto fijo
+// también (FOXI trae monto único por ciclo), y el motor calcula.
+function altaEligeProducto() {
+  const sel = $("aProducto"); if (!sel) return;
+  const m2 = /^cat:(\d+)$/.exec(sel.value || "");
+  if (m2) {
+    const p = (window.__ALTA_PRODS || [])[Number(m2[1])];
+    if (p) {
+      if (p.plazo) $("aPlazo").value = p.plazo;
+      if (p.monto) $("aPrestamo").value = p.monto;
+    }
+  }
+  calcularCuotaAlta();
 }
 async function registrarCentro() {
   const err = $("cnErr"); err.textContent = "";
@@ -2951,6 +3014,7 @@ cargarRenovaciones();
 cargarSinDesembolso();
 cargarSinCatalogo();
 cargarSimulador();
+cargarAltaProductos();
 { const e = document.getElementById("moraLunes"); if (e) e.addEventListener("change", cargarMora); }
 // Al cambiar el rango se recalcula el resumen, para ver el número antes de bajar el Excel.
 ["perDesde", "perHasta"].forEach((id) => {
