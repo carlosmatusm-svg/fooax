@@ -1370,13 +1370,20 @@ async function _calcularCuotaAlta() {
   if (sal && (!window.__saldoTecleado || !sal.value)) sal.value = (t.aPagar || 0).toFixed(2);
   const tecleada = Number(inp.value) || 0;
   const dif = Math.abs(tecleada - (d.cuota || 0));
-  box.innerHTML = '<b style="color:#0B7247">Cuota ' + dinero(d.cuota || 0) + "</b>"
-    + ' <span style="color:#6B6480">= capital ' + dinero((d.pagos && d.pagos[0] ? d.pagos[0].capital : 0))
-    + " + interés " + dinero((d.pagos && d.pagos[0] ? d.pagos[0].interes : 0))
-    + " + IVA " + dinero((d.pagos && d.pagos[0] ? d.pagos[0].iva : 0)) + "</span>"
-    + '<br><span style="color:#6B6480">' + hesc(d.producto || "") + " · "
-    + (d.pagos || []).length + " pagos · presta " + dinero(monto)
-    + " y paga en total <b>" + dinero(t.aPagar || 0) + "</b> — ese total es el SALDO</span>"
+  // Las mismas tarjetas del simulador («quiero que se vea así», Karina 23-ago):
+  // que dar de alta se sienta igual que cotizar.
+  const p0 = (d.pagos && d.pagos[0]) || {};
+  box.innerHTML = '<div class="renstats">'
+    + '<div class="renstat"><div class="rn" style="color:#0B7247">' + dinero(d.cuota || 0)
+    + '</div><div class="rl">cuota</div><div class="rm">cap ' + dinero(p0.capital || 0)
+    + " + int " + dinero(p0.interes || 0) + (p0.iva ? " + IVA " + dinero(p0.iva) : "") + "</div></div>"
+    + '<div class="renstat"><div class="rn">' + dinero(t.aPagar || 0)
+    + '</div><div class="rl">total a pagar — es el SALDO</div><div class="rm">sobre '
+    + dinero(monto) + " prestados</div></div>"
+    + '<div class="renstat"><div class="rn">' + dinero(t.interes || 0)
+    + '</div><div class="rl">interés</div><div class="rm">+ IVA ' + dinero(t.iva || 0) + "</div></div>"
+    + "</div>"
+    + '<div class="permeta">' + hesc(d.producto || "") + " · " + (d.pagos || []).length + " pagos</div>"
     + (dif > 0.5
         ? '<br><b style="color:#8E0019">Ojo: capturaste ' + dinero(tecleada)
           + " y el catálogo dice " + dinero(d.cuota || 0) + " (" + dinero(dif) + " de diferencia).</b>"
@@ -2561,9 +2568,12 @@ function simCambioProducto() {
   if (vars.length) {
     cb.style.display = "";
     const sc = document.getElementById("simCiclo");
+    // El valor es el ÍNDICE de la variante. Antes era el ciclo — y las de
+    // FOXI+ no tienen ciclo (van por plazo), así que las tres opciones
+    // quedaban con valor vacío y siempre ganaba la PRIMERA: elegir «PLUS 2 ·
+    // 16 sem» calculaba PLUS 1 · 32 sem (lo cachó Karina, 23-ago).
     sc.innerHTML = '<option value="">—</option>' + vars.map((v, i) =>
-      '<option value="' + (v.ciclo != null ? v.ciclo : "") + '" data-plazo="' + (v.plazo || "") + '">'
-      + hesc(v.nombre || ("opción " + (i + 1))) + "</option>").join("");
+      '<option value="' + i + '">' + hesc(v.nombre || ("opción " + (i + 1))) + "</option>").join("");
   } else cb.style.display = "none";
   db.style.display = p.metodo === "A_DIAS" ? "" : "none";
   // El plazo y el monto del catálogo se proponen: casi siempre son esos.
@@ -2576,15 +2586,17 @@ async function simular() {
   if (!res) return;
   const p = simProducto();
   if (!p) { res.textContent = "Elige un producto y pon el monto."; tab.innerHTML = ""; return; }
-  const ciclo = ($("simCiclo") || {}).value || "";
-  // Si eligió una variante con su propio monto o plazo, se toman de ahí.
-  const v = (p.variantes || []).find((x) => String(x.ciclo || "") === String(ciclo));
-  if (v && v.monto && !$("simMonto").value) $("simMonto").value = v.monto;
+  const idx = ($("simCiclo") || {}).value;
+  const v = idx !== "" && idx != null ? (p.variantes || [])[Number(idx)] : null;
+  // La variante elegida manda: su plazo y su monto PISAN lo tecleado, porque
+  // son suyos por catálogo (FOXI trae monto único por ciclo; FOXI+ su plazo).
   if (v && v.plazo) $("simPlazo").value = v.plazo;
+  if (v && v.monto) $("simMonto").value = v.monto;
+  const ciclo = v && v.ciclo != null ? v.ciclo : "";
   const qs = "?producto=" + encodeURIComponent(p.clave)
     + "&monto=" + (Number($("simMonto").value) || 0)
     + "&plazo=" + (Number($("simPlazo").value) || 0)
-    + (ciclo ? "&ciclo=" + ciclo : "")
+    + (ciclo !== "" ? "&ciclo=" + ciclo : "")
     + (($("simDias") || {}).value ? "&dias=" + Number($("simDias").value) : "");
   let d;
   try { d = await (await fetch("/api/reglas/simular" + qs, { credentials: "include" })).json(); }
