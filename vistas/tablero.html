@@ -2680,14 +2680,17 @@ async function cargarRenovaciones() {
   // no puedo saber cuántas son renovación real». Ahora se dice, y se dice
   // cuántas faltan por marcar — que es el trabajo pendiente de las ejecutivas.
   const T = d.totales || {};
+  // Texto corrido, no dos columnas: con la etiqueta a la izquierda y los datos
+  // a la derecha, «De las 40 por terminar» se partía en tres renglones
+  // («se ve mal», Karina 23-ago).
   const desglose = T.porTerminar
-    ? '<div class="renrow" style="border-top:1px solid var(--linea);margin-top:8px;padding-top:10px">'
-      + '<span>De las <b>' + T.porTerminar + '</b> por terminar</span>'
-      + '<span class="rq"><b style="color:#0B7247">' + (T.porTerminarRenovacion || 0) + ' renovación real</b>'
+    ? '<div style="border-top:1px solid var(--linea);margin-top:8px;padding:10px 2px 2px;line-height:1.7">'
+      + 'De las <b>' + T.porTerminar + ' por terminar</b>: '
+      + '<b style="color:#0B7247">' + (T.porTerminarRenovacion || 0) + ' renovación real</b>'
       + ' · <b style="color:#8E0019">' + (T.porTerminarSoloRecuperacion || 0) + ' solo recuperación</b>'
       + (T.porTerminarNoQuiso ? ' · ' + T.porTerminarNoQuiso + ' no quiso' : "")
       + (T.porTerminarSinMarcar ? ' · <b>' + T.porTerminarSinMarcar + ' sin marcar</b>' : "")
-      + "</span></div>"
+      + "</div>"
     : "";
 
   const ejec = (d.porEjecutivo || []).filter((g) => g.renovaron || g.terminaronEnElMes)
@@ -2698,16 +2701,18 @@ async function cargarRenovaciones() {
   // SEGUIMIENTO POR EJECUTIVA. Lo pidió Dirección: no cuántas tiene cada una,
   // sino CUÁNTAS YA TRABAJÓ. Una lista de 20 sin marcar y una de 20 al día se
   // veían idénticas.
+  // Bloque de DOS líneas por ejecutiva —nombre y cuántas arriba, el detalle
+  // abajo— en vez de dos columnas que se encimaban en el teléfono.
   const seg = (d.porEjecutivo || []).filter((g) => g.porTerminar > 0)
     .sort((a2, b2) => (a2.avanceGestion || 0) - (b2.avanceGestion || 0))
-    .map((g) => '<div class="renrow"><span><b>' + hesc(g.ejecutivo) + "</b> "
-      + '<span style="color:#6B6480">' + g.porTerminar + " por terminar</span></span>"
-      + '<span class="rq">'
+    .map((g) => '<div style="padding:9px 2px;border-bottom:1px solid var(--linea);line-height:1.65">'
+      + '<b>' + hesc(g.ejecutivo) + "</b> · " + g.porTerminar + " por terminar"
+      + (g.avanceGestion == null ? "" : ' — <b style="color:'
+          + (g.avanceGestion < 50 ? "#8E0019" : "#0B7247") + '">' + g.avanceGestion + "% trabajado</b>")
+      + '<br><span style="color:#6B6480">'
       + (g.sinMarcar ? '<b style="color:#8E0019">' + g.sinMarcar + " sin marcar</b> · " : "")
       + g.renovacionReal + " renovación"
       + (g.soloRecuperacion ? " · " + g.soloRecuperacion + " recuperación" : "")
-      + (g.avanceGestion == null ? "" : ' · <b style="color:'
-          + (g.avanceGestion < 50 ? "#8E0019" : "#0B7247") + '">' + g.avanceGestion + "% trabajado</b>")
       + "</span></div>").join("");
 
   // Las listas son renglones de acción: nombre a la izquierda, el dato que
