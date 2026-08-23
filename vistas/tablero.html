@@ -531,24 +531,25 @@
         <button type="button" class="altasubmit" onclick="registrarCentro()">Registrar centro</button>
         <div class="altaerr" id="cnErr"></div>
       </div>
+      <!-- LO QUE SE CAPTURA ES EL PRÉSTAMO, SIN INTERESES (Karina, 23-ago).
+           Se captura lo que se le presta; el motor desglosa cuota, interés, IVA
+           y el saldo total. Saldo y cuota quedan editables para lo que el
+           catálogo no cubre (reestructuras, cuota negociada).
+           En DOS filas de dos —préstamo+plazo arriba (lo que se captura),
+           saldo+cuota abajo (lo que el motor llena)— porque cuatro campos en un
+           renglón se encimaban («se ve chueco», Karina 23-ago). El orden también
+           cuenta la historia: primero lo que pones, luego lo que sale. -->
       <div class="arow">
-        <!-- LO QUE SE CAPTURA ES EL PRÉSTAMO, SIN INTERESES (Karina, 23-ago).
-             Antes se capturaba el "saldo" —el total CON intereses— tecleado a
-             mano, y el motor leía ese campo como si fuera el préstamo: cuota
-             equivocada propuesta sobre un monto equivocado. Ahora Monse pone lo
-             que se le presta a la clienta y el motor desglosa: cuota, interés,
-             IVA y el saldo total. Saldo y cuota quedan editables para lo que el
-             catálogo no cubre (reestructuras, cuota negociada). -->
         <div class="acampo"><label>Préstamo (sin intereses)</label><input id="aPrestamo" type="number" inputmode="decimal" placeholder="9500" oninput="calcularCuotaAlta()" title="Lo que se le presta a la clienta, SIN intereses. Con el producto y el plazo, el sistema calcula solo la cuota y el saldo total."></div>
-        <div class="acampo"><label>Saldo (total a pagar)</label><input id="aSaldo" type="number" inputmode="decimal" oninput="window.__saldoTecleado=true" title="Lo que la clienta va a pagar EN TOTAL (capital + interés + IVA). Se llena solo al poner el préstamo; solo captúralo a mano si el crédito no está en el catálogo."></div>
-        <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal" oninput="window.__cuotaTecleada=true">
-          <!-- El motor calcula la cuota en cuanto hay producto, monto y plazo.
-               No la impone: la propone. Hay créditos fuera del catálogo
-               (reestructuras, especiales) donde la cuota es negociada, y
-               bloquear ahí impediría un alta legítima. -->
-          <div id="aCuotaMotor" class="permeta" style="margin-top:4px;display:none"></div></div>
         <div class="acampo"><label>Plazo (nº de pagos)</label><input id="aPlazo" type="number" inputmode="numeric" placeholder="18" oninput="calcularCuotaAlta()" title="Cuántos pagos tiene el crédito EN TOTAL: semanas si cobra semanal, mensualidades si cobra mensual (Magnus). No lo conviertas."></div>
       </div>
+      <div class="arow">
+        <div class="acampo"><label>Saldo (total a pagar)</label><input id="aSaldo" type="number" inputmode="decimal" oninput="window.__saldoTecleado=true" title="Lo que la clienta va a pagar EN TOTAL (capital + interés + IVA). Se llena solo al poner el préstamo; solo captúralo a mano si el crédito no está en el catálogo."></div>
+        <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal" oninput="window.__cuotaTecleada=true"></div>
+      </div>
+      <!-- El desglose del motor va a lo ANCHO, no dentro de la celda de la
+           cuota: metido ahí deformaba la fila entera. -->
+      <div id="aCuotaMotor" class="permeta" style="margin:2px 0 6px;display:none"></div>
       <div class="arow">
         <div class="acampo"><label>Fecha de desembolso</label><input id="aDesem" type="date" title="Cuándo se le entrega (o entregó) el dinero. Puede ser una fecha futura: hasta ese día el crédito no debe nada y no aparece en la mora."></div>
         <div class="acampo"><label>Día de pago</label>
