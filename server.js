@@ -3650,12 +3650,27 @@ app.get("/api/reglas", requiere("direccion", "admin"), (req, res) => {
 app.get("/api/reglas/simular", requiere("direccion", "admin"), (req, res) => {
   const q = req.query || {};
   const dias = String(q.diasPorPeriodo || "").trim();
+  // EL NOMBRE PUEDE VENIR DE LOS DOS LADOS. Del catálogo ("GRUPAL_BASICO_24")
+  // cuando lo llama el simulador, o del PADRÓN ("Grupal-Basico") cuando lo
+  // llama el alta. Se intenta el puente primero para que la pantalla y la
+  // operación hablen el mismo idioma: quien da de alta escribe el nombre que
+  // conoce, no una clave interna.
+  const puente = motor.resolverCredito({
+    producto: q.producto, plazo: Number(q.plazo) || null, saldo: Number(q.monto) || 0 });
+  // Si el puente ya sabe POR QUÉ no se puede (reestructura, falta el plazo), esa
+  // es la respuesta buena. Caer al catálogo la tapaba con un "no está en el
+  // motor de reglas" que no le dice nada a quien está dando el alta.
+  if (!puente.ok && (puente.fueraDeCatalogo || puente.faltaPlazo || puente.plazoDesconocido))
+    return res.status(400).json({ ok: false, motivo: puente.motivo, fueraDeCatalogo: !!puente.fueraDeCatalogo });
+  const productoFinal = puente.ok ? puente.clave : q.producto;
+  const cicloFinal = q.ciclo != null && q.ciclo !== "" ? Number(q.ciclo)
+    : (puente.ok ? puente.ciclo : null);
   const t = motor.tablaAmortizacion({
-    producto: q.producto, monto: Number(q.monto), plazo: Number(q.plazo),
+    producto: productoFinal, monto: Number(q.monto), plazo: Number(q.plazo),
     // EL CICLO (Anel, 19-ago): FOXI cambia de tasa y de monto en cada uno de
     // sus 5 ciclos. Sin este parámetro el simulador no podía cotizar FOXI —
     // el motor pedía el ciclo y la ruta no lo mandaba.
-    ciclo: q.ciclo != null && q.ciclo !== "" ? Number(q.ciclo) : null,
+    ciclo: cicloFinal,
     dias: Number(q.dias) || 0,
     diasPorPeriodo: dias ? dias.split(",").map((x) => Number(x.trim())) : null,
   });

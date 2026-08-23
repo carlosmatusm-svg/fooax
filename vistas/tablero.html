@@ -501,7 +501,7 @@
       <div class="arow">
         <div class="acampo"><label>Socio (ID)</label><input id="aSocio" inputmode="numeric" required></div>
         <div class="acampo"><label>Producto</label>
-          <select id="aProducto" required onchange="document.getElementById('prodNuevoBox').style.display=(this.value==='__nuevo__')?'block':'none'">
+          <select id="aProducto" required onchange="document.getElementById('prodNuevoBox').style.display=(this.value==='__nuevo__')?'block':'none';calcularCuotaAlta()">
             <option value="" disabled selected>— Elige el tipo de crédito —</option>
             <option value="__nuevo__">➕ Producto NUEVO…</option>
           </select></div>
@@ -532,9 +532,14 @@
         <div class="altaerr" id="cnErr"></div>
       </div>
       <div class="arow">
-        <div class="acampo"><label>Saldo</label><input id="aSaldo" type="number" inputmode="decimal"></div>
-        <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal"></div>
-        <div class="acampo"><label>Plazo (nº de pagos)</label><input id="aPlazo" type="number" inputmode="numeric" placeholder="18" title="Cuántos pagos tiene el crédito EN TOTAL: semanas si cobra semanal, mensualidades si cobra mensual (Magnus). No lo conviertas."></div>
+        <div class="acampo"><label>Saldo</label><input id="aSaldo" type="number" inputmode="decimal" oninput="calcularCuotaAlta()"></div>
+        <div class="acampo"><label>Cuota</label><input id="aCuota" type="number" inputmode="decimal" oninput="window.__cuotaTecleada=true">
+          <!-- El motor calcula la cuota en cuanto hay producto, monto y plazo.
+               No la impone: la propone. Hay créditos fuera del catálogo
+               (reestructuras, especiales) donde la cuota es negociada, y
+               bloquear ahí impediría un alta legítima. -->
+          <div id="aCuotaMotor" class="permeta" style="margin-top:4px;display:none"></div></div>
+        <div class="acampo"><label>Plazo (nº de pagos)</label><input id="aPlazo" type="number" inputmode="numeric" placeholder="18" oninput="calcularCuotaAlta()" title="Cuántos pagos tiene el crédito EN TOTAL: semanas si cobra semanal, mensualidades si cobra mensual (Magnus). No lo conviertas."></div>
       </div>
       <div class="arow">
         <div class="acampo"><label>Fecha de desembolso</label><input id="aDesem" type="date" title="Cuándo se le entrega (o entregó) el dinero. Puede ser una fecha futura: hasta ese día el crédito no debe nada y no aparece en la mora."></div>
@@ -679,6 +684,28 @@
     </div>
     <div class="permeta" id="moraResumen">Cargando…</div>
   </div>
+  <!-- SIMULADOR · cotizar un crédito antes de darlo (Karina, 23-ago).
+       El endpoint existía desde la Fase 3 pero no tenía pantalla: solo se podía
+       llamar por URL. Aquí se cotiza cualquier producto del catálogo con su
+       tabla de amortización completa, que es lo que hay que enseñarle a la
+       clienta antes de que firme. -->
+  <div class="pcard" id="simCard">
+    <div class="perttl">Simulador · cuánto pagaría por un crédito, antes de darlo</div>
+    <div class="renfiltros">
+      <label>Producto</label>
+      <select id="simProd" onchange="simCambioProducto()"><option value="">— elige —</option></select>
+      <label>Monto</label><input id="simMonto" type="number" inputmode="decimal" style="width:110px">
+      <label>Plazo</label><input id="simPlazo" type="number" inputmode="numeric" style="width:80px">
+      <span id="simCicloBox" style="display:none"><label>Ciclo</label>
+        <select id="simCiclo" onchange="simular()"><option value="">—</option></select></span>
+      <span id="simDiasBox" style="display:none"><label>Días</label>
+        <input id="simDias" type="number" inputmode="numeric" style="width:80px" oninput="simular()"></span>
+      <button class="dlbtn" onclick="simular()"><span>Calcular</span></button>
+    </div>
+    <div id="simResumen" class="permeta">Elige un producto y pon el monto.</div>
+    <div id="simTabla"></div>
+  </div>
+
   <!-- RENOVACIONES — Karina, 14-ago: «hay que poner las renovaciones pendientes
        o las que no renovaron de los ejecutivos, en el de Anel». Dos listas: la
        que ya terminó y sigue sin crédito (cartera que se enfría) y la que está
@@ -1291,6 +1318,56 @@ function toggleAlta() {
   f.style.display = ab ? "none" : "flex";
   t.textContent = ab ? "+ Dar de alta a una clienta" : "Cerrar";
 }
+// EL MOTOR EN EL ALTA (Karina, 23-ago). Antes la cuota se tecleaba y nadie se
+// enteraba de un dedazo hasta que alguien cuadrara a mano. Ahora, en cuanto hay
+// producto + monto + plazo, el motor la calcula y la propone con su desglose.
+//
+// PROPONE, no impone: hay créditos fuera del catálogo —reestructuras, casos
+// especiales— donde la cuota es negociada. Bloquear ahí impediría un alta
+// legítima. Lo que sí hace es AVISAR cuando lo tecleado no coincide con lo
+// calculado, que es donde está el dedazo.
+let __cuotaTimer = null;
+function calcularCuotaAlta() {
+  clearTimeout(__cuotaTimer);
+  __cuotaTimer = setTimeout(_calcularCuotaAlta, 350);   // no dispara en cada tecla
+}
+async function _calcularCuotaAlta() {
+  const box = document.getElementById("aCuotaMotor");
+  const inp = document.getElementById("aCuota");
+  if (!box || !inp) return;
+  const prod = productoElegido("aProducto", "aProductoNuevo");
+  const monto = Number(($("aSaldo") || {}).value) || 0;
+  const plazo = Number(($("aPlazo") || {}).value) || 0;
+  if (!prod || monto <= 0 || plazo <= 0) { box.style.display = "none"; return; }
+  let d;
+  try {
+    d = await (await fetch("/api/reglas/simular?producto=" + encodeURIComponent(prod)
+      + "&monto=" + monto + "&plazo=" + plazo, { credentials: "include" })).json();
+  } catch { box.style.display = "none"; return; }
+  box.style.display = "";
+  if (!d || !d.ok) {
+    // No se puede calcular: se dice por qué, sin estorbar. El alta sigue.
+    box.innerHTML = '<span style="color:#6B6480">El motor no calcula este crédito: '
+      + hesc(String((d && d.motivo) || "falta un dato")) + " · captura la cuota a mano.</span>";
+    return;
+  }
+  const t = d.totales || {};
+  // Si todavía no ha tecleado nada, se le pone la cuota calculada.
+  if (!window.__cuotaTecleada || !inp.value) inp.value = (d.cuota || 0).toFixed(2);
+  const tecleada = Number(inp.value) || 0;
+  const dif = Math.abs(tecleada - (d.cuota || 0));
+  box.innerHTML = '<b style="color:#0B7247">Cuota ' + dinero(d.cuota || 0) + "</b>"
+    + ' <span style="color:#6B6480">= capital ' + dinero((d.pagos && d.pagos[0] ? d.pagos[0].capital : 0))
+    + " + interés " + dinero((d.pagos && d.pagos[0] ? d.pagos[0].interes : 0))
+    + " + IVA " + dinero((d.pagos && d.pagos[0] ? d.pagos[0].iva : 0)) + "</span>"
+    + '<br><span style="color:#6B6480">' + hesc(d.producto || "") + " · "
+    + (d.pagos || []).length + " pagos · total a pagar " + dinero(t.aPagar || 0) + "</span>"
+    + (dif > 0.5
+        ? '<br><b style="color:#8E0019">Ojo: capturaste ' + dinero(tecleada)
+          + " y el catálogo dice " + dinero(d.cuota || 0) + " (" + dinero(dif) + " de diferencia).</b>"
+        : "");
+}
+
 async function registrarAlta(e) {
   e.preventDefault();
   const err = $("altaErr"); err.className = "altaerr";
@@ -2435,6 +2512,90 @@ async function cargarMora() {
         + "). Vienen dichos en el Excel.</span>" : "");
 }
 
+// ---------- SIMULADOR ----------
+// Cotiza un crédito con el catálogo oficial. Es la pantalla que faltaba: el
+// cálculo ya existía en /api/reglas/simular pero no había dónde usarlo.
+let SIM_PRODS = [];
+async function cargarSimulador() {
+  const sel = document.getElementById("simProd");
+  if (!sel) return;
+  let d;
+  try { d = await (await fetch("/api/reglas", { credentials: "include" })).json(); }
+  catch { return; }
+  SIM_PRODS = d.listos || [];
+  sel.innerHTML = '<option value="">— elige —</option>'
+    + SIM_PRODS.map((p) => '<option value="' + hesc(p.clave) + '">' + hesc(p.nombre) + "</option>").join("");
+  // Si el motor dejó de reproducir los ejemplos validados, se dice aquí: es la
+  // pantalla donde alguien está a punto de cotizarle a una clienta.
+  const ap = d.autoprueba || {};
+  if (ap.ok === false) {
+    const r = document.getElementById("simResumen");
+    if (r) r.innerHTML = '<b style="color:#8E0019">OJO: el motor no está reproduciendo los '
+      + "ejemplos validados por la contadora. No cotices con él hasta revisarlo.</b>";
+  }
+}
+function simProducto() { return SIM_PRODS.find((p) => p.clave === (($("simProd") || {}).value || "")); }
+function simCambioProducto() {
+  const p = simProducto();
+  const cb = document.getElementById("simCicloBox"), db = document.getElementById("simDiasBox");
+  if (!p) { if (cb) cb.style.display = "none"; if (db) db.style.display = "none"; return; }
+  // FOXI pide ciclo; Pago Único pide días. Los campos aparecen solo cuando toca,
+  // para no llenar la pantalla de casillas que no aplican.
+  const vars = p.variantes || [];
+  if (vars.length) {
+    cb.style.display = "";
+    const sc = document.getElementById("simCiclo");
+    sc.innerHTML = '<option value="">—</option>' + vars.map((v, i) =>
+      '<option value="' + (v.ciclo != null ? v.ciclo : "") + '" data-plazo="' + (v.plazo || "") + '">'
+      + hesc(v.nombre || ("opción " + (i + 1))) + "</option>").join("");
+  } else cb.style.display = "none";
+  db.style.display = p.metodo === "A_DIAS" ? "" : "none";
+  // El plazo y el monto del catálogo se proponen: casi siempre son esos.
+  if (p.plazos && p.plazos.length === 1) $("simPlazo").value = p.plazos[0];
+  if (p.montoMin && !$("simMonto").value) $("simMonto").value = p.montoMin;
+  simular();
+}
+async function simular() {
+  const res = document.getElementById("simResumen"), tab = document.getElementById("simTabla");
+  if (!res) return;
+  const p = simProducto();
+  if (!p) { res.textContent = "Elige un producto y pon el monto."; tab.innerHTML = ""; return; }
+  const ciclo = ($("simCiclo") || {}).value || "";
+  // Si eligió una variante con su propio monto o plazo, se toman de ahí.
+  const v = (p.variantes || []).find((x) => String(x.ciclo || "") === String(ciclo));
+  if (v && v.monto && !$("simMonto").value) $("simMonto").value = v.monto;
+  if (v && v.plazo) $("simPlazo").value = v.plazo;
+  const qs = "?producto=" + encodeURIComponent(p.clave)
+    + "&monto=" + (Number($("simMonto").value) || 0)
+    + "&plazo=" + (Number($("simPlazo").value) || 0)
+    + (ciclo ? "&ciclo=" + ciclo : "")
+    + (($("simDias") || {}).value ? "&dias=" + Number($("simDias").value) : "");
+  let d;
+  try { d = await (await fetch("/api/reglas/simular" + qs, { credentials: "include" })).json(); }
+  catch { res.textContent = "Sin conexión con el servidor."; return; }
+  if (!d || !d.ok) {
+    res.innerHTML = '<span style="color:#8E0019">' + hesc(String((d && d.motivo) || "No se pudo calcular.")) + "</span>";
+    tab.innerHTML = ""; return;
+  }
+  const t = d.totales || {};
+  res.innerHTML = '<div class="renstats">'
+    + '<div class="renstat"><div class="rn" style="color:#0B7247">' + dinero(d.cuota || (d.pagos[0] || {}).cuota || 0)
+    + '</div><div class="rl">cuota</div><div class="rm">' + (d.pagos || []).length + " pagos</div></div>"
+    + '<div class="renstat"><div class="rn">' + dinero(t.aPagar || 0) + '</div><div class="rl">total a pagar</div>'
+    + '<div class="rm">sobre ' + dinero(t.capital || 0) + " prestados</div></div>"
+    + '<div class="renstat"><div class="rn">' + dinero(t.interes || 0) + '</div><div class="rl">interés</div>'
+    + '<div class="rm">+ IVA ' + dinero(t.iva || 0) + "</div></div>"
+    + "</div>"
+    + '<div class="permeta" style="margin-top:6px">' + hesc(d.producto || "") + "</div>";
+  // La tabla completa: es lo que se le enseña a la clienta y lo que va al pagaré.
+  const filas = (d.pagos || []).map((x) => "<div class=\"renrow\"><span>Pago <b>" + x.n + "</b>"
+    + (x.dias ? ' <span style="color:#6B6480">' + x.dias + " días</span>" : "")
+    + '</span><span class="rq">' + dinero(x.cuota) + ' <span style="color:#6B6480">(cap '
+    + dinero(x.capital) + " + int " + dinero(x.interes) + (x.iva ? " + IVA " + dinero(x.iva) : "")
+    + ") · queda " + dinero(x.saldo) + "</span></span></div>").join("");
+  tab.innerHTML = '<div class="rensec">Tabla de amortización</div>' + filas;
+}
+
 // ---------- renovaciones: las que no renovaron y las que están por terminar ----------
 function semanasRenUI() {
   const v = document.getElementById("renSemanas"), m = document.getElementById("renMes");
@@ -2756,6 +2917,7 @@ cargarMora();
 cargarRenovaciones();
 cargarSinDesembolso();
 cargarSinCatalogo();
+cargarSimulador();
 { const e = document.getElementById("moraLunes"); if (e) e.addEventListener("change", cargarMora); }
 // Al cambiar el rango se recalcula el resumen, para ver el número antes de bajar el Excel.
 ["perDesde", "perHasta"].forEach((id) => {

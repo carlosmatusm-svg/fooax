@@ -7,7 +7,7 @@
     "Lo que trae 'pendiente': true NO se calcula: el sistema se niega y dice qué falta,",
     "en vez de inventar un número. Un interés inventado se le cobra de verdad a una señora."
   ],
-  "version": "2026-08-19b",
+  "version": "2026-08-23",
   "vigenteDesde": "2026-08-19",
   "fuentePrincipal": "Formulas Calculo Karina.pdf — Lic. Anel Aydee Díaz Silva, 25-jul-2026. Fórmulas validadas por la contadora (CLIP) con ejemplos reales. Catálogo de 16 productos validado por Ing. Monse, mayo 2026 (pág. 7).",
   "iva": 0.16,
@@ -329,19 +329,26 @@
     },
     "FOXI": {
       "tipo": "porCiclo",
-      "min": 250,
-      "max": 400,
-      "pendiente": true,
-      "_nota": "Dirección dijo «de $250 a $400 en FOXI según ciclo» sin el detalle ciclo por ciclo. Falta esa tabla; mientras, no se cobra comisión automática en FOXI."
+      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 23-ago-2026, sobre la tabla de la Ing. Monse: «Con eso ya no queda ningún dato del catálogo abierto».",
+      "porCiclo": {
+        "1": 250,
+        "2": 350,
+        "3": 350,
+        "4": 400,
+        "5": 400
+      },
+      "_nota": "Por ciclo/monto: $5,000→$250 · $7,000→$350 · $10,000→$350 · $12,000→$400 · $15,000→$400."
     },
     "FOXI_PLUS": {
       "tipo": "fija",
-      "monto": 500
+      "monto": 500,
+      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 23-ago-2026, sobre la tabla de la Ing. Monse: «Con eso ya no queda ningún dato del catálogo abierto».",
+      "_nota": "$500 en las tres variantes."
     },
     "MAGNUS": {
       "tipo": "fija",
       "monto": 500
     }
   },
-  "_motorCerrado": "19-ago-2026: los cinco puntos quedaron resueltos. Contaduría cerró centavos e IVA; Dirección cerró tasas mensuales, moratorio y la tabla FOXI. Pendiente menor: la comisión de apertura de FOXI ciclo por ciclo."
+  "_motorCerrado": "23-ago-2026: los cinco puntos resueltos Y la comisión de FOXI ciclo por ciclo confirmada por Dirección. No queda ningún dato del catálogo abierto."
 }

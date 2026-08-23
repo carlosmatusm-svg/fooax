@@ -3553,6 +3553,57 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 93. EL MOTOR COTIZA CON LOS NOMBRES DEL PADRÓN (Karina, 23-ago) —");
+  // «¿Cómo funcionaría cuando Monse da de alta a una clienta?» Hasta hoy, la
+  // cuota se TECLEABA: el motor existía al lado pero no entraba al alta, y un
+  // dedazo no se notaba hasta que alguien cuadrara a mano.
+  //
+  // Para que el alta pueda usarlo, el simulador tenía que entender el nombre
+  // que Monse conoce ("Grupal-Basico"), no solo la clave interna
+  // ("GRUPAL_BASICO_24"). Eso es lo que se prueba aquí.
+  const sim93 = async (qs) => j(await fetch(U + "/api/reglas/simular?" + qs, { headers: H(cm) }));
+
+  const conClave93 = await sim93("producto=GRUPAL_BASICO_24&monto=9500&plazo=24");
+  ok("cotiza con la clave del catálogo", conClave93.ok === true,
+    conClave93.ok ? "cuota " + conClave93.cuota : String(conClave93.motivo).slice(0, 60));
+  const conPadron93 = await sim93("producto=" + encodeURIComponent("Grupal-Basico") + "&monto=9500&plazo=24");
+  ok("y con el nombre del PADRÓN, que es el que se teclea en el alta",
+    conPadron93.ok === true, conPadron93.ok ? "cuota " + conPadron93.cuota : String(conPadron93.motivo).slice(0, 60));
+  ok("y las dos dan exactamente la misma cuota",
+    conClave93.ok && conPadron93.ok && conClave93.cuota === conPadron93.cuota,
+    (conClave93.cuota || "?") + " vs " + (conPadron93.cuota || "?"));
+
+  // El ciclo sale del puente sin que nadie lo mande: "Individual 3" ES el 3.
+  const ind393 = await sim93("producto=" + encodeURIComponent("Individual 3") + "&monto=10000&plazo=16");
+  ok("«Individual 3» se cotiza solo, sin mandarle el ciclo", ind393.ok === true,
+    ind393.ok ? "cuota " + ind393.cuota : String(ind393.motivo).slice(0, 60));
+  ok("y da la cuota del ciclo 3 de FOXI ($870.05)",
+    ind393.ok && Math.abs(ind393.cuota - 870.05) < 0.02, String(ind393.cuota));
+
+  // Lo que el alta necesita para proponer: cuota + desglose + total.
+  ok("la cotización trae el desglose que el alta le enseña a Monse",
+    conPadron93.ok && conPadron93.pagos && conPadron93.pagos[0]
+    && conPadron93.pagos[0].capital > 0 && conPadron93.pagos[0].interes > 0
+    && conPadron93.pagos[0].iva > 0 && conPadron93.totales.aPagar > 0,
+    JSON.stringify((conPadron93.pagos || [])[0] || {}));
+  ok("y la tabla completa, un renglón por pago",
+    conPadron93.ok && conPadron93.pagos.length === 24, String((conPadron93.pagos || []).length));
+  ok("que cierra el capital en cero exacto",
+    conPadron93.ok && conPadron93.pagos[conPadron93.pagos.length - 1].saldo === 0,
+    String(conPadron93.ok && conPadron93.pagos[conPadron93.pagos.length - 1].saldo));
+
+  // Y lo que NO se puede cotizar se dice, para que el alta deje capturar a mano.
+  const rees93 = await sim93("producto=REESTRUCTURA&monto=10000&plazo=58");
+  ok("una reestructura no se cotiza, y se explica por qué",
+    rees93.ok !== true && /renegociado/i.test(rees93.motivo || ""),
+    String(rees93.motivo || "").slice(0, 60));
+  const sinPlazo93 = await sim93("producto=" + encodeURIComponent("Grupal-Basico") + "&monto=9500&plazo=0");
+  ok("sin plazo no inventa una cuota", sinPlazo93.ok !== true, String(sinPlazo93.motivo || "").slice(0, 60));
+  const fueraTope93 = await sim93("producto=GRUPAL_BASICO_24&monto=999999&plazo=24");
+  ok("un monto fuera del tope del producto se rechaza",
+    fueraTope93.ok !== true && /máximo/i.test(fueraTope93.motivo || ""),
+    String(fueraTope93.motivo || "").slice(0, 60));
+
   console.log("\n— 92. EL PLAZO SE PUEDE CAPTURAR DESPUÉS DEL ALTA (Karina, 19-ago) —");
   // Al redactar el mensaje para Monse pidiéndole completar los 37 plazos que
   // faltan, Karina preguntó si el campo existía de verdad. No existía: el
@@ -3772,8 +3823,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     CA90.GRUPAL_BASICO_18 && CA90.GRUPAL_BASICO_18.monto === 160
     && CA90.GRUPAL_MICRO_32.monto === 300 && CA90.FOXI_PLUS.monto === 500 && CA90.MAGNUS.monto === 500);
   ok("la del Adicional es por millar, no fija", CA90.GRUPAL_ADICIONAL.tipo === "porMillar");
-  ok("y la de FOXI queda marcada pendiente: falta el detalle ciclo por ciclo",
-    CA90.FOXI && CA90.FOXI.pendiente === true);
+  // 23-ago: Anel mandó la tabla ciclo por ciclo. El dato dejó de estar abierto.
+  ok("la de FOXI ya trae su tabla ciclo por ciclo (Anel, 23-ago)",
+    CA90.FOXI && !CA90.FOXI.pendiente && CA90.FOXI.porCiclo
+    && CA90.FOXI.porCiclo["1"] === 250 && CA90.FOXI.porCiclo["2"] === 350
+    && CA90.FOXI.porCiclo["3"] === 350 && CA90.FOXI.porCiclo["4"] === 400
+    && CA90.FOXI.porCiclo["5"] === 400, JSON.stringify(CA90.FOXI || {}).slice(0, 90));
 
   // --- ya no queda nada pendiente de calcular ---
   ok("ningún producto queda sin poder calcularse",
