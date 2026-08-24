@@ -3562,6 +3562,49 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 99. LOS PAGOS Y LAS APPS, EN SINCRONÍA (Karina, 24-ago) —");
+  // «Ve que sí quede sincronizado los pagos a los de los ejecutivos.» El
+  // circuito completo con la cuota redonda: Monse da de alta → la app de la
+  // ejecutiva la recibe por /api/vivos con la cuota REDONDA → la ejecutiva
+  // cobra → el pago regresa a tablero, arqueo y mora → y el saldo que la app
+  // sigue viendo NO viene descontado (ella resta su captura local).
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "96", nombre: "CENTRO SYNC", ejecutivo: "Neri" }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009960", nombre: "CLIENTA SYNC", producto: "Grupal-Basico",
+      centro: "CENTRO SYNC", ejecutivo: "Neri", importe: 4000, saldo: 5760, cuota: 240, plazo: 24,
+      desembolso: HOY, diaPago: "LUNES" }) });
+  const v99 = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const alta99 = (v99.altas || []).find((a) => String(a.id) === "70000009960");
+  ok("la clienta nueva le llega a la app con la cuota REDONDA y el saldo redondo",
+    !!alta99 && alta99.cuota === 240 && alta99.saldo === 5760, JSON.stringify(alta99 || {}));
+  const K99 = "70000009960|Grupal-Basico|CLIENTA SYNC|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: HOY, snapshot: { reg: { "CENTRO SYNC": { [K99]: { pago: 240, forma: "E" } } } }, ts: Date.now() }) });
+  const cli99 = await j(await fetch(U + "/api/clientes?q=70000009960", { headers: H(cm) }));
+  const c99 = (cli99.resultados || []).find((x) => String(x.id) === "70000009960");
+  ok("el pago de la app baja el saldo en el tablero (5,760 − 240 = 5,520)",
+    !!c99 && Math.abs((c99.saldoActual != null ? c99.saldoActual : c99.saldo) - 5520) < 0.01,
+    c99 && String(c99.saldoActual != null ? c99.saldoActual : c99.saldo));
+  let enMora99 = false;
+  for (const g of ((await j(await fetch(U + "/api/mora", { headers: H(cm) }))).dias || []))
+    for (const x of (g.filas || [])) if (String(x.socio) === "70000009960") enMora99 = true;
+  ok("y pagando su cuota completa NO cae en la mora", !enMora99);
+  const v99b = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const m99 = (v99b.montos || []).find((a) => String(a.id) === "70000009960");
+  const a99b = (v99b.altas || []).find((a) => String(a.id) === "70000009960");
+  const saldoVe = (m99 && m99.saldo) != null ? m99.saldo : (a99b && a99b.saldo);
+  ok("la app sigue recibiendo $5,760: SU captura la resta local, no se descuenta doble",
+    saldoVe === 5760, String(saldoVe));
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009960", producto: "Grupal-Basico", cuota: 250, motivo: "prueba sync" }) });
+  const v99c = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const m99c = (v99c.montos || []).find((a) => String(a.id) === "70000009960");
+  const a99c = (v99c.altas || []).find((a) => String(a.id) === "70000009960");
+  ok("un ajuste de cuota de Dirección viaja a la app en el siguiente sondeo",
+    ((m99c && m99c.cuota) || (a99c && a99c.cuota)) === 250,
+    String((m99c && m99c.cuota) || (a99c && a99c.cuota)));
+
   console.log("\n— 98. LA CUOTA SE COBRA REDONDA (Karina, 23-ago) —");
   // «Cargué una clienta con crédito de $9,800 a 24 semanas; el pago que
   // cobramos es 588 y la app me dice 587.94.» En campo no se cobran centavos:
