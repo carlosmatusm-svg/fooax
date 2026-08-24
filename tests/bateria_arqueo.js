@@ -3534,23 +3534,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // parecía que el arqueo estaba mal.
   const movVeto = (b2) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
     body: JSON.stringify(Object.assign({ metodo: "efectivo", fecha: HOY }, b2)) });
+  // LA REGLA CAMBIÓ EL 24-AGO (requerimientos de la Ing. Karina, con el
+  // proyecto completo contratado): la AUTORIZACIÓN vuelve a la caja, pero SOLO
+  // como concepto del catálogo, con clienta obligada y monto ENTREGADO. Sin
+  // clienta se rechaza — que era el desorden original.
   const r83a = await movVeto({ tipo: "Autorización / préstamo", monto: 31000,
-    concepto: "PRESTAMO a TENEXPAM/CATALINA PETRA" });
+    concepto: "PRESTAMO" });
   const j83a = await j(r83a);
-  ok("la ENTREGA DE CRÉDITO ya no se puede registrar en la caja",
-    r83a.status === 400 && j83a.moduloSinDesarrollar === true, "status " + r83a.status);
-  ok("y el mensaje dice dónde SÍ va: «Dar de alta» o «Re-dar crédito»",
-    /Dar de alta/.test(j83a.error || ""), String(j83a.error || "").slice(0, 80));
+  ok("la AUTORIZACIÓN sin clienta se rechaza: obliga a decir a quién",
+    r83a.status === 400 && /CLIENTA/i.test(j83a.error || ""), "status " + r83a.status);
   const r83b = await movVeto({ categoria: "Autorización / préstamo", monto: 10000, concepto: "PRESTAMO" });
-  ok("tampoco mandando la categoría suelta, sin el concepto del catálogo",
+  ok("y la categoría suelta, sin el concepto del catálogo, sigue vetada",
     r83b.status === 400, "status " + r83b.status);
   const r83c = await movVeto({ tipo: "Gasto operativo", monto: 7000, concepto: "Desembolso a Juliana" });
-  ok("ni disfrazada de gasto: se reconoce por el texto",
+  ok("una entrega DISFRAZADA de gasto sigue vetada: se reconoce por el texto",
     r83c.status === 400, "status " + r83c.status);
   const r83d = await movVeto({ tipo: "Gasto operativo", monto: 500, concepto: "Devolución de garantía a Rosa" });
-  const j83d = await j(r83d);
-  ok("la DEVOLUCIÓN DE GARANTÍA tampoco, y se dice que no tiene módulo",
-    r83d.status === 400 && /no tiene módulo/i.test(j83d.error || ""), String(j83d.error || "").slice(0, 70));
+  ok("una garantía disfrazada de gasto también: el concepto propio existe y es el único camino",
+    r83d.status === 400, String((await j(r83d)).error || "").slice(0, 70));
 
   // Y LO LEGÍTIMO SIGUE PASANDO: la caja chica sirve para lo que es.
   const r83e = await movVeto({ tipo: "Gasto operativo", monto: 350, concepto: "Gasolina" });
@@ -3561,6 +3562,92 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     socio: "11113028250" });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
+
+  console.log("\n— 102. LA CAJA CRECE A TESORERÍA (requerimientos Ing. Karina, 24-ago) —");
+  // Su plantilla, renglón por renglón: saldo inicial encadenado (lunes en
+  // cero), recursos inyectados, autorización con clienta y monto ENTREGADO,
+  // garantía líquida entregada, reporte de otorgados por rango, y la
+  // corrección del monto con rastro.
+  const mov102 = (b2) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify(Object.assign({ metodo: "efectivo", fecha: HOY }, b2)) });
+
+  // Su propia clienta (las secciones corren en orden de archivo: la 97 va después).
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "93", nombre: "CENTRO 102", ejecutivo: "Neri" }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009102", nombre: "CLIENTA TESORERIA", producto: "Grupal-Basico",
+      centro: "CENTRO 102", ejecutivo: "Neri", importe: 4000, saldo: 5760, cuota: 240, plazo: 24,
+      desembolso: HOY, diaPago: "LUNES" }) });
+
+  // La autorización BUENA: con clienta y monto ENTREGADO.
+  const a102 = await j(await mov102({ tipo: "Autorización / préstamo", monto: 9000,
+    concepto: "Crédito nuevo", socio: "70000009102", producto: "Grupal-Basico",
+    autorizadoA: "CLIENTA TESORERIA" }));
+  ok("la autorización CON clienta y monto entregado SÍ entra", !a102.error,
+    JSON.stringify(a102).slice(0, 80));
+  const g102 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 850,
+    concepto: "Garantía devuelta", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("la garantía líquida entregada también, con su concepto propio", !g102.error,
+    JSON.stringify(g102).slice(0, 80));
+  const rb102 = await j(await mov102({ tipo: "Recurso de bancos para caja", monto: 20000,
+    concepto: "Para completar el día" }));
+  const rd102 = await j(await mov102({ tipo: "Recurso aportado por Dirección", monto: 5000,
+    concepto: "Aporte" }));
+  ok("los recursos inyectados (bancos y Dirección) entran como ENTRADAS",
+    !rb102.error && !rd102.error);
+
+  // El arqueo del día los reparte con nombre.
+  const arq102 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  const cj = arq102.caja || {};
+  ok("el arqueo trae la caja del día: saldo inicial, recursos, salidas y queda",
+    typeof cj.saldoInicial === "number" && typeof cj.quedaEnCaja === "number",
+    JSON.stringify(cj).slice(0, 120));
+  ok("las autorizaciones del día suman en su renglón", cj.autorizaciones >= 9000, String(cj.autorizaciones));
+  ok("la garantía entregada en el suyo", cj.garantiasEntregadas >= 850, String(cj.garantiasEntregadas));
+  ok("y los recursos en los suyos", cj.recursosBancos >= 20000 && cj.recursosDireccion >= 5000,
+    cj.recursosBancos + " / " + cj.recursosDireccion);
+  ok("la cuenta cierra: queda = inicial + cobranza + entradas − salidas",
+    Math.abs(cj.quedaEnCaja - (cj.saldoInicial + cj.cobranzaEfectivo + cj.otrasEntradas
+      + cj.recursosBancos + cj.recursosDireccion - cj.totalSalidas)) < 0.02,
+    String(cj.quedaEnCaja));
+
+  // EL REPORTE DE CRÉDITOS OTORGADOS, por rango.
+  const ot102 = await j(await fetch(U + "/api/otorgados?desde=" + HOY + "&hasta=" + HOY,
+    { headers: H(cm) }));
+  const fila102 = (ot102.filas || []).find((x) => String(x.control) === "70000009102");
+  ok("el reporte de otorgados encuentra el crédito del día", !!fila102,
+    JSON.stringify(ot102).slice(0, 90));
+  ok("con el importe ENTREGADO ($9,000), no lo que terminará pagando",
+    fila102 && fila102.importe === 9000, String(fila102 && fila102.importe));
+  ok("y el motor le pone periodicidad, plazo y tasa por el puente",
+    fila102 && fila102.periodicidad === "Semanal" && /24/.test(String(fila102.plazoTexto))
+    && /6\.32/.test(fila102.tasa), JSON.stringify(fila102 || {}).slice(0, 120));
+  ok("el Excel de otorgados baja en el rango pedido",
+    (await fetch(U + "/api/otorgados/excel?desde=" + HOY + "&hasta=" + HOY,
+      { headers: H(cm) })).status === 200);
+
+  // LA CORRECCIÓN DEL MONTO, con rastro.
+  const folio102 = a102.folio || (a102.movimiento && a102.movimiento.folio);
+  const cor102 = await j(await fetch(U + "/api/movimiento/corregir-monto", { method: "POST",
+    headers: H(cm), body: JSON.stringify({ folio: folio102, monto: 8500, motivo: "se entregaron 8,500" }) }));
+  ok("el monto otorgado se corrige con motivo", cor102.ok === true, JSON.stringify(cor102).slice(0, 80));
+  const ot102b = await j(await fetch(U + "/api/otorgados?desde=" + HOY + "&hasta=" + HOY,
+    { headers: H(cm) }));
+  const f102b = (ot102b.filas || []).find((x) => String(x.control) === "70000009102");
+  ok("el reporte toma el monto corregido y DICE que fue corregido",
+    f102b && f102b.importe === 8500 && f102b.corregido
+    && f102b.corregido.montoAnterior === 9000, JSON.stringify(f102b && f102b.corregido));
+  const cor102b = await fetch(U + "/api/movimiento/corregir-monto", { method: "POST",
+    headers: H(cm), body: JSON.stringify({ folio: folio102, monto: 8000 }) });
+  ok("sin motivo no hay corrección", cor102b.status === 400);
+
+  // Y LAS EJECUTIVAS SIGUEN FUERA DE LA TESORERÍA: su app no puede entregar créditos.
+  const sync102 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs: [{ folio: "T102", monto: 5000,
+      concepto: "DESEMBOLSO", nota: "prestamo a Juana" }] }, ts: Date.now() }) }));
+  const movsDir = await j(await fetch(U + "/api/movimientos?fecha=" + HOY, { headers: H(cd) }));
+  ok("la app de una ejecutiva NO puede registrar entregas de crédito (rechazado, no guardado)",
+    !(movsDir.lista || []).some((x) => /T102$/.test(String(x.folio))));
 
   console.log("\n— 101. EL PAQUETE OFFLINE, EJECUTIVA POR EJECUTIVA (Karina, 24-ago) —");
   // «Checa que offline-first funcione en todos los ejecutivos, desde el celular,

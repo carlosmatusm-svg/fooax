@@ -558,6 +558,16 @@ module.exports = {
     // movimientos anteriores al 8-ago-2026 no lo traen: se guardaba sólo el
     // socio y el abono acababa en el crédito equivocado. Queda con quién y por
     // qué lo corrigió — el monto no se toca, sólo se dice a dónde pertenece.
+    // EL MONTO ENTREGADO se puede corregir (hoja CORRECCIONES de la Ing.
+    // Karina, 24-ago): debe decir exactamente lo que se le entregó a la
+    // clienta. Con rastro — cuánto decía, quién y por qué.
+    if ("monto" in campos && Number(campos.monto) > 0) {
+      m.montoAnterior = m.monto;
+      m.monto = Number(campos.monto);
+      m.montoCorrigioPor = campos.montoPor || null;
+      m.montoCorrigioMotivo = campos.montoMotivo || null;
+      m.montoCorrigioTs = Date.now();
+    }
     if ("producto" in campos) {
       m.productoAnterior = m.producto || null;
       m.producto = campos.producto || null;
