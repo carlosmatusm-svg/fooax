@@ -1655,8 +1655,12 @@ async function cargarConceptos() {
       '<optgroup label="Entra dinero a la caja">'
       + CONCEPTOS.filter((c) => c.entrada).map(op).join("") + "</optgroup>"
       + '<optgroup label="Sale dinero de la caja">'
+      // «Otro» ya viene del catálogo del servidor: no se agrega dos veces
+      // (Karina, 24-ago: «está duplicado Otro»).
       + CONCEPTOS.filter((c) => !c.entrada).map(op).join("")
-      + "<option" + (cur === "Otro" ? " selected" : "") + ">Otro</option></optgroup>";
+      + (CONCEPTOS.some((c) => c.nombre === "Otro") ? ""
+         : "<option" + (cur === "Otro" ? " selected" : "") + ">Otro</option>")
+      + "</optgroup>";
     if (!CONCEPTOS.some((c) => c.nombre === cur) && cur !== "Otro") sel.value = "Gasto operativo";
   }
   tipoMovCambio();

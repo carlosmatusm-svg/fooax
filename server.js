@@ -4822,7 +4822,12 @@ const CONCEPTOS_DIR = {
   // — regla escrita de la Ing. Karina). De aquí sale el reporte de créditos
   // otorgados y el renglón de salidas del arqueo. Las apps de las EJECUTIVAS
   // siguen vetadas: la tesorería es de Dirección.
-  "Autorización / préstamo":     { entrada: false, categoria: "Autorización / préstamo", clienta: "obliga", tesoreria: true },
+  // «Autorización DE préstamo» (Karina, 24-ago: «para que no se malentienda»).
+  "Autorización de préstamo":    { entrada: false, categoria: "Autorización de préstamo", clienta: "obliga", tesoreria: true },
+  // DESEMBOLSO (Karina, 24-ago): cuando sacan dinero para dar un CRÉDITO NUEVO.
+  // Obliga la clienta para linkear a su perfil — de aquí también se alimenta el
+  // reporte de créditos otorgados.
+  "Desembolso":                  { entrada: false, categoria: "Desembolso", clienta: "obliga", tesoreria: true },
   "Garantía líquida entregada":  { entrada: false, categoria: "Garantía líquida entregada", clienta: "obliga", tesoreria: true },
   // "Autorización / préstamo" queda FUERA (Karina, 19-ago). Con ese concepto se
   // registraban las ENTREGAS DE CRÉDITO: el 13-ago salieron $86,000 en un día
@@ -5109,7 +5114,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const concepto = (b.concepto || "").trim();
   // El TIPO manda: de él salen `entrada` y la categoría. Se acepta el catálogo
   // nuevo y, por compatibilidad, la categoría suelta de los movimientos viejos.
-  const tipo = CONCEPTOS_DIR[String(b.tipo || "").trim()] || null;
+  // El nombre viejo «Autorización / préstamo» se acepta como alias del nuevo.
+  const tipoNombre = String(b.tipo || "").trim() === "Autorización / préstamo"
+    ? "Autorización de préstamo" : String(b.tipo || "").trim();
+  const tipo = CONCEPTOS_DIR[tipoNombre] || null;
   const categoria = tipo ? tipo.categoria : (CATEGORIAS.includes(b.categoria) ? b.categoria : null);
   const metodo = METODOS.includes(b.metodo) ? b.metodo : null;
   // Un MIXTO sin partes, o con partes que no suman el total, no entra: es
@@ -5213,7 +5221,7 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     // Sin tipo del catálogo NO se da por hecho que sale: se lee el concepto.
     // Escribir `false` a secas mandaba una liquidación al lado de los gastos y
     // el cierre de la semana quedaba mal por el DOBLE del monto.
-    tipo: tipo ? String(b.tipo).trim() : null,
+    tipo: tipo ? tipoNombre : null,
     entrada: tipo ? !!tipo.entrada : store.entradaPorTexto(concepto || categoria),
     autorizadoA: (b.autorizadoA || "").trim() || null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
@@ -5659,8 +5667,8 @@ function creditosOtorgados(usuario, desde, hasta) {
   const d2 = /^\d{4}-\d{2}-\d{2}$/.test(String(hasta || "")) ? hasta : hoyMX();
   const filas = [];
   for (const m of store.todosMovimientos()) {
-    if (m.anulado) continue;
-    if (!/autorizaci/i.test(tipoDeMov(m) || "")) continue;
+    if (m.anulado || m.entrada) continue;   // la Comisión de desembolso es entrada: fuera
+    if (!/autorizaci|desembols/i.test(tipoDeMov(m) || "")) continue;
     if (m.fecha < d1 || m.fecha > d2) continue;
     const soc = socioDeMov(m), prod = productoDeMov(m);
     const c = soc ? PADRON.find((x) => String(x.id) === String(soc)
@@ -5787,7 +5795,7 @@ function cajaDelDia(usuario, fecha) {
       else if (/recurso aportado/i.test(t)) cat.recursosDireccion += monto;
       else cat.otrasEntradas += monto;              // liquidaciones, recuperaciones, comisiones
     } else {
-      if (/autorizaci/i.test(t)) cat.autorizaciones += monto;
+      if (/autorizaci|desembols/i.test(t)) cat.autorizaciones += monto;
       else if (/garantía líquida|garantia liquida/i.test(t)) cat.garantiasEntregadas += monto;
       else cat.gastosRetiros += monto;              // gastos operativos y retiros
     }
@@ -6334,7 +6342,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   // Dirección revisa a diario.
   if (caja.recursosBancos) linea("+ Recurso retirado de bancos para caja", caja.recursosBancos);
   if (caja.recursosDireccion) linea("+ Recurso aportado por Dirección General", caja.recursosDireccion);
-  linea("− Autorizaciones / préstamos (créditos otorgados hoy)", -caja.autorizaciones);
+  linea("− Autorizaciones y desembolsos (créditos otorgados hoy)", -caja.autorizaciones);
   linea("− Gastos y retiros en efectivo", -caja.gastosRetiros);
   linea("− Garantías líquidas entregadas", -caja.garantiasEntregadas);
   {
@@ -6474,7 +6482,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   {
     const vivos2 = (movs || []).filter((m2) => !m2.anulado);
     const grupos = [
-      ["AUTORIZACIONES / PRÉSTAMOS", (m2) => !m2.entrada && /autorizaci/i.test(tipoDeMov(m2) || "")],
+      ["AUTORIZACIONES Y DESEMBOLSOS", (m2) => !m2.entrada && /autorizaci|desembols/i.test(tipoDeMov(m2) || "")],
       ["GASTOS Y RETIROS", (m2) => !m2.entrada && /gasto|retiro/i.test(tipoDeMov(m2) || "")],
       ["GARANTÍAS LÍQUIDAS ENTREGADAS", (m2) => !m2.entrada && /garantía líquida|garantia liquida/i.test(tipoDeMov(m2) || "")],
       ["RECURSOS RECIBIDOS (bancos / Dirección)", (m2) => m2.entrada && /recurso/i.test(tipoDeMov(m2) || "")],

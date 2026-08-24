@@ -3703,16 +3703,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const xls102X2 = await fetch(U + "/api/arqueo/excel?fecha=" + HOY, { headers: H(cm) });
   ok("el Excel del arqueo baja sin la sección de mora", xls102X2.status === 200);
 
+  // EL DESEMBOLSO: crédito nuevo, linkeado a la clienta (Karina, 24-ago).
+  const dSin = await mov102({ tipo: "Desembolso", monto: 4000, concepto: "crédito nuevo sin clienta" });
+  ok("un DESEMBOLSO sin clienta se rechaza: obliga a linkear el perfil",
+    dSin.status === 400, "status " + dSin.status);
+  const cajaD1 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  const dOk = await j(await mov102({ tipo: "Desembolso", monto: 4000, concepto: "Crédito nuevo",
+    socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("con clienta SÍ entra", !dOk.error, JSON.stringify(dOk).slice(0, 70));
+  const cajaD2 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  ok("y cuenta en el renglón de créditos otorgados de la caja",
+    Math.abs((cajaD2.autorizaciones || 0) - (cajaD1.autorizaciones || 0) - 4000) < 0.01,
+    (cajaD1.autorizaciones || 0) + " → " + (cajaD2.autorizaciones || 0));
+  const otD = await j(await fetch(U + "/api/otorgados?desde=" + HOY + "&hasta=" + HOY, { headers: H(cm) }));
+  ok("y aparece en el reporte de créditos otorgados",
+    (otD.filas || []).some((x) => x.importe === 4000 && String(x.control) === "70000009102"),
+    "filas=" + (otD.filas || []).length);
+  // El nombre nuevo y el alias viejo.
+  const alias = await j(await mov102({ tipo: "Autorización / préstamo", monto: 100,
+    concepto: "alias viejo", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("el nombre viejo «Autorización / préstamo» sigue entrando como alias",
+    !alias.error && alias.movimiento && alias.movimiento.tipo === "Autorización de préstamo",
+    JSON.stringify((alias.movimiento || {}).tipo));
+
   // EL MENÚ DEL TABLERO SE ARMA DEL CATÁLOGO (Karina, 24-ago: «no aparece
   // garantía líquida ni los conceptos que te dije»). Estaba escrito a mano en
   // el HTML y cada concepto nuevo se quedaba fuera. Se fija que el armador
   // exista y que el catálogo traiga TODOS los conceptos de tesorería.
   const cc102 = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
   const nombres102 = (cc102.conceptos || []).map((x) => x.nombre);
-  ok("el catálogo del servidor trae los 4 conceptos de tesorería",
-    ["Autorización / préstamo", "Garantía líquida entregada",
+  ok("el catálogo trae los 5 conceptos de tesorería, con los nombres nuevos",
+    ["Autorización de préstamo", "Desembolso", "Garantía líquida entregada",
      "Recurso de bancos para caja", "Recurso aportado por Dirección"]
       .every((k) => nombres102.includes(k)), nombres102.join(" | "));
+  ok("y «Otro» aparece UNA sola vez en el catálogo",
+    nombres102.filter((x) => x === "Otro").length === 1);
   const html102 = await (await fetch(U + "/tablero", { headers: H(cd) })).text();
   ok("y el menú del tablero se arma DEL catálogo, no a mano",
     html102.includes("EL MENÚ SE ARMA DEL CATÁLOGO") && /sel\.innerHTML/.test(html102));
