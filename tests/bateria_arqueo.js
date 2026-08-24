@@ -3562,6 +3562,42 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 101. EL PAQUETE OFFLINE, EJECUTIVA POR EJECUTIVA (Karina, 24-ago) —");
+  // «Checa que offline-first funcione en todos los ejecutivos, desde el celular,
+  // sin señal.» Lo que el servidor puede garantizar: que CADA app salga con el
+  // paquete completo — service worker, manifiesto PWA, captura y padrón en
+  // localStorage, y el reintento que sube solo al volver la señal. La lista de
+  // ejecutivas es dinámica: una nueva sin paquete offline no pasa.
+  const swR = await fetch(U + "/sw.js"); const swT = await swR.text();
+  ok("el service worker se sirve", swR.status === 200 && swT.includes("fooax-v"));
+  ok("nunca cachea /api: los datos jamás se sirven viejos",
+    swT.includes('url.pathname.startsWith("/api/")'));
+  ok("los POST (sync, login) siempre van a la red", swT.includes('req.method !== "GET"'));
+  ok("sin señal, la navegación cae a la app guardada y luego al login",
+    swT.includes('caches.match("/app")') && swT.includes('caches.match("/login.html")'));
+  ok("vivos.js y sync.js van red-primero: una mejora llega al instante",
+    swT.includes("SIEMPRE_FRESCO") && swT.includes('"/vivos.js"') && swT.includes('"/sync.js"'));
+  ok("el manifiesto PWA se sirve (instalable)", (await fetch(U + "/manifest.json")).status === 200);
+  const sj101 = await (await fetch(U + "/sync.js")).text();
+  ok("sync.js sube solo lo pendiente al volver la señal",
+    sj101.includes('addEventListener("online"'));
+  const PASS101 = { neri: "neri2026", karina: "karina2026", christopher: "chris2026",
+    julio: "julio2026", prueba: "PruebaFOOAX2026" };
+  const lista101 = ((await j(await fetch(U + "/api/ejecutivos", { headers: H(cm) }))).ejecutivos || [])
+    .map((e) => e.id).concat(["prueba"]);
+  for (const u of lista101) {
+    const pw = PASS101[u];
+    ok("APP OFFLINE CUBIERTA: " + u + " — si falla, llegó una ejecutiva nueva y hay que agregarla",
+      !!pw, "id=" + u);
+    if (!pw) continue;
+    const ck101 = await login(u, pw);
+    const html101 = await (await fetch(U + "/app", { headers: H(ck101) })).text();
+    ok(u + ": su app sale con SW + manifest + padrón local + captura offline + reintento",
+      html101.includes('serviceWorker.register("/sw.js")') && html101.includes('rel="manifest"')
+      && html101.includes("/vivos.js") && /sync\.js/.test(html101)
+      && /PADRON_KEY|fooax_padron/.test(html101) && /localStorage/.test(html101));
+  }
+
   console.log("\n— 100. EL CIRCUITO PARA CADA EJECUTIVA — Y PARA LAS QUE VENGAN (Karina, 24-ago) —");
   // «No solo cheques Neri: checa Monserrat, Julio y cualquier posible usuario
   // que se tenga que dar de alta en un futuro.» La lista NO va escrita a mano:
