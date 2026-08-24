@@ -3562,6 +3562,52 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 100. EL CIRCUITO PARA CADA EJECUTIVA — Y PARA LAS QUE VENGAN (Karina, 24-ago) —");
+  // «No solo cheques Neri: checa Monserrat, Julio y cualquier posible usuario
+  // que se tenga que dar de alta en un futuro.» La lista NO va escrita a mano:
+  // se pide al servidor (/api/ejecutivos) y el circuito se corre para CADA una.
+  // Si mañana dan de alta una ejecutiva nueva, esta sección la encuentra sola —
+  // y si la batería no tiene su contraseña de prueba, FALLA con el aviso de
+  // agregarla: una ejecutiva sin cubrir no pasa desapercibida.
+  // (Monse es el otro lado del circuito: es quien da las altas en cada paso.)
+  const PASS100 = { neri: "neri2026", karina: "karina2026", christopher: "chris2026", julio: "julio2026" };
+  const lista100 = (await j(await fetch(U + "/api/ejecutivos", { headers: H(cm) }))).ejecutivos || [];
+  ok("el servidor lista las ejecutivas reales (hoy 4)", lista100.length >= 4,
+    lista100.map((e) => e.nombre).join(", "));
+  let num100 = 80;
+  for (const e of lista100) {
+    const pw = PASS100[e.id];
+    ok("EJECUTIVA CUBIERTA POR LA BATERÍA: " + e.nombre + " — si esto falla, llegó una nueva y hay que agregarla aquí",
+      !!pw, "id=" + e.id + " sin contraseña de prueba en PASS100");
+    if (!pw) continue;
+    const ce100 = await login(e.id, pw);
+    num100++;
+    const socio = "7000000991" + num100, centro = "C100 " + e.nombre.toUpperCase();
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ numero: String(num100), nombre: centro, ejecutivo: e.nombre }) });
+    const alta100 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: socio, nombre: "S100 " + e.nombre.toUpperCase(), producto: "Grupal-Basico",
+        centro, ejecutivo: e.nombre, importe: 4000, saldo: 5760, cuota: 240, plazo: 24,
+        desembolso: HOY, diaPago: "LUNES" }) }));
+    const v100 = await j(await fetch(U + "/api/vivos", { headers: H(ce100) }));
+    const a100 = (v100.altas || []).find((x) => String(x.id) === socio);
+    const K100 = socio + "|Grupal-Basico|S100 " + e.nombre.toUpperCase() + "|0";
+    const sy100 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce100),
+      body: JSON.stringify({ fecha: HOY, snapshot: { reg: { [centro]: { [K100]: { pago: 240, forma: "E" } } } }, ts: Date.now() }) }));
+    const cli100 = await j(await fetch(U + "/api/clientes?q=" + socio, { headers: H(cm) }));
+    const c100 = (cli100.resultados || []).find((x) => String(x.id) === socio);
+    ok(e.nombre + ": alta → su app (cuota $240) → cobra → saldo $5,520",
+      !alta100.error && !!a100 && a100.cuota === 240 && sy100.ok === true
+      && !!c100 && Math.abs((c100.saldoActual != null ? c100.saldoActual : c100.saldo) - 5520) < 0.01,
+      JSON.stringify({ alta: !alta100.error, app: !!a100 && a100.cuota, sync: sy100.ok,
+        saldo: c100 && (c100.saldoActual != null ? c100.saldoActual : c100.saldo) }).slice(0, 110));
+  }
+  // Las burbujas no se cruzan: la cuenta de prueba no ve nada de esto.
+  const vp100 = await j(await fetch(U + "/api/vivos", { headers: H(ce) }));
+  ok("la cuenta de prueba NO ve las altas reales (burbujas separadas)",
+    !(vp100.altas || []).some((x) => String(x.id).startsWith("7000000991")),
+    String((vp100.altas || []).length));
+
   console.log("\n— 99. LOS PAGOS Y LAS APPS, EN SINCRONÍA (Karina, 24-ago) —");
   // «Ve que sí quede sincronizado los pagos a los de los ejecutivos.» El
   // circuito completo con la cuota redonda: Monse da de alta → la app de la
