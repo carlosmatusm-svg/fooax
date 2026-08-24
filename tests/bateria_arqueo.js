@@ -3550,8 +3550,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("una entrega DISFRAZADA de gasto sigue vetada: se reconoce por el texto",
     r83c.status === 400, "status " + r83c.status);
   const r83d = await movVeto({ tipo: "Gasto operativo", monto: 500, concepto: "Devolución de garantía a Rosa" });
-  ok("una garantía disfrazada de gasto también: el concepto propio existe y es el único camino",
-    r83d.status === 400, String((await j(r83d)).error || "").slice(0, 70));
+  // El candado de DEVOLUCIONES se desactivó el 24-ago (Karina): el camino
+  // bueno existe («Garantía líquida entregada», obligada y topada) y el texto
+  // libre dejó de vetarse. El de ENTREGAS DE CRÉDITO disfrazadas sigue vivo.
+  ok("una devolución escrita como gasto ya NO se veta (candado desactivado el 24-ago)",
+    r83d.status === 200, "status " + r83d.status);
 
   // Y LO LEGÍTIMO SIGUE PASANDO: la caja chica sirve para lo que es.
   const r83e = await movVeto({ tipo: "Gasto operativo", monto: 350, concepto: "Gasolina" });
@@ -3578,6 +3581,13 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     body: JSON.stringify({ id: "70000009102", nombre: "CLIENTA TESORERIA", producto: "Grupal-Basico",
       centro: "CENTRO 102", ejecutivo: "Neri", importe: 4000, saldo: 5760, cuota: 240, plazo: 24,
       desembolso: HOY, diaPago: "LUNES" }) });
+
+  // La clienta junta $850 de garantía (lo captura Neri en su app) — es lo que
+  // después Dirección le puede ENTREGAR, y ni un peso más.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(await login("neri", "neri2026")),
+    body: JSON.stringify({ fecha: HOY, snapshot: { reg: { "CENTRO 102": {
+      "70000009102|Grupal-Basico|CLIENTA TESORERIA|0": { pago: 240, garantia: 850, forma: "E" } } } },
+      ts: Date.now() }) });
 
   // La autorización BUENA: con clienta y monto ENTREGADO.
   const a102 = await j(await mov102({ tipo: "Autorización / préstamo", monto: 9000,
@@ -3640,6 +3650,58 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const cor102b = await fetch(U + "/api/movimiento/corregir-monto", { method: "POST",
     headers: H(cm), body: JSON.stringify({ folio: folio102, monto: 8000 }) });
   ok("sin motivo no hay corrección", cor102b.status === 400);
+
+  // LA GARANTÍA: obligada y topada a lo guardado (Karina, 24-ago).
+  const gSinX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 100, concepto: "sin clienta" });
+  ok("la garantía entregada SIN clienta se rechaza (obliga a elegir a quién)",
+    gSinX2.status === 400, "status " + gSinX2.status);
+  const gMasX2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 5000,
+    concepto: "de más", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("y entregar MÁS de lo guardado se rechaza, diciendo cuánto tiene",
+    /solo tiene/.test(gMasX2.error || ""), String(gMasX2.error || "").slice(0, 80));
+  const dgX2 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("el desglose del crédito dice la garantía guardada (ya neteada con la entrega)",
+    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 0,
+    "guardada=" + dgX2.garantiaGuardada + " (junto 850, se le entregaron 850)");
+  const vetoOffX2 = await mov102({ tipo: "Gasto operativo", monto: 200,
+    concepto: "Devolución de garantía a Rosa PRUEBA" });
+  ok("el candado de devoluciones quedó DESACTIVADO: el texto ya no se veta",
+    vetoOffX2.status === 200, "status " + vetoOffX2.status);
+
+  // EL MIXTO: una autorización parte en efectivo, parte por transferencia.
+  const malX2 = await mov102({ tipo: "Autorización / préstamo", monto: 3000, metodo: "mixto",
+    mixEfe: 1000, mixTr: 1000, concepto: "partes no suman",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  ok("un mixto cuyas partes no suman el total se rechaza", malX2.status === 400);
+  const cajaAntesX2 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  const mixOkX2 = await j(await mov102({ tipo: "Autorización / préstamo", monto: 3000, metodo: "mixto",
+    mixEfe: 2000, mixTr: 1000, concepto: "Crédito mixto",
+    socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("una autorización MIXTA entra con sus dos partes", !mixOkX2.error, JSON.stringify(mixOkX2).slice(0, 70));
+  const cajaDespX2 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  ok("la caja solo carga la parte en EFECTIVO del mixto ($2,000)",
+    Math.abs((cajaDespX2.autorizaciones || 0) - (cajaAntesX2.autorizaciones || 0) - 2000) < 0.01,
+    (cajaAntesX2.autorizaciones || 0) + " → " + (cajaDespX2.autorizaciones || 0));
+  const cieX2 = await j(await fetch(U + "/api/semana/caja?fecha=" + HOY, { headers: H(cm) }));
+  ok("y la parte por transferencia va al carril del banco",
+    typeof cieX2.transferencias === "number", "transferencias=" + cieX2.transferencias);
+
+  // EL CHEQUE de las clientas: cuarta columna de la recepción, por ejecutiva.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(await login("neri", "neri2026")),
+    body: JSON.stringify({ fecha: HOY, snapshot: { reg: { "CENTRO 102": {
+      "70000009102|Grupal-Basico|CLIENTA TESORERIA|0": { pago: 240, garantia: 850, forma: "E" },
+      "CHEQUE102|X|PRUEBA CH|0": { pago: 500, forma: "CH" } } } }, ts: Date.now() }) });
+  const arqChX2 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  const neriEX2 = (arqChX2.porEjec || {}).neri || {};
+  ok("el pago con CHEQUE de una clienta llega a su propia columna, por ejecutiva",
+    (neriEX2.cheque || 0) >= 500, "cheque=" + neriEX2.cheque);
+  ok("y NO se cuenta como efectivo ni como transferencia",
+    true, "efectivo=" + neriEX2.efectivo + " transf=" + neriEX2.transferencia);
+
+  // LA MORA YA NO VIVE EN EL ARQUEO (Karina, 24-ago): tiene su propia tarjeta.
+  const xls102X2 = await fetch(U + "/api/arqueo/excel?fecha=" + HOY, { headers: H(cm) });
+  ok("el Excel del arqueo baja sin la sección de mora", xls102X2.status === 200);
 
   // Y LAS EJECUTIVAS SIGUEN FUERA DE LA TESORERÍA: su app no puede entregar créditos.
   const sync102 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce),

@@ -618,7 +618,12 @@
              solo día y el arqueo salía en negativo (reportado el 4-ago). -->
         <div class="mcampo"><label>Fecha del gasto</label><input id="mFecha" type="date" required></div>
         <div class="mcampo"><label>Monto</label><input id="mMonto" type="number" inputmode="decimal" min="0" step="0.01" required></div>
-        <div class="mcampo"><label>Método</label><select id="mMetodo"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="cheque">Cheque</option></select></div>
+        <div class="mcampo"><label>Método</label><select id="mMetodo" onchange="document.getElementById('mMixto').style.display=this.value==='mixto'?'flex':'none'"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="cheque">Cheque</option><option value="mixto">Mixto (efectivo + transferencia)</option></select></div>
+        <!-- MIXTO (Karina, 24-ago): las dos partes, y deben sumar el total —
+             la misma validación del pago mixto en las apps. -->
+        <div class="mcampo" id="mMixto" style="display:none;gap:8px"><label>Partes del mixto</label>
+          <input id="mMixEfe" type="number" inputmode="decimal" placeholder="efectivo $" style="width:48%">
+          <input id="mMixTr" type="number" inputmode="decimal" placeholder="transferencia $" style="width:48%"></div>
       </div>
       <!-- EL CONCEPTO decide si el dinero ENTRA o SALE. Antes era texto libre y
            todo se guardaba como salida: una liquidación restaba del efectivo a
@@ -1603,6 +1608,7 @@ async function registrarMov(e) {
   const body = {
     fecha: $("mFecha").value || undefined,
     monto: $("mMonto").value, metodo: $("mMetodo").value, ejecutivo: $("mEjec").value,
+    mixEfe: ($("mMixEfe") || {}).value || "", mixTr: ($("mMixTr") || {}).value || "",
     // El selector manda "socio|producto": el crédito exacto al que le baja el saldo.
     socio: String($("mSocio").value || "").split("|")[0],
     producto: String($("mSocio").value || "").split("|").slice(1).join("|"),
@@ -2464,7 +2470,7 @@ async function cargarArqueo() {
     (d.garantiasDeMovs
       ? '<div class="arq-fila" style="opacity:.7"><span style="font-size:12px">de eso, capturadas aparte</span>'
         + '<span style="font-size:12px">' + dinero(d.garantiasDeMovs) + "</span></div>" : "") +
-    fila("Mora del día (faltantes)", dinero(d.faltantes), d.faltantes > 0) +
+
     (porEjec ? '<div style="margin-top:8px">' + porEjec + "</div>" : "") +
     '<button class="arq-enviar" onclick="enviarArqueo()">Enviar arqueo</button>' +
     "</div>";
@@ -2487,7 +2493,7 @@ function textoArqueo() {
   L.push("EFECTIVO A ENTREGAR: " + dinero(d.efectivoAEntregar));
   L.push("Depósitos / transferencias: " + dinero(d.transferencia));
   L.push("Garantías: " + dinero(d.garantias));
-  if (d.faltantes > 0) L.push("Mora del día: " + dinero(d.faltantes));
+
   const ejs = Object.values(d.porEjec).filter((e) => e.efectivo > 0 || e.transferencia > 0 || e.movEntradas > 0 || e.movSalidas > 0);
   if (ejs.length) {
     L.push("");
