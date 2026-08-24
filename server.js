@@ -1256,10 +1256,30 @@ function carteraViva(usuario) {
   // Entregas de garantía por crédito (tesorería, desde el corte). Si el
   // movimiento no dice producto y la socia tiene UN crédito activo, es ese —
   // la misma regla de las liquidaciones.
-  const entregasGar = {};
+  const entregasGar = {}, cobrosGarMov = {};
   for (const mg of (store.respaldo().movimientos || [])) {
-    if (mg.anulado || mg.entrada) continue;
-    if (!/garantía líquida|garantia liquida/i.test(tipoDeMov(mg) || "")) continue;
+    if (mg.anulado) continue;
+    const tG = tipoDeMov(mg) || "";
+    // GARANTÍA COBRADA por Dirección (entrada): suma al guardado de la clienta.
+    // Entraba a la caja pero no le llegaba al perfil (Karina, 24-ago).
+    if (mg.entrada && /^garant/i.test(tG) && !/líquida|liquida/i.test(tG)) {
+      if ((mg.fecha || "") >= corte) {
+        const sG = socioDeMov(mg);
+        if (sG) {
+          let pG = productoDeMov(mg);
+          if (!pG) {
+            const su = PADRON.filter((x) => String(x.id) === String(sG)
+              && x.activa !== false && x.estatus !== "BAJA");
+            if (su.length === 1) pG = su[0].producto;
+          }
+          if (pG) { const kC = claveCredito(sG, pG);
+            cobrosGarMov[kC] = (cobrosGarMov[kC] || 0) + (Number(mg.monto) || 0); }
+        }
+      }
+      continue;
+    }
+    if (mg.entrada) continue;
+    if (!/garantía líquida|garantia liquida/i.test(tG)) continue;
     if ((mg.fecha || "") < corte) continue;
     const socG = socioDeMov(mg); if (!socG) continue;
     let prodG = productoDeMov(mg);
@@ -1295,8 +1315,8 @@ function carteraViva(usuario) {
     // LA GARANTÍA SE NETEA (Karina, 24-ago): lo que Dirección le ENTREGÓ a la
     // clienta se resta de lo guardado — el Excel de saldos y el desglose dicen
     // la garantía que de verdad queda, no la histórica.
-    const garan = Math.max(0, (garantias[clave] || 0) - (prev ? (prev.gar || 0) : 0)
-      - (entregasGar[clave] || 0));
+    const garan = Math.max(0, (garantias[clave] || 0) + (cobrosGarMov[clave] || 0)
+      - (prev ? (prev.gar || 0) : 0) - (entregasGar[clave] || 0));
     // Las liquidaciones son por SOCIO y se reparten entre sus créditos en orden
     // fijo. Lo que ya consumió el ciclo cerrado se aparta antes de repartir.
     const usado = liqRestante["__usado__" + soc] || (liqRestante["__usado__" + soc] = 0);
@@ -4807,7 +4827,10 @@ const CONCEPTOS_DIR = {
   "Liquidación":                 { entrada: true,  categoria: "Otro", clienta: "obliga" },
   "Recuperación / adelanto":     { entrada: true,  categoria: "Otro", clienta: "obliga" },
   "Comisión de desembolso":      { entrada: true,  categoria: "Otro", clienta: "sugiere" },
-  "Garantía":                    { entrada: true,  categoria: "Otro", clienta: "sugiere" },
+  // La GARANTÍA cobrada OBLIGA la clienta (Karina, 24-ago: «mismo caso»): se
+  // linkea a su crédito y le SUMA a su garantía guardada — simétrico a la
+  // Garantía líquida entregada, que se la resta.
+  "Garantía":                    { entrada: true,  categoria: "Otro", clienta: "obliga" },
   // ENTRADAS DE TESORERÍA (requerimientos de la Ing. Karina, 24-ago): dinero
   // que se INYECTA a la caja para completar el día.
   "Recurso de bancos para caja": { entrada: true,  categoria: "Recurso de bancos para caja", tesoreria: true },

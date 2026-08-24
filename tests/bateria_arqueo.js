@@ -1476,8 +1476,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // garantías, no solo engordar el efectivo a entregar. Antes quedaba escondida:
   // Monse veía dinero de más sin concepto que lo explicara (Karina, 6-ago).
   const gar0 = await arq44g();
+  // Desde el 24-ago la garantía cobrada OBLIGA la clienta (mismo caso que la
+  // liquidación): se captura con la de la batería para que además le sume a
+  // SU guardado.
   await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
-    body: JSON.stringify({ tipo: "Garantía", monto: 300, concepto: "Garantía", metodo: "efectivo", fecha: D44g }) });
+    body: JSON.stringify({ tipo: "Garantía", monto: 300, concepto: "Garantía", metodo: "efectivo",
+      fecha: D44g, socio: "70000000001", producto: "Grupal-Basico" }) });
   const gar1 = await arq44g();
   ok("una garantía capturada aparte SÍ aparece en el renglón de garantías",
     gar1.garantias === gar0.garantias + 300 && gar1.garantiasDeMovs === 300,
@@ -3664,6 +3668,22 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el desglose del crédito dice la garantía guardada (ya neteada con la entrega)",
     dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 0,
     "guardada=" + dgX2.garantiaGuardada + " (junto 850, se le entregaron 850)");
+  // LA GARANTÍA COBRADA: obligada y linkeada (Karina, 24-ago: «mismo caso»).
+  const gcSin = await mov102({ tipo: "Garantía", monto: 300, concepto: "garantía sin clienta" });
+  ok("la GARANTÍA cobrada sin clienta se rechaza (mismo caso que la liquidación)",
+    gcSin.status === 400, "status " + gcSin.status);
+  const gcOk = await j(await mov102({ tipo: "Garantía", monto: 300, concepto: "Garantía cobrada",
+    socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("con clienta entra y se linkea a su crédito", !gcOk.error, JSON.stringify(gcOk).slice(0, 70));
+  const dgTras = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("y le SUMA a su garantía guardada (estaba en 0, ahora $300)",
+    dgTras.ok && dgTras.garantiaGuardada === 300, "guardada=" + dgTras.garantiaGuardada);
+  const gEnt2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 300,
+    concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",
+    !gEnt2.error, JSON.stringify(gEnt2).slice(0, 60));
+
   const vetoOffX2 = await mov102({ tipo: "Gasto operativo", monto: 200,
     concepto: "Devolución de garantía a Rosa PRUEBA" });
   ok("el candado de devoluciones quedó DESACTIVADO: el texto ya no se veta",
