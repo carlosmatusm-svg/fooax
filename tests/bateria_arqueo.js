@@ -3593,6 +3593,22 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
         + "&monto=" + [0, 5000, 0, 10000, 0, 15000][c2] + "&plazo=16", { headers: H(cm) }));
       return t2.ok && t2.cuota === real;
     }))).every(Boolean));
+  // El SEGUNDO ejemplo de Karina, con sus números: «ese 5,759.44 se puede
+  // convertir en $5,760.00… 239.98 que lo ajuste a 240». Es un Básico de
+  // $4,000 × 24. Con la cuota pareja redonda no hay nada que absorber en la
+  // primera ni en la última: 240 × 24 CAE exacto en 5,760 — el total redondo
+  // sale solo de multiplicar, todas las semanas se cobra lo mismo, y la
+  // diferencia contra el cálculo exacto viaja aparte como «redondeo».
+  const s98b = await j(await fetch(U + "/api/reglas/simular?producto="
+    + encodeURIComponent("Grupal-Basico") + "&monto=4000&plazo=24", { headers: H(cm) }));
+  ok("el ejemplo de los $5,759.44: cuota $240 y total $5,760",
+    s98b.ok && s98b.cuota === 240 && Math.abs(s98b.totales.aPagar - 5760) < 0.01,
+    s98b.ok ? s98b.cuota + " · " + s98b.totales.aPagar : String(s98b.motivo));
+  ok("las 24 cuotas son iguales: no hay una primera o última chueca que explicar en campo",
+    s98b.ok && s98b.pagos.every((x) => x.cuota === 240));
+  ok("y el capital cierra en $0.00 exacto",
+    s98b.ok && s98b.pagos[s98b.pagos.length - 1].saldo === 0);
+
   // Y los validados AL CENTAVO no se tocan: Comadre sigue en $1,413.33.
   const com98 = await j(await fetch(U + "/api/reglas/simular?producto=COMADRE&monto=10000&plazo=12",
     { headers: H(cm) }));
