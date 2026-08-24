@@ -3703,6 +3703,20 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const xls102X2 = await fetch(U + "/api/arqueo/excel?fecha=" + HOY, { headers: H(cm) });
   ok("el Excel del arqueo baja sin la sección de mora", xls102X2.status === 200);
 
+  // EL MENÚ DEL TABLERO SE ARMA DEL CATÁLOGO (Karina, 24-ago: «no aparece
+  // garantía líquida ni los conceptos que te dije»). Estaba escrito a mano en
+  // el HTML y cada concepto nuevo se quedaba fuera. Se fija que el armador
+  // exista y que el catálogo traiga TODOS los conceptos de tesorería.
+  const cc102 = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
+  const nombres102 = (cc102.conceptos || []).map((x) => x.nombre);
+  ok("el catálogo del servidor trae los 4 conceptos de tesorería",
+    ["Autorización / préstamo", "Garantía líquida entregada",
+     "Recurso de bancos para caja", "Recurso aportado por Dirección"]
+      .every((k) => nombres102.includes(k)), nombres102.join(" | "));
+  const html102 = await (await fetch(U + "/tablero", { headers: H(cd) })).text();
+  ok("y el menú del tablero se arma DEL catálogo, no a mano",
+    html102.includes("EL MENÚ SE ARMA DEL CATÁLOGO") && /sel\.innerHTML/.test(html102));
+
   // Y LAS EJECUTIVAS SIGUEN FUERA DE LA TESORERÍA: su app no puede entregar créditos.
   const sync102 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
     body: JSON.stringify({ fecha: HOY, snapshot: { movs: [{ folio: "T102", monto: 5000,

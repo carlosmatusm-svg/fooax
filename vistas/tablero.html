@@ -1642,6 +1642,23 @@ async function cargarConceptos() {
   if (CONCEPTOS.length) return;
   try { CONCEPTOS = (await (await fetch("/api/conceptos", { credentials: "include" })).json()).conceptos || []; }
   catch { return; }
+  // EL MENÚ SE ARMA DEL CATÁLOGO, no a mano (Karina, 24-ago: «no aparece
+  // garantía líquida ni los conceptos que te dije»). Las opciones estaban
+  // ESCRITAS en el HTML: cada concepto nuevo del servidor había que acordarse
+  // de agregarlo aquí — y no se agregaban. Ahora el servidor manda la lista y
+  // este menú no puede volver a quedarse viejo. «Otro» se conserva al final.
+  const sel = $("mTipo");
+  if (sel && CONCEPTOS.length) {
+    const cur = sel.value;
+    const op = (c) => "<option" + (c.nombre === cur ? " selected" : "") + ">" + hesc(c.nombre) + "</option>";
+    sel.innerHTML =
+      '<optgroup label="Entra dinero a la caja">'
+      + CONCEPTOS.filter((c) => c.entrada).map(op).join("") + "</optgroup>"
+      + '<optgroup label="Sale dinero de la caja">'
+      + CONCEPTOS.filter((c) => !c.entrada).map(op).join("")
+      + "<option" + (cur === "Otro" ? " selected" : "") + ">Otro</option></optgroup>";
+    if (!CONCEPTOS.some((c) => c.nombre === cur) && cur !== "Otro") sel.value = "Gasto operativo";
+  }
   tipoMovCambio();
 }
 function tipoMovCambio() {
