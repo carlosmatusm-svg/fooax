@@ -7,7 +7,7 @@
     "Lo que trae 'pendiente': true NO se calcula: el sistema se niega y dice qué falta,",
     "en vez de inventar un número. Un interés inventado se le cobra de verdad a una señora."
   ],
-  "version": "2026-08-23",
+  "version": "2026-08-23b",
   "vigenteDesde": "2026-08-19",
   "fuentePrincipal": "Formulas Calculo Karina.pdf — Lic. Anel Aydee Díaz Silva, 25-jul-2026. Fórmulas validadas por la contadora (CLIP) con ejemplos reales. Catálogo de 16 productos validado por Ing. Monse, mayo 2026 (pág. 7).",
   "iva": 0.16,
@@ -36,7 +36,8 @@
     "ajusteDeCentavos": "ultima",
     "_ajusteDeCentavos": "El PDF dice «Ajustar centavos para cerrar exactamente en cero» pero no dice dónde. 'ultima' = la última cuota absorbe la diferencia. 'reparte' = se distribuye.",
     "confirmadoPor": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-    "_confirmacion": "19-ago, Contaduría: «SIN DETALLE PUEDEN DEJARLO COMO YA LO TIENEN PROGRAMADO EN LA ÚLTIMA CUOTA. Y ESTÁ CORRECTO SOLO DEJARLO EN UNA CUOTA.» Queda cerrado: 'ultima'."
+    "_confirmacion": "19-ago, Contaduría: «SIN DETALLE PUEDEN DEJARLO COMO YA LO TIENEN PROGRAMADO EN LA ÚLTIMA CUOTA. Y ESTÁ CORRECTO SOLO DEJARLO EN UNA CUOTA.» Queda cerrado: 'ultima'.",
+    "cuotaAlPeso": "Los productos semanales traen redondeoCuota='peso': la cuota se cobra redonda, como en campo (Karina, 23-ago: «el pago que cobramos es 588, la app dice 587.94»). El desglose capital/interés/IVA queda exacto y la diferencia viaja aparte como 'redondeo'. COMADRE, MAGNUS y Pago Único NO redondean: sus ejemplos validados por Contaduría son al centavo."
   },
   "metodos": {
     "A": {
@@ -83,7 +84,8 @@
       ],
       "montoMin": 3000,
       "montoMax": 15000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 1"
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 1",
+      "redondeoCuota": "peso"
     },
     {
       "clave": "GRUPAL_BASICO_24",
@@ -96,7 +98,8 @@
       ],
       "montoMin": 3000,
       "montoMax": 15000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 2"
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 2",
+      "redondeoCuota": "peso"
     },
     {
       "clave": "GRUPAL_MICRO_32",
@@ -110,7 +113,8 @@
       "montoMin": 8000,
       "montoMax": 20000,
       "fuente": "PDF pág. 7, catálogo oficial · renglón 3",
-      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000. Diferencia de $30,000 sin resolver."
+      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000. Diferencia de $30,000 sin resolver.",
+      "redondeoCuota": "peso"
     },
     {
       "clave": "GRUPAL_MICRO_48",
@@ -124,7 +128,8 @@
       "montoMin": 8000,
       "montoMax": 20000,
       "fuente": "PDF pág. 7, catálogo oficial · renglón 4",
-      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000."
+      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000.",
+      "redondeoCuota": "peso"
     },
     {
       "clave": "GRUPAL_MICRO_52",
@@ -136,7 +141,8 @@
         52
       ],
       "montoMax": 50000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 5 («hasta $50K», sin mínimo declarado)"
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 5 («hasta $50K», sin mínimo declarado)",
+      "redondeoCuota": "peso"
     },
     {
       "clave": "GRUPAL_ADICIONAL",
@@ -149,7 +155,8 @@
       ],
       "montoMin": 1000,
       "montoMax": 4000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 6"
+      "fuente": "PDF pág. 7, catálogo oficial · renglón 6",
+      "redondeoCuota": "peso"
     },
     {
       "clave": "GRUPAL_MICROCREDITO",
@@ -165,7 +172,8 @@
       "fuente": "PDF pág. 7, catálogo oficial · renglón 7",
       "iva": 0.16,
       "_iva": "En el catálogo la celda de IVA de este producto aparece VACÍA. Es un error de captura: la Ing. Monse confirmó que SÍ cobra el 16%, igual que los demás (Anel, 19-ago). Se deja escrito para que nadie lo 'corrija' a cero viendo la imagen del catálogo.",
-      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza."
+      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+      "redondeoCuota": "peso"
     },
     {
       "clave": "MAGNUS",
@@ -253,7 +261,8 @@
           "plazo": 16,
           "nombre": "FOXI · 5to ciclo"
         }
-      ]
+      ],
+      "redondeoCuota": "peso"
     },
     {
       "nombre": "FOXI+",
@@ -283,7 +292,8 @@
           "tasaMensual": 0.0574,
           "nombre": "FOXI PLUS 2 · 16 sem"
         }
-      ]
+      ],
+      "redondeoCuota": "peso"
     }
   ],
   "_como_agregar_un_producto": "Copia un bloque, cámbiale clave, nombre, método, tasaMensual, plazos y topes, y escribe su fuente. El sistema lo toma sin tocar código.",

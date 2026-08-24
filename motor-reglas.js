@@ -227,14 +227,32 @@ function tablaAmortizacion(opciones) {
       cuota: r2(cap + interes + ivaM), saldo: r2(capitalExacto - capitalAcum) };
   });
 
-  const sum = (f) => r2(salida.reduce((t, x) => t + f(x), 0));
+  // ---- LA CUOTA SE COBRA REDONDA (Karina, 23-ago) ----
+  // «El pago que actualmente cobramos es de 588, la app me dice 587.94.» En
+  // campo no se cobran centavos: la cuota de los productos semanales se
+  // redondea AL PESO, que es exactamente lo que la hoja de cobranza ya hacía
+  // ($9,800 × 24 → 588, $9,500 → 570, FOXI ciclo 1 → 445). El desglose de
+  // capital, interés e IVA se queda EXACTO —el IVA es impuesto y no se
+  // ensucia—; la diferencia viaja aparte como «redondeo», visible en cada pago
+  // y en el total. Es una marca por producto (`redondeoCuota` en el catálogo):
+  // COMADRE, MAGNUS y Pago Único no la traen, porque sus ejemplos validados
+  // por Contaduría son al centavo.
+  if (p.redondeoCuota === "peso" && p.metodo === "A") {
+    for (const x of salida) {
+      const redonda = Math.round(x.cuota);
+      x.redondeo = r2(redonda - x.cuota);
+      x.cuota = redonda;
+    }
+  }
+
+  const sum = (f) => r2(salida.reduce((t, x) => t + (f(x) || 0), 0));
   return {
     ok: true, metodo: p.metodo, producto: p.nombre, tasaMensual: p.tasaMensual,
     monto: m, plazo: n, periodicidad: p.periodicidad,
     pagos: salida,
     cuota: salida.length ? salida[0].cuota : 0,
     totales: { capital: sum((x) => x.capital), interes: sum((x) => x.interes),
-      iva: sum((x) => x.iva), aPagar: sum((x) => x.cuota) },
+      iva: sum((x) => x.iva), redondeo: sum((x) => x.redondeo), aPagar: sum((x) => x.cuota) },
   };
 }
 

@@ -2633,7 +2633,9 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       centro: "GHANIMA", ejecutivo: "Neri", saldo: 432, cuota: 216, plazo: 20, diaPago: "Lunes",
       desembolso: "2026-03-23" }) });
   const K56b = SOC56b + "|Grupal-Basico 2|HILDA SINTETICA 56|0";
-  const lunAntes = ((await mora56()).dias || []).find((g) => g.dia === "LUNES") || {};
+  const mAntes56 = await mora56();
+  const lunAntes = (mAntes56.dias || []).find((g) => g.dia === "LUNES") || {};
+  const hildaAntes = buscaMora(mAntes56, SOC56b);
   // Paga completo, pero el MIÉRCOLES: se pone al corriente tarde.
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
     body: JSON.stringify({ fecha: "2026-08-05", snapshot: { reg: { GHANIMA: { [K56b]: { pago: 216, forma: "E" } } } }, ts: Date.now() + 5 }) });
@@ -2644,11 +2646,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("pero NO cuenta como que pagó su día",
     lunDespues.alCorrienteSuDia === lunAntes.alCorrienteSuDia,
     JSON.stringify({ antes: lunAntes.alCorrienteSuDia, despues: lunDespues.alCorrienteSuDia }));
+  // ANCLADA A LA CLIENTA, no al total del grupo: el total de LUNES suma a las
+  // clientas sintéticas de otras secciones, y una de ellas escribe según el día
+  // en que corre la batería — el lunes 24-ago el total bajó y esta prueba
+  // falló sin que el comportamiento probado hubiera cambiado. Lo que se fija es
+  // de HILDA: estaba en mora, pagó su cuota completa el MIÉRCOLES → la semana
+  // la da por cubierta (sale de la mora), pero lo cobrado de SU día no se infla.
+  const hildaDespues = buscaMora(await mora56(), SOC56b);
   ok("y lo cobrado ESE DÍA no se infla con lo de después",
     Math.abs(lunDespues.cobradoSuDia - lunAntes.cobradoSuDia) < 0.01
-    && lunDespues.cobrado > lunAntes.cobrado,
+    && !!hildaAntes && hildaDespues === null,
     JSON.stringify({ suDiaAntes: lunAntes.cobradoSuDia, suDiaDespues: lunDespues.cobradoSuDia,
-                     semanaAntes: lunAntes.cobrado, semanaDespues: lunDespues.cobrado }));
+                     estabaAntes: !!hildaAntes, salioDeLaMora: hildaDespues === null }));
 
   // LA FECHA DE DESEMBOLSO AL LADO DE CADA CLIENTA (Karina, 10-ago). Sirve para
   // leer el renglón sin abrir otra cosa: una clienta que apenas desembolsó y ya
@@ -3005,7 +3014,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // ruta no podía cotizar FOXI aunque el motor ya supiera hacerlo.
   const fx1 = await sim("producto=FOXI&ciclo=1&monto=5000&plazo=16");
   ok("el simulador cotiza FOXI por ciclo", fx1.status === 200
-    && Math.abs(fx1.d.cuota - 444.89) < 0.01, JSON.stringify(fx1.d).slice(0, 90));
+    && fx1.d.cuota === 445, JSON.stringify(fx1.d).slice(0, 90));
   const fx5 = await sim("producto=FOXI&ciclo=5&monto=15000&plazo=16");
   ok("y cada ciclo da su propia cuota", fx5.status === 200 && fx5.d.cuota !== fx1.d.cuota,
     String(fx5.d && fx5.d.cuota));
@@ -3553,6 +3562,43 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
     r83g.status === 200, "status " + r83g.status);
 
+  console.log("\n— 98. LA CUOTA SE COBRA REDONDA (Karina, 23-ago) —");
+  // «Cargué una clienta con crédito de $9,800 a 24 semanas; el pago que
+  // cobramos es 588 y la app me dice 587.94.» En campo no se cobran centavos:
+  // los productos semanales redondean la cuota AL PESO — que es lo que la hoja
+  // de cobranza siempre hizo. El desglose queda exacto y la diferencia viaja
+  // aparte como «redondeo»; los productos validados al centavo no se tocan.
+  const s98 = await j(await fetch(U + "/api/reglas/simular?producto="
+    + encodeURIComponent("Grupal-Basico") + "&monto=9800&plazo=24", { headers: H(cm) }));
+  ok("el caso de Karina: $9,800 × 24 cobra $588, no $587.94",
+    s98.ok && s98.cuota === 588, String(s98.cuota));
+  ok("y el saldo total es 588 × 24 = $14,112",
+    s98.ok && Math.abs(s98.totales.aPagar - 14112) < 0.01, String(s98.totales && s98.totales.aPagar));
+  // Por PAGO, no por total: el total acumula el medio-centavo de cada semana
+  // (24 × r2), y comparar totales gritaba por 11 centavos que no son del
+  // redondeo de la cuota.
+  ok("el IVA NO se ensució con el redondeo: en cada pago sigue siendo el 16% del interés",
+    s98.ok && s98.pagos.every((x) => Math.abs(x.iva - x.interes * 0.16) < 0.011),
+    s98.ok ? JSON.stringify(s98.pagos[0]) : "");
+  ok("la diferencia viaja aparte, con nombre («redondeo»)",
+    s98.ok && typeof s98.totales.redondeo === "number" && Math.abs(s98.totales.redondeo - 1.36) < 0.05,
+    String(s98.totales && s98.totales.redondeo));
+  ok("cada pago dice su redondeo, no solo el total",
+    s98.ok && s98.pagos.every((x) => typeof x.redondeo === "number"));
+  // Los ciclos de FOXI ahora dan EXACTO lo que se cobra en campo.
+  const foxi98 = [[1, 445], [3, 870], [5, 1185]];
+  ok("FOXI cobra redondo, ciclo por ciclo (445 / 870 / 1185)",
+    (await Promise.all(foxi98.map(async ([c2, real]) => {
+      const t2 = await j(await fetch(U + "/api/reglas/simular?producto=FOXI&ciclo=" + c2
+        + "&monto=" + [0, 5000, 0, 10000, 0, 15000][c2] + "&plazo=16", { headers: H(cm) }));
+      return t2.ok && t2.cuota === real;
+    }))).every(Boolean));
+  // Y los validados AL CENTAVO no se tocan: Comadre sigue en $1,413.33.
+  const com98 = await j(await fetch(U + "/api/reglas/simular?producto=COMADRE&monto=10000&plazo=12",
+    { headers: H(cm) }));
+  ok("COMADRE sigue al centavo ($1,413.33): el ejemplo de la contadora no se toca",
+    com98.ok && Math.abs(com98.cuota - 1413.33) < 0.01, String(com98.cuota));
+
   console.log("\n— 97. EL LINKEO DEL PASO 2, DE PUNTA A PUNTA (Karina, 23-ago) —");
   // «¿Sí funciona como decimos o no lo hace?» El caso exacto de su pantalla:
   // Grupal Básico 24 · préstamo $9,000 → cuota $539.95 · total $12,958.80.
@@ -3566,8 +3612,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     && a97.clienta && a97.clienta.producto === "Grupal-Basico", JSON.stringify(a97).slice(0, 80));
   const s97 = await j(await fetch(U + "/api/reglas/simular?producto=Grupal-Basico&monto=9000&plazo=24",
     { headers: H(cm) }));
-  ok("la cuota que el paso 2 enseñó ES la del catálogo ($539.95)",
-    s97.ok && Math.abs(s97.cuota - 539.95) < 0.01, String(s97.cuota));
+  ok("la cuota que el paso 2 enseñó ES la del catálogo ($540, redonda)",
+    s97.ok && s97.cuota === 540, String(s97.cuota));
   const d97 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009970&producto=Grupal-Basico",
     { headers: H(cm) }));
   ok("el desglose del crédito nuevo usa el importe GUARDADO, sin deducir",
@@ -3669,8 +3715,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   if (b24) {
     const c95 = await j(await fetch(U + "/api/reglas/simular?producto="
       + encodeURIComponent(b24.padron) + "&monto=9500&plazo=" + b24.plazo, { headers: H(cm) }));
-    ok("el circuito cierra: la opción de 24 sem cotiza $569.95 con el nombre del padrón",
-      c95.ok && Math.abs(c95.cuota - 569.95) < 0.02, String(c95.cuota));
+    ok("el circuito cierra: la opción de 24 sem cotiza $570 con el nombre del padrón",
+      c95.ok && c95.cuota === 570, String(c95.cuota));
   }
 
   console.log("\n— 94. EL ALTA CAPTURA EL PRÉSTAMO SIN INTERESES (Karina, 23-ago) —");
@@ -3703,10 +3749,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // La aritmética que el alta le propone a Monse: préstamo → cuota → saldo.
   const s94 = await j(await fetch(U + "/api/reglas/simular?producto="
     + encodeURIComponent("Grupal-Basico") + "&monto=9500&plazo=24", { headers: H(cm) }));
-  ok("del préstamo de $9,500 el motor saca la cuota $569.95",
-    s94.ok && Math.abs(s94.cuota - 569.95) < 0.02, String(s94.cuota));
-  ok("y el saldo total a pagar ($13,678.80), que es lo que va al padrón",
-    s94.ok && Math.abs(s94.totales.aPagar - 13678.80) < 0.5, String(s94.totales && s94.totales.aPagar));
+  ok("del préstamo de $9,500 el motor saca la cuota $570, redonda como se cobra",
+    s94.ok && s94.cuota === 570, String(s94.cuota));
+  ok("y el saldo total a pagar ($13,680 = 570 × 24), que es lo que va al padrón",
+    s94.ok && Math.abs(s94.totales.aPagar - 13680) < 0.01, String(s94.totales && s94.totales.aPagar));
 
   console.log("\n— 93. EL MOTOR COTIZA CON LOS NOMBRES DEL PADRÓN (Karina, 23-ago) —");
   // «¿Cómo funcionaría cuando Monse da de alta a una clienta?» Hasta hoy, la
@@ -3732,8 +3778,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const ind393 = await sim93("producto=" + encodeURIComponent("Individual 3") + "&monto=10000&plazo=16");
   ok("«Individual 3» se cotiza solo, sin mandarle el ciclo", ind393.ok === true,
     ind393.ok ? "cuota " + ind393.cuota : String(ind393.motivo).slice(0, 60));
-  ok("y da la cuota del ciclo 3 de FOXI ($870.05)",
-    ind393.ok && Math.abs(ind393.cuota - 870.05) < 0.02, String(ind393.cuota));
+  ok("y da la cuota del ciclo 3 de FOXI ($870, redonda como se cobra)",
+    ind393.ok && ind393.cuota === 870, String(ind393.cuota));
 
   // Lo que el alta necesita para proponer: cuota + desglose + total.
   ok("la cotización trae el desglose que el alta le enseña a Monse",
