@@ -3658,6 +3658,26 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     headers: H(cm), body: JSON.stringify({ folio: folio102, monto: 8000 }) });
   ok("sin motivo no hay corrección", cor102b.status === 400);
 
+  // LA PUERTA DE CAPTURA (25-ago): fecha/día/plazo son datos, no dinero —
+  // cualquier dirección los completa; el dinero sigue solo con Anel y Monse.
+  const cpd102 = await login("pruebadir", "PruebaFOOAX2026");
+  const cap102 = await j(await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      desembolso: "2026-08-07", motivo: "archivo VERIFICADO de fechas" }) }));
+  ok("dirección de prueba SÍ captura la fecha de desembolso por la puerta nueva",
+    cap102.ok === true && cap102.clienta && String(cap102.clienta.desembolso).slice(0, 10) === "2026-08-07",
+    JSON.stringify(cap102).slice(0, 80));
+  const capSaldo102 = await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      saldo: 1, motivo: "intento de mover dinero" }) });
+  ok("la puerta de captura NO acepta saldos: sin dato de captura se rechaza",
+    capSaldo102.status === 400, "status " + capSaldo102.status);
+  const ajuste102 = await fetch(U + "/api/creditos/ajuste", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      saldo: 1, motivo: "intento de mover dinero" }) });
+  ok("y el ajuste de DINERO le sigue cerrado a quien no es Anel o Monse",
+    ajuste102.status === 403, "status " + ajuste102.status);
+
   // LA GARANTÍA: obligada y linkeada (Karina, 24-ago). El TOPE se quitó ese
   // mismo día: las clientas traen garantía de ANTES del sistema, así que la
   // entrega mayor a lo registrado PASA (anotada) — se prueba al final del ciclo.

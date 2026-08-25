@@ -4578,6 +4578,46 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
   res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
 });
 
+// CAPTURA de datos del crédito que NO son dinero: fecha de desembolso, día de
+// pago y plazo. Puerta separada del ajuste (OK de Karina, 25-ago, para cargar
+// el archivo VERIFICADO de fechas): cualquier rol de dirección/admin puede
+// completar estos datos — son captura, no movimiento de saldos — y cada uno
+// queda en la bitácora del padrón con autor y motivo. Saldo, cuota y
+// reasignación siguen viviendo SOLO en /api/creditos/ajuste con su candado.
+app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  const campos = {};
+  if (b.desembolso != null && b.desembolso !== "") {
+    const des = String(b.desembolso).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(des))
+      return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
+    campos.desembolso = des;
+  }
+  if (b.diaPago != null && b.diaPago !== "") {
+    const dp = String(b.diaPago).trim().toUpperCase();
+    if (!idxDia(dp)) return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
+    campos.diaPago = dp;
+  }
+  if (b.plazo != null && String(b.plazo).trim() !== "") {
+    const pl = Number(b.plazo);
+    if (!Number.isInteger(pl) || pl < 1 || pl > 200)
+      return res.status(400).json({ error: "El plazo es el NÚMERO DE PAGOS del crédito (por ejemplo 18 o 24), entre 1 y 200." });
+    campos.plazo = pl;
+  }
+  if (!Object.keys(campos).length)
+    return res.status(400).json({ error: "No hay nada que capturar: pon la fecha de desembolso, el día de pago o el plazo." });
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
 // Re-dar crédito a una clienta que LIQUIDÓ: crédito NUEVO (monto+cuota), mismo
 // grupo, con nombre de producto distinto. El crédito anterior queda en el
 // historial (no se toca). Reusa la protección de socio y centro del alta.
