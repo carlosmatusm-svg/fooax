@@ -1818,6 +1818,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
   // así que no se calla: se lista con nombre y monto para que Monse lo pueda
   // verificar una por una.
   const adelantos = [];
+  const vencidasPlazo = [];
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     if (!mios.has(norm(c.ejecutivo))) continue;
@@ -1833,6 +1834,20 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // plantilla y por eso no la lista en la mora de la semana — nosotros sí la
     // listábamos, y era una de las diferencias.
     if (/vencid/i.test(String(c.estatus || ""))) { fueraDeCuenta.vencidos++; continue; }
+    // TERMINÓ SU PLAZO Y SIGUE DEBIENDO (25-ago): vencida derivada. Sale de la
+    // mora semanal —la misma regla de Monse: un vencido cuenta solo como
+    // recuperación— pero NO en silencio: viaja aparte, con su fecha de término
+    // y su saldo, para que la app de la ejecutiva y el tablero la enseñen.
+    const infoVP = infoCredito(cv, c);
+    // Contra el LUNES de la semana medida: si su calendario aún vivía esa
+    // semana, esa semana le tocaba mora, aunque hoy ya esté vencida.
+    if (vencidaPorPlazo(c, infoVP, lunes)) {
+      fueraDeCuenta.vencidos++;
+      vencidasPlazo.push({ ejecutivo: c.ejecutivo, centro: c.centro, clienta: c.nombre,
+        socio: String(c.id), producto: c.producto, cuota: Number(c.cuota) || 0,
+        saldo: Math.round(infoVP.saldoActual * 100) / 100, fin: finDelPlazo(c) });
+      continue;
+    }
     const cuota = Number(c.cuota) || 0;
     if (cuota <= 0) { fueraDeCuenta.sinCuota++; continue; }
     // TODAVÍA NO LE HAN DADO EL DINERO: no puede deber. Si el desembolso es
@@ -1966,7 +1981,9 @@ function moraDeLaSemana(usuario, lunesOpt) {
     cobradoSuDia: sum((g) => g.cobradoSuDia),
     pagaronAlgo: sum((g) => g.pagaronAlgo),
     cobrado: sum((g) => g.cobrado),
-    fueraDeCuenta };
+    fueraDeCuenta,
+    // La que más debe primero: es por donde se empieza la recuperación.
+    vencidasPlazo: vencidasPlazo.sort((x, y) => y.saldo - x.saldo) };
 }
 
 app.get("/api/mora", requiere("direccion", "admin"), (req, res) => {
@@ -3279,7 +3296,9 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
     if (c.activa === false || c.estatus === "BAJA")
       return { ...c, pagado: 0, liquidado: 0, saldoActual: c.saldo || 0 };
     const i = infoCredito(cv, c);
-    return { ...c, pagado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual };
+    return { ...c, pagado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual,
+      // Para que la tarjeta diga VENCIDA sola cuando el plazo ya terminó.
+      vencidaPlazo: vencidaPorPlazo(c, i), finPlazo: finDelPlazo(c) };
   });
   res.json({ total: base.length, resultados: res1 });
 });
@@ -3552,6 +3571,24 @@ function finDelPlazo(c) {
   else f.setDate(f.getDate() + pl * 7);
   return f.toISOString().slice(0, 10);
 }
+// VENCIDA POR PLAZO CUMPLIDO (observación de la mora de Neri, 25-ago: «ya pasa
+// a ser vencido porque terminó su plazo... la app no los marca»). NO es el
+// atraso a medio crédito —ese se recorre, regla de la Ing. Monse del 4-ago—:
+// aquí el calendario COMPLETO ya se acabó y la clienta sigue debiendo. Ya no
+// hay semana a la cual recorrerse: es recuperación. Se deriva sola con fecha
+// de desembolso + plazo (verificados el 25-ago); nadie la marca a mano, y por
+// eso mismo se corrige sola si Dirección corrige la fecha o el plazo.
+// `ref` es la fecha CONTRA la que se pregunta: las vistas vivas (tarjeta,
+// semáforo, cartera) preguntan contra HOY; la mora de una semana pasada
+// pregunta contra ESA semana — un crédito vivo en agosto fue mora de agosto
+// aunque hoy ya esté vencido: la historia no se reescribe.
+function vencidaPorPlazo(c, info, ref) {
+  if (esVencido(c)) return false;              // ya viene marcada: no se duplica
+  if (aunNoDesembolsa(c)) return false;
+  if (!info || (info.saldoActual || 0) <= 0.009) return false;
+  const fin = finDelPlazo(c);
+  return !!fin && fin < (ref || hoyMX());
+}
 // ATRASO EN NÚMERO DE PAGOS. Corrección del 4-ago: el PLAZO NO ES UNA FECHA
 // LÍMITE, es un NÚMERO DE PAGOS. Si una clienta falta tres semanas, su crédito
 // de 24 pagos se recorre a 27 semanas — no «se venció». Lo aclaró la Ing. Monse
@@ -3619,6 +3656,7 @@ function semaforoDe(c, info, pagoSemana) {
   // ni en mora aunque traiga la marca de antes.
   if (estaTerminado(c, info)) return "liquidada";
   if (esVencido(c) || Number(c.mora) > 0) return "vencida";
+  if (vencidaPorPlazo(c, info)) return "vencida";
   if (info.saldoActual <= 0) return "liquidada";
   // Cuota VARIABLE (Magnus): su cuota baja cada periodo, así que compararla
   // contra la del padrón daría un semáforo falso. Se aparta hasta que exista
@@ -3941,7 +3979,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   // Un crédito está EN RECUPERACIÓN si trae cuotas sin pagar (columna `mora` de
   // la plantilla, que Monse definió como «las cuotas que no ha pagado el
   // cliente») o si ya está vencido. Su dinero cuenta SOLO como recuperación.
-  const enRecuperacion = (c) => Number(c.mora) > 0 || esVencido(c);
+  const enRecuperacion = (c, info) => Number(c.mora) > 0 || esVencido(c) || vencidaPorPlazo(c, info);
   for (const c of activos) {
     const info = infoCredito(cv, c);
     const clave = claveCredito(c.id, c.producto);
@@ -3957,7 +3995,8 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       // dictado de Monse (29-jul) "mora = los faltantes de pago de los créditos
       // ACTIVOS". Un vencido ya no tiene cuota que esperar, está en recuperación
       // — y lo que entre de él es RECUPERACIÓN, no cobranza de la semana.
-      if (!esCuotaVariable(c.producto) && !esVencido(c) && !aunNoDesembolsa(c)) {
+      if (!esCuotaVariable(c.producto) && !esVencido(c) && !aunNoDesembolsa(c)
+          && !vencidaPorPlazo(c, info)) {
         const cu = Math.min(Number(c.cuota) || 0, info.saldoActual);
         esperado += cu;
         const d = idxDia(c.diaPago);
@@ -3977,7 +4016,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // con cuotas de $320. Sumarla y pintarla como "$21 de mora" era enseñar un
     // número falso. El DINERO en riesgo es otro: el saldo vivo de ese crédito.
     if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, cuotasSinPagar: mora, saldoActual: info.saldoActual }); }
-    if (enRecuperacion(c)) acc.enRiesgo = (acc.enRiesgo || 0) + info.saldoActual;
+    if (enRecuperacion(c, info)) acc.enRiesgo = (acc.enRiesgo || 0) + info.saldoActual;
     const np = numeroDePago(c, info.saldoActual);
     if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
     const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, esperadoALaFecha: 0, pendiente_: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, enMora: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
@@ -6183,6 +6222,11 @@ function moraDelDia(usuario, fecha) {
     if (String(c.diaPago || "").trim().toUpperCase() !== dia) continue;   // solo los que cobran HOY
     if (infoCredito(cv, c).saldoActual <= 0.009) { fuera.liquidados++; continue; }
     if (/vencid/i.test(String(c.estatus || ""))) { fuera.vencidos++; continue; }
+    // La vencida por plazo cumplido (25-ago) tampoco es mora del día: es
+    // recuperación, igual que en la semanal. La referencia es el LUNES de la
+    // semana del día medido — la MISMA que usa la mora semanal — para que el
+    // día y el acumulado de su semana cuadren al centavo entre sí.
+    if (vencidaPorPlazo(c, infoCredito(cv, c), lunes)) { fuera.vencidos++; continue; }
     if (esCuotaVariable(c.producto)) { fuera.cuotaVariable++; continue; }
     const cuota = Number(c.cuota) || 0;
     if (cuota <= 0) { fuera.sinCuota++; continue; }
@@ -6268,6 +6312,10 @@ function moraDelDia(usuario, fecha) {
       const infoK = infoCredito(cv, c);
       if (infoK.saldoActual <= 0.009) continue;
       if (/vencid/i.test(String(c.estatus || ""))) continue;
+      // La vencida por plazo cumplido sale del acumulado con la MISMA
+      // referencia que el bloque del día (el lunes de la semana): si no, el
+      // día y su renglón del acumulado dan distinto y parecen contradecirse.
+      if (vencidaPorPlazo(c, infoK, lunes)) continue;
       if (esCuotaVariable(c.producto)) continue;
       const cuotaK = Number(c.cuota) || 0;
       if (cuotaK <= 0) continue;
@@ -7122,6 +7170,8 @@ function moraDeUnaSemana(usuario, lunes) {
     porCentro: Object.keys(porCentro).sort((a2, b2) => porCentro[b2] - porCentro[a2])
       .map((c) => ({ centro: c, falta: porCentro[c] })),
     filas: mias,
+    // Sus vencidas por plazo cumplido: fuera de la mora, pero A LA VISTA.
+    vencidas: (d.vencidasPlazo || []).filter((x) => norm(x.ejecutivo) === norm(usuario.nombre)),
   };
 }
 

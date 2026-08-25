@@ -805,6 +805,12 @@ function etiquetaDia(iso) {
   const f = new Date(a, m - 1, d);
   return DIAS_SEM[f.getDay()] + " " + d + "-" + ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"][m - 1];
 }
+// Fecha corta con año, para los badges ("11-ago-2026").
+function fechaBonita(iso) {
+  const [a, m, d] = String(iso).split("-").map(Number);
+  if (!a || !m || !d) return String(iso || "");
+  return d + "-" + ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"][m - 1] + "-" + a;
+}
 function pintarBotonArqueo() {
   const b = $("btnArqueo"); if (!b) return;
   const f = FECHA_VISTA || FECHA_HOY;
@@ -1009,7 +1015,9 @@ async function buscar() {
 // La plantilla escribe "VENCIDO" (y "CREDITO VENCIDO A RECUPERAR"), no "VENCIDA":
 // comparar contra "VENCIDA" hacía que el botón dijera "Marcar vencida" en un
 // crédito que YA estaba vencido (mismo detalle que se corrigió en el servidor).
-function esVencidaUI(c) { return /vencid/i.test(String((c && c.estatus) || "")); }
+// También cuenta la VENCIDA DERIVADA (25-ago): terminó su plazo y sigue
+// debiendo — el servidor la manda marcada en `vencidaPlazo`, nadie la captura.
+function esVencidaUI(c) { return /vencid/i.test(String((c && c.estatus) || "")) || !!(c && c.vencidaPlazo); }
 // ---------- créditos y saldos · solo Anel y Monse ----------
 // Saber quién entró para revelar el panel y las acciones de cartera.
 async function cargarYo() {
@@ -1119,7 +1127,8 @@ function tarjetaCredito(c, i) {
   const liquidado = !esBaja && saldoAct <= 0.009 && (c.saldo || 0) > 0;
   if (esBaja) badge = '<span class="rbadge-baja">' + (c.estatus === "LIQUIDADO" ? "LIQUIDADO" : "BAJA") + "</span>";
   else if (liquidado) badge = '<span class="rbadge-liq">LIQUIDADO</span>';
-  else if (esVencidaUI(c)) badge = '<span class="rbadge-venc">VENCIDA</span>';
+  else if (esVencidaUI(c)) badge = '<span class="rbadge-venc">VENCIDA'
+    + (c.vencidaPlazo && c.finPlazo ? " · TERMINÓ SU PLAZO EL " + hesc(fechaBonita(c.finPlazo)) : "") + "</span>";
   let acc = "";
   // UN CRÉDITO DE BAJA TAMBIÉN SE PUEDE RE-DAR (Karina, 10-ago). Antes la
   // tarjeta de baja no traía ningún botón, así que si una clienta terminaba con
@@ -2250,7 +2259,20 @@ async function pintarMoraBloque() {
     + dinero(d.totalVencido == null ? d.total : d.totalVencido)
     + '</div><div class="ct-l">mora · ya venció <span style="color:#324AB6;font-weight:800">· ver quiénes</span></div></div>'
     + '<div><div class="ct-n">' + dinero(d.totalPorVencer || 0) + '</div><div class="ct-l">pendiente de cobro · aún no vence</div></div>'
-    + rec + '</div><div id="semLista"></div>';
+    + rec + '</div>'
+    // VENCIDAS POR PLAZO CUMPLIDO (25-ago): terminaron su calendario y siguen
+    // debiendo. No van en la mora semanal (regla Monse: eso es recuperación)
+    // pero tampoco se esconden — es la observación de la cartera de Neri.
+    + ((d.vencidasPlazo || []).length
+      ? '<div style="margin-top:8px;padding:8px 10px;border:1px solid rgba(176,0,32,.3);border-radius:9px;background:rgba(176,0,32,.04)">'
+        + '<div style="font-weight:800;color:#B00020;font-size:12.5px">VENCIDAS — terminaron su plazo y siguen debiendo ('
+        + d.vencidasPlazo.length + ") · van en recuperación, no en la mora semanal</div>"
+        + d.vencidasPlazo.map((x) => '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid rgba(0,0,0,.06);font-size:12.5px">'
+            + "<span><b>" + hesc(x.clienta) + "</b> <span style=\"opacity:.65;font-size:11px\">" + hesc(x.producto)
+            + " · " + hesc(x.ejecutivo) + " · terminó el " + hesc(fechaBonita(x.fin)) + "</span></span>"
+            + '<b style="color:#B00020;white-space:nowrap">debe ' + dinero(x.saldo) + "</b></div>").join("")
+        + "</div>" : "")
+    + '<div id="semLista"></div>';
 }
 
 // El botón de "sin fecha de desembolso" dice CUÁNTOS son: si son cero, se

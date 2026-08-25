@@ -8,7 +8,7 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v15"; // v15: vivos.js SIEMPRE fresco (la mora en la app)
+const CACHE = "fooax-v16"; // v16: la app marca las VENCIDAS por plazo cumplido
 
 // LA LÓGICA VIVA NUNCA SE SIRVE VIEJA (Karina, 15-ago: «no encontré lo de la
 // mora en la app de Neri»). Estos archivos son el cerebro que baja del

@@ -3477,7 +3477,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el service worker ya NO sirve la lógica viva desde el cache",
     /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
   ok("y su versión de cache cambió, para que los teléfonos la tomen",
-    /fooax-v15/.test(sw78), "no se movió la versión del cache");
+    /fooax-v16/.test(sw78), "no se movió la versión del cache");
   const vjs78 = await (await fetch(U + "/vivos.js")).text();
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
@@ -3906,6 +3906,37 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const movsDir = await j(await fetch(U + "/api/movimientos?fecha=" + HOY, { headers: H(cd) }));
   ok("la app de una ejecutiva NO puede registrar entregas de crédito (rechazado, no guardado)",
     !(movsDir.lista || []).some((x) => /T102$/.test(String(x.folio))));
+
+  // — LA VENCIDA POR PLAZO CUMPLIDO (observación de la mora de Neri, 25-ago:
+  // «ya pasa a ser vencido porque terminó su plazo... la app no los marca») —
+  // Con el calendario vivo, nada cambia:
+  const cliVA = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const filaVA = ((cliVA.resultados || []).find((x) => x.producto === "Grupal-Basico") || {});
+  ok("un crédito con su calendario vivo NO se marca vencido",
+    !filaVA.vencidaPlazo, "fin=" + filaVA.finPlazo);
+  // Se le captura su historia real: desembolsada en enero a 18 pagos → su
+  // calendario terminó el 11-may y sigue debiendo. Nadie la marca: se deriva.
+  await fetch(U + "/api/creditos/captura", { method: "POST", headers: H(cpd102),
+    body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      desembolso: "2026-01-05", plazo: 18, motivo: "su historia real, para la prueba" }) });
+  const cliVB = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const filaVB = ((cliVB.resultados || []).find((x) => x.producto === "Grupal-Basico") || {});
+  ok("terminó su plazo y sigue debiendo → la tarjeta la marca VENCIDA sola, con su fecha",
+    filaVB.vencidaPlazo === true && filaVB.finPlazo === "2026-05-11",
+    "vencidaPlazo=" + filaVB.vencidaPlazo + " fin=" + filaVB.finPlazo);
+  const moraVP = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  const vpFila = (moraVP.vencidasPlazo || []).find((x) => x.socio === "70000009102");
+  ok("sale de la mora semanal pero NO en silencio: viaja en la lista de vencidas con fin y saldo",
+    !!vpFila && vpFila.fin === "2026-05-11" && vpFila.saldo > 0, JSON.stringify(vpFila || {}));
+  ok("y la mora semanal ya no le exige cuota (su dinero es recuperación)",
+    !(moraVP.dias || []).some((g) => (g.filas || []).some((x) => x.socio === "70000009102")));
+  const vivosVP = await j(await fetch(U + "/api/vivos", { headers: H(await login("neri", "neri2026")) }));
+  const vApp = (((vivosVP.mora || {}).vencidas) || []).find((x) => x.socio === "70000009102");
+  ok("y la app de Neri la trae MARCADA como vencida, con su fecha de término",
+    !!vApp && vApp.fin === "2026-05-11", JSON.stringify(vApp || {}));
+  const cartVP = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("el semáforo de cartera también la cuenta como vencida",
+    ((cartVP.semaforo || {}).vencida || 0) >= 1, JSON.stringify(cartVP.semaforo || {}));
 
   console.log("\n— 101. EL PAQUETE OFFLINE, EJECUTIVA POR EJECUTIVA (Karina, 24-ago) —");
   // «Checa que offline-first funcione en todos los ejecutivos, desde el celular,
@@ -4790,7 +4821,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const SACU81 = "70000009501";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: SACU81, nombre: "ADELANTA SU MARTES 81", producto: "Grupal-Basico",
-      centro: "GHANIMA", ejecutivo: "Neri", saldo: 10000, cuota: 500, plazo: 20,
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 10000, cuota: 500, plazo: 40,
       diaPago: "Martes", desembolso: "2026-03-23" }) });
   const d81a = await acum81();
   ok("sin pagar, su cuota entra al acumulado del martes",
@@ -5037,12 +5068,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const S74 = "70000009060";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S74, nombre: "PAGA A MEDIAS 74", producto: "Grupal-Basico",
-      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 20,
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 40,
       diaPago: "Lunes", desembolso: "2026-03-23" }) });
   const S74b = "70000009061";
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
     body: JSON.stringify({ id: S74b, nombre: "NO PAGA NADA 74", producto: "Grupal-Basico",
-      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 20,
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 40,
       diaPago: "Lunes", desembolso: "2026-03-23" }) });
   const LUN74 = lunesDeLaSemanaJS(HOY);
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: LUN74,

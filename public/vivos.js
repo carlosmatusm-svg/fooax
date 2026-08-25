@@ -311,7 +311,12 @@
     // número —que es lo que ella necesita traer en la cabeza— y se abre si lo
     // toca. Cerrada ocupa una línea; abierta enseña el detalle completo.
     var abierta = moraAbierta();
-    var color = total > 0 ? "#B00020" : "#0B7247";
+    // VENCIDAS POR PLAZO CUMPLIDO (25-ago): terminaron su calendario y siguen
+    // debiendo. Van fuera de la mora semanal (regla Monse: recuperación), pero
+    // la app las MARCA — era la observación de la cartera de Neri. Es un dato
+    // de HOY, así que se usa la lista vigente venga la vista que venga.
+    var vencs = m.vencidas || [];
+    var color = total > 0 || vencs.length ? "#B00020" : "#0B7247";
     var etiqueta = esMes ? "en el mes" : (w && w.lunes === hoyL ? "esta semana" : "esa semana");
     var renglon =
       '<div role="button" onclick="window.__moraToggle()" '
@@ -323,6 +328,8 @@
       + '<span style="opacity:.65;font-size:11.5px">'
       + (total > 0 ? cuantas + (cuantas === 1 ? " clienta " : " clientas ") + etiqueta : "al corriente")
       + "</span>"
+      + (vencs.length ? '<span style="font-weight:800;color:#B00020;font-size:11.5px">· '
+          + vencs.length + (vencs.length === 1 ? " vencida" : " vencidas") + "</span>" : "")
       + '<span style="margin-left:auto;opacity:.5;font-size:11px">' + (abierta ? "ocultar" : "ver") + "</span>"
       + "</div>";
 
@@ -351,6 +358,17 @@
       + (filas.length > top.length
           ? '<div style="opacity:.65;font-size:11.5px;margin-top:5px">y ' + (filas.length - top.length)
             + " más — arriba van las que más deben.</div>" : "")
+      + (vencs.length
+          ? '<div style="margin-top:7px;padding-top:6px;border-top:2px solid rgba(176,0,32,.25)">'
+            + '<div style="font-weight:800;color:#B00020;font-size:12px">VENCIDAS — terminó su plazo y siguen debiendo (recuperación)</div>'
+            + vencs.map(function (x) {
+                return '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:12.5px">'
+                  + "<span><b>" + hesc(x.clienta) + "</b><br>"
+                  + '<span style="opacity:.65;font-size:11px">' + hesc(x.centro || "") + " · " + hesc(x.producto || "")
+                  + " · terminó " + diaCorto(x.fin) + "</span></span>"
+                  + '<b style="color:#B00020;white-space:nowrap">' + pesos(x.saldo) + "</b></div>";
+              }).join("")
+            + "</div>" : "")
       + "</div>";
   }
 
@@ -361,7 +379,7 @@
   function mora(m) {
     if (!m || typeof m.total !== "number") return 0;
     var firma = JSON.stringify([m.total, m.clientas, m.totalMes, (m.semanas || []).length,
-      (m.filas || []).length]);
+      (m.filas || []).length, (m.vencidas || []).length]);
     var box = cajaMora();
     if (box.getAttribute("data-firma") === firma) return 0;
     box.setAttribute("data-firma", firma);
