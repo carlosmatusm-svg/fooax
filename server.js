@@ -5662,6 +5662,14 @@ function cierreDeCaja(usuario, lunesOpt, fechaOpt) {
   const dias = [];
   let entroCobranza = 0, entroMovs = 0, salio = 0;
   let transferencias = 0, depositos = 0, cheques = 0, garantias = 0;
+  // Los carriles del banco, partidos en ENTRA y SALE (Karina, 24-ago: el
+  // renglón del APARTE debe decir lo mismo que el de arriba, semana completa).
+  let trEntra = 0, trSale = 0, chequesCobranza = 0;
+  // Un renombre de concepto NO puede partir un renglón en dos («Recuperación /
+  // adelanto» y «Recuperación» salían por separado en el cierre del 17-22).
+  const unifica = (t2) => t2 === "Recuperación / adelanto" ? "Recuperación"
+    : t2 === "Garantía" ? "Garantía líquida"
+    : t2 === "Autorización / préstamo" ? "Autorización de préstamo" : t2;
   // LA COBRANZA COMPLETA, por forma de pago. Sin esto no se podía cuadrar el
   // cierre contra la tarjeta de Cartera: aquí solo entra el EFECTIVO, y la
   // diferencia —transferencias y depósitos— no se veía por ningún lado.
@@ -5680,13 +5688,15 @@ function cierreDeCaja(usuario, lunesOpt, fechaOpt) {
     let ent = 0, sal = 0;
     for (const m of movsDeFecha(fISO, usuario)) {
       const monto = Number(m.monto) || 0;
-      const tipo = tipoDeMov(m) || "Otro";
-      if (m.metodo === "transferencia") { transferencias += m.entrada ? monto : -monto; continue; }
+      const tipo = unifica(tipoDeMov(m) || "Otro");
+      if (m.metodo === "transferencia") { transferencias += m.entrada ? monto : -monto;
+        if (m.entrada) trEntra += monto; else trSale += monto; continue; }
       if (m.metodo === "cheque") { cheques += m.entrada ? monto : -monto; continue; }
       if (m.metodo === "mixto") {
         // Cada parte a su carril, como en las capturas de las apps.
         const tr = Number(m.mixTr) || 0;
         transferencias += m.entrada ? tr : -tr;
+        if (m.entrada) trEntra += tr; else trSale += tr;
         const ef = Number(m.mixEfe) || 0;
         if (m.entrada) { ent += ef; entradasPorTipo[tipo] = (entradasPorTipo[tipo] || 0) + ef; }
         else { sal += ef; const et2 = m.tipoGasto ? (tipo + " · " + m.tipoGasto) : tipo;
@@ -5704,6 +5714,7 @@ function cierreDeCaja(usuario, lunesOpt, fechaOpt) {
     entroCobranza += cob; entroMovs += ent; salio += sal;
     cobTransfer += (a.transferencia || 0) - (a.deposito || 0);
     cobDeposito += a.deposito || 0;
+    chequesCobranza += a.cheque || 0;   // los pagos de clientas con cheque también son de la semana
     transferencias += (a.transferencia || 0) - (a.deposito || 0);
     depositos += a.deposito || 0;
     garantias += a.garantias || 0;
@@ -5722,6 +5733,13 @@ function cierreDeCaja(usuario, lunesOpt, fechaOpt) {
       deposito: r2(cobDeposito), total: r2(entroCobranza + cobTransfer + cobDeposito) },
     // Esto NO es efectivo: va al banco. Se reporta aparte para que nadie lo sume.
     transferencias: r2(transferencias), depositos: r2(depositos), cheques: r2(cheques),
+    // Las transferencias DE TODA LA SEMANA que entraron (cobranza + movimientos)
+    // y las que salieron — el renglón del APARTE dice el primero, tal cual.
+    transferenciasEntraron: r2(cobTransfer + trEntra), transferenciasSalieron: r2(trSale),
+    chequesCobranza: r2(chequesCobranza),
+    // TODO lo que entró en la semana, en todas las formas: el total que pidió
+    // Karina el 24-ago («ya vas a meter todo»).
+    totalEntroTodas: r2(entroCobranza + entroMovs + cobTransfer + trEntra + cobDeposito + chequesCobranza),
     entradasPorTipo, salidasPorTipo, dias,
   };
 }
@@ -5913,23 +5931,27 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
   // De dónde sale el número: el desglose por forma, para poder cuadrarlo contra
   // la tarjeta de Cartera sin adivinar (Karina, 6-ago).
   if (c.cobranza) {
-    enc("COBRANZA DE LA SEMANA, POR FORMA", "FF8A5A00");
-    linea("En efectivo — es lo único que entra a esta caja", c.cobranza.efectivo);
-    linea("En transferencias — van al banco", c.cobranza.transferencia);
-    linea("En depósitos Oxxo / tienda — van al banco", c.cobranza.deposito);
-    linea("TOTAL COBRADO EN LA SEMANA", c.cobranza.total, true);
+  }
+  // UNA SOLA SECCIÓN DE ENTRADAS (Karina, 24-ago: «ya vas a meter todo — el
+  // efectivo, transferencias, cobranza por forma y más entró en efectivo; esas
+  // dos tienen que fundirse»). Antes «cobranza por forma» y «entró en
+  // efectivo» eran dos bloques con dos totales que había que sumar de cabeza.
+  enc("TOTAL QUE ENTRÓ EN LA SEMANA — todas las formas", RIO).getCell(4).value = null;
+  linea("En EFECTIVO — cobranza (fichas, garantías y solidario)", c.entroCobranza);
+  for (const k of Object.keys(c.entradasPorTipo).sort((a, b) => c.entradasPorTipo[b] - c.entradasPorTipo[a]))
+    linea("   " + k + " (efectivo)", c.entradasPorTipo[k]);
+  linea("Subtotal en efectivo — es lo único que entra a esta caja", c.entro, true);
+  linea("En TRANSFERENCIAS — cobranza y movimientos, van al banco", c.transferenciasEntraron);
+  linea("En DEPÓSITOS OXXO / tienda — van al banco", c.cobranza.deposito);
+  if (c.chequesCobranza) linea("En CHEQUES — son papel, van al banco", c.chequesCobranza);
+  linea("TOTAL QUE ENTRÓ", c.totalEntroTodas, true);
+  {
     const rn = s.getRow(fila++); s.mergeCells(fila - 1, 1, fila - 1, 4);
-    rn.getCell(1).value = "Este total incluye garantías y solidario, y lo cobrado a créditos en recuperación. "
+    rn.getCell(1).value = "Incluye garantías y solidario, y lo cobrado a créditos en recuperación. "
       + "La tarjeta de Cartera los reporta aparte, por eso los dos números no son el mismo.";
     rn.getCell(1).font = { italic: true, size: 9 };
     rn.getCell(1).alignment = { wrapText: true };
-    fila++;
   }
-  enc("ENTRÓ EN EFECTIVO", RIO).getCell(4).value = null;
-  linea("Cobranza en efectivo (fichas, garantías y solidario)", c.entroCobranza);
-  for (const k of Object.keys(c.entradasPorTipo).sort((a, b) => c.entradasPorTipo[b] - c.entradasPorTipo[a]))
-    linea("   " + k, c.entradasPorTipo[k]);
-  linea("TOTAL QUE ENTRÓ", c.entro, true);
   fila++;
   enc("SALIÓ EN EFECTIVO", RIO);
   const sal = Object.keys(c.salidasPorTipo).sort((a, b) => c.salidasPorTipo[b] - c.salidasPorTipo[a]);
@@ -5938,24 +5960,23 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
   linea("TOTAL QUE SALIÓ", c.salio, true);
   fila++;
   const rq = s.getRow(fila++); s.mergeCells(fila - 1, 1, fila - 1, 3);
-  rq.getCell(1).value = "EFECTIVO QUE DEBE QUEDAR EL SÁBADO";
+  rq.getCell(1).value = "EFECTIVO QUE DEBE QUEDAR EL SÁBADO — solo el efectivo que se queda o entrega a Dirección General";
   rq.getCell(1).font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
   rq.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: VERDE } };
   const cq = rq.getCell(4); cq.value = c.quedaEnCaja; cq.numFmt = dinero;
   cq.font = { bold: true, size: 12, color: { argb: VERDE } };
   fila++;
   enc("APARTE — NO ES EFECTIVO, VA AL BANCO", "FF8A5A00");
-  // LA NOTA ROJA E27 de la Ing. Karina: este renglón «debe ser el mismo
-  // importe que se reflejó al inicio en transferencias». Antes mezclaba los
-  // movimientos (la parte transferida de un mixto, pagos por transferencia) y
-  // los dos renglones no cuadraban entre sí. La cobranza va sola, y lo demás
-  // en su propio renglón — nada se esconde, pero cada cifra cuadra con la suya.
-  linea("Transferencias (la cobranza de arriba)", c.cobranza.transferencia);
-  const movTr = Math.round((c.transferencias - c.cobranza.transferencia) * 100) / 100;
-  if (Math.abs(movTr) >= 0.01)
-    linea("Movimientos por transferencia (mixtos, pagos, entregas)", movTr);
+  // EL MISMO IMPORTE que el renglón de transferencias de arriba, SEMANA
+  // COMPLETA (Karina, 24-ago). Un solo número en los dos lugares: cobranza +
+  // movimientos que entraron por transferencia. Si algo SALIÓ por
+  // transferencia, se dice en su renglón para que el banco cuadre.
+  linea("Transferencias — las mismas de arriba, semana completa", c.transferenciasEntraron);
+  if (c.transferenciasSalieron)
+    linea("   − salidas por transferencia (pagos, entregas)", -c.transferenciasSalieron);
   linea("Depósitos Oxxo / tienda", c.depositos);
-  if (c.cheques) linea("Cheques (son papel, no billetes)", c.cheques);
+  if (c.chequesCobranza || c.cheques)
+    linea("Cheques (son papel, no billetes)", Math.round(((c.chequesCobranza || 0) + (c.cheques || 0)) * 100) / 100);
   fila++;
   const rh = s.getRow(fila++);
   ["Día", "Entró", "Salió", "Neto"].forEach((h, i) => { const cc = rh.getCell(i + 1);

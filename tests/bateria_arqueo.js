@@ -3843,15 +3843,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const xci = await fetch(U + "/api/semana/caja/excel?fecha=" + HOY, { headers: H(cm) });
   const Ex103 = require("exceljs"); const wb103 = new Ex103.Workbook();
   await wb103.xlsx.load(Buffer.from(await xci.arrayBuffer()));
-  let arriba103 = null, aparte103 = null;
+  let arriba103 = null, aparte103 = null, totalTodas103 = null, subEf103 = null;
   wb103.worksheets[0].eachRow((r) => {
     const t2 = String(r.getCell(1).value || "");
-    if (/^En transferencias/.test(t2)) arriba103 = Number(r.getCell(4).value) || 0;
-    if (/^Transferencias \(la cobranza/.test(t2)) aparte103 = Number(r.getCell(4).value) || 0;
+    if (/^En TRANSFERENCIAS/.test(t2)) arriba103 = Number(r.getCell(4).value) || 0;
+    if (/^Transferencias — las mismas/.test(t2)) aparte103 = Number(r.getCell(4).value) || 0;
+    if (/^TOTAL QUE ENTRÓ$/.test(t2)) totalTodas103 = Number(r.getCell(4).value) || 0;
+    if (/^Subtotal en efectivo/.test(t2)) subEf103 = Number(r.getCell(4).value) || 0;
   });
-  ok("la nota roja E27: transferencias del APARTE = las de arriba, mismo importe",
+  ok("las transferencias del APARTE = las de arriba, semana completa, MISMO importe",
     arriba103 != null && aparte103 != null && Math.abs(arriba103 - aparte103) < 0.01,
     arriba103 + " vs " + aparte103);
+  ok("hay UNA sola sección de entradas y su TOTAL mete todas las formas",
+    totalTodas103 != null && subEf103 != null
+    && Math.abs(totalTodas103 - cie103.totalEntroTodas) < 0.01
+    && Math.abs(subEf103 - cie103.entro) < 0.01,
+    totalTodas103 + " vs " + cie103.totalEntroTodas);
+  ok("y el QUEDA del sábado sigue siendo SOLO efectivo (subtotal − salió)",
+    Math.abs(cie103.quedaEnCaja - (cie103.entro - cie103.salio)) < 0.01);
 
   // Y LAS EJECUTIVAS SIGUEN FUERA DE LA TESORERÍA: su app no puede entregar créditos.
   const sync102 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
