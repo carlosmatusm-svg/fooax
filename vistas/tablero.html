@@ -1679,9 +1679,18 @@ function tipoMovCambio() {
   if (campo) {
     campo.style.display = c.clienta ? "" : "none";
     const lab = campo.querySelector("label");
-    if (lab) lab.textContent = c.clienta === "obliga"
-      ? "¿De qué clienta es? (obligatorio: le baja el saldo)"
-      : "¿De qué clienta es? (opcional)";
+    // LA ETIQUETA DICE LO QUE DE VERDAD PASA (Karina, 24-ago: «en un
+    // desembolso nada más está saliendo el dinero — no le baja el saldo»).
+    // La de liquidación se había quedado pegada para todos los conceptos.
+    if (lab) lab.textContent = c.clienta !== "obliga"
+      ? "¿De qué clienta es? (opcional)"
+      : (/^(liquidaci|recuperaci)/i.test(c.nombre || "")
+          ? "¿De qué clienta es? (obligatorio: le baja el saldo)"
+        : /^garant/i.test(c.nombre || "") && !/entregada/i.test(c.nombre || "")
+          ? "¿De qué clienta es? (obligatorio: le suma a su garantía guardada)"
+        : /entregada/i.test(c.nombre || "")
+          ? "¿A qué clienta se le entrega? (obligatorio: sale de su garantía guardada)"
+          : "¿A qué clienta se le entrega? (obligatorio: queda en su perfil — NO le baja el saldo)");
     if (!c.clienta) { const sc = $("mSocio"); if (sc) sc.value = ""; }
   }
 }
@@ -1731,10 +1740,18 @@ async function desgloseDelMov() {
   } catch { return; }
   if (!d || !d.ok) return;   // sin desglose no se estorba: el hint normal se queda
   const t = d.totales || {};
+  const tipoSel = ($("mTipo") || {}).value || "";
+  const cola = /^(liquidaci|recuperaci)/i.test(tipoSel)
+      ? "el abono le baja el saldo a ESTE crédito y a ningún otro"
+    : /^garant/i.test(tipoSel) && !/entregada/i.test(tipoSel)
+      ? "esta garantía se le SUMA a su guardado — no toca su saldo"
+    : /entregada/i.test(tipoSel)
+      ? "sale de su garantía guardada — no toca su saldo"
+      : "se le ENTREGA dinero: queda en su perfil y en el reporte de otorgados — NO le baja el saldo";
   hint.innerHTML = "Este crédito: cuota <b>" + dinero(d.cuota) + "</b> · total a pagar <b>"
     + dinero(t.aPagar || 0) + "</b> · interés " + dinero(t.interes || 0)
     + (t.iva ? " + IVA " + dinero(t.iva) : " (sin IVA)")
-    + ' <span style="color:#6B6480">· el abono le baja el saldo a ESTE crédito y a ningún otro</span>';
+    + ' <span style="color:#6B6480">· ' + cola + "</span>";
 }
 let ejecsCargadas = false;
 async function cargarEjecutivos() {

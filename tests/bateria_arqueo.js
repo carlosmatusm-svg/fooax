@@ -916,11 +916,14 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const filasGasto = [];
   wsGasto.eachRow((r) => { const f = []; r.eachCell({ includeEmpty: true }, (c) => f.push(String(c.value == null ? "" : c.value))); filasGasto.push(f.join(" | ")); });
   const planoGasto = filasGasto.join("\n");
-  ok("el Excel trae el bloque de gastos con su detalle",
-    /GASTOS Y MOVIMIENTOS DE CAJA/.test(planoGasto) && /pasaje/.test(planoGasto) && /papeleria/.test(planoGasto),
+  // Desde el 24-ago el listado viejo («GASTOS Y MOVIMIENTOS DE CAJA») se fue:
+  // lo reemplaza el DESGLOSE DE MOVIMIENTOS agrupado por concepto, que trae el
+  // mismo detalle sin duplicar el dinero con otro acomodo.
+  ok("el Excel trae el desglose de movimientos con su detalle",
+    /DESGLOSE DE MOVIMIENTOS DE CAJA/.test(planoGasto) && /pasaje/i.test(planoGasto) && /papeleria/i.test(planoGasto),
     planoGasto.slice(0, 150));
-  ok("cada gasto sale en NEGATIVO y la entrada en positivo",
-    /-300/.test(planoGasto) && /-150/.test(planoGasto) && /\|\s*600/.test(planoGasto), "");
+  ok("los montos del desglose están, con la entrada incluida",
+    /300/.test(planoGasto) && /150/.test(planoGasto) && /600/.test(planoGasto), "");
   ok("el arqueo se muestra INTACTO: 'TOTAL CONTADO EN CAJA' con lo que ella contó",
     /TOTAL CONTADO EN CAJA/i.test(planoGasto) && /3150/.test(planoGasto), "");
   ok("y las deducciones van en su propio bloque, después del arqueo",
@@ -3683,6 +3686,35 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico" }));
   ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",
     !gEnt2.error, JSON.stringify(gEnt2).slice(0, 60));
+
+  // GARANTÍA A: la de ahorro, con guardado PROPIO separado de la líquida.
+  const gaSinGA = await mov102({ tipo: "Garantía A", monto: 200, concepto: "sin clienta" });
+  ok("la Garantía A sin clienta se rechaza", gaSinGA.status === 400, "status " + gaSinGA.status);
+  await mov102({ tipo: "Garantía A", monto: 200, concepto: "Ahorro",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  const dgAGA = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("la Garantía A tiene su guardado PROPIO ($200), separado del de la líquida",
+    dgAGA.ok && dgAGA.garantiaAGuardada === 200,
+    "A=" + dgAGA.garantiaAGuardada + " líquida=" + dgAGA.garantiaGuardada);
+  const gaMasGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 500,
+    concepto: "de más", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("entregar más Garantía A de la guardada se rechaza, nombrándola",
+    /Garantía A/.test(gaMasGA.error || ""), String(gaMasGA.error || "").slice(0, 80));
+  const gaOkGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 200,
+    concepto: "se entrega", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("y entregar lo guardado sí pasa: el ciclo A cierra en 0", !gaOkGA.error);
+  // Y LO QUE ME SEÑALÓ DEL DESEMBOLSO: el dinero sale, el saldo NO se toca.
+  const antes102GA = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const sAntesGA = ((antes102GA.resultados || [])[0] || {});
+  const saldoAntesGA = sAntesGA.saldoActual != null ? sAntesGA.saldoActual : sAntesGA.saldo;
+  await mov102({ tipo: "Desembolso", monto: 2500, concepto: "crédito nuevo",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  const desp102GA = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const sDespGA = ((desp102GA.resultados || [])[0] || {});
+  const saldoDespGA = sDespGA.saldoActual != null ? sDespGA.saldoActual : sDespGA.saldo;
+  ok("un DESEMBOLSO no le baja el saldo a la clienta: solo sale el dinero",
+    Math.abs(saldoAntesGA - saldoDespGA) < 0.01, saldoAntesGA + " → " + saldoDespGA);
 
   const vetoOffX2 = await mov102({ tipo: "Gasto operativo", monto: 200,
     concepto: "Devolución de garantía a Rosa PRUEBA" });

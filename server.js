@@ -1256,10 +1256,28 @@ function carteraViva(usuario) {
   // Entregas de garantía por crédito (tesorería, desde el corte). Si el
   // movimiento no dice producto y la socia tiene UN crédito activo, es ese —
   // la misma regla de las liquidaciones.
-  const entregasGar = {}, cobrosGarMov = {};
+  const entregasGar = {}, cobrosGarMov = {}, cobrosGarA = {}, entregasGarA = {};
+  const esGarA = (t2) => /^garant[íi]a a\b/i.test(t2);
   for (const mg of (store.respaldo().movimientos || [])) {
     if (mg.anulado) continue;
     const tG = tipoDeMov(mg) || "";
+    // GARANTÍA A: su propio guardado, separado del de la líquida (Karina,
+    // 24-ago: la de ahorro, que no se puede llamar así oficialmente).
+    if (esGarA(tG)) {
+      if ((mg.fecha || "") < corte) continue;
+      const sA = socioDeMov(mg); if (!sA) continue;
+      let pA = productoDeMov(mg);
+      if (!pA) {
+        const suA = PADRON.filter((x) => String(x.id) === String(sA)
+          && x.activa !== false && x.estatus !== "BAJA");
+        if (suA.length === 1) pA = suA[0].producto;
+      }
+      if (!pA) continue;
+      const kA = claveCredito(sA, pA);
+      const destinoA = mg.entrada ? cobrosGarA : entregasGarA;
+      destinoA[kA] = (destinoA[kA] || 0) + (Number(mg.monto) || 0);
+      continue;
+    }
     // GARANTÍA COBRADA por Dirección (entrada): suma al guardado de la clienta.
     // Entraba a la caja pero no le llegaba al perfil (Karina, 24-ago).
     if (mg.entrada && /^garant/i.test(tG) && !/líquida|liquida/i.test(tG)) {
@@ -1317,6 +1335,7 @@ function carteraViva(usuario) {
     // la garantía que de verdad queda, no la histórica.
     const garan = Math.max(0, (garantias[clave] || 0) + (cobrosGarMov[clave] || 0)
       - (prev ? (prev.gar || 0) : 0) - (entregasGar[clave] || 0));
+    const garanA = Math.max(0, (cobrosGarA[clave] || 0) - (entregasGarA[clave] || 0));
     // Las liquidaciones son por SOCIO y se reparten entre sus créditos en orden
     // fijo. Lo que ya consumió el ciclo cerrado se aparta antes de repartir.
     const usado = liqRestante["__usado__" + soc] || (liqRestante["__usado__" + soc] = 0);
@@ -1349,7 +1368,7 @@ function carteraViva(usuario) {
     const repartido = Math.min(disp, Math.max(0, tope - exacto));
     const liquidado = exacto + repartido;
     if (repartido > 0) liqRestante["__usado__" + soc] = usado + repartido;
-    porCredito.set(clave, { pagado, liquidado, garantia: garan,
+    porCredito.set(clave, { pagado, liquidado, garantia: garan, garantiaA: garanA,
       saldoActual: Math.max(0, (c.saldo || 0) - pagado - liquidado),
       // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo.
       fechasLiq: liquidado > 0 ? Object.keys(fechasLiq[soc] || {}) : [] });
@@ -3726,10 +3745,12 @@ function desgloseDeCredito(c) {
   const p0 = t.pagos[0] || {};
   // La garantía que la clienta tiene GUARDADA (neteada): es lo que Dirección
   // necesita ver antes de entregarle una garantía líquida.
-  let garantiaGuardada = 0;
-  try { garantiaGuardada = infoCredito(carteraViva({ rol: "direccion", nombre: "Dirección" }), c).garantia || 0; } catch (e2) {}
+  let garantiaGuardada = 0, garantiaAG = 0;
+  try { const iG = infoCredito(carteraViva({ rol: "direccion", nombre: "Dirección" }), c);
+    garantiaGuardada = iG.garantia || 0; garantiaAG = iG.garantiaA || 0; } catch (e2) {}
   return { ok: true, producto: t.producto, clave: r.clave, ciclo: r.ciclo || null, plazo,
     garantiaGuardada: Math.round(garantiaGuardada * 100) / 100,
+    garantiaAGuardada: Math.round((garantiaAG || 0) * 100) / 100,
     monto, deducido, cuota: t.cuota || p0.cuota || 0,
     primerPago: { capital: p0.capital, interes: p0.interes, iva: p0.iva },
     totales: t.totales,
@@ -4831,6 +4852,11 @@ const CONCEPTOS_DIR = {
   // linkea a su crédito y le SUMA a su garantía guardada — simétrico a la
   // Garantía líquida entregada, que se la resta.
   "Garantía":                    { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  // GARANTÍA A (Karina, 24-ago): la garantía de AHORRO — no se le puede llamar
+  // así oficialmente, por eso el nombre corto. Mismo trato que la líquida:
+  // clienta obligada, guardado PROPIO (separado del de la líquida), y su
+  // entrega topada a lo que la clienta tenga juntado de este tipo.
+  "Garantía A":                  { entrada: true,  categoria: "Otro", clienta: "obliga" },
   // ENTRADAS DE TESORERÍA (requerimientos de la Ing. Karina, 24-ago): dinero
   // que se INYECTA a la caja para completar el día.
   "Recurso de bancos para caja": { entrada: true,  categoria: "Recurso de bancos para caja", tesoreria: true },
@@ -4852,6 +4878,7 @@ const CONCEPTOS_DIR = {
   // reporte de créditos otorgados.
   "Desembolso":                  { entrada: false, categoria: "Desembolso", clienta: "obliga", tesoreria: true },
   "Garantía líquida entregada":  { entrada: false, categoria: "Garantía líquida entregada", clienta: "obliga", tesoreria: true },
+  "Garantía A entregada":        { entrada: false, categoria: "Garantía A entregada", clienta: "obliga", tesoreria: true },
   // "Autorización / préstamo" queda FUERA (Karina, 19-ago). Con ese concepto se
   // registraban las ENTREGAS DE CRÉDITO: el 13-ago salieron $86,000 en un día
   // —$31,000 a una sola clienta— por una caja que es CHICA, para gastos de
@@ -5221,15 +5248,19 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // GARANTÍA LÍQUIDA ENTREGADA: no se puede entregar más de lo que la clienta
   // tiene GUARDADO (su garantía cobrada, ya neteada con entregas anteriores).
   // El mensaje trae el disponible, para no dejar a nadie adivinando.
-  if (/garantía líquida|garantia liquida/i.test(String(b.tipo || "")) && socio) {
+  if (/garantía (líquida|a)|garantia (liquida|a)/i.test(String(b.tipo || ""))
+      && /entregada/i.test(String(b.tipo || "")) && socio) {
+    const esA = /garant[íi]a a\b/i.test(String(b.tipo || ""));
     const credG = PADRON.find((x) => String(x.id) === socio && x.activa !== false
       && x.estatus !== "BAJA" && (!producto || nprod(x.producto) === nprod(producto)));
     if (credG) {
-      const dispon = infoCredito(carteraViva(req.usuario), credG).garantia || 0;
+      const infoG = infoCredito(carteraViva(req.usuario), credG);
+      const dispon = (esA ? infoG.garantiaA : infoG.garantia) || 0;
       if (monto > dispon + 0.009)
         return res.status(400).json({ error: "Esa clienta solo tiene $"
           + dispon.toLocaleString("es-MX", { minimumFractionDigits: 2 })
-          + " de garantía guardada: no se le pueden entregar $"
+          + " de " + (esA ? "Garantía A" : "garantía líquida")
+          + " guardada: no se le pueden entregar $"
           + monto.toLocaleString("es-MX", { minimumFractionDigits: 2 }) + "." });
     }
   }
@@ -5819,7 +5850,7 @@ function cajaDelDia(usuario, fecha) {
       else cat.otrasEntradas += monto;              // liquidaciones, recuperaciones, comisiones
     } else {
       if (/autorizaci|desembols/i.test(t)) cat.autorizaciones += monto;
-      else if (/garantía líquida|garantia liquida/i.test(t)) cat.garantiasEntregadas += monto;
+      else if (/^garant/i.test(t)) cat.garantiasEntregadas += monto;
       else cat.gastosRetiros += monto;              // gastos operativos y retiros
     }
   }
@@ -6367,7 +6398,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   if (caja.recursosDireccion) linea("+ Recurso aportado por Dirección General", caja.recursosDireccion);
   linea("− Autorizaciones y desembolsos (créditos otorgados hoy)", -caja.autorizaciones);
   linea("− Gastos y retiros en efectivo", -caja.gastosRetiros);
-  linea("− Garantías líquidas entregadas", -caja.garantiasEntregadas);
+  linea("− Garantías entregadas (líquida y A)", -caja.garantiasEntregadas);
   {
     const rq = s.getRow(fila++);
     rq.getCell(1).value = "= QUEDA EN CAJA AL CIERRE (saldo inicial de mañana)";
@@ -6507,7 +6538,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     const grupos = [
       ["AUTORIZACIONES Y DESEMBOLSOS", (m2) => !m2.entrada && /autorizaci|desembols/i.test(tipoDeMov(m2) || "")],
       ["GASTOS Y RETIROS", (m2) => !m2.entrada && /gasto|retiro/i.test(tipoDeMov(m2) || "")],
-      ["GARANTÍAS LÍQUIDAS ENTREGADAS", (m2) => !m2.entrada && /garantía líquida|garantia liquida/i.test(tipoDeMov(m2) || "")],
+      ["GARANTÍAS ENTREGADAS (líquida y A)", (m2) => !m2.entrada && /^garant/i.test(tipoDeMov(m2) || "")],
       ["RECURSOS RECIBIDOS (bancos / Dirección)", (m2) => m2.entrada && /recurso/i.test(tipoDeMov(m2) || "")],
       ["OTRAS ENTRADAS (liquidaciones, recuperaciones, comisiones)", (m2) => m2.entrada && !/recurso/i.test(tipoDeMov(m2) || "")],
     ];
@@ -6530,7 +6561,21 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
         rg2.getCell(1).value = titulo; rg2.getCell(1).font = { bold: true, color: { argb: RIO } };
         for (const m2 of del) {
           const r = s.getRow(fila++);
-          r.getCell(1).value = (m2.clientaNombre ? m2.clientaNombre : String(m2.concepto || "").split(" — ")[0]).slice(0, 60);
+          // EL TIPO MANDA (Karina, 24-ago: «yo sé que le puse prueba, pero
+          // automáticamente tiene que decir Desembolso»). El concepto libre es
+          // nota, no título — y la clienta se resuelve del padrón, porque el
+          // movimiento guarda su socio pero no su nombre.
+          const tipoM2 = tipoDeMov(m2) || "";
+          const cPad = socioDeMov(m2) ? PADRON.find((x) => String(x.id) === String(socioDeMov(m2))) : null;
+          const quien2 = (cPad && cPad.nombre) || m2.clienta || m2.clientaNombre || "";
+          // La nota del gasto vive en tipoGasto («pasaje», «gasolina»); si no,
+          // en el concepto — quitándole el tipo de enfrente para no repetirlo.
+          let nota2 = m2.tipoGasto || String(m2.concepto || "").replace(/ — /g, " · ");
+          if (norm(nota2).indexOf(norm(tipoM2)) === 0)
+            nota2 = nota2.slice(tipoM2.length).replace(/^[\s·:—-]+/, "");
+          r.getCell(1).value = (tipoM2
+            + (quien2 ? " · " + quien2 : "")
+            + (nota2 && norm(nota2) !== norm(tipoM2) ? " · " + nota2 : "")).slice(0, 70);
           r.getCell(2).value = [m2.registradoPor, m2.autorizadoA ? "a " + m2.autorizadoA : ""].filter(Boolean).join(" · ");
           r.getCell(3).value = m2.metodo === "mixto"
             ? "Mixto: $" + (Number(m2.mixEfe) || 0).toLocaleString("es-MX") + " ef + $"
@@ -6548,79 +6593,12 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   // Karina no la trae, y la mora ya tiene su propia tarjeta y su propio Excel
   // (la mora de la semana, por día de cobro). Dos reportes contando la misma
   // mora con ventanas distintas era justo la confusión del 18-ago.
-  fila += 2;
-  // por ejecutiva: efectivo, transferencia y sus otros movimientos, igual que el tablero
-  const rh = s.getRow(fila++); rh.getCell(1).value = "Por ejecutiva"; rh.getCell(1).font = { bold: true, color: { argb: RIO } };
-  const pesos = (n) => n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
-  for (const id in a.porEjec) { const e = a.porEjec[id];
-    if (e.efectivo <= 0 && e.transferencia <= 0 && !e.movEntradas && !e.movSalidas) continue;
-    const r = s.getRow(fila++); r.getCell(1).value = e.nombre;
-    r.getCell(2).value = "efectivo"; r.getCell(2).alignment = { horizontal: "right" };
-    r.getCell(3).value = e.efectivo; r.getCell(3).numFmt = dinero;
-    const extra = [];
-    if (e.transferencia) extra.push("transf. " + pesos(e.transferencia));
-    if (e.movEntradas) extra.push("otros +" + pesos(e.movEntradas));
-    if (e.movSalidas) extra.push("otros −" + pesos(e.movSalidas));
-    r.getCell(4).value = extra.join(" · ");
-    r.getCell(4).alignment = { horizontal: "right" }; }
-
-  // DETALLE DE GASTOS Y MOVIMIENTOS. Antes el Excel decía "− Gastos $450" y nada
-  // más: Monse veía el monto pero no DE QUÉ fue, y tenía que preguntar por cada
-  // uno. Aquí van renglón por renglón, con quién lo capturó y su nota. Los
-  // ANULADOS también se listan (tachados en gris): si alguien borró un gasto de
-  // $2,000 eso tiene que verse, no desaparecer.
-  const movsDia = (movs || []).filter((m) => Number(m.monto) > 0);
-  if (movsDia.length) {
-    fila++;
-    const rt = s.getRow(fila++);
-    s.mergeCells(fila - 1, 1, fila - 1, 4);
-    const ct2 = rt.getCell(1);
-    ct2.value = "GASTOS Y MOVIMIENTOS DE CAJA DEL DÍA";
-    ct2.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    ct2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NARANJA } };
-    const rh2 = s.getRow(fila++);
-    ["Concepto", "Quién / nota", "Forma", "Monto"].forEach((h, i) => {
-      const c = rh2.getCell(i + 1); c.value = h;
-      c.font = { bold: true, color: { argb: "FF2A1F35" } };
-      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFECE6F1" } };
-      c.alignment = { horizontal: i === 3 ? "right" : "left" };
-    });
-    // Los campos son los que guarda el servidor: `registradoPor`, `metodo` y
-    // `autorizadoA` (no `ejecutivo`/`via`/`nota`, que son los de la app).
-    const via = { E: "Efectivo", T: "Transferencia", D: "Depósito", CH: "Cheque",
-      efectivo: "Efectivo", transferencia: "Transferencia", deposito: "Depósito", cheque: "Cheque" };
-    for (const m of movsDia) {
-      const r = s.getRow(fila++);
-      const entra = !!m.entrada;
-      r.getCell(1).value = String(m.concepto || m.categoria || "Movimiento");
-      // DE QUIÉN es el gasto primero, y quién lo capturó después: Monse necesita
-      // saber a qué ejecutiva cargarlo, no quién tecleó.
-      const dueño = ejecutivoDeMov(m);
-      r.getCell(2).value = [dueño ? "de " + USUARIOS[dueño].nombre : "",
-        m.registradoPor || m.usuario || "",
-        m.autorizadoA ? "a " + m.autorizadoA : ""].filter(Boolean).join(" · ");
-      const mt = String(m.metodo || m.via || "efectivo");
-      r.getCell(3).value = via[mt] || via[mt.toUpperCase()] || mt;
-      const cmn = r.getCell(4);
-      // Con signo: entra en positivo, sale en negativo. Así la columna se puede
-      // sumar y da exactamente el neto que aparece arriba.
-      cmn.value = entra ? Number(m.monto) : -Number(m.monto);
-      cmn.numFmt = dinero;
-      const gris = { argb: "FF9A93A6" };
-      if (m.anulado) {
-        [1, 2, 3, 4].forEach((i) => { r.getCell(i).font = { strike: true, color: gris }; });
-        r.getCell(2).value = (r.getCell(2).value ? r.getCell(2).value + " · " : "") + "ANULADO";
-      } else {
-        cmn.font = { bold: true, color: { argb: entra ? "FF0B7247" : "FFB00020" } };
-      }
-    }
-    const rtot = s.getRow(fila++);
-    rtot.getCell(1).value = "Neto de caja (así se movió el efectivo a entregar)";
-    rtot.getCell(1).font = { bold: true };
-    const ctt = rtot.getCell(4);
-    ctt.value = -egresosEfectivo; ctt.numFmt = dinero;
-    ctt.font = { bold: true, color: { argb: AURORA } };
-  }
+  // LOS DOS BLOQUES VIEJOS SE FUERON (Karina, 24-ago): «Por ejecutiva» lo
+  // reemplazó el Desglose de recepción de pagos (Efectivo | Transferencia |
+  // Oxxo | Cheque, con total), y «GASTOS Y MOVIMIENTOS DE CAJA DEL DÍA» lo
+  // reemplazó el DESGLOSE DE MOVIMIENTOS agrupado por concepto. Tener las dos
+  // versiones era leer el mismo dinero dos veces con acomodos distintos —
+  // «se puede malentender».
 
   const buf = await wb.xlsx.writeBuffer();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
