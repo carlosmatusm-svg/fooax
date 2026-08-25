@@ -3658,14 +3658,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     headers: H(cm), body: JSON.stringify({ folio: folio102, monto: 8000 }) });
   ok("sin motivo no hay corrección", cor102b.status === 400);
 
-  // LA GARANTÍA: obligada y topada a lo guardado (Karina, 24-ago).
+  // LA GARANTÍA: obligada y linkeada (Karina, 24-ago). El TOPE se quitó ese
+  // mismo día: las clientas traen garantía de ANTES del sistema, así que la
+  // entrega mayor a lo registrado PASA (anotada) — se prueba al final del ciclo.
   const gSinX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 100, concepto: "sin clienta" });
   ok("la garantía entregada SIN clienta se rechaza (obliga a elegir a quién)",
     gSinX2.status === 400, "status " + gSinX2.status);
-  const gMasX2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 5000,
-    concepto: "de más", socio: "70000009102", producto: "Grupal-Basico" }));
-  ok("y entregar MÁS de lo guardado se rechaza, diciendo cuánto tiene",
-    /solo tiene/.test(gMasX2.error || ""), String(gMasX2.error || "").slice(0, 80));
   const dgX2 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
   ok("el desglose del crédito dice la garantía guardada (ya neteada con la entrega)",
@@ -3686,6 +3684,17 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico" }));
   ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",
     !gEnt2.error, JSON.stringify(gEnt2).slice(0, 60));
+  const gMasX2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 400,
+    concepto: "trae garantía de antes", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("entregar MÁS de lo registrado también PASA (garantía de antes del corte)",
+    !gMasX2.error, JSON.stringify(gMasX2).slice(0, 70));
+  ok("pero queda ANOTADO en el movimiento cuánto conocía el sistema",
+    gMasX2.movimiento && /mayor a lo registrado/.test(gMasX2.movimiento.notaGarantia || ""),
+    String((gMasX2.movimiento || {}).notaGarantia || "").slice(0, 80));
+  const dgPiso = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("y el guardado registrado no se va a negativo: queda en 0",
+    dgPiso.ok && dgPiso.garantiaGuardada === 0, "guardada=" + dgPiso.garantiaGuardada);
 
   // GARANTÍA A: la de ahorro, con guardado PROPIO separado de la líquida.
   const gaSinGA = await mov102({ tipo: "Garantía A", monto: 200, concepto: "sin clienta" });
@@ -3698,9 +3707,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     dgAGA.ok && dgAGA.garantiaAGuardada === 200,
     "A=" + dgAGA.garantiaAGuardada + " líquida=" + dgAGA.garantiaGuardada);
   const gaMasGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 500,
-    concepto: "de más", socio: "70000009102", producto: "Grupal-Basico" }));
-  ok("entregar más Garantía A de la guardada se rechaza, nombrándola",
-    /Garantía A/.test(gaMasGA.error || ""), String(gaMasGA.error || "").slice(0, 80));
+    concepto: "trae de antes", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("la Garantía A mayor a lo registrado también pasa, anotada (el tope se quitó)",
+    !gaMasGA.error && gaMasGA.movimiento && /mayor a lo registrado/.test(gaMasGA.movimiento.notaGarantia || ""),
+    JSON.stringify(gaMasGA).slice(0, 80));
   const gaOkGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 200,
     concepto: "se entrega", socio: "70000009102", producto: "Grupal-Basico" }));
   ok("y entregar lo guardado sí pasa: el ciclo A cierra en 0", !gaOkGA.error);
