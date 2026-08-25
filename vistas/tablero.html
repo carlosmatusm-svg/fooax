@@ -1684,7 +1684,7 @@ function tipoMovCambio() {
     // La de liquidación se había quedado pegada para todos los conceptos.
     if (lab) lab.textContent = c.clienta !== "obliga"
       ? "¿De qué clienta es? (opcional)"
-      : (/^(liquidaci|recuperaci)/i.test(c.nombre || "")
+      : (/^(liquidaci|recuperaci|adelant)/i.test(c.nombre || "")
           ? "¿De qué clienta es? (obligatorio: le baja el saldo)"
         : /^garant/i.test(c.nombre || "") && !/entregada/i.test(c.nombre || "")
           ? "¿De qué clienta es? (obligatorio: le suma a su garantía guardada)"
@@ -1741,7 +1741,7 @@ async function desgloseDelMov() {
   if (!d || !d.ok) return;   // sin desglose no se estorba: el hint normal se queda
   const t = d.totales || {};
   const tipoSel = ($("mTipo") || {}).value || "";
-  const cola = /^(liquidaci|recuperaci)/i.test(tipoSel)
+  const cola = /^(liquidaci|recuperaci|adelant)/i.test(tipoSel)
       ? "el abono le baja el saldo a ESTE crédito y a ningún otro"
     : /^garant/i.test(tipoSel) && !/entregada/i.test(tipoSel)
       ? "esta garantía se le SUMA a su guardado — no toca su saldo"

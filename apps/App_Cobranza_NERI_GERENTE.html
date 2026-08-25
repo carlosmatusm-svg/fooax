@@ -244,7 +244,8 @@
       <select id="movConcepto" onchange="toggleDesemb()">
         <option value="COMISION">Comisión de desembolso</option>
         <option value="LIQUIDACION">Liquidación (pago total)</option>
-        <option value="RECUPERACION">Recuperación / adelanto</option>
+        <option value="RECUPERACION">Recuperación</option>
+        <option value="ADELANTO">Adelanto</option>
         <option value="GARANTIA">Garantía</option>
         <option value="GASTO">Gasto</option>
       </select>
@@ -1363,7 +1364,7 @@ function abonosExtra(socio){
     if(String(m.socio||'')!==String(socio))return;
     const c=String(m.concepto||'').toUpperCase();
     if(c==='LIQUIDACION')out.liq+=(m.monto||0);
-    else if(c==='RECUPERACION')out.rec+=(m.monto||0);
+    else if(c==='RECUPERACION'||c==='ADELANTO')out.rec+=(m.monto||0);
   });
   out.total=out.liq+out.rec;
   return out;
@@ -1417,12 +1418,12 @@ function agregarMov(){
   if(monto<=0){alert('Escribe la cantidad del movimiento.');return;}
   if(monto>=20000&&!confirm('¿Seguro que el movimiento es de '+fmt(monto)+'?\n\nRevisa que no le sobre un cero.'))return;
   // Una liquidación TIENE que ir ligada a una clienta: es lo que le baja su saldo.
-  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !document.getElementById('movClienta').value){
+  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION'||concepto==='ADELANTO') && !document.getElementById('movClienta').value){
     alert('Elige a la CLIENTA de este movimiento.\n\nLa liquidación y la recuperación le bajan el saldo a esa clienta, así que sin clienta no se pueden registrar.');
     return;
   }
   /* Y CUAL DE SUS CREDITOS: es al unico al que se le baja el saldo. */
-  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !((document.getElementById('movCredito')||{}).value||'')){
+  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION'||concepto==='ADELANTO') && !((document.getElementById('movCredito')||{}).value||'')){
     alert('Elige CUAL de sus creditos se esta pagando.\n\nUna clienta puede tener varios y el abono le baja el saldo SOLO al que elijas. Fijate en el saldo de cada uno para saber cual es.');
     return;
   }
@@ -1453,7 +1454,7 @@ function agregarMov(){
   // Una liquidación baja el saldo de UN crédito, no de la clienta. Si la socia
   // tiene varios y no se resolvió cuál, no se registra: antes se guardaba igual
   // y el sistema se lo aplicaba al primero de su lista (8-ago-2026).
-  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION') && !producto){
+  if((concepto==='LIQUIDACION'||concepto==='RECUPERACION'||concepto==='ADELANTO') && !producto){
     alert('No pude identificar de cual de sus creditos es este movimiento.\n\nVuelve a elegir a la clienta en la lista: cada renglon es un credito distinto.');
     return;
   }

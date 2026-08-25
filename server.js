@@ -1036,7 +1036,7 @@ function liquidacionesSinClienta(usuario, desde) {
     if (fISO > hoy) break;
     for (const m of movsDeFecha(fISO, usuario)) {
       const tipo = tipoDeMov(m);
-      if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) continue;
       if (socioDeMov(m)) continue;
       out.push({ folio: m.folio, fecha: m.fecha, monto: m.monto, concepto: m.concepto,
         registradoPor: m.registradoPor || m.usuario || "" });
@@ -1049,7 +1049,7 @@ function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
   const liqPorSocio = {};
   const sumar = (m, fISO) => {
     const tipo = tipoDeMov(m) || "Otro";
-    if (!/^(liquidaci|recuperaci)/i.test(tipo)) return;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) return;
     const soc = socioDeMov(m);
     if (!soc) return;
     liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
@@ -1280,7 +1280,10 @@ function carteraViva(usuario) {
     }
     // GARANTÍA COBRADA por Dirección (entrada): suma al guardado de la clienta.
     // Entraba a la caja pero no le llegaba al perfil (Karina, 24-ago).
-    if (mg.entrada && /^garant/i.test(tG) && !/líquida|liquida/i.test(tG)) {
+    // Entrada de garantía que NO es A → al bucket de la líquida («Garantía»
+    // vieja y «Garantía líquida» nueva cuentan igual). Las ENTREGADAS ya se
+    // filtraron arriba por su palabra.
+    if (mg.entrada && /^garant/i.test(tG) && !/entregada/i.test(tG)) {
       if ((mg.fecha || "") >= corte) {
         const sG = socioDeMov(mg);
         if (sG) {
@@ -1631,7 +1634,7 @@ function fechaDeLiquidacion(c, cv, pfTodo) {
   for (const f in ((pfTodo || {})[clave] || {}))
     if ((pfTodo[clave][f].p || 0) > 0 && f > ultima) ultima = f;
   for (const m of (store.respaldo().movimientos || [])) {
-    if (m.anulado || !/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+    if (m.anulado || !/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
     if (String(socioDeMov(m)) !== String(c.id)) continue;
     const prod = productoDeMov(m);
     if (prod && nprod(prod) !== nprod(c.producto)) continue;
@@ -1750,7 +1753,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
       const fISO = dd.toISOString().slice(0, 10);
       if (fISO > domingo) break;
       for (const m of movsDeFecha(fISO, usuario)) {
-        if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+        if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
         const soc = socioDeMov(m); if (!soc) continue;
         let prod = productoDeMov(m);
         if (!prod) {
@@ -1783,7 +1786,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
     const fISO = f.toISOString().slice(0, 10);
     if (fISO > domingo || fISO > hoyMX()) break;
     for (const m of movsDeFecha(fISO, usuario)) {
-      if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
       const soc = socioDeMov(m); if (!soc) continue;
       let prod = productoDeMov(m);
       if (!prod) {
@@ -2218,7 +2221,7 @@ function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
         ultimoAbono[clave] = f;
   const ultimaLiq = {};
   for (const m of (store.respaldo().movimientos || [])) {
-    if (m.anulado || !/^(liquidaci|recuperaci)/i.test(tipoDeMov(m))) continue;
+    if (m.anulado || !/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m))) continue;
     const soc = socioDeMov(m);
     if (!soc || !/^\d{4}-\d{2}-\d{2}$/.test(String(m.fecha || ""))) continue;
     if (!ultimaLiq[soc] || m.fecha > ultimaLiq[soc]) ultimaLiq[soc] = m.fecha;
@@ -3660,7 +3663,7 @@ function verificarDesglose(usuario) {
   }
   for (const m of store.todosMovimientos()) {
     if (m.anulado) continue;
-    if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
     if (!(String(m.fecha) >= corte || (Number(m.ts) || 0) > ts0)) continue;
     const soc = socioDeMov(m); if (!soc) continue;
     const monto = Number(m.monto) || 0;
@@ -4131,7 +4134,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // el Excel de Monse para comparar.
     conciliacion: conciliacionDeSaldos(req.usuario),
     movsAtrasados: movsAtrasadosQueSiCuentan(req.usuario, corteSaldos())
-      .filter((m) => /^(liquidaci|recuperaci)/i.test(tipoDeMov(m)))
+      .filter((m) => /^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m)))
       .map((m) => { const s = socioDeMov(m); const cl = s && PADRON.find((c) => String(c.id) === String(s));
         return { folio: m.folio, fecha: m.fecha, monto: m.monto, socio: s || null,
           clienta: cl ? cl.nombre : null, registradoPor: m.registradoPor || null,
@@ -4208,7 +4211,7 @@ function seriesSemanales(usuario) {
     const u = id && USUARIOS[id];
     if (!!(u && u.test) !== !!(usuario && usuario.test)) continue;   // misma burbuja
     const tipo = tipoDeMov(m) || "Otro";
-    if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) continue;
     const b = bucket(m.fecha);
     b.recuperacion += m.monto;
     const soc = socioDeMov(m);
@@ -4393,7 +4396,7 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
   for (const m of (store.respaldo().movimientos || [])) {
     if (m.anulado || socioDeMov(m) !== String(c.id)) continue;
     const tipo = tipoDeMov(m);
-    if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) continue;
     // LA LIQUIDACIÓN ES DE SU CRÉDITO, NO DE TODOS (Karina, 12-ago): la de
     // YOALI ($2,880, Grupal-Basico 2) salía también en el «Ver pagos» de su
     // Grupal-Adicional, aunque ahí no descontó un peso. Si el movimiento dice
@@ -4772,7 +4775,7 @@ function pagosQueDejanDeContar(usuario, desde, hasta) {
     const fISO = d.toISOString().slice(0, 10);
     if (fISO > finExc) break;
     for (const m of movsDeFecha(fISO, usuario)) {
-      if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
       const soc = socioDeMov(m); if (!soc) continue;
       let prod = productoDeMov(m);
       if (!prod) {
@@ -4846,12 +4849,19 @@ const CATEGORIAS = ["Retiro de dirección", "Gasto operativo", "Autorización / 
 const CONCEPTOS_DIR = {
   // ENTRADAS · dinero que LLEGA a la caja
   "Liquidación":                 { entrada: true,  categoria: "Otro", clienta: "obliga" },
-  "Recuperación / adelanto":     { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  // RECUPERACIÓN y ADELANTO SE SEPARAN (Karina, 24-ago: «son dos cosas
+  // diferentes»): la recuperación es el cobro de un crédito vencido; el
+  // adelanto es la clienta pagando cuotas por adelantado. Los dos bajan saldo.
+  "Recuperación":                { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  "Adelanto":                    { entrada: true,  categoria: "Otro", clienta: "obliga" },
   "Comisión de desembolso":      { entrada: true,  categoria: "Otro", clienta: "sugiere" },
   // La GARANTÍA cobrada OBLIGA la clienta (Karina, 24-ago: «mismo caso»): se
   // linkea a su crédito y le SUMA a su garantía guardada — simétrico a la
   // Garantía líquida entregada, que se la resta.
-  "Garantía":                    { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  // «GARANTÍA» a secas se veía duplicada junto a «Garantía A» (Karina,
+  // 24-ago): ahora se llama por su nombre completo. Los movimientos viejos con
+  // «Garantía» siguen contando como líquida.
+  "Garantía líquida":            { entrada: true,  categoria: "Otro", clienta: "obliga" },
   // GARANTÍA A (Karina, 24-ago): la garantía de AHORRO — no se le puede llamar
   // así oficialmente, por eso el nombre corto. Mismo trato que la líquida:
   // clienta obligada, guardado PROPIO (separado del de la líquida), y su
@@ -4922,7 +4932,8 @@ function tipoGastoCanonico(t) {
 }
 const CONCEPTOS_EJEC = {
   COMISION:     { etiqueta: "Comisión de desembolso",   categoria: "Otro",            entrada: true },
-  RECUPERACION: { etiqueta: "Recuperación / adelanto",  categoria: "Otro",            entrada: true },
+  RECUPERACION: { etiqueta: "Recuperación",             categoria: "Otro",            entrada: true },
+  ADELANTO:     { etiqueta: "Adelanto",                 categoria: "Otro",            entrada: true },
   GARANTIA:     { etiqueta: "Garantía",                 categoria: "Otro",            entrada: true },
   LIQUIDACION:  { etiqueta: "Liquidación",              categoria: "Otro",            entrada: true },
   GASTO:        { etiqueta: "Gasto",                    categoria: "Gasto operativo", entrada: false },
@@ -5087,7 +5098,7 @@ function liquidacionesLigadas(usuario, desde) {
   const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
   const porClave = {}, porSocio = {};
   const sumar = (m) => {
-    if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) return;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) return;
     const soc = socioDeMov(m), prod = productoDeMov(m);
     if (!soc || !prod) return;                      // sin crédito: va al reparto viejo
     const clave = claveCredito(soc, prod);
@@ -5117,7 +5128,7 @@ function liquidacionesSinCredito(usuario, desde) {
     const fISO = f.toISOString().slice(0, 10);
     if (fISO > hoy) break;
     for (const m of movsDeFecha(fISO, usuario)) {
-      if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
       const soc = socioDeMov(m);
       if (!soc || productoDeMov(m)) continue;        // sin socia ya se avisa aparte
       const suyos = PADRON.filter((c) => String(c.id).split("|")[0] === String(soc)
@@ -5164,6 +5175,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const concepto = (b.concepto || "").trim();
   // El TIPO manda: de él salen `entrada` y la categoría. Se acepta el catálogo
   // nuevo y, por compatibilidad, la categoría suelta de los movimientos viejos.
+  // Los nombres viejos se aceptan como alias de los nuevos: capturas guardadas
+  // y pantallas sin recargar no truenan por un renombre.
+  if (b.tipo === "Recuperación / adelanto") b.tipo = "Recuperación";
+  if (b.tipo === "Garantía") b.tipo = "Garantía líquida";
   // El nombre viejo «Autorización / préstamo» se acepta como alias del nuevo.
   const tipoNombre = String(b.tipo || "").trim() === "Autorización / préstamo"
     ? "Autorización de préstamo" : String(b.tipo || "").trim();
@@ -5992,7 +6007,7 @@ function moraDelDia(usuario, fecha) {
       const fISO = dd.toISOString().slice(0, 10);
       if (fISO > hastaF) break;
       for (const m of movsDeFecha(fISO, usuario)) {
-        if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+        if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
         const soc = socioDeMov(m); if (!soc) continue;
         let prod = productoDeMov(m);
         if (!prod) {
@@ -6984,7 +6999,7 @@ function datosVivosParaApp(usuario) {
   const suyoHoy = {};   // socio → liquidado/recuperado por ELLA hoy
   for (const m of movsDeFecha(hoy, usuario)) {
     if (String(m.folio || "").startsWith("DIR-")) continue;
-    if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
     const soc = socioDeMov(m);
     if (soc) suyoHoy[soc] = (suyoHoy[soc] || 0) + (Number(m.monto) || 0);
   }

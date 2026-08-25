@@ -3784,10 +3784,41 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // exista y que el catálogo traiga TODOS los conceptos de tesorería.
   const cc102 = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
   const nombres102 = (cc102.conceptos || []).map((x) => x.nombre);
-  ok("el catálogo trae los 5 conceptos de tesorería, con los nombres nuevos",
-    ["Autorización de préstamo", "Desembolso", "Garantía líquida entregada",
-     "Recurso de bancos para caja", "Recurso aportado por Dirección"]
+  ok("el catálogo trae la tesorería completa y las divisiones nuevas",
+    ["Autorización de préstamo", "Desembolso", "Garantía líquida entregada", "Garantía A entregada",
+     "Recurso de bancos para caja", "Recurso aportado por Dirección",
+     "Garantía líquida", "Garantía A", "Recuperación", "Adelanto"]
       .every((k) => nombres102.includes(k)), nombres102.join(" | "));
+  ok("y los nombres ambiguos viejos salieron del menú (viven solo como alias)",
+    !nombres102.includes("Garantía") && !nombres102.includes("Recuperación / adelanto"));
+
+  // EL ADELANTO, partido sin partir la mecánica (Karina, 24-ago): baja saldo
+  // como la recuperación, y la mora lo sigue viendo — su detector mide contra
+  // el SALDO, que ya descuenta estos movimientos.
+  const cliAd = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const cAd = ((cliAd.resultados || [])[0] || {});
+  const saldoAd0 = cAd.saldoActual != null ? cAd.saldoActual : cAd.saldo;
+  await mov102({ tipo: "Adelanto", monto: 240, concepto: "adelanta una cuota",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  const cliAd2 = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const cAd2 = ((cliAd2.resultados || [])[0] || {});
+  const saldoAd1 = cAd2.saldoActual != null ? cAd2.saldoActual : cAd2.saldo;
+  ok("un ADELANTO le baja el saldo (240 menos), igual que siempre",
+    Math.abs((saldoAd0 - saldoAd1) - 240) < 0.01, saldoAd0 + " → " + saldoAd1);
+  const adSin = await mov102({ tipo: "Adelanto", monto: 100, concepto: "sin clienta" });
+  ok("y sin clienta se rechaza", adSin.status === 400, "status " + adSin.status);
+  const moraAd = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  let enMoraAd = false;
+  for (const g of (moraAd.dias || [])) for (const x of (g.filas || []))
+    if (String(x.socio) === "70000009102") enMoraAd = true;
+  ok("y la clienta adelantada NO cae en la mora de la semana", !enMoraAd);
+  ok("el detector de adelantos de la mora sigue vivo (ARIELA no se pierde)",
+    moraAd.medidoCon && typeof moraAd.medidoCon.conAdelanto === "number",
+    JSON.stringify(moraAd.medidoCon || {}).slice(0, 80));
+  const viejoAlias = await j(await mov102({ tipo: "Recuperación / adelanto", monto: 50,
+    concepto: "alias viejo", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("el nombre viejo «Recuperación / adelanto» sigue entrando, como alias",
+    !viejoAlias.error, JSON.stringify(viejoAlias).slice(0, 60));
   ok("y «Otro» aparece UNA sola vez en el catálogo",
     nombres102.filter((x) => x === "Otro").length === 1);
   const html102 = await (await fetch(U + "/tablero", { headers: H(cd) })).text();
