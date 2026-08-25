@@ -3825,6 +3825,21 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el menú del tablero se arma DEL catálogo, no a mano",
     html102.includes("EL MENÚ SE ARMA DEL CATÁLOGO") && /sel\.innerHTML/.test(html102));
 
+  // EL CIERRE DE CAJA ABSORBE LA TESORERÍA (Karina, 24-ago: «¿el cierre ya
+  // quedó?»). Los dos cuadres que lo prueban: el semanal reparte las salidas
+  // nuevas por su nombre, y el «queda en caja» del ARQUEO del día es EL MISMO
+  // que el del CIERRE — una sola cadena, no dos versiones del efectivo.
+  const cie103 = await j(await fetch(U + "/api/semana/caja?fecha=" + HOY, { headers: H(cm) }));
+  const st103 = Object.keys(cie103.salidasPorTipo || {});
+  ok("el cierre semanal nombra las salidas de tesorería (autorización/desembolso/garantías)",
+    st103.some((x) => /Autorización|Desembolso/.test(x)), st103.join(" · "));
+  const arq103 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  ok("el «queda en caja» del arqueo del día = el del cierre semanal (misma cadena)",
+    arq103.caja && Math.abs(arq103.caja.quedaEnCaja - cie103.quedaEnCaja) < 0.01,
+    (arq103.caja || {}).quedaEnCaja + " vs " + cie103.quedaEnCaja);
+  ok("y el TOTAL QUE ENTRÓ del cierre = cobranza + entradas (la «flecha» de la Ing. Karina)",
+    Math.abs(cie103.entro - (cie103.entroCobranza + cie103.entroMovs)) < 0.01);
+
   // Y LAS EJECUTIVAS SIGUEN FUERA DE LA TESORERÍA: su app no puede entregar créditos.
   const sync102 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
     body: JSON.stringify({ fecha: HOY, snapshot: { movs: [{ folio: "T102", monto: 5000,
