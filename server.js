@@ -4351,9 +4351,12 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   const conSaldo = base.map((c) => {
     const semanas = semanasDe(c);
     const estaSem = semanas.find((x) => x.lunes === lunesHoy);
-    return { ...c, ...infoCredito(cv, c), porSemana: semanas,
+    const info = infoCredito(cv, c);
+    return { ...c, ...info, porSemana: semanas,
       pagadoEstaSemana: estaSem ? estaSem.monto : 0, lunesDeHoy: lunesHoy,
       ciclo: Number(c.ciclo) || 1,
+      // Para que la tarjeta de estas listas también diga VENCIDA con su fecha.
+      vencidaPlazo: vencidaPorPlazo(c, info), finPlazo: finDelPlazo(c),
       liquidadoEl: fechaDeLiquidacion(c, cv, pfCred) };
   });
   let lista = conSaldo;
@@ -4361,7 +4364,9 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   // esVencido(): reconoce "VENCIDO" y "CREDITO VENCIDO A RECUPERAR" como los
   // escribe la plantilla. Antes comparaba contra "VENCIDA" y este filtro devolvía
   // SIEMPRE vacío, aunque hubiera 29 vencidos reales (29-jul).
-  else if (estado === "vencidas") lista = conSaldo.filter((c) => esVencido(c) || Number(c.mora) > 0);
+  // La VENCIDA DERIVADA (terminó su plazo y sigue debiendo, 25-ago) también
+  // sale en esta lista: es el filtro donde Dirección va a buscarlas.
+  else if (estado === "vencidas") lista = conSaldo.filter((c) => esVencido(c) || Number(c.mora) > 0 || c.vencidaPlazo);
   else if (q.length >= 2) {
     const t = q.split(/\s+/);
     lista = conSaldo.filter((c) => { const h = norm(c.nombre) + " " + c.id; return t.every((x) => h.includes(x)); });

@@ -3937,6 +3937,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const cartVP = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
   ok("el semáforo de cartera también la cuenta como vencida",
     ((cartVP.semaforo || {}).vencida || 0) >= 1, JSON.stringify(cartVP.semaforo || {}));
+  const lvVP = await j(await fetch(U + "/api/creditos?estado=vencidas", { headers: H(cm) }));
+  const lvFila = (lvVP.resultados || []).find((x) => String(x.id) === "70000009102");
+  ok("y sale en la LISTA DE VENCIDAS del panel de créditos, marcada y con su fecha",
+    !!lvFila && lvFila.vencidaPlazo === true && lvFila.finPlazo === "2026-05-11",
+    JSON.stringify(lvFila ? { vencidaPlazo: lvFila.vencidaPlazo, finPlazo: lvFila.finPlazo } : "no está"));
 
   console.log("\n— 101. EL PAQUETE OFFLINE, EJECUTIVA POR EJECUTIVA (Karina, 24-ago) —");
   // «Checa que offline-first funcione en todos los ejecutivos, desde el celular,
