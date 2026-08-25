@@ -115,6 +115,10 @@ function aplicarCambios(base, cambios) {
         // quedaba así para siempre.
         if (k.desembolso) { cl.desembolso_anterior = cl.desembolso || null; cl.desembolso = k.desembolso; }
         if (k.diaPago) { cl.diaPago_anterior = cl.diaPago || null; cl.diaPago = String(k.diaPago).toUpperCase(); }
+        // PLAZO (25-ago). El endpoint lo aceptaba desde el 19-ago pero este
+        // replay nunca lo aplicaba: quedaba en la bitácora sin efecto. Con esta
+        // línea, los capturados ese tiempo se aplican solos al re-reproducirse.
+        if (k.plazo != null && Number.isFinite(Number(k.plazo))) { cl.plazo_anterior = cl.plazo || null; cl.plazo = Number(k.plazo); }
         // Etiqueta (Recuperación, Renovación…). La cadena vacía SÍ cuenta: es
         // como se quita. Por eso se compara contra undefined y no con un if
         // truthy — con un truthy nunca se podría borrar.

@@ -3667,6 +3667,15 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("dirección de prueba SÍ captura la fecha de desembolso por la puerta nueva",
     cap102.ok === true && cap102.clienta && String(cap102.clienta.desembolso).slice(0, 10) === "2026-08-07",
     JSON.stringify(cap102).slice(0, 80));
+  // La prueba de EFECTO del plazo: el endpoint lo aceptaba desde el 19-ago
+  // pero el replay del padrón no lo aplicaba — quedaba en la bitácora sin
+  // llegar al crédito. Esta verificación lee el crédito devuelto, no el ok.
+  const capPl102 = await j(await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      plazo: 24, motivo: "archivo verificado de plazos" }) }));
+  ok("y el PLAZO capturado de verdad LLEGA al crédito (no solo a la bitácora)",
+    capPl102.ok === true && capPl102.clienta && Number(capPl102.clienta.plazo) === 24,
+    "plazo=" + String((capPl102.clienta || {}).plazo));
   const capSaldo102 = await fetch(U + "/api/creditos/captura", { method: "POST",
     headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
       saldo: 1, motivo: "intento de mover dinero" }) });
