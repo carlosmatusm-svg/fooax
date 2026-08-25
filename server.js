@@ -5263,29 +5263,12 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // GARANTÍA LÍQUIDA ENTREGADA: no se puede entregar más de lo que la clienta
   // tiene GUARDADO (su garantía cobrada, ya neteada con entregas anteriores).
   // El mensaje trae el disponible, para no dejar a nadie adivinando.
-  // EL TOPE DE GARANTÍAS SE QUITÓ (Karina, 24-ago: «no nos deja entregarlas
-  // porque dice que no está registrado»). El candado asumía que el sistema
-  // conoce TODA la garantía de la clienta, pero las clientas traen garantía
-  // juntada DE ANTES del sistema y del corte — el guardado registrado sale en
-  // cero y bloqueaba entregas legítimas en campo. La entrega pasa siempre; si
-  // rebasa lo registrado, el movimiento lo deja ANOTADO (no bloqueado) para
-  // que Dirección lo vea en el desglose. El linkeo a la clienta sigue siendo
-  // obligatorio: eso no era el estorbo, era el orden.
-  let notaGarantia = null;
-  if (/garantía (líquida|a)|garantia (liquida|a)/i.test(String(b.tipo || ""))
-      && /entregada/i.test(String(b.tipo || "")) && socio) {
-    const esA = /garant[íi]a a\b/i.test(String(b.tipo || ""));
-    const credG = PADRON.find((x) => String(x.id) === socio && x.activa !== false
-      && x.estatus !== "BAJA" && (!producto || nprod(x.producto) === nprod(producto)));
-    if (credG) {
-      const infoG = infoCredito(carteraViva(req.usuario), credG);
-      const dispon = (esA ? infoG.garantiaA : infoG.garantia) || 0;
-      if (monto > dispon + 0.009)
-        notaGarantia = "Entrega mayor a lo registrado en el sistema ($"
-          + dispon.toLocaleString("es-MX", { minimumFractionDigits: 2 })
-          + "): la clienta trae garantía de antes del corte.";
-    }
-  }
+  // LAS ENTREGAS DE GARANTÍA VAN LIBRES (Karina, 25-ago): el registro de lo
+  // que cada clienta tiene guardado pertenece a un módulo que FOOAX aún no
+  // paga, así que el sistema no valida NI anota contra ese guardado — la
+  // entrega pasa como cualquier salida. El linkeo a la clienta sigue siendo
+  // obligatorio (eso es la captura básica, no el módulo). El neteo interno
+  // del guardado queda dormido, con piso en 0, listo para cuando se contrate.
 
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
@@ -5300,7 +5283,6 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     tipo: tipo ? tipoNombre : null,
     entrada: tipo ? !!tipo.entrada : store.entradaPorTexto(concepto || categoria),
     autorizadoA: (b.autorizadoA || "").trim() || null,
-    notaGarantia,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);
