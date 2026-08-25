@@ -51,6 +51,14 @@ const USUARIOS = {
   // no se puede probar la validación de expediente (CU-010) en la burbuja de
   // prueba sin usar una cuenta real.
   pruebaadmin: { nombre: "Prueba Admin", rol: "admin",    puesto: "administracion_finanzas",      id_sucursal: "1", test: true, pass: process.env.PASS_PRUEBAADMIN || "PruebaFOOAX2026" },
+  // Altas 25-ago-2026: mismo motivo que pruebaadmin arriba, pero para los dos
+  // puestos que faltaban en la burbuja de prueba para poder probar de punta a
+  // punta el flujo de colocación con segregación (Anexo K §2.2, ver
+  // store_credito.js/rutas_credito.js) — sin ellas, "quien custodia" y el
+  // nivel de la escalera que autoriza "gerente_campo" no se podían ejercitar
+  // sin usar cuentas reales.
+  pruebacontrol: { nombre: "Prueba Control", rol: "ejecutivo", puesto: "control_operativo_sucursal", id_sucursal: "1", test: true, pass: process.env.PASS_PRUEBACONTROL || "PruebaFOOAX2026" },
+  pruebacampo:   { nombre: "Prueba Campo",   rol: "ejecutivo", puesto: "gerente_campo",              id_sucursal: "1", test: true, pass: process.env.PASS_PRUEBACAMPO   || "PruebaFOOAX2026" },
 };
 
 // Quiénes cuentan como ejecutivas para consolidado/arqueo/resumen.
@@ -3842,8 +3850,16 @@ const storeExpediente = require("./store_expediente");
 // se monta la ruta de consulta/control (rutas_reglas.js). Mismo principio que
 // el expediente: si falla al iniciar, no debe tumbar la cobranza.
 const motorReglas = require("./motor_reglas");
+// Flujo de colocación con segregación (Anexo K §2.2) + sincronización
+// automática al dispersar (CU-011 a CU-014, alcance de Carlos según la
+// cotización de Karina del 14-ago-2026 — ver cabecera de store_credito.js
+// para lo que queda deliberadamente fuera de este módulo). Mismo principio
+// que expediente y reglas: archivo aparte, no toca store.js, y si falla al
+// iniciar no debe tumbar la cobranza.
+const storeCredito = require("./store_credito");
 require("./rutas_expediente")(app, { requiere, requierePuesto });
 require("./rutas_reglas")(app, { requiere, requierePuesto });
+require("./rutas_credito")(app, { requiere, requierePuesto });
 
 store.init().then(() => {
   refrescarPadron();
@@ -3856,6 +3872,10 @@ store.init().then(() => {
   aplicarCorteDeLaPlantilla();
   return storeExpediente.init().catch((e) => {
     console.error("[expediente] no se pudo iniciar — la cobranza sigue funcionando sin él:", e.message);
+  });
+}).then(() => {
+  return storeCredito.init().catch((e) => {
+    console.error("[credito] no se pudo iniciar — la cobranza y el expediente siguen funcionando sin él:", e.message);
   });
 }).then(() => {
   // Se inicializa DESPUÉS de storeExpediente: éste llama a
