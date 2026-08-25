@@ -5945,7 +5945,15 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
   cq.font = { bold: true, size: 12, color: { argb: VERDE } };
   fila++;
   enc("APARTE — NO ES EFECTIVO, VA AL BANCO", "FF8A5A00");
-  linea("Transferencias", c.transferencias);
+  // LA NOTA ROJA E27 de la Ing. Karina: este renglón «debe ser el mismo
+  // importe que se reflejó al inicio en transferencias». Antes mezclaba los
+  // movimientos (la parte transferida de un mixto, pagos por transferencia) y
+  // los dos renglones no cuadraban entre sí. La cobranza va sola, y lo demás
+  // en su propio renglón — nada se esconde, pero cada cifra cuadra con la suya.
+  linea("Transferencias (la cobranza de arriba)", c.cobranza.transferencia);
+  const movTr = Math.round((c.transferencias - c.cobranza.transferencia) * 100) / 100;
+  if (Math.abs(movTr) >= 0.01)
+    linea("Movimientos por transferencia (mixtos, pagos, entregas)", movTr);
   linea("Depósitos Oxxo / tienda", c.depositos);
   if (c.cheques) linea("Cheques (son papel, no billetes)", c.cheques);
   fila++;

@@ -3839,6 +3839,19 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     (arq103.caja || {}).quedaEnCaja + " vs " + cie103.quedaEnCaja);
   ok("y el TOTAL QUE ENTRÓ del cierre = cobranza + entradas (la «flecha» de la Ing. Karina)",
     Math.abs(cie103.entro - (cie103.entroCobranza + cie103.entroMovs)) < 0.01);
+  // La nota roja E27: el renglón de transferencias del APARTE = el de arriba.
+  const xci = await fetch(U + "/api/semana/caja/excel?fecha=" + HOY, { headers: H(cm) });
+  const Ex103 = require("exceljs"); const wb103 = new Ex103.Workbook();
+  await wb103.xlsx.load(Buffer.from(await xci.arrayBuffer()));
+  let arriba103 = null, aparte103 = null;
+  wb103.worksheets[0].eachRow((r) => {
+    const t2 = String(r.getCell(1).value || "");
+    if (/^En transferencias/.test(t2)) arriba103 = Number(r.getCell(4).value) || 0;
+    if (/^Transferencias \(la cobranza/.test(t2)) aparte103 = Number(r.getCell(4).value) || 0;
+  });
+  ok("la nota roja E27: transferencias del APARTE = las de arriba, mismo importe",
+    arriba103 != null && aparte103 != null && Math.abs(arriba103 - aparte103) < 0.01,
+    arriba103 + " vs " + aparte103);
 
   // Y LAS EJECUTIVAS SIGUEN FUERA DE LA TESORERÍA: su app no puede entregar créditos.
   const sync102 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
