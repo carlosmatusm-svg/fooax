@@ -6732,7 +6732,10 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     }
     fila++;
   }
-  linea("Garantías", a.garantias);
+  // La fila suelta de "Garantías" se QUITÓ (Ing. Karina, 27-ago): eran las
+  // garantías COBRADAS del día, que ya viajan dentro del dinero recibido — al
+  // lado de las salidas confundía. Las garantías que SALEN sí se quedan, en
+  // "− Garantías entregadas (líquida y A)" de las cuentas del día.
   fila++;
   // DESGLOSE DE MOVIMIENTOS DE CAJA, agrupado por concepto (Ing. Karina,
   // 24-ago): cada autorización con su clienta, cada gasto con su nota — como
