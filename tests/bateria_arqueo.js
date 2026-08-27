@@ -5503,6 +5503,33 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y la tabla por ejecutiva trae su mora ya vencida de la semana",
     (cart65.porEjec || []).every((e) => typeof e.moraSemana === "number"), "falta moraSemana");
 
+  console.log("\n— 64. EL TRASPASO LLEGA AL TELÉFONO (27-ago: «varias no les aparecen en la app») —");
+  // Un crédito de PLANTILLA reasignado a otra ejecutiva no era alta (no nació
+  // en el tablero) ni quitar (ya no es de la anterior): vivía embebido en el
+  // HTML de la app vieja y en la nueva no existía. Corre AL FINAL a propósito:
+  // mueve un crédito real del padrón base y no debe tocar a las secciones
+  // ancladas. Se elige al vuelo: el primero VIVO de Neri con saldo.
+  const pad64 = await j(await fetch(U + "/api/padron", { headers: H(cm) }));
+  const neri64 = (pad64.porEjec || {}).Neri || [];
+  const cred64 = neri64.find((x) => !x.esAlta && (x.saldoActual || 0) > 0) || null;
+  ok("hay un crédito de plantilla de Neri para la prueba", !!cred64,
+    "filas de Neri: " + neri64.length);
+  if (cred64) {
+    const aj64 = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: cred64.socio || cred64.id, producto: cred64.producto,
+        ejecutivo: "Julio", motivo: "traspaso de cartera (prueba 64)" }) }));
+    ok("Monse reasigna el crédito a Julio", aj64.ok === true, JSON.stringify(aj64).slice(0, 90));
+    const idS = String(cred64.socio || cred64.id);
+    const vJ = await j(await fetch(U + "/api/vivos", { headers: H(await login("julio", "julio2026")) }));
+    ok("y a Julio le LLEGA como alta: aparece en su app con nombre, centro y cuota",
+      (vJ.altas || []).some((a2) => String(a2.id) === idS && a2.producto === cred64.producto),
+      "no está en las altas de julio");
+    const vN = await j(await fetch(U + "/api/vivos", { headers: H(await login("neri", "neri2026")) }));
+    ok("y a Neri se le QUITA del teléfono: ya no es suya",
+      (vN.quitar || []).some((q) => String(q.id) === idS && q.producto === cred64.producto),
+      "no está en el quitar de neri");
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -7140,6 +7140,15 @@ function altasParaApp(usuario) {
     .filter((c) => mia(c) && (!viva(c) || yaNoDebe(c)))
     .filter((c) => !vivasAhora.has(claveCredito(c.id, c.producto)))
     .map((c) => ({ id: String(c.id), producto: c.producto }));
+  // Y LOS TRASPASADOS A OTRA EJECUTIVA (27-ago, reparto de la cartera de
+  // Karina): el crédito reasignado sigue EMBEBIDO en el HTML del teléfono de
+  // la ejecutiva anterior, que lo seguiría cobrando. Para ella es un quitar.
+  for (const c of PADRON) {
+    if (!viva(c) || mia(c)) continue;
+    if (!c.ejecutivo_anterior || norm(c.ejecutivo_anterior) !== norm(nombreEjec)) continue;
+    if (vivasAhora.has(claveCredito(c.id, c.producto))) continue;
+    quitar.push({ id: String(c.id), producto: c.producto });
+  }
 
   // LA QUE YA TERMINÓ DE PAGAR NO SE VUELVE A AGREGAR. Iba en las DOS listas:
   // en `quitar` por estar en cero y en `altas` por haber nacido en el tablero.
@@ -7150,8 +7159,14 @@ function altasParaApp(usuario) {
   // que solo se arreglaba para las clientas venidas de plantilla, no para las
   // dadas de alta en el sistema.
   const fuera = new Set(quitar.map((q) => claveCredito(q.id, q.producto)));
+  // Entra como alta lo nacido en el tablero Y lo TRASPASADO desde otra
+  // ejecutiva (27-ago: «varias no les aparecen en la app»): un crédito
+  // reasignado viene del padrón base de OTRA app — en el HTML de la ejecutiva
+  // nueva no existe, así que se le inyecta igual que un alta. Si ya lo trae,
+  // la app no duplica por socio+producto: se queda con el primero.
+  const traspasada = (c) => c.ejecutivo_anterior && norm(c.ejecutivo_anterior) !== norm(c.ejecutivo);
   altas = PADRON
-    .filter((c) => c.origen === "alta" && viva(c) && mia(c))
+    .filter((c) => (c.origen === "alta" || traspasada(c)) && viva(c) && mia(c))
     .filter((c) => !fuera.has(claveCredito(c.id, c.producto)))
     .map((c) => ({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
       saldo: c.saldo || 0, cuota: c.cuota || 0 }));
