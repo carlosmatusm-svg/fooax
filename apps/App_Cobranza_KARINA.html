@@ -26,10 +26,22 @@
   select,input{width:100%;padding:11px;border:1.5px solid var(--linea);border-radius:10px;font-size:15px;font-family:inherit;background:#fff;color:var(--tinta)}
   select:focus,input:focus{outline:none;border-color:var(--rio)}
   .row2{display:flex;gap:10px}.row2>div{flex:1}
-  .cli{border-bottom:1px solid var(--linea);padding:11px 2px}
+  .cli{border-bottom:1px solid var(--linea);padding:14px 2px}
   .cli:last-child{border-bottom:0}
   .cli-head{display:flex;align-items:center;gap:10px}
-  .chk{width:26px;height:26px;flex:none;border:2px solid var(--linea);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;background:#fff}
+  .chk{width:26px;height:26px;flex:none;border:2px solid var(--linea);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:#fff;background:#fff;position:relative}
+  /* Área de toque de 46px sin agrandar el dibujo (mejoras UX 25-ago): el
+     estándar para dedos es 44px y el cuadrito mide 26 — en teléfonos de gama
+     baja el toque cae a varios pixeles de donde apuntan. */
+  .chk::before{content:"";position:absolute;inset:-10px}
+  .cuotabtn{display:inline-block;border:1px solid #C9D2F0;background:#F3F5FC;color:var(--rio);font-weight:800;font-size:11px;padding:7px 10px;border-radius:8px;font-family:inherit;margin-top:4px;position:relative}
+  .cuotabtn.falta{border-color:#F4C7CD;background:#FDF0F1;color:var(--mora)}
+  .cuotabtn::before{content:"";position:absolute;inset:-7px}
+  #toastCap{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:9999;display:none;align-items:center;gap:10px;background:#1A1730;color:#fff;border-radius:12px;padding:12px 14px;font-size:13px;font-weight:700;box-shadow:0 6px 18px rgba(26,23,48,.35)}
+  #toastCap.on{display:flex}
+  #toastCap button{border:0;background:#F2BB06;color:#1A1730;font-weight:900;font-size:12px;padding:9px 14px;border-radius:9px;font-family:inherit;flex:none}
+  #btnSoloVer{position:fixed;right:10px;bottom:calc(148px + env(safe-area-inset-bottom));z-index:9997;border:1.5px solid var(--linea);background:#fff;color:var(--gris);font-weight:800;font-size:13px;padding:9px 12px;border-radius:99px;font-family:inherit;box-shadow:0 2px 8px rgba(26,23,48,.14)}
+  #btnSoloVer.on{background:#1A1730;color:#fff;border-color:#1A1730}
   .chk.on{background:var(--ok);border-color:var(--ok)}
   .ci{flex:1;min-width:0}
   .ci .nm{font-size:14px;font-weight:700;line-height:1.2}
@@ -873,7 +885,7 @@ function cliRow(centro,cl){
   return '<div class="cli '+open+(_err?' conerr':'')+'" id="cli_'+pre.replace(/[^a-zA-Z0-9]/g,'')+'_'+key.replace(/[^a-zA-Z0-9]/g,'')+'">'
     +'<div class="cli-head">'
       +'<div class="chk '+chk+'" onclick="palomear(\''+(centro||'')+'\',\''+key+'\','+cuota+')">'+chkc+'</div>'
-      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span>'+(cl.etiqueta?' <span class="etitag">'+cl.etiqueta+'</span>':'')+'</div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' · <b style="color:var(--rio)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+(cuotaEditada?' ✎':' ✎')+'</b>':' · <b style="color:var(--mora)" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</b>')+'</div>'
+      +'<div class="ci"><div class="nm">'+cl.n+(liqCli>0&&saldoNeto<=0.01?' <span class="pill" style="background:#0B7247;color:#fff;font-size:9px">LIQUIDADO</span>':'')+' <span class="prodtag'+((cl.sub||'').toLowerCase().includes('micro')?' microtag':'')+'">'+cl.sub+'</span>'+(cl.etiqueta?' <span class="etitag">'+cl.etiqueta+'</span>':'')+'</div><div class="mt">Socio '+cl.f+' · saldo '+fmt(saldoNeto)+(tot>0?' <span style="font-size:10px;color:#0B7247;font-weight:700">(pagó '+fmt(tot)+')</span>':'')+(liqCli>0?' <span style="font-size:10px;color:#0B7247;font-weight:800">('+etiquetaAbono(axCli)+' '+fmt(liqCli)+')</span>':'')+(cuota>0?' <button class="cuotabtn" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\','+cuota+')">cuota '+fmt(cuota)+' ✎</button>':' <button class="cuotabtn falta" onclick="editarCuota(\''+(centro||'')+'\',\''+key+'\',0)">poner cuota ✎</button>')+'</div>'
         +(((cl.sub||'').toLowerCase().includes('micro')&&(cl.mora||0)>0)?'<div class="micromora">⚠ Micro con mora ('+fmt(cl.mora)+'). Producto de alto monto: prioriza recuperar.</div>':'')
         +fichaClienteDato(key)
         +'<div class="rowtot">'+(tot>0?('Total: '+fmt(tot)):'')+'</div></div>'
@@ -927,6 +939,7 @@ function fichaClienteDato(key){
   return '<div class="clidato falta" onclick="editarDato(\''+key.replace(/'/g,"\\'")+'\')">📄 Falta: plazo y pago de esta clienta (toca para capturar)</div>';
 }
 function editarDato(key){
+  if(soloVer){avisoSoloVer();return;}
   const d=datosCli[key]||{};
   const U=unidadDe(d);
   const plazo=prompt('¿De cuántos '+U.varios+' es el crédito? (plazo total)', d.plazo||'');
@@ -947,6 +960,7 @@ function editarDato(key){
   }
 }
 function todasPagaron(centro){
+  if(soloVer){avisoSoloVer();return;}
   const clientas=CENTROS[centro]||[];
   if(!clientas.length)return;
   let porMarcar=0, sinCuota=0;
@@ -1034,7 +1048,57 @@ function bloqueoPorErrores(accion){
   try{render();renderIndiv();}catch(e){}
   return true;
 }
+// —— MEJORAS UX 25-ago, pensadas para teléfonos de gama baja ——
+// (1) toque ≠ scroll (en reforzarToque), (2) respuesta inmediata + guardia
+// anti doble toque, (3) DESHACER y modo SOLO VER.
+let soloVer=false;
+let _ultPal={};
+let _toastTimer=null,_toastAccion=null;
+function toastCapMsg(txt,accion){ // accion: {etiqueta, fn} o null
+  let t=document.getElementById('toastCap');
+  if(!t){t=document.createElement('div');t.id='toastCap';document.body.appendChild(t);}
+  t.innerHTML='<span style="flex:1">'+txt+'</span>'+(accion?'<button type="button" id="toastCapBtn">'+accion.etiqueta+'</button>':'');
+  _toastAccion=accion?accion.fn:null;
+  const b=document.getElementById('toastCapBtn');
+  if(b)b.onclick=function(){const f=_toastAccion;_toastAccion=null;t.classList.remove('on');if(f)f();};
+  t.classList.add('on');
+  if(_toastTimer)clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){t.classList.remove('on');},5000);
+}
+function avisoSoloVer(){
+  toastCapMsg('Modo SOLO VER: nada se captura. Toca el candado para volver a capturar.',null);
+}
+function toggleSoloVer(){
+  soloVer=!soloVer;
+  const b=document.getElementById('btnSoloVer');
+  if(b){b.classList.toggle('on',soloVer);b.textContent=soloVer?'🔒 Solo ver':'🔓';}
+  toastCapMsg(soloVer?'Modo SOLO VER: desliza sin miedo, nada se captura.':'Captura activada.',null);
+}
+function montarBotonSoloVer(){
+  if(document.getElementById('btnSoloVer'))return;
+  const b=document.createElement('button');
+  b.id='btnSoloVer';b.type='button';b.textContent='🔓';b.title='Modo solo ver';
+  b.onclick=toggleSoloVer;
+  document.body.appendChild(b);
+}
+function mostrarDeshacer(centro,key,monto){
+  const nom=(String(key).split('|')[2]||'la clienta');
+  toastCapMsg('Se marcó la cuota de '+nom+' ('+fmt(monto)+').',{etiqueta:'DESHACER',fn:function(){
+    const r=getReg(centro?reg:regI,centro||null,key);
+    r.pago=0;
+    _ultPal[key]=0;
+    if(centro)render(); else renderIndiv();
+    recalc();guardar();
+  }});
+}
 function palomear(centro,key,cuota){
+  if(soloVer){avisoSoloVer();return;}
+  // GUARDIA ANTI DOBLE TOQUE: en un teléfono lento la pantalla tarda en
+  // responder, la ejecutiva vuelve a tocar y el segundo toque DESMARCABA lo
+  // que el primero marcó. 600ms de gracia por clienta.
+  const ahoraPal=Date.now();
+  if(_ultPal[key]&&ahoraPal-_ultPal[key]<600)return;
+  _ultPal[key]=ahoraPal;
   const r=getReg(centro?reg:regI,centro||null,key);
   // usar la cuota corregida por el ejecutivo si existe
   const dc=datosCli[key]||{};
@@ -1051,11 +1115,21 @@ function palomear(centro,key,cuota){
   }else{
     r.pago=cuotaReal;
     if(!r.forma)r.forma='E';
+    mostrarDeshacer(centro,key,cuotaReal);
   }
+  // RESPUESTA INMEDIATA: pintar el ✓ y vibrar ANTES del re-pintado — en gama
+  // baja el render tarda, y el silencio es lo que provoca el doble toque.
+  try{
+    const ev=window.event;
+    const ch=ev&&ev.target&&ev.target.closest?ev.target.closest('.chk'):null;
+    if(ch)ch.classList.toggle('on',r.pago>0);
+    if(navigator.vibrate)navigator.vibrate(r.pago>0?30:15);
+  }catch(e){}
   if(centro)render(); else renderIndiv();
   recalc();guardar();
 }
 function editarCuota(centro,key,cuotaActual){
+  if(soloVer){avisoSoloVer();return;}
   const dc=datosCli[key]||{};
   const actual=(dc.cuota&&dc.cuota>0)?dc.cuota:cuotaActual;
   const nueva=prompt('Cuota semanal correcta de esta clienta (la de su ficha):', actual||'');
@@ -2353,7 +2427,7 @@ function preguntarPostCierre(){
 }
 initSelects();fillCentros();initArqueo();fillMovSelects();initFecha();restaurarDatosCli();restaurar();preguntarPostCierre();render();renderIndiv();renderMovs();renderRenov();if(ES_GERENTE)renderGerente();recalc();
 if(typeof cargarGestionRenov==='function'){cargarGestionRenov().then(function(){reintentarRenov();});}
-avisarWebView();reforzarToque();
+avisarWebView();reforzarToque();montarBotonSoloVer();
 // reforzar toque cada vez que se redibuja contenido
 const _obs=new MutationObserver(()=>reforzarToque());
 _obs.observe(document.body,{childList:true,subtree:true});

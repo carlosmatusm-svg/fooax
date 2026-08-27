@@ -3477,7 +3477,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el service worker ya NO sirve la lógica viva desde el cache",
     /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
   ok("y su versión de cache cambió, para que los teléfonos la tomen",
-    /fooax-v17/.test(sw78), "no se movió la versión del cache");
+    /fooax-v18/.test(sw78), "no se movió la versión del cache");
   const vjs78 = await (await fetch(U + "/vivos.js")).text();
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
@@ -3917,6 +3917,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const htmlT = await (await fetch(U + "/app", { headers: H(cT) })).text();
     ok("la app de " + idT + " trae el guardia toque-vs-scroll (no captura al deslizar)",
       /tMovio/.test(htmlT) && /touchmove/.test(htmlT), "sin guardia");
+    ok("y las mejoras de gama baja: área de toque, anti doble toque, DESHACER y modo solo ver",
+      /\.chk::before/.test(htmlT) && /_ultPal/.test(htmlT) && /mostrarDeshacer/.test(htmlT)
+      && /btnSoloVer/.test(htmlT) && /cuotabtn/.test(htmlT) && /navigator\.vibrate/.test(htmlT),
+      "falta alguna mejora en " + idT);
   }
 
   // — EL DESGLOSE DE RECEPCIÓN SUMA LOS OTROS MOVIMIENTOS DE CADA EJECUTIVA —
