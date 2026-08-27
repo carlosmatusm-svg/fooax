@@ -3676,6 +3676,31 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("y el PLAZO capturado de verdad LLEGA al crédito (no solo a la bitácora)",
     capPl102.ok === true && capPl102.clienta && Number(capPl102.clienta.plazo) === 24,
     "plazo=" + String((capPl102.clienta || {}).plazo));
+
+  // — CORREGIR LA FORMA DE PAGO (caso Christopher, 26-ago: la app sensible
+  // marcó transferencia lo que entró en efectivo y Monse no tenía cómo
+  // regresarlo — el arqueo «sobraba» exactamente esa diferencia) —
+  const K102F = "70000009102|Grupal-Basico|CLIENTA TESORERIA|0";
+  const fj1 = await j(await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, ejecutivo: "neri", clave: K102F,
+      campo: "forma", valor: "T", motivo: "se capturó como transferencia por error (prueba)" }) }));
+  const cap1 = await j(await fetch(U + "/api/captura?fecha=" + HOY + "&ejecutivo=neri", { headers: H(cm) }));
+  const fila1 = (cap1.clientas || []).find((x) => x.clave === K102F) || {};
+  ok("Dirección puede corregir la FORMA de un pago capturado (E→T), con motivo",
+    fj1.ok === true && fila1.forma === "T", "forma=" + fila1.forma);
+  const fjMal = await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, ejecutivo: "neri", clave: K102F,
+      campo: "forma", valor: "X", motivo: "letra inventada" }) });
+  ok("una forma inventada se rechaza (E/T/D/M/CH, nada más)", fjMal.status === 400,
+    "status " + fjMal.status);
+  const fj2 = await j(await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, ejecutivo: "neri", clave: K102F,
+      campo: "forma", valor: "E", motivo: "el dinero entró en efectivo (prueba)" }) }));
+  const cap2 = await j(await fetch(U + "/api/captura?fecha=" + HOY + "&ejecutivo=neri", { headers: H(cm) }));
+  const fila2 = (cap2.clientas || []).find((x) => x.clave === K102F) || {};
+  ok("y de regreso (T→E): la última corrección manda y el pago no pierde monto",
+    fj2.ok === true && fila2.forma === "E" && fila2.pago === 240,
+    "forma=" + fila2.forma + " pago=" + fila2.pago);
   const capSaldo102 = await fetch(U + "/api/creditos/captura", { method: "POST",
     headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
       saldo: 1, motivo: "intento de mover dinero" }) });

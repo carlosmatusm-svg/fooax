@@ -5424,6 +5424,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
 // las aplica sobre la captura local de la ejecutiva.
 // ===================================================================
 const CAMPOS_COBRANZA = { pago: "el pago", garantia: "la garantía", solidario: "el solidario" };
+// La FORMA DE PAGO también se corrige (caso Christopher 26-ago: la app
+// sensible marcó como transferencia $936 que entraron en efectivo, y
+// Dirección no tenía herramienta para regresarlos — el arqueo "sobraba").
+const FORMAS_COBRANZA = { E: "EFECTIVO", T: "TRANSFERENCIA", D: "DEPÓSITO (Oxxo/tienda)", M: "MIXTO", CH: "CHEQUE" };
 
 // LA CAPTURA DE UNA EJECUTIVA, clienta por clienta. Es lo que Dirección tiene
 // que ver ANTES de corregir: sin esto, corregiría a ciegas.
@@ -5486,11 +5490,19 @@ app.post("/api/cobranza/ajuste", requiere("direccion", "admin"), (req, res) => {
   // El motivo es OBLIGATORIO: sin él, dentro de un mes nadie sabe por qué el
   // arqueo de ese día no cuadra con lo que la ejecutiva juraba haber cobrado.
   if (motivo.length < 4) return res.status(400).json({ error: "Escribe el motivo de la corrección." });
-  if (!anula && !CAMPOS_COBRANZA[campo])
-    return res.status(400).json({ error: "Elige qué corregir: el pago, la garantía o el solidario." });
+  if (!anula && !CAMPOS_COBRANZA[campo] && campo !== "forma")
+    return res.status(400).json({ error: "Elige qué corregir: el pago, la garantía, el solidario o la forma de pago." });
   const monto = Number(b.monto);
-  if (!anula && (!Number.isFinite(monto) || monto < 0))
+  if (!anula && campo !== "forma" && (!Number.isFinite(monto) || monto < 0))
     return res.status(400).json({ error: "El monto debe ser un número válido (0 lo quita)." });
+  // La forma no lleva monto: lleva VALOR (E/T/D/M/CH), y se valida contra el
+  // catálogo — una letra inventada dejaría el pago invisible para el cierre.
+  let valorForma = null;
+  if (!anula && campo === "forma") {
+    valorForma = String(b.valor || "").trim().toUpperCase();
+    if (!FORMAS_COBRANZA[valorForma])
+      return res.status(400).json({ error: "La forma debe ser E (efectivo), T (transferencia), D (depósito Oxxo), M (mixto) o CH (cheque)." });
+  }
 
   // Que la clienta EXISTA en la captura de ese día. Sin esta comprobación el
   // ajuste se guardaba, no encontraba a nadie a quien aplicarse y el tablero
@@ -5504,7 +5516,7 @@ app.post("/api/cobranza/ajuste", requiere("direccion", "admin"), (req, res) => {
   if (!existe) return res.status(404).json({ error: "Esa clienta no aparece en la captura de " + u.nombre + " ese día." });
 
   const aj = { fecha, ejecutivo: ejec, clave, campo: anula ? null : campo,
-    monto: anula ? 0 : monto, anula, motivo,
+    monto: anula || campo === "forma" ? 0 : monto, valor: valorForma, anula, motivo,
     por: req.usuario.nombre, usuario: req.usuario.id, ts: Date.now() };
   store.agregarAjusteCobranza(aj);
   res.json({ ok: true, ajuste: aj });

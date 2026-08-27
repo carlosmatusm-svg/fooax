@@ -253,6 +253,9 @@ function conAjustes(snapsDelDia, fecha) {
         if (nodo[a.clave] && typeof nodo[a.clave] === "object") {
           const r = nodo[a.clave];
           if (a.anula) { r.pago = 0; r.garantia = 0; r.solidario = 0; r._anuladoPorDireccion = true; }
+          // La FORMA va primero: es un texto (E/T/D/M/CH), no un monto — la
+          // rama genérica la dejaría en 0 y el pago se perdería del cierre.
+          else if (a.campo === "forma" && a.valor) r.forma = String(a.valor);
           else if (a.campo) r[a.campo] = Number(a.monto) || 0;
           r._ajustadoPor = a.por || "Dirección";
           return true;

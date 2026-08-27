@@ -917,14 +917,21 @@ async function abrirCorreccion(id){
     d = await r.json();
   } catch { caja.innerHTML = '<div class="corrbox">Sin conexión con el servidor.</div>'; return; }
 
+  // La FORMA se enseña en cada renglón (caso Christopher 26-ago: para cuadrar
+  // un arqueo hay que VER de un vistazo cuáles pagos dicen transferencia).
+  const FORMAS_TXT = { E: "Efectivo", T: "TRANSFERENCIA", D: "Depósito Oxxo", M: "Mixto", CH: "Cheque" };
   const filas = (d.clientas || []).map((c) => {
     const anul = c.anulado ? " anulada" : "";
+    const fTxt = FORMAS_TXT[c.forma] || (c.forma ? hesc(c.forma) : "Efectivo");
+    const fColor = c.forma === "T" ? "#B00020" : (c.forma === "D" || c.forma === "M" || c.forma === "CH" ? "#324AB6" : "#6B6480");
     return '<div class="corrfila">'
       + '<span class="cn' + anul + '">' + hesc(c.nombre) + '<br>'
-      + '<span class="sub">' + hesc(c.centro || "Individual") + "</span></span>"
+      + '<span class="sub">' + hesc(c.centro || "Individual")
+      + ' · <b style="color:' + fColor + '">' + fTxt + "</b></span></span>"
       + '<span class="cm' + anul + '">' + dinero(c.pago) + (c.garantia > 0 ? " + gar " + dinero(c.garantia) : "") + "</span>"
       + '<span class="corrbtns">'
       + (c.pago > 0 ? '<button class="cbtn" onclick="corregirMonto(&quot;' + hesc(c.clave) + '&quot;,&quot;pago&quot;)">Corregir pago</button>' : "")
+      + (c.pago > 0 || c.garantia > 0 ? '<button class="cbtn" onclick="corregirForma(&quot;' + hesc(c.clave) + '&quot;,&quot;' + hesc(c.forma || "E") + '&quot;)">Cambiar forma</button>' : "")
       + (c.garantia > 0 ? '<button class="cbtn" onclick="corregirMonto(&quot;' + hesc(c.clave) + '&quot;,&quot;garantia&quot;)">Quitar garantía</button>' : "")
       + '<button class="cbtn rojo" onclick="anularCaptura(&quot;' + hesc(c.clave) + '&quot;)">Anular todo</button>'
       + "</span></div>";
@@ -962,6 +969,21 @@ async function corregirMonto(clave, campo){
   if (!motivo) return;
   const ok = await mandarCorreccion("/api/cobranza/ajuste", {
     fecha: FECHA_VISTA || FECHA_HOY, ejecutivo: CORR_ABIERTA, clave, campo, monto, motivo });
+  if (ok) { const id = CORR_ABIERTA; CORR_ABIERTA = null; await cargar(); abrirCorreccion(id); }
+}
+// Cambiar la FORMA de un pago capturado (E/T/D/M/CH). Es la corrección del
+// caso Christopher 26-ago: pagos en efectivo que la app marcó transferencia.
+async function corregirForma(clave, actual){
+  const v = prompt("¿Cómo pagó de verdad esta clienta?\n\n"
+    + "E = Efectivo\nT = Transferencia\nD = Depósito Oxxo/tienda\nM = Mixto\nCH = Cheque\n\n"
+    + "Hoy está como: " + actual, actual === "T" ? "E" : actual);
+  if (v === null) return;
+  const valor = String(v).trim().toUpperCase();
+  if (!["E", "T", "D", "M", "CH"].includes(valor)) return alert("Pon E, T, D, M o CH.");
+  const motivo = prompt("¿Por qué se corrige la forma? (queda en el registro)");
+  if (!motivo) return;
+  const ok = await mandarCorreccion("/api/cobranza/ajuste", {
+    fecha: FECHA_VISTA || FECHA_HOY, ejecutivo: CORR_ABIERTA, clave, campo: "forma", valor, motivo });
   if (ok) { const id = CORR_ABIERTA; CORR_ABIERTA = null; await cargar(); abrirCorreccion(id); }
 }
 async function anularCaptura(clave){
