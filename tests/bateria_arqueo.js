@@ -3986,6 +3986,30 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !!lvFila && lvFila.vencidaPlazo === true && lvFila.finPlazo === "2026-05-11",
     JSON.stringify(lvFila ? { vencidaPlazo: lvFila.vencidaPlazo, finPlazo: lvFila.finPlazo } : "no está"));
 
+  // — EL CAMBIO DE EJECUTIVO por la puerta de captura (27-ago: la cartera de
+  // Karina se reparte). Mueve al ejecutivo y NADA más: mismos saldos, misma
+  // mora, y la bitácora dice de quién venía.
+  const antesRe = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  const reCap = await j(await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      ejecutivo: "Julio", motivo: "cambio de ejecutivo del padrón actualizado" }) }));
+  ok("el CAMBIO DE EJECUTIVO entra por la puerta de captura, con rastro de quién venía",
+    reCap.ok === true && reCap.clienta && reCap.clienta.ejecutivo === "Julio"
+    && reCap.clienta.ejecutivo_anterior === "Neri",
+    JSON.stringify(reCap.clienta ? { e: reCap.clienta.ejecutivo, ant: reCap.clienta.ejecutivo_anterior } : reCap));
+  const despRe = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  ok("y la MORA no se mueve: el total de la semana queda idéntico",
+    Math.abs((antesRe.total || 0) - (despRe.total || 0)) < 0.01,
+    (antesRe.total || 0) + " vs " + (despRe.total || 0));
+  const vpRe = (despRe.vencidasPlazo || []).find((x) => x.socio === "70000009102");
+  ok("su renglón de vencidas ahora dice Julio, con el MISMO saldo",
+    !!vpRe && vpRe.ejecutivo === "Julio" && !!vpFila && Math.abs(vpRe.saldo - vpFila.saldo) < 0.01,
+    JSON.stringify(vpRe || "no está"));
+  const ejMal = await fetch(U + "/api/creditos/captura", { method: "POST", headers: H(cpd102),
+    body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      ejecutivo: "Fulano", motivo: "no existe" }) });
+  ok("un ejecutivo que no existe se rechaza", ejMal.status === 400, "status " + ejMal.status);
+
   console.log("\n— 101. EL PAQUETE OFFLINE, EJECUTIVA POR EJECUTIVA (Karina, 24-ago) —");
   // «Checa que offline-first funcione en todos los ejecutivos, desde el celular,
   // sin señal.» Lo que el servidor puede garantizar: que CADA app salga con el

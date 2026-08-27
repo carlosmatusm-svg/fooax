@@ -4655,8 +4655,20 @@ app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => 
       return res.status(400).json({ error: "El plazo es el NÚMERO DE PAGOS del crédito (por ejemplo 18 o 24), entre 1 y 200." });
     campos.plazo = pl;
   }
+  // CAMBIO DE EJECUTIVO (27-ago: la cuenta de Karina se da de baja y su
+  // cartera se reparte con el PADRÓN ACTUALIZADO de Dirección). Reasignar NO
+  // toca saldos ni cuotas — el crédito se va con los números que ya trae — y
+  // la bitácora guarda de quién venía (ejecutivo_anterior), quién lo movió y
+  // por qué. Solo nombres de ejecutivas que existen.
+  if (b.ejecutivo) {
+    const nombres = Object.keys(USUARIOS)
+      .filter((k2) => USUARIOS[k2].rol === "ejecutivo").map((k2) => USUARIOS[k2].nombre);
+    const okE = nombres.find((n) => norm(n) === norm(String(b.ejecutivo)));
+    if (!okE) return res.status(400).json({ error: "Ese ejecutivo no existe. Elige uno de: " + nombres.join(", ") });
+    campos.ejecutivo = okE;
+  }
   if (!Object.keys(campos).length)
-    return res.status(400).json({ error: "No hay nada que capturar: pon la fecha de desembolso, el día de pago o el plazo." });
+    return res.status(400).json({ error: "No hay nada que capturar: pon la fecha de desembolso, el día de pago, el plazo o el ejecutivo." });
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
     fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
