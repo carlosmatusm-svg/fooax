@@ -2279,9 +2279,23 @@ function showTab(name){
 function reforzarToque(){
   document.querySelectorAll('[onclick]').forEach(el=>{
     if(el._tch)return; el._tch=1;
+    // TOQUE ≠ SCROLL (queja de las ejecutivas, 25-ago: «ni bien le paso mi
+    // dedo y se pone información»). touchend también se dispara al TERMINAR
+    // un scroll: al levantar el dedo sobre un renglón —el ✓ de la cuota, por
+    // ejemplo— se capturaba solo. Si el dedo se movió más de 12px, fue
+    // scroll y no dispara nada.
+    let tX0=0,tY0=0,tMovio=false;
+    el.addEventListener('touchstart',function(e){
+      const t=(e.touches&&e.touches[0])||{};
+      tX0=t.clientX||0; tY0=t.clientY||0; tMovio=false;
+    },{passive:true});
+    el.addEventListener('touchmove',function(e){
+      const t=(e.touches&&e.touches[0])||{};
+      if(Math.abs((t.clientX||0)-tX0)>12||Math.abs((t.clientY||0)-tY0)>12)tMovio=true;
+    },{passive:true});
     el.addEventListener('touchend',function(e){
-      // evitar doble disparo y permitir scroll
       if(el.tagName==='INPUT'||el.tagName==='SELECT')return;
+      if(tMovio)return;               // fue scroll: no es un toque
       e.preventDefault();
       el.click();
     },{passive:false});

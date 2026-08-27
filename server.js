@@ -3578,16 +3578,19 @@ function finDelPlazo(c) {
 // hay semana a la cual recorrerse: es recuperación. Se deriva sola con fecha
 // de desembolso + plazo (verificados el 25-ago); nadie la marca a mano, y por
 // eso mismo se corrige sola si Dirección corrige la fecha o el plazo.
-// `ref` es la fecha CONTRA la que se pregunta: las vistas vivas (tarjeta,
-// semáforo, cartera) preguntan contra HOY; la mora de una semana pasada
-// pregunta contra ESA semana — un crédito vivo en agosto fue mora de agosto
-// aunque hoy ya esté vencido: la historia no se reescribe.
+// `ref` es la fecha CONTRA la que se pregunta. Por defecto es el LUNES de la
+// semana en curso — la MISMA vara que usa la mora semanal—: un crédito que
+// termina a media semana todavía tenía cobro ESA semana, y se vuelve vencido
+// el lunes siguiente. Así la tarjeta, el semáforo, la cartera y la mora nunca
+// se contradicen entre sí. La mora de una semana PASADA pasa su propio lunes:
+// un crédito vivo en agosto fue mora de agosto aunque hoy ya esté vencido —
+// la historia no se reescribe.
 function vencidaPorPlazo(c, info, ref) {
   if (esVencido(c)) return false;              // ya viene marcada: no se duplica
   if (aunNoDesembolsa(c)) return false;
   if (!info || (info.saldoActual || 0) <= 0.009) return false;
   const fin = finDelPlazo(c);
-  return !!fin && fin < (ref || hoyMX());
+  return !!fin && fin < (ref || lunesDeLaSemana(hoyMX()));
 }
 // ATRASO EN NÚMERO DE PAGOS. Corrección del 4-ago: el PLAZO NO ES UNA FECHA
 // LÍMITE, es un NÚMERO DE PAGOS. Si una clienta falta tres semanas, su crédito
@@ -5242,7 +5245,18 @@ function repartirMovsPorEjecutivo(porEjec, movs) {
     const id = ejecutivoDeMov(m);
     if (!id || !porEjec[id]) continue;
     const e = porEjec[id];
-    if (m.entrada) e.movEntradas = (e.movEntradas || 0) + m.monto;
+    if (m.entrada) {
+      e.movEntradas = (e.movEntradas || 0) + m.monto;
+      // Y POR FORMA (arqueo, 25-ago: «suma a cada uno lo que agregaron»): lo
+      // que la ejecutiva metió de otros movimientos —recuperaciones,
+      // comisiones, liquidaciones— también es dinero que ella entrega, y debe
+      // sumar en SU renglón del desglose de recepción, no solo en el global.
+      const efeM = efectivoDeMov(m);
+      if (efeM) e.movEfe = (e.movEfe || 0) + efeM;
+      if (m.metodo === "transferencia") e.movTr = (e.movTr || 0) + m.monto;
+      else if (m.metodo === "mixto") e.movTr = (e.movTr || 0) + Math.max(0, m.monto - efeM);
+      else if (m.metodo === "cheque") e.movChq = (e.movChq || 0) + m.monto;
+    }
     else e.movSalidas = (e.movSalidas || 0) + m.monto;
     // SOLO el efectivo afecta el arqueo de billetes: una transferencia va al
     // banco, no a la caja. Sin esto, un gasto por transferencia bajaba el
@@ -6609,21 +6623,36 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
       c.alignment = { horizontal: i === 0 ? "left" : "right" };
     });
-    let tE = 0, tT = 0, tO = 0, tC = 0;
+    let tE = 0, tT = 0, tO = 0, tC = 0, tMovs = 0;
     for (const id in a.porEjec) {
       const e = a.porEjec[id];
-      const oxxo = e.deposito || 0, transf = (e.transferencia || 0) - oxxo,
-        efe = e.efectivo || 0, chq = e.cheque || 0;
+      // Cada renglón trae la COBRANZA de la ejecutiva MÁS sus otros
+      // movimientos (recuperaciones, comisiones, liquidaciones) por la forma
+      // en que entraron — es lo que ella de verdad entrega (arqueo, 25-ago).
+      const oxxo = e.deposito || 0, transf = (e.transferencia || 0) - oxxo + (e.movTr || 0),
+        efe = (e.efectivo || 0) + (e.movEfe || 0), chq = (e.cheque || 0) + (e.movChq || 0);
       if (!(efe || transf || oxxo || chq)) continue;
       const r = s.getRow(fila++);
       r.getCell(1).value = (USUARIOS[id] || {}).nombre || id;
       [efe, transf, oxxo, chq].forEach((v, i) => { const c = r.getCell(i + 2); c.value = v; c.numFmt = dinero; });
       tE += efe; tT += transf; tO += oxxo; tC += chq;
+      tMovs += (e.movEfe || 0) + (e.movTr || 0) + (e.movChq || 0);
     }
     const rt = s.getRow(fila++);
     rt.getCell(1).value = "TOTAL"; rt.getCell(1).font = { bold: true };
     [tE, tT, tO, tC].forEach((v, i) => { const c = rt.getCell(i + 2);
       c.value = Math.round(v * 100) / 100; c.numFmt = dinero; c.font = { bold: true }; });
+    // La cuadratura por escrito (regla de las tablas): el total de esta tabla
+    // NO es solo la cobranza — dice cuánto viene de otros movimientos, para
+    // que cuadre a la vista contra los renglones de arriba.
+    if (tMovs > 0.004) {
+      const rn = s.getRow(fila++);
+      rn.getCell(1).value = "   ya incluye $"
+        + (Math.round(tMovs * 100) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })
+        + " de sus otros movimientos (recuperaciones, comisiones…)";
+      rn.getCell(1).font = { italic: true, color: { argb: "FF6B6480" } };
+      s.mergeCells(fila - 1, 1, fila - 1, 5);
+    }
   }
   // EN QUÉ SE FUE EL DINERO, por tipo. Antes el Excel decía "− Gastos $X" y para
   // saber en qué había que leer el detalle renglón por renglón.

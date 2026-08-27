@@ -3477,7 +3477,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el service worker ya NO sirve la lógica viva desde el cache",
     /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
   ok("y su versión de cache cambió, para que los teléfonos la tomen",
-    /fooax-v16/.test(sw78), "no se movió la versión del cache");
+    /fooax-v17/.test(sw78), "no se movió la versión del cache");
   const vjs78 = await (await fetch(U + "/vivos.js")).text();
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
@@ -3906,6 +3906,45 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const movsDir = await j(await fetch(U + "/api/movimientos?fecha=" + HOY, { headers: H(cd) }));
   ok("la app de una ejecutiva NO puede registrar entregas de crédito (rechazado, no guardado)",
     !(movsDir.lista || []).some((x) => /T102$/.test(String(x.folio))));
+
+  // — EL TOQUE NO ES SCROLL (queja de las ejecutivas, 25-ago: «ni bien le
+  // paso mi dedo y se pone información») — cada app sale con el guardia:
+  // si el dedo se movió, levantar el dedo NO captura nada.
+  const PASS102T = { neri: "neri2026", karina: "karina2026", christopher: "chris2026",
+    julio: "julio2026", prueba: "PruebaFOOAX2026" };
+  for (const idT of Object.keys(PASS102T)) {
+    const cT = await login(idT, PASS102T[idT]);
+    const htmlT = await (await fetch(U + "/app", { headers: H(cT) })).text();
+    ok("la app de " + idT + " trae el guardia toque-vs-scroll (no captura al deslizar)",
+      /tMovio/.test(htmlT) && /touchmove/.test(htmlT), "sin guardia");
+  }
+
+  // — EL DESGLOSE DE RECEPCIÓN SUMA LOS OTROS MOVIMIENTOS DE CADA EJECUTIVA —
+  // (arqueo, 25-ago: «los ejecutivos meten en caja otros movimientos; suma a
+  // cada uno lo que agregaron, en efectivo y transferencia»).
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs: [
+      { folio: "C102A", monto: 150, concepto: "COMISION", nota: "comisión en efectivo" },
+      { folio: "C102B", monto: 250, concepto: "COMISION", via: "T", nota: "comisión por transferencia" },
+    ] }, ts: Date.now() + 500 }) });
+  const arqR102 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cd) }));
+  const ejR102 = (arqR102.porEjec || {}).prueba || {};
+  ok("los otros movimientos de la ejecutiva se reparten POR FORMA (efectivo y transferencia)",
+    (ejR102.movEfe || 0) >= 150 && ejR102.movTr === 250,
+    "movEfe=" + ejR102.movEfe + " movTr=" + ejR102.movTr);
+  const xr102 = await fetch(U + "/api/arqueo/excel?fecha=" + HOY, { headers: H(cd) });
+  const ExR102 = require("exceljs"); const wbR102 = new ExR102.Workbook();
+  await wbR102.xlsx.load(Buffer.from(await xr102.arrayBuffer()));
+  let filaEj102 = null, nota102 = false;
+  wbR102.worksheets[0].eachRow((r) => {
+    const t2 = String(r.getCell(1).value || "");
+    if (t2 === "Prueba") filaEj102 = { efe: Number(r.getCell(2).value) || 0, tr: Number(r.getCell(3).value) || 0 };
+    if (/ya incluye \$/.test(t2)) nota102 = true;
+  });
+  ok("y el Excel del arqueo los suma en SU renglón del desglose de recepción",
+    !!filaEj102 && filaEj102.efe >= 150 && filaEj102.tr >= 250, JSON.stringify(filaEj102));
+  ok("con la cuadratura por escrito: la tabla dice cuánto viene de otros movimientos",
+    nota102, "falta la nota de cuadratura");
 
   // — LA VENCIDA POR PLAZO CUMPLIDO (observación de la mora de Neri, 25-ago:
   // «ya pasa a ser vencido porque terminó su plazo... la app no los marca») —
