@@ -46,8 +46,17 @@ function idsEjecutivos(usuario) {
 
 // Fecha de HOY en horario de México (no UTC). Evita que el "día" cambie a las
 // 6 PM y la cobranza de la tarde se parta o desaparezca del tablero.
+// CACHÉ DE 1 SEGUNDO (27-ago: «el tablero se traba al cambiar de fechas»).
+// toLocaleDateString con zona horaria pasa por Intl y es caro, y desde la
+// vencida por plazo esta función se consulta POR CRÉDITO — cientos de veces
+// por petición. El día cambia una vez por noche: un segundo de caché no
+// miente y quita todo ese costo.
+let _hoyCache = { t: 0, v: "" };
 function hoyMX() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+  const ahora = Date.now();
+  if (ahora - _hoyCache.t > 1000)
+    _hoyCache = { t: ahora, v: new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" }) };
+  return _hoyCache.v;
 }
 
 // ---------- sesiones (cookie httpOnly) ----------
@@ -1238,7 +1247,22 @@ function previoVigente(c, corte, porFecha, fechasLiq) {
   };
 }
 
+// CACHÉ DE LA CARTERA (27-ago: «se traba al cambiar de fechas»). Un clic del
+// tablero dispara SEIS peticiones y cada una recalculaba la cartera completa
+// desde los snapshots — en un solo hilo, se forman en fila y el tablero se
+// queda pensando. La cartera solo cambia cuando se ESCRIBE algo (la revisión
+// del store sube) o cuando cambia el día; si no, se sirve la misma. Una caché
+// por burbuja: la de prueba y la real nunca se mezclan.
+let _cvCache = { rev: -1, dia: "", real: null, prueba: null };
 function carteraViva(usuario) {
+  const burbuja = usuario && usuario.test ? "prueba" : "real";
+  const r = store.revision(), d = hoyMX();
+  if (_cvCache.rev !== r || _cvCache.dia !== d)
+    _cvCache = { rev: r, dia: d, real: null, prueba: null };
+  if (!_cvCache[burbuja]) _cvCache[burbuja] = carteraVivaCalcular(usuario);
+  return _cvCache[burbuja];
+}
+function carteraVivaCalcular(usuario) {
   // Saldos = saldo de plantilla − TODO lo abonado desde el corte (no solo la
   // semana: los lunes la ventana semanal se vacía y los saldos "rebotaban").
   const corte = corteSaldos();

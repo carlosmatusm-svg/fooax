@@ -319,7 +319,15 @@ function eliminarSesion(sid) {
   } else escribirJSON("sesiones.json", mem.sesiones);
 }
 
+// REVISIÓN DE DATOS (27-ago: «el tablero se traba al cambiar de fechas»).
+// Sube en cada escritura que pueda mover la cartera; el servidor la usa para
+// cachear carteraViva sin riesgo de servir datos viejos: si nadie escribió,
+// la cartera es la misma y no hay nada que recalcular.
+let rev = 1;
+function toco() { rev++; }
+
 module.exports = {
+  revision() { return rev; },
   init,
   // Para que el servidor use EXACTAMENTE la misma regla al guardar un
   // movimiento que la que se usa al leerlo. Tenerla en dos lados fue justo lo
@@ -342,6 +350,7 @@ module.exports = {
   // equivocada (teléfono pegado en el día viejo) ya no puede destruir la
   // cobranza real de ese día — siempre se puede recuperar.
   guardarSnapshot(ejecutivo, fecha, snapshot) {
+    toco();
     mem.snapshots[ejecutivo] = mem.snapshots[ejecutivo] || {};
     const previo = mem.snapshots[ejecutivo][fecha];
     if (previo && previo.ts > snapshot.ts) return previo;
@@ -395,6 +404,7 @@ module.exports = {
   // Historial completo de una clave (para auditar quién la movió y cuándo).
   historialRenovacion(clave) { return mem.renov.filter((g) => g && g.clave === clave); },
   setGestionRenovacion(g) {
+    toco();
     mem.renov.push(g);
     if (usePg) {
       pool.query("INSERT INTO renov_gestion (data, ts) VALUES ($1,$2)", [g, g.ts])
@@ -404,6 +414,7 @@ module.exports = {
   },
 
   agregarAjusteCobranza(a) {
+    toco();
     mem.ajustes.push(a);
     persistAjuste(a);
     return a;
@@ -463,6 +474,7 @@ module.exports = {
 
   // Append-only: nunca se borra ni se edita un movimiento (rastro auditable).
   agregarMovimiento(mov) {
+    toco();
     // Idempotente por folio. Las ejecutivas sincronizan muchas veces al día y
     // cada sincronización reenvía TODOS sus movimientos; sin esto, el mismo
     // gasto se contaba una vez por sincronización y el efectivo a entregar
@@ -482,6 +494,7 @@ module.exports = {
   // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
   // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.
   marcarCierre(ejecutivo, fecha, confirmado) {
+    toco();
     mem.snapshots[ejecutivo] = mem.snapshots[ejecutivo] || {};
     let rec = mem.snapshots[ejecutivo][fecha];
     // UN DÍA SIN COBRANZA TAMBIÉN SE CIERRA. Antes, si no había snapshot de ese
@@ -509,6 +522,7 @@ module.exports = {
   // cierre y su foto congelada, para que la siguiente sincronización REEMPLACE
   // el día en lugar de fusionarse (sumarse) con lo anterior.
   reiniciarDia(ejecutivo, fecha) {
+    toco();
     const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
     if (!rec) return false;
     const copia = Object.assign({}, rec, { archivado: Date.now(), motivo: "reinicio" });
@@ -532,6 +546,7 @@ module.exports = {
   // Se usa cuando una captura estaba MAL FECHADA y ya se re-etiquetó al día
   // correcto: sin esto, la semana contaba ese dinero dos veces (una por fecha).
   retirarSnapshot(ejecutivo, fecha) {
+    toco();
     const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
     if (!rec) return false;
     const copia = Object.assign({}, rec, { archivado: Date.now(), motivo: "reetiquetado" });
@@ -557,6 +572,7 @@ module.exports = {
   // cheque) sin tocar monto, concepto ni anulado. Nació para los cheques que
   // se guardaban como "efectivo" y descuadraban el arqueo (faltante 25-jul).
   corregirMovimiento(folio, campos) {
+    toco();
     const m = mem.movimientos.find((x) => x.folio === folio);
     if (!m) return false;
     if ("metodo" in campos && campos.metodo) m.metodo = campos.metodo;
@@ -594,6 +610,7 @@ module.exports = {
   // queda escrito QUIÉN y POR QUÉ — un movimiento de caja que desaparece sin
   // explicación es justo lo que no puede pasar en una SOFOM.
   setMovimientoAnulado(folio, anulado, por, motivo) {
+    toco();
     const m = mem.movimientos.find((x) => x.folio === folio);
     if (!m || !!m.anulado === !!anulado) return;
     m.anulado = !!anulado;
@@ -610,6 +627,7 @@ module.exports = {
   // Se re-aplica en vivo para que el buscador y la cartera reflejen el cambio al
   // instante, y persiste para sobrevivir cualquier redespliegue.
   agregarCambioPadron(cambio) {
+    toco();
     mem.cambios.push(cambio);
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     persistCambio(cambio);
