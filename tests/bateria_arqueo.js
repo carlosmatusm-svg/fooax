@@ -2495,6 +2495,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // monto ÷ cuota, que es exactamente el número de pagos.
   ok("el crédito re-dado trae su plazo, no cero",
     !!n55 && n55.plazo === 48, "plazo " + (n55 || {}).plazo);
+  // EL CICLO viaja en el paquete vivo (31-ago, caso Yoali): con él, el
+  // teléfono limpia la cuota que la ejecutiva guardó a mano en el ciclo
+  // anterior — la llave socio+producto es la misma y se quedaba pegada.
+  ok("y su renglón del paquete vivo trae el CICLO, para que el teléfono limpie lo del anterior",
+    !!v55 && Number(v55.ciclo) >= 2, "ciclo=" + String((v55 || {}).ciclo));
   const alt55 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
   // La fecha del servidor viaja en cada paquete: es la única referencia del
   // vigilante de medianoche (el reloj del teléfono no cuenta).
@@ -3477,7 +3482,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el service worker ya NO sirve la lógica viva desde el cache",
     /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
   ok("y su versión de cache cambió, para que los teléfonos la tomen",
-    /fooax-v18/.test(sw78), "no se movió la versión del cache");
+    /fooax-v19/.test(sw78), "no se movió la versión del cache");
   const vjs78 = await (await fetch(U + "/vivos.js")).text();
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),

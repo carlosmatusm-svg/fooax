@@ -8,7 +8,7 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v18"; // v18: mejoras de captura gama baja (área de toque, deshacer, solo ver)
+const CACHE = "fooax-v19"; // v19: la renovación limpia la cuota local del ciclo anterior
 
 // LA LÓGICA VIVA NUNCA SE SIRVE VIEJA (Karina, 15-ago: «no encontré lo de la
 // mora en la app de Neri»). Estos archivos son el cerebro que baja del

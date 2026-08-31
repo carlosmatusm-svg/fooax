@@ -117,6 +117,19 @@
         // NUNCA se pisa el que la ejecutiva haya escrito ella.
         if (typeof datosCli !== "undefined" && datosCli) {
           var key = c.k || c.f, d = datosCli[key] || (datosCli[key] = {});
+          // RENOVACIÓN = CICLO NUEVO (31-ago, caso Yoali con Neri): la llave
+          // socio+producto es la MISMA entre ciclos, así que la cuota y la
+          // ficha que la ejecutiva guardó a mano eran del ciclo ANTERIOR y se
+          // quedaban pegadas — la cuota vieja ($576) le ganaba a la nueva
+          // ($648) y la mora marcaba $72 de atraso falso. Al cambiar el
+          // ciclo, lo local de ese crédito se limpia y manda el servidor.
+          // Primera vez que se ve un ciclo renovado (>1) sin sello: también
+          // se limpia — el dato local viene de antes de esta regla.
+          var cicloV = v.ciclo || 1;
+          var renovo = (d.cicloVisto && d.cicloVisto !== cicloV)
+            || (!d.cicloVisto && cicloV > 1 && d.cuota > 0 && v.cuota > 0 && d.cuota !== v.cuota);
+          if (renovo) { delete d.cuota; delete d.plazo; delete d.semana; sembro = true; }
+          if (d.cicloVisto !== cicloV) { d.cicloVisto = cicloV; sembro = true; }
           if (v.plazo > 0 && !d.plazo) { d.plazo = v.plazo; sembro = true; }
           if (v.unidad && d.unidad !== v.unidad) { d.unidad = v.unidad; sembro = true; }
         }

@@ -7232,6 +7232,11 @@ function datosVivosParaApp(usuario) {
         mora: Number(c.mora) || 0,
         etiqueta: c.etiqueta || "",
         desembolso: String(c.desembolso || "").slice(0, 10),
+        // El CICLO viaja para que el teléfono sepa cuándo hubo RENOVACIÓN
+        // (31-ago, caso Yoali): la llave socio+producto es la misma entre
+        // ciclos, y la cuota que la ejecutiva guardó a mano en el ciclo
+        // anterior se quedaba pegada ganándole a la cuota nueva.
+        ciclo: Number(c.ciclo) || 1,
       };
     });
 }
