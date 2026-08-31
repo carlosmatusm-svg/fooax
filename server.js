@@ -29,6 +29,13 @@ const USUARIOS = {
   prueba:      { nombre: "Prueba",      rol: "ejecutivo", test: true, app: "App_Cobranza_PRUEBA.html", pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
   pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", test: true, pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
 };
+// EL EJECUTIVO DE PRUEBA NO EXISTE EN PRODUCCIÓN (orden de Karina, 31-ago:
+// «elimina el ejecutivo prueba»). Era la ejecutiva de la burbuja para probar
+// la app; en el servidor real ya nadie puede entrar con esa cuenta. La
+// batería y el desarrollo local (sin DATABASE_URL) la siguen usando, y la
+// cuenta de dirección de prueba (pruebadir) se queda: es con la que se
+// verifica producción sin tocar contraseñas reales.
+if (process.env.DATABASE_URL) delete USUARIOS.prueba;
 
 // Quiénes cuentan como ejecutivas para consolidado/arqueo/resumen.
 // Se deriva de USUARIOS: si mañana entra una ejecutiva nueva (sucursales),
