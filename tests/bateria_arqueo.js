@@ -5537,6 +5537,38 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       "no está en el quitar de neri");
   }
 
+  console.log("\n— 63b. LA PURGA DE REGISTROS DE PRUEBA (31-ago: «elimina el centro y usuarios como karina matus prueba») —");
+  // La única vía que QUITA renglones del padrón: solo bajas o burbuja de
+  // prueba, solo centros vacíos, siempre con motivo y rastro.
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ nombre: "CENTRO BASURA", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) });
+  const altaBas63 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "78000000001", nombre: "CLIENTA BASURA", producto: "Grupal-Basico",
+      centro: "CENTRO BASURA", ejecutivo: "Neri", saldo: 100, cuota: 100, plazo: 1,
+      diaPago: "LUNES", desembolso: HOY }) }));
+  ok("la utilería de la purga nace bien (centro + clienta de prueba)",
+    altaBas63.ok === true, JSON.stringify(altaBas63).slice(0, 80));
+  const pgViva63 = await j(await fetch(U + "/api/padron/purga", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ socios: ["78000000001"], motivo: "intento con crédito vivo" }) }));
+  ok("un socio con crédito ACTIVO no se purga: eso es cartera",
+    /ACTIVO/.test(pgViva63.error || ""), JSON.stringify(pgViva63).slice(0, 80));
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "78000000001", producto: "Grupal-Basico", motivo: "Otro", detalle: "era de prueba" }) });
+  const pg63 = await j(await fetch(U + "/api/padron/purga", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ socios: ["78000000001"], centros: ["CENTRO BASURA"],
+      motivo: "registros de prueba (batería)" }) }));
+  ok("dada de baja, la purga entra con motivo", pg63.ok === true, JSON.stringify(pg63).slice(0, 80));
+  const bus63 = await j(await fetch(U + "/api/clientes?q=78000000001", { headers: H(cm) }));
+  ok("y la clienta de prueba DESAPARECE de las búsquedas (ni como baja)",
+    (bus63.resultados || []).length === 0, JSON.stringify(bus63.resultados || []).slice(0, 60));
+  const cen63 = await j(await fetch(U + "/api/centros", { headers: H(cm) }));
+  const cenLista63 = Array.isArray(cen63) ? cen : (cen63.centros || cen63.lista || []);
+  ok("y el centro de prueba desaparece de la lista de centros",
+    !cenLista63.some((x) => /BASURA/i.test(String(x.centro || ""))), "sigue en la lista");
+  const cen99b = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ nombre: "CENTRO RENACIDO", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) }));
+  ok("y su número queda LIBRE para un centro de verdad", cen99b.ok === true, JSON.stringify(cen99b).slice(0, 70));
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

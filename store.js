@@ -93,6 +93,15 @@ function aplicarCambios(base, cambios) {
           cl.motivo_baja = c.motivo || null; cl.fecha_baja = c.fecha || null; cl.baja_por = c.por || null;
         }
       }
+    } else if (c.tipo === "purga") {
+      // PURGA DE REGISTROS DE PRUEBA (31-ago, orden de Karina: «elimina el
+      // centro y usuarios como karina matus prueba»). Es la ÚNICA vía que
+      // QUITA renglones del padrón — y aún así no borra historia: la purga
+      // misma queda grabada como cambio, con autor, motivo y qué se llevó.
+      // El endpoint solo deja purgar bajas con saldo cero o burbuja de prueba.
+      const fuera = new Set((c.socios || []).map(String));
+      for (let i = arr.length - 1; i >= 0; i--)
+        if (fuera.has(String(arr[i].id))) arr.splice(i, 1);
     } else if (c.tipo === "ajuste") {
       // EDICIÓN de un crédito por dirección (Anel/Monse): ajuste de saldo/cuota o
       // marcar VENCIDA con su mora. Nunca borra; deja rastro (quién, cuándo, por

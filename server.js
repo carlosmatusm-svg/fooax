@@ -3338,18 +3338,29 @@ const MOTIVOS_BAJA = ["Salió del grupo", "No renovó", "Mora / mal historial",
 // Lista de centros REALES (del padrón activo + los registrados desde el
 // tablero). Sirve para que el alta de clientas elija de una lista en vez de
 // texto libre: un dedazo creaba un "centro fantasma" que partía los reportes.
+// CENTROS PURGADOS (31-ago): los centros de prueba que Dirección mandó quitar
+// con la purga. Sus registros tipo "centro" siguen en la bitácora, pero ya no
+// salen en ninguna lista ni reservan su número.
+function centrosPurgados() {
+  const out = new Set();
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "purga") for (const nm of (cb.centros || [])) out.add(norm(nm));
+  return out;
+}
 function listaCentros() {
   const mapa = new Map();
+  const purgados = centrosPurgados();
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     const nom = String(c.centro || "").trim();
     if (!nom || /^c-?0$/i.test(nom)) continue;   // C-0 = créditos individuales
+    if (purgados.has(norm(nom))) continue;
     const e = mapa.get(nom) || { centro: nom, clientas: 0, ejecutivos: new Set() };
     e.clientas++; if (c.ejecutivo) e.ejecutivos.add(c.ejecutivo);
     mapa.set(nom, e);
   }
   for (const cb of store.cambiosPadron()) {
-    if (cb.tipo === "centro" && cb.centro && !mapa.has(cb.centro))
+    if (cb.tipo === "centro" && cb.centro && !mapa.has(cb.centro) && !purgados.has(norm(cb.centro)))
       mapa.set(cb.centro, { centro: cb.centro, clientas: 0, ejecutivos: new Set(cb.ejecutivo ? [cb.ejecutivo] : []) });
   }
   const lista = [...mapa.values()]
@@ -3409,11 +3420,53 @@ app.post("/api/centros", requiere("direccion", "admin"), (req, res) => {
   if (!nombresEjec.includes(ejecutivo)) return res.status(400).json({ error: "Elige la ejecutiva del centro." });
   if (listaCentros().some((c) => norm(c.centro) === norm(nombre)))
     return res.status(400).json({ error: "Ese centro ya existe: elígelo de la lista." });
-  if (store.cambiosPadron().some((cb) => cb.tipo === "centro" && String(cb.numero) === numero))
+  // Un centro PURGADO libera su número: su registro queda en la bitácora pero
+  // ya no reserva nada.
+  const purgadosNum = centrosPurgados();
+  if (store.cambiosPadron().some((cb) => cb.tipo === "centro" && String(cb.numero) === numero
+      && !purgadosNum.has(norm(cb.centro))))
     return res.status(400).json({ error: "Ese número de centro ya está usado." });
   store.agregarCambioPadron({ tipo: "centro", numero, centro: nombre, ejecutivo,
     dia: String(b.dia || "").trim(), fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
   res.json({ ok: true, centro: nombre, numero });
+});
+
+// PURGA DE REGISTROS DE PRUEBA (31-ago, orden de Karina: «elimina el centro y
+// usuarios como karina matus prueba»). Quita del padrón renglones que NO son
+// cartera: solo acepta socios dados de BAJA o de la burbuja de pruebas, y
+// centros sin una sola clienta activa. La purga queda grabada como cambio,
+// con autor, motivo y qué se llevó — quitar sin rastro no existe aquí.
+app.post("/api/padron/purga", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const socios = (Array.isArray(b.socios) ? b.socios : []).map((x) => String(x).trim()).filter(Boolean);
+  const centros = (Array.isArray(b.centros) ? b.centros : []).map((x) => String(x).trim()).filter(Boolean);
+  const motivo = String(b.motivo || "").trim();
+  if (!socios.length && !centros.length)
+    return res.status(400).json({ error: "Di qué socios o centros de prueba se purgan." });
+  if (motivo.length < 4) return res.status(400).json({ error: "Escribe el motivo de la purga (queda en la bitácora)." });
+  const esEjecPrueba = (nom) => Object.values(USUARIOS)
+    .some((u) => u.test && u.rol === "ejecutivo" && norm(u.nombre) === norm(String(nom || "")));
+  for (const s of socios) {
+    for (const c of PADRON.filter((x) => String(x.id) === s)) {
+      const esBaja = c.activa === false || c.estatus === "BAJA";
+      if (!esBaja && !esEjecPrueba(c.ejecutivo))
+        return res.status(400).json({ error: "El socio " + s + " (" + (c.nombre || "") + ") tiene un crédito ACTIVO con "
+          + (c.ejecutivo || "una ejecutiva") + ": eso es cartera, no se purga. Dalo de baja primero si de verdad es de prueba." });
+    }
+  }
+  const fueraSoc = new Set(socios);
+  for (const nm of centros) {
+    const vivas = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA"
+      && !fueraSoc.has(String(c.id))
+      && norm(String(c.centro || "").split("·").pop()) === norm(nm));
+    if (vivas.length)
+      return res.status(400).json({ error: "El centro " + nm + " todavía tiene " + vivas.length
+        + " clienta(s) activa(s): no se purga un centro con gente." });
+  }
+  store.agregarCambioPadron({ tipo: "purga", socios, centros, motivo,
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
+  refrescarPadron();
+  res.json({ ok: true, socios, centros });
 });
 
 app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
