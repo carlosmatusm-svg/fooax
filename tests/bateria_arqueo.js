@@ -3482,7 +3482,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el service worker ya NO sirve la lógica viva desde el cache",
     /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
   ok("y su versión de cache cambió, para que los teléfonos la tomen",
-    /fooax-v19/.test(sw78), "no se movió la versión del cache");
+    /fooax-v20/.test(sw78), "no se movió la versión del cache");
   const vjs78 = await (await fetch(U + "/vivos.js")).text();
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
@@ -3951,6 +3951,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       /\.chk::before/.test(htmlT) && /_ultPal/.test(htmlT) && /mostrarDeshacer/.test(htmlT)
       && /btnSoloVer/.test(htmlT) && /cuotabtn/.test(htmlT) && /navigator\.vibrate/.test(htmlT),
       "falta alguna mejora en " + idT);
+    ok("y el día de puros movimientos puede cerrar su arqueo (caso Julio 29-ago)",
+      /_hayMovs/.test(htmlT) && /movimientos ni conteo/.test(htmlT), "candado viejo en " + idT);
   }
 
   // — EL DESGLOSE DE RECEPCIÓN SUMA LOS OTROS MOVIMIENTOS DE CADA EJECUTIVA —

@@ -637,7 +637,12 @@ async function enviarArqueoYCerrar(){
   }
   if(bloqueoPorErrores('ENVIAR EL ARQUEO Y CERRAR'))return;
   const {t}=totales();
-  if(t<=0 && !(window._arqueoTotal>0)){alert('Aún no hay cobranza ni conteo para el arqueo de hoy.');return;}
+  // Un día de PUROS MOVIMIENTOS también se cierra (caso Julio, 29-ago: solo
+  // reportó transferencias —comisión y garantía— y el candado no lo dejaba
+  // enviar su arqueo). Con movimientos capturados, el arqueo va en $0 de
+  // efectivo y el día queda cerrado como cualquier otro.
+  const _hayMovs=(typeof movs!=='undefined'&&Array.isArray(movs)&&movs.length>0);
+  if(t<=0 && !(window._arqueoTotal>0) && !_hayMovs){alert('Aún no hay cobranza, movimientos ni conteo para el arqueo de hoy.');return;}
   // CERRAR = MANDÓ SU ARQUEO (regla Karina 27-jul). Si hay efectivo que
   // entregar y no ha contado un solo billete, no se cierra: se le manda a
   // contar. El efectivo se calcula aquí y no se lee de _arqueoEsperado, que
