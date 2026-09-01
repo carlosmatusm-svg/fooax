@@ -166,6 +166,21 @@
       centroElegido = sel ? sel.value : null;
     } catch (e) { }
     if (typeof fillCentros === "function") try { fillCentros(); } catch (e) { }
+    // EL SELECTOR DE «OTROS MOVIMIENTOS» TAMBIÉN SE REFRESCA (31-ago: San
+    // Miguel y La Fortaleza llegaron por traspaso y aparecían en Cobranza
+    // pero no ahí — fillMovSelects solo corría al arrancar). Se conserva lo
+    // que la ejecutiva ya tenía elegido, igual que el centro de cobranza.
+    if (typeof fillMovSelects === "function") try {
+      var mvC = document.getElementById("movCentro");
+      var mvCl = document.getElementById("movClienta");
+      var mvCV = mvC ? mvC.value : null, mvClV = mvCl ? mvCl.value : null;
+      fillMovSelects();
+      if (mvC && mvCV) {
+        mvC.value = mvCV;
+        if (typeof fillMovClientas === "function") try { fillMovClientas(); } catch (e2) { }
+        if (mvCl && mvClV) mvCl.value = mvClV;
+      }
+    } catch (e) { }
     // Reponer el centro ANTES de render(): render lee el selector para saber
     // qué lista pintar. Sin esto, el repintado lo regresaba a "— Elige…".
     if (sel && centroElegido) try { sel.value = centroElegido; } catch (e) { }

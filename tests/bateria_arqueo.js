@@ -3487,6 +3487,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
     "vivos.js no trae la mora");
+  ok("y el repintado refresca también el selector de Otros movimientos (centros traspasados)",
+    /fillMovSelects/.test(vjs78) && /movCentro/.test(vjs78), "no refresca los selects de movimientos");
   const appHtml78 = await (await fetch(U + "/app", { headers: H(cn) })).text();
   ok("la app inyecta su paquete vivo, con la mora dentro",
     /__VIVOS0/.test(appHtml78) && /"mora"/.test(appHtml78), "el paquete no trae mora");
