@@ -28,11 +28,18 @@ por ejecutiva en `apps/`, tablero de dirección en `public/tablero.html`.
 
    ```bash
    D=/tmp/fooax-prueba; rm -rf $D; mkdir -p $D; cp data/padron.json $D/
+   cp data/padron_corte.json $D/ 2>/dev/null || true
    printf '{}' > $D/snapshots.json; printf '[]' > $D/movimientos.json
    printf '[]' > $D/padron_cambios.json; printf '{}' > $D/sesiones.json
    DATA_DIR=$D PORT=3899 node server.js &   # y en otra terminal:
    node tests/bateria_arqueo.js
    ```
+
+   `padron_corte.json` se copia también (2-sep-2026): sin él, `aplicarCorteDeLaPlantilla()`
+   nunca encuentra la plantilla al arrancar, ningun cambio de corte queda marcado
+   `dePlantilla`, y la prueba "la cartera avisa del corte adelantado..." (seccion 71)
+   falla siempre en este entorno -- no es un bug de codigo, es que faltaba este archivo
+   en la carpeta desechable.
 
    El padrón se copia porque la batería lo necesita para arrancar. Al terminar, el
    servidor de trabajo y sus datos siguen intactos. Si algún día hay que vaciar
