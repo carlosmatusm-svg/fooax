@@ -1,3 +1,6 @@
+/* eslint-disable no-undef -- se inyecta al final de la app de cobranza y usa
+   sus globals (guardar, STORE_KEY...); no son variables indefinidas, son de
+   la página anfitriona. */
 // FOOAX · módulo de sincronización — se inyecta al final de la app de cobranza.
 // Engancha guardar(): cada vez que la app guarda en el teléfono, también
 // programa una subida a la nube. Sin señal no pasa nada: el dato ya quedó

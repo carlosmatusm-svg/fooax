@@ -1,0 +1,292 @@
+// rutas_expediente.js — endpoints del módulo de expediente (CU-009, CU-010).
+//
+// Se monta desde server.js con un cambio mínimo (ver server.js): este archivo
+// no toca ninguna ruta existente de cobranza. Recibe por inyección de
+// dependencias lo que necesita del servidor (autenticación, puestos) en vez
+// de duplicarlo, para no desincronizarse si esa lógica cambia allá.
+const express = require("express");
+const storeExp = require("./store_expediente");
+
+// Documentos/fotos llegan como base64 desde el teléfono y pueden pesar más
+// que el límite general de 2mb del resto de la API — este router usa su
+// propio límite, sin tocar el de server.js.
+const jsonGrande = express.json({ limit: "8mb" });
+
+function ipDe(req) {
+  return (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+}
+
+// requiere: middleware ya existente en server.js (por rol clásico).
+// requierePuesto: middleware nuevo (ver server.js) — candado por PUESTO.
+module.exports = function montarRutasExpediente(app, { requiere, requierePuesto }) {
+  const r = express.Router();
+  r.use(jsonGrande);
+
+  // ---- Buscar responsable/aval YA existente (por nombre o CURP) ----
+  // Rutas en /api/responsables y /api/avales — a propósito FUERA de
+  // /api/expediente/:clientaId/..., porque si viviera ahí chocaría con la ruta
+  // GET /api/expediente/:clientaId (Express la tomaría como si "responsables"
+  // fuera un id de clienta). Sin este buscador la pantalla no tiene forma de
+  // reutilizar un registro, y el tope de vincularResponsable/vincularAval
+  // nunca se pone a prueba en uso real.
+  r.get("/api/responsables", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    res.json({ resultados: storeExp.buscarResponsables(req.query.q) });
+  });
+  r.get("/api/avales", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    res.json({ resultados: storeExp.buscarAvales(req.query.q) });
+  });
+
+  // ---- Responsable (tope: máximo 2 clientas activas) ----
+  // Se puede mandar responsable_id para VINCULAR a una responsable que ya
+  // existe (la misma persona real respaldando a una segunda clienta) — el
+  // tope solo tiene sentido si se reutiliza el mismo registro; si no se manda,
+  // se crea una responsable nueva.
+  r.post("/api/expediente/:clientaId/responsable", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const { nombre, curp, telefono, domicilio, ocupacion, identificacion, credito_id, responsable_id } = req.body || {};
+    let responsable;
+    if (responsable_id) {
+      responsable = storeExp.obtenerResponsable(responsable_id);
+      if (!responsable) return res.status(400).json({ error: "No existe esa responsable." });
+    } else {
+      if (!nombre) return res.status(400).json({ error: "Falta el nombre de la responsable." });
+      responsable = storeExp.crearResponsable({
+        id_sucursal: req.usuario.id_sucursal || null, nombre, curp, telefono, domicilio, ocupacion, identificacion,
+      });
+    }
+    const vinc = storeExp.vincularResponsable(clientaId, responsable.id, credito_id);
+    if (!vinc.ok) return res.status(409).json({ error: vinc.error }); // candado de tope — 409 Conflict, no 500
+    // detalle.regla: qué versión de la regla de tope se usó para dejar pasar
+    // este vínculo — trazabilidad del motor de reglas (motor_reglas.js), no
+    // solo "se vinculó", sino "con qué tope vigente en ese momento".
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.responsable.alta",
+      entidad: "clienta", entidad_id: clientaId,
+      detalle: { responsable_id: responsable.id, regla: { clave: vinc.regla.clave, version: vinc.regla.version } }, ip: ipDe(req),
+    });
+    res.json({ ok: true, responsable, vinculo: vinc.vinculo });
+  });
+
+  // ---- Aval (tope: máximo 1 clienta activa; solo créditos > $10,000) ----
+  // Mismo patrón que responsable: aval_id opcional para reutilizar un aval
+  // que ya existe.
+  r.post("/api/expediente/:clientaId/aval", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const { nombre, curp, telefono, domicilio, ocupacion, identificacion, credito_id, aval_id } = req.body || {};
+    let aval;
+    if (aval_id) {
+      aval = storeExp.obtenerAval(aval_id);
+      if (!aval) return res.status(400).json({ error: "No existe ese aval." });
+    } else {
+      if (!nombre) return res.status(400).json({ error: "Falta el nombre del aval." });
+      aval = storeExp.crearAval({
+        id_sucursal: req.usuario.id_sucursal || null, nombre, curp, telefono, domicilio, ocupacion, identificacion,
+      });
+    }
+    const vinc = storeExp.vincularAval(clientaId, aval.id, credito_id);
+    if (!vinc.ok) return res.status(409).json({ error: vinc.error });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.aval.alta",
+      entidad: "clienta", entidad_id: clientaId,
+      detalle: { aval_id: aval.id, regla: { clave: vinc.regla.clave, version: vinc.regla.version } }, ip: ipDe(req),
+    });
+    res.json({ ok: true, aval, vinculo: vinc.vinculo });
+  });
+
+  // ---- Referencias (terceros — su propio consentimiento, no el de la clienta) ----
+  r.post("/api/expediente/:clientaId/referencia", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const { nombre, relacion, curp, telefono, consentimiento } = req.body || {};
+    if (!nombre) return res.status(400).json({ error: "Falta el nombre de la referencia." });
+    if (!consentimiento) {
+      return res.status(400).json({ error: "La referencia debe dar su propio consentimiento antes de guardar sus datos." });
+    }
+    const ref = storeExp.crearReferencia({ clienta_id: clientaId, nombre, relacion, curp, telefono, consentimiento });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.referencia.alta",
+      entidad: "clienta", entidad_id: clientaId, detalle: { referencia_id: ref.id }, ip: ipDe(req),
+    });
+    res.json({ ok: true, referencia: ref });
+  });
+
+  // ---- Documentos (cifrados en reposo; nunca se regresa el contenido aquí) ----
+  const TIPOS_VALIDOS = ["ine", "comprobante_domicilio", "curp", "foto_negocio"];
+  const PROPIETARIOS_VALIDOS = ["solicitante", "responsable", "aval"];
+  r.post("/api/expediente/:clientaId/documento", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const { tipo, propietario, contenido_base64, requiere_aval } = req.body || {};
+    if (!TIPOS_VALIDOS.includes(tipo)) return res.status(400).json({ error: "Tipo de documento no válido: " + tipo });
+    if (!PROPIETARIOS_VALIDOS.includes(propietario)) return res.status(400).json({ error: "Propietario no válido: " + propietario });
+    if (!contenido_base64) return res.status(400).json({ error: "Falta el contenido del documento." });
+    let buf;
+    try { buf = Buffer.from(contenido_base64, "base64"); } catch { return res.status(400).json({ error: "Documento con codificación inválida." }); }
+    if (!buf.length) return res.status(400).json({ error: "Documento vacío." });
+
+    let meta;
+    try {
+      meta = storeExp.guardarDocumento({ clienta_id: clientaId, tipo, propietario, contenido: buf, creado_por: req.usuario.id });
+    } catch (e) {
+      // Falla CERRADO: si no hay llave de cifrado configurada, no se guarda
+      // nada sin cifrar "por si acaso".
+      console.error("[rutas_expediente] documento:", e.message);
+      return res.status(500).json({ error: "No se pudo cifrar y guardar el documento. Avisa a Desarrollo." });
+    }
+    const expediente = storeExp.actualizarExpediente(clientaId, {
+      id_sucursal: req.usuario.id_sucursal, requiereAval: !!requiere_aval,
+    });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.documento.alta",
+      entidad: "clienta", entidad_id: clientaId, detalle: { documento_id: meta.id, tipo, propietario }, ip: ipDe(req),
+    });
+    res.json({ ok: true, documento: meta, expediente });
+  });
+
+  // ---- Datos de la clienta: identidad, domicilio, negocio, capacidad de
+  // pago, vivienda, familia, PLD/PEP (CU-009 §3). guardarDatosClienta hace
+  // MERGE — la pantalla puede mandar solo la sección que llenó, sin perder
+  // lo que ya se había guardado antes. ----
+  r.post("/api/expediente/:clientaId/datos", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const datos = storeExp.guardarDatosClienta(clientaId, req.body || {});
+    // Recalcula el estatus del expediente: los campos PLD obligatorios
+    // (CURP, RFC, domicilio, actividad, origen de recursos) ahora forman
+    // parte del candado de "expediente íntegro", no solo los documentos. Si
+    // todavía no existe expediente (nunca se subió ni un documento), no hay
+    // nada que recalcular todavía — eso es normal, no un error.
+    const expediente = storeExp.recalcularExpediente(clientaId);
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.datos_clienta.guardar",
+      entidad: "clienta", entidad_id: clientaId, detalle: { campos: Object.keys(req.body || {}) }, ip: ipDe(req),
+    });
+    res.json({ ok: true, datos, expediente });
+  });
+
+  // ---- Ubicación física del original en papel (CU-010 §3) — la llena
+  // Control Operativo al armar el expediente; es trazabilidad, no candado. ----
+  r.post("/api/expediente/:clientaId/ubicacion-fisica", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const { folio_fisico, ubicacion_fisica } = req.body || {};
+    const resultado = storeExp.registrarUbicacionFisica(clientaId, { folio_fisico, ubicacion_fisica });
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.ubicacion_fisica.guardar",
+      entidad: "clienta", entidad_id: clientaId, detalle: { folio_fisico, ubicacion_fisica }, ip: ipDe(req),
+    });
+    res.json({ ok: true, expediente: resultado.expediente });
+  });
+
+  // ---- Estatus del expediente (checklist, firmas, documentos, referencias,
+  // datos de la clienta, domicilio institucional — sin contenido de docs) ----
+  r.get("/api/expediente/:clientaId", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const expediente = storeExp.obtenerExpediente(clientaId);
+    const documentos = storeExp.documentosDeClienta(clientaId);
+    const firmas = storeExp.firmasDeClienta(clientaId);
+    const referencias = storeExp.referenciasDeClienta(clientaId);
+    const datosClienta = storeExp.obtenerDatosClienta(clientaId);
+    res.json({
+      expediente, documentos, firmas, referencias,
+      datos: datosClienta ? datosClienta.datos : {},
+      domicilio_institucional: storeExp.DOMICILIO_INSTITUCIONAL,
+    });
+  });
+
+  // ---- Firmas (las tres, siempre separadas — CU-009, Requerimiento Maestro §8) ----
+  r.post("/api/expediente/:clientaId/firma", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    const { tipo, gps, dispositivo, version_aviso } = req.body || {};
+    const resultado = storeExp.registrarFirma({ clienta_id: clientaId, tipo, gps, dispositivo, version_aviso });
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "expediente.firma", entidad: "clienta",
+      entidad_id: clientaId, detalle: { tipo }, ip: ipDe(req),
+    });
+    res.json({ ok: true, firma: resultado.firma });
+  });
+
+  // ---- Validación del expediente — CU-010, paso 5. Solo Administración y
+  // Finanzas (Ale). Candado técnico: no basta con no mostrar el botón, la
+  // API misma rechaza a quien no tenga el puesto correcto. ----
+  r.post("/api/expediente/:clientaId/validar", requierePuesto("administracion_finanzas"), (req, res) => {
+    const { clientaId } = req.params;
+    const { aprobado, motivo } = req.body || {};
+    const resultado = storeExp.validarExpediente(clientaId, { validado_por: req.usuario.id, aprobado: !!aprobado, motivo });
+    if (!resultado.ok) return res.status(409).json({ error: resultado.error });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: aprobado ? "expediente.validar.aprobado" : "expediente.validar.rechazado",
+      entidad: "clienta", entidad_id: clientaId, detalle: { motivo: motivo || null }, ip: ipDe(req),
+    });
+    res.json({ ok: true, expediente: resultado.expediente });
+  });
+
+  // ---- Candado de desembolso — lo consulta CU-013 (autorización) antes de
+  // dejar avanzar cualquier desembolso. "Expediente incompleto = desembolso
+  // cancelado. Sin excepciones." (Requerimiento Maestro y Anexo A). ----
+  r.get("/api/expediente/:clientaId/candado", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+    const { clientaId } = req.params;
+    res.json(storeExp.expedienteBloqueaDesembolso(clientaId));
+  });
+
+  // ---- Derechos ARCO (LFPDPPP) — exportar o anonimizar los datos de una
+  // persona a solicitud. "Cancelación" aquí SIEMPRE es anonimización (nunca
+  // DELETE): mismo principio de "nunca se borra" que ya rige movimientos y
+  // bitácora en el resto del sistema. Exportar: Dirección/Administración
+  // pueden verlo. Anonimizar: SOLO Dirección General, y exige motivo — es
+  // irreversible sobre esos campos, aunque el renglón nunca desaparece. ----
+  r.get("/api/arco/:entidad/:entidadId/exportar", requiere("direccion", "admin"), (req, res) => {
+    const { entidad, entidadId } = req.params;
+    const resultado = storeExp.exportarPersona(entidad, entidadId);
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    storeExp.registrarSolicitudArco({ tipo: "exportar", entidad, entidad_id: entidadId, atendido_por: req.usuario.id });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "arco.exportar", entidad, entidad_id: entidadId, ip: ipDe(req),
+    });
+    res.json({ ok: true, datos: resultado.datos });
+  });
+  r.post("/api/arco/:entidad/:entidadId/anonimizar", requierePuesto("direccion_general"), (req, res) => {
+    const { entidad, entidadId } = req.params;
+    const { motivo } = req.body || {};
+    if (!motivo) return res.status(400).json({ error: "Anonimizar exige un motivo — queda en el historial de solicitudes ARCO." });
+    const resultado = storeExp.anonimizarPersona(entidad, entidadId);
+    if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+    storeExp.registrarSolicitudArco({ tipo: "anonimizar", entidad, entidad_id: entidadId, atendido_por: req.usuario.id, motivo, resultado });
+    storeExp.registrarBitacora({
+      usuario: req.usuario.id, rol: req.usuario.rol, puesto: req.usuario.puesto,
+      id_sucursal: req.usuario.id_sucursal, accion: "arco.anonimizar", entidad, entidad_id: entidadId, detalle: { motivo }, ip: ipDe(req),
+    });
+    res.json({ ok: true, ...resultado }); // aplana ok/responsable|aval|referencia|datos_clienta, no anida "resultado.resultado"
+  });
+  r.get("/api/arco/historial", requiere("direccion", "admin"), (req, res) => {
+    res.json({ solicitudes: storeExp.historialArco() });
+  });
+
+  // ---- Retención PLD — reporte de solo lectura de expedientes que ya
+  // cumplieron el plazo de retención (LFPIORPI, 10 años por defecto, ver
+  // motor_reglas.js). NUNCA borra ni anonimiza nada por sí solo: es para que
+  // Dirección/Administración decidan caso por caso. ----
+  r.get("/api/retencion/pld", requiere("direccion", "admin"), (req, res) => {
+    res.json(storeExp.reporteRetencionPLD());
+  });
+
+  // ---- Bitácora única — solo lectura, solo Dirección/Administración.
+  // Es la manera de comprobar "quién hizo qué, cuándo" sin abrir la base de
+  // datos directamente; también es lo que usan las pruebas automatizadas. ----
+  r.get("/api/bitacora", requiere("direccion", "admin"), (req, res) => {
+    const { entidad_id, limite } = req.query;
+    let eventos = storeExp.bitacora();
+    if (entidad_id) eventos = eventos.filter((e) => e.entidad_id === String(entidad_id));
+    const n = Math.min(Number(limite) || 100, 500);
+    res.json({ eventos: eventos.slice(-n).reverse() });
+  });
+
+  app.use(r);
+};

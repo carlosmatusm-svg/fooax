@@ -1,3 +1,6 @@
+/* eslint-disable no-undef -- se inyecta sobre la app de cobranza y usa sus
+   globals (STORE_KEY, EJECUTIVO_BASE, guardar, fmt, showTab...); no son
+   variables indefinidas, son de la página anfitriona. */
 // FOOAX · captura más ágil — capa de optimización que se inyecta sobre la app.
 // No modifica el archivo original del ejecutivo: solo mejora la experiencia.
 //   1) La alerta gigante "Falta: plazo y semana…" (que hoy sale en CADA clienta)

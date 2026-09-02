@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "test": "bash tests/correr-todo.sh",
-    "smoke": "node tests/smoke.js"
+    "smoke": "node tests/smoke.js",
+    "lint": "eslint .",
+    "format": "prettier --check *.js scripts/**/*.js tests/**/*.js public/**/*.js",
+    "format:fix": "prettier --write *.js scripts/**/*.js tests/**/*.js public/**/*.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +17,12 @@
   "dependencies": {
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
+    "helmet": "^8.3.0",
     "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0",
+    "prettier": "^3.9.6"
   }
 }

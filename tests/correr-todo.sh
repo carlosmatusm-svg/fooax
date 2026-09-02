@@ -43,7 +43,11 @@ if lsof -ti:$PUERTO >/dev/null 2>&1; then
   echo "      lsof -ti:$PUERTO | xargs kill -9"
   exit 1
 fi
-DATA_DIR="$TMP/data" PORT=$PUERTO node "$RAIZ/server.js" > "$LOG" 2>&1 &
+# Llave de cifrado SOLO para esta corrida desechable (documentos del
+# expediente, ver cifrado.js). Nunca es la llave real de producción.
+LLAVE_PRUEBA="$(node "$RAIZ/scripts/generar-llave-cifrado.js")"
+
+DATA_DIR="$TMP/data" PORT=$PUERTO DOC_ENCRYPTION_KEY="$LLAVE_PRUEBA" node "$RAIZ/server.js" > "$LOG" 2>&1 &
 PID=$!
 
 # Esperar a que responda. El arranque corre reparaciones y puede tardar.
@@ -57,9 +61,34 @@ if ! curl -s -o /dev/null "http://localhost:$PUERTO/api/health"; then
   exit 1
 fi
 
-# 4) La batería completa.
+# 4) La batería completa (cobranza) y las pruebas del expediente.
 node "$RAIZ/tests/bateria_arqueo.js"
-SALIDA=$?
+SALIDA_A=$?
+echo ""
+node "$RAIZ/tests/expediente.js"
+SALIDA_B=$?
+
+# 5) Motor de reglas. Va DESPUÉS de expediente.js a propósito: esta prueba
+# cambia temporalmente el tope/checklist compartidos para probar que el
+# cambio surte efecto de inmediato, y los revierte al final — pero si
+# corriera ANTES, una revert fallida dejaría a expediente.js corriendo contra
+# un tope distinto del que sus asserts asumen.
+echo ""
+node "$RAIZ/tests/reglas.js"
+SALIDA_C=$?
+
+SALIDA=0
+[ $SALIDA_A -ne 0 ] && SALIDA=1
+[ $SALIDA_B -ne 0 ] && SALIDA=1
+[ $SALIDA_C -ne 0 ] && SALIDA=1
+
+# 6) Persistencia tras reinicio — levanta y apaga su PROPIO servidor (puerto
+# 3898, DATA_DIR desechable aparte) dos veces seguidas. No comparte el
+# servidor de los pasos 3-5.
+echo ""
+node "$RAIZ/tests/reinicio_persistencia.js"
+SALIDA_D=$?
+[ $SALIDA_D -ne 0 ] && SALIDA=1
 
 echo ""
 if [ $SALIDA -eq 0 ]; then

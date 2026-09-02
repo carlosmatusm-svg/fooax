@@ -471,18 +471,30 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // El bug del lunes 27-jul: los saldos solo restaban la semana en curso; el
   // lunes la ventana se vaciaba y lo pagado el viernes dejaba de descontar.
   await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000095", nombre: "SALDO TEST", producto: "Credito Saldo", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
-  const D5 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 5); return d.toISOString().slice(0, 10); })();
+  // D5/CORTE20/DC3 ANCLADAS AL LUNES DE ESTA SEMANA, no a HOY (arreglo
+  // 8-ago-2026). Antes eran "HOY − N días" fijos: bien entre semana, pero el
+  // sábado/domingo "HOY − 5" caía DENTRO de la ventana lunes→hoy que usa
+  // cobradoSemana/recuperacionSemana, sumando $200 ajenos a la prueba 37
+  // ("COBRANZA vs RECUPERACIÓN") que corre más adelante en esta misma
+  // batería — el bug de fin de semana que ya fichaba CLAUDE.md. Ancladas al
+  // lunes con un colchón de varios días, estas tres fechas quedan SIEMPRE en
+  // la semana anterior sin importar qué día de la semana se corra la
+  // batería, y se conserva el mismo orden y separación que ya tenían
+  // (CORTE20 un día antes de D5, DC3 dos días después de D5).
+  const lunesActual20 = (() => { const d = new Date(HOY + "T12:00"); const dow = d.getDay();
+    d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1)); return d; })();
+  const D5 = (() => { const d = new Date(lunesActual20); d.setDate(d.getDate() - 4); return d.toISOString().slice(0, 10); })();
   // La prueba fija SU corte antes del pago: si se queda el corte que traiga el
   // sistema (que se mueve con cada plantilla nueva), este pago cae antes y la
   // prueba falla sin que nada esté mal. El corte va un día antes del abono.
-  const CORTE20 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 6); return d.toISOString().slice(0, 10); })();
+  const CORTE20 = (() => { const d = new Date(lunesActual20); d.setDate(d.getDate() - 5); return d.toISOString().slice(0, 10); })();
   await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: CORTE20 }) }));
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: D5, snapshot: JSON.stringify({ fecha: D5, reg: { "C-88": { "70000000095|Credito Saldo": { pago: 200, forma: "E" } } }, regI: {}, movs: [] }), ts: Date.now() }) });
   const saldoDe = async () => { const s = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("SALDO TEST"), { headers: H(ca) })); return ((s.resultados || []).find((c) => String(c.id) === "70000000095") || {}).saldoActual; };
   ok("un pago de la SEMANA PASADA sigue bajando el saldo (1000 − 200 = 800)", (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
   let ct = await j(await fetch(U + "/api/saldos/corte", { headers: H(ca) }));
   ok("el corte de saldos es visible para dirección", /^\d{4}-\d{2}-\d{2}$/.test(ct.corte || ""), "corte " + ct.corte);
-  const DC3 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
+  const DC3 = (() => { const d = new Date(D5 + "T12:00"); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
   ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cal), body: JSON.stringify({ fecha: DC3 }) }));
   ok("otro admin NO puede mover el corte (solo Anel y Monse)", !!ct.error, (ct.error || "").slice(0, 50));
   ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: DC3 }) }));
@@ -1013,10 +1025,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       reg: { "C-Z": { "70000000901|Grupal-Basico": { pago: 500, forma: "E" },
                       "70000000902|Grupal-Basico": { pago: 500, forma: "E" } } } }) }) });
   const despR = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
-  // El sync REEMPLAZA el día de la ejecutiva (así manda la app: su día completo),
-  // así que después de este sync la cobranza de Neri de hoy son EXACTAMENTE estos
-  // dos pagos. Por eso se afirma el valor absoluto del cobrado y no una resta:
-  // el "antes" ya no existe una vez que se reemplaza el día.
+  // El sync REEMPLAZA el día de HOY completo de la ejecutiva (así manda la
+  // app: su día completo), así que después de este sync la cobranza de Neri
+  // de HOY son EXACTAMENTE estos dos pagos — por eso se afirma el valor
+  // absoluto del cobrado, no una resta (una resta contra "antes" arrastraría
+  // cosas que el propio reemplazo de HOY ya volvió irrelevantes, como una
+  // sincronización rechazada de un grupo anterior que se quedó pegada).
+  // NOTA (8-ago-2026): esto SÍ fallaba en sábado/domingo, pero no por el
+  // reemplazo de HOY — era el grupo 20 ("SALDOS"), cuya fecha D5 (antes
+  // "HOY − 5 días") caía DENTRO de la ventana lunes→hoy cuando la batería se
+  // corría en sábado o domingo, sumando $200 ajenos a esta prueba. Ver el
+  // arreglo real en el grupo 20 (D5/CORTE20/DC3 anclados al lunes de la
+  // semana, no a HOY) — no aquí.
   const dRec = despR.recuperacionSemana - antesR.recuperacionSemana;
   ok("el pago de la clienta SANA es lo único que queda en cobranza",
     despR.cobradoSemana === 500, "cobrado " + despR.cobradoSemana);
