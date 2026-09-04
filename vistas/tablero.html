@@ -1232,10 +1232,15 @@ async function verPagos(btn, i) {
   if (d.error) { box.innerHTML = "<span>" + hesc(d.error) + "</span>"; return; }
   const cuentan = (d.historial || []).filter((h) => h.cuenta);
   const previos = (d.historial || []).filter((h) => !h.cuenta);
+  // El APORTE SOLIDARIO se marca con su nombre (Monse, 4-sep): cuenta como
+  // pago del crédito, pero en el historial queda dicho que se lo cubrieron.
   const fila = (h) => '<div class="hpago' + (h.cuenta ? "" : " hprevio") + '">'
     + "<span>" + hesc(h.fecha) + "</span>"
-    + "<span>" + (h.tipo === "liquidacion" ? "liquidación" : "pago") + "</span>"
-    + "<b>" + dinero(h.pago) + "</b>"
+    + "<span>" + (h.tipo === "liquidacion" ? "liquidación"
+        : (h.solidario > 0 && !(h.pago > 0)) ? "aporte solidario" : "pago") + "</span>"
+    + "<b>" + dinero((h.pago || 0) + (h.solidario || 0)) + "</b>"
+    + (h.solidario > 0 && h.pago > 0 ? '<span style="color:#5B2E8C;font-weight:800">incluye solidario ' + dinero(h.solidario) + "</span>" : "")
+    + (h.solidario > 0 && !(h.pago > 0) ? '<span style="color:#5B2E8C;font-weight:800">SOLIDARIO</span>' : "")
     + (h.garantia ? "<span>+ gar. " + dinero(h.garantia) + "</span>" : "")
     + "<span>" + hesc(h.ejecutivo || "—") + "</span></div>";
   // LO QUE LE CORRIGIÓ DIRECCIÓN. Va ARRIBA de todo y en rojo: un pago anulado

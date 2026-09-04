@@ -5539,6 +5539,49 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       "no está en el quitar de neri");
   }
 
+  console.log("\n— 63a. EL SOLIDARIO CUENTA COMO PAGO (Monse, 4-sep: «se le descuenta, se marca y sale de la mora») —");
+  // El grupo cubre la cuota de una clienta con aporte solidario: el crédito
+  // queda pagado (saldo, mora, semáforo) y la MARCA de que fue solidario se
+  // conserva en el historial. La testigo sin pagar valida que la mora sigue
+  // pidiendo a quien sí debe.
+  {
+    const diaHoyS = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"][new Date(HOY + "T12:00:00").getDay()];
+    const diaS = diaHoyS === "DOMINGO" ? "SÁBADO" : diaHoyS;
+    // Desembolsadas hace una semana: su cuota de HOY ya es exigible.
+    const dDesS = new Date(HOY + "T12:00:00"); dDesS.setDate(dDesS.getDate() - 8);
+    const desS = dDesS.toISOString().slice(0, 10);
+    const cenS = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO SOLIDARIO", numero: "79", dia: diaS, ejecutivo: "Neri" }) }));
+    let altasS = true;
+    for (const [soc, nom] of [["78000000010", "CUBIERTA POR SOLIDARIO"], ["78000000011", "TESTIGO SIN PAGAR S"]]) {
+      const aS = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+        body: JSON.stringify({ id: soc, nombre: nom, producto: "Grupal-Basico",
+          centro: "CENTRO SOLIDARIO", ejecutivo: "Neri", saldo: 5760, cuota: 240, plazo: 24,
+          diaPago: diaS, desembolso: desS }) }));
+      if (aS.ok !== true) altasS = false;
+    }
+    ok("la utilería del solidario nace bien (centro + dos clientas)",
+      cenS.ok === true && altasS, JSON.stringify(cenS).slice(0, 70));
+    const KS = "78000000010|Grupal-Basico|CUBIERTA POR SOLIDARIO|0";
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: HOY,
+      snapshot: { reg: { "CENTRO SOLIDARIO": { [KS]: { solidario: 240, forma: "E" } } } }, ts: Date.now() + 300 }) });
+    const morS = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+    const enMoraS = (soc) => (morS.dias || []).some((g) => (g.filas || []).some((x) => String(x.socio) === soc));
+    ok("la cubierta por solidario NO cae en mora (el centro la está cubriendo)",
+      !enMoraS("78000000010"), "sigue en la mora");
+    ok("y la testigo sin pagar SÍ sale en la mora (la regla no se aflojó de más)",
+      enMoraS("78000000011"), "la testigo no aparece");
+    const cliS = await j(await fetch(U + "/api/clientes?q=78000000010", { headers: H(cm) }));
+    const fS = (cliS.resultados || []).find((x) => x.activa !== false) || {};
+    ok("el aporte solidario SÍ le baja el saldo al crédito (5760 − 240)",
+      fS.saldoActual === 5520, "saldoActual " + fS.saldoActual);
+    const hS = await j(await fetch(U + "/api/credito/historial?id=78000000010&producto=Grupal-Basico", { headers: H(cm) }));
+    const filaS = (hS.historial || []).find((x) => (x.solidario || 0) > 0);
+    ok("y en su historial queda MARCADO que fue solidario, sin descuadre falso",
+      !!filaS && filaS.solidario === 240 && !(hS.descuadre > 0),
+      JSON.stringify({ solidario: (filaS || {}).solidario, descuadre: hS.descuadre }));
+  }
+
   console.log("\n— 63b. LA PURGA DE REGISTROS DE PRUEBA (31-ago: «elimina el centro y usuarios como karina matus prueba») —");
   // La única vía que QUITA renglones del padrón: solo bajas o burbuja de
   // prueba, solo centros vacíos, siempre con motivo y rastro.

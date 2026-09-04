@@ -904,7 +904,14 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
   const crudo = {};      // clave → fecha → origen → { p, g }
   const sumar = (nodo, key, ej, fecha, origen) => {
     if (!nodo || typeof nodo !== "object") return;
-    const p = nodo.pago || 0, g = nodo.garantia || 0;
+    // EL SOLIDARIO CUENTA COMO PAGO (Monse, 4-sep: «cuando es solidario, el
+    // pago sí se le descuenta al crédito, se marca como solidario y se sale
+    // de la mora — el centro lo está cubriendo y ese dinero sí entró»). Antes
+    // el solidario era invisible para la cartera: no bajaba saldo ni cubría
+    // la cuota, y el crédito caía en mora aunque el pagaré estuviera pagado.
+    // La MARCA no se pierde: el arqueo, el historial y los reportes lo siguen
+    // enseñando en su propia columna «Solidario».
+    const p = (nodo.pago || 0) + (nodo.solidario || 0), g = nodo.garantia || 0;
     if (p <= 0 && g <= 0) return;
     const partes = String(key).split("|");
     const clave = claveDelPago(partes[0], partes[1]);
@@ -4584,8 +4591,11 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
   // aplicado es MÁS de lo que se alcanza a listar, viene `descuadre` con el
   // monto y el tablero lo pinta en rojo. Así el próximo hoyo de esta familia
   // no espera a que alguien lo note: se denuncia solo.
+  // El solidario cuenta como pago desde el 4-sep (regla Monse), así que el
+  // cotejo lo suma también — si no, cada aporte solidario pintaría un
+  // descuadre falso en rojo.
   const sumaListada = Math.round(filas.filter((x) => x.cuenta)
-    .reduce((t, x) => t + (x.pago || 0), 0) * 100) / 100;
+    .reduce((t, x) => t + (x.pago || 0) + (x.solidario || 0), 0) * 100) / 100;
   const aplicado = Math.round(((info.pagado || 0) + (info.liquidado || 0)) * 100) / 100;
   const descuadre = (sumaListada + 0.01 < aplicado)
     ? Math.round((aplicado - sumaListada) * 100) / 100 : 0;

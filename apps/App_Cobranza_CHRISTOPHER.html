@@ -1156,11 +1156,16 @@ function editarCuota(centro,key,cuotaActual){
   }
 }
 function cuotaAviso(r,cuota){
-  const pago=r.pago||0;
+  // EL SOLIDARIO CUENTA (Monse, 4-sep): si el grupo le cubrió la cuota con
+  // aporte solidario, la cuota está pagada — el aviso compara pago+solidario
+  // y, cuando hay solidario de por medio, lo dice con su nombre.
+  const sol=r.solidario||0;
+  const pago=(r.pago||0)+sol;
   if(pago<=0||cuota<=0)return '';
-  if(Math.abs(pago-cuota)<0.01)return '';
-  if(pago>cuota)return '<div class="cuotamas">⚠ Pagó '+fmt(pago)+' — es MÁS que su cuota ('+fmt(cuota)+'). Diferencia: +'+fmt(pago-cuota)+'</div>';
-  return '<div class="cuotamenos">⚠ Pagó '+fmt(pago)+' — es MENOS que su cuota ('+fmt(cuota)+'). Falta: '+fmt(cuota-pago)+'</div>';
+  const nota=sol>0?' (incluye solidario '+fmt(sol)+')':'';
+  if(Math.abs(pago-cuota)<0.01)return sol>0?'<div class="mixok">✓ Cuota cubierta'+nota+'</div>':'';
+  if(pago>cuota)return '<div class="cuotamas">⚠ Pagó '+fmt(pago)+nota+' — es MÁS que su cuota ('+fmt(cuota)+'). Diferencia: +'+fmt(pago-cuota)+'</div>';
+  return '<div class="cuotamenos">⚠ Pagó '+fmt(pago)+nota+' — es MENOS que su cuota ('+fmt(cuota)+'). Falta: '+fmt(cuota-pago)+'</div>';
 }
 function mixAviso(r,tot){
   const suma=(r.mixEfe||0)+(r.mixTr||0);
