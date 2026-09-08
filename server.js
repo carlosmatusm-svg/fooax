@@ -5440,7 +5440,18 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim() || null;
   let producto = String(b.producto || "").trim() || null;
   if (socio) {
-    const cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+    let cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+    // LA GARANTÍA SE ENTREGA CUANDO EL CRÉDITO YA TERMINÓ (Monse, 8-sep: «la
+    // clienta liquidó y no renovó, y no me deja liberar su garantía»). Si la
+    // clienta ya no tiene crédito activo —liquidó y se dio de baja—, el
+    // linkeo de una GARANTÍA cae a su crédito más reciente aunque esté de
+    // baja: el dinero queda amarrado a su historia. Las liquidaciones y
+    // recuperaciones NO: esas sí necesitan un crédito vivo al cual bajarle.
+    if (!cred.length && /^garant/i.test(String(b.tipo || ""))) {
+      cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio)
+        .sort((c1, c2) => String(c2.alta_fecha || "").localeCompare(String(c1.alta_fecha || "")));
+      if (cred.length > 1 && !producto) cred = [cred[0]];
+    }
     if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
     // DE CUÁL DE SUS CRÉDITOS. Una liquidación baja el saldo de UN crédito, no de
     // la clienta: ~146 socias tienen más de uno. Sin este dato el sistema se lo

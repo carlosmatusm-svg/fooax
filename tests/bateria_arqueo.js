@@ -5582,6 +5582,47 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       JSON.stringify({ solidario: (filaS || {}).solidario, descuadre: hS.descuadre }));
   }
 
+  console.log("\n— 63-G. LA GARANTÍA SE LIBERA AUNQUE EL CRÉDITO YA TERMINÓ (Monse, 8-sep) —");
+  // «La clienta liquidó y no renovó, y la aplicación no me deja liberar su
+  // garantía.» La garantía se entrega justo cuando el crédito termina: con
+  // saldo 0 y hasta dada de BAJA, el linkeo debe entrar. Lo que NO se afloja:
+  // una liquidación a una clienta de baja sigue rechazada.
+  {
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO LIBERA", numero: "78", dia: "JUEVES", ejecutivo: "Neri" }) });
+    const aG = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "78000000020", nombre: "ALBA DE PRUEBA", producto: "Grupal-Basico",
+        centro: "CENTRO LIBERA", ejecutivo: "Neri", saldo: 1000, cuota: 100, plazo: 10,
+        diaPago: "JUEVES", desembolso: HOY }) }));
+    ok("la utilería de la liberación nace bien", aG.ok === true, JSON.stringify(aG).slice(0, 60));
+    // Junta garantía y LIQUIDA (saldo a 0):
+    await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Garantía líquida", monto: 300, concepto: "garantía cobrada",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) });
+    await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "78000000020", producto: "Grupal-Basico", saldo: 0, motivo: "liquidó (prueba)" }) });
+    const e1 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Garantía líquida entregada", monto: 200, concepto: "se le regresa",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) }));
+    ok("a la que LIQUIDÓ (saldo 0) SÍ se le entrega su garantía, linkeada",
+      e1.ok === true && e1.movimiento && String(e1.movimiento.socio) === "78000000020",
+      JSON.stringify(e1).slice(0, 80));
+    // Se da de BAJA (no renovó) y la entrega sigue entrando:
+    await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "78000000020", producto: "Grupal-Basico", motivo: "No renovó", detalle: "prueba" }) });
+    const e2 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Garantía líquida entregada", monto: 100, concepto: "resto de su garantía",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) }));
+    ok("y dada de BAJA (no renovó) TAMBIÉN: el linkeo cae a su crédito de baja",
+      e2.ok === true && e2.movimiento && String(e2.movimiento.socio) === "78000000020",
+      JSON.stringify(e2).slice(0, 80));
+    const liqB = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Liquidación", monto: 50, concepto: "liquidación a una baja",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) });
+    ok("pero una LIQUIDACIÓN a la clienta de baja sigue rechazada (eso sí necesita crédito vivo)",
+      liqB.status === 400, "status " + liqB.status);
+  }
+
   console.log("\n— 63b. LA PURGA DE REGISTROS DE PRUEBA (31-ago: «elimina el centro y usuarios como karina matus prueba») —");
   // La única vía que QUITA renglones del padrón: solo bajas o burbuja de
   // prueba, solo centros vacíos, siempre con motivo y rastro.

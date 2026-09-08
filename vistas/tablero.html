@@ -1708,6 +1708,10 @@ async function cargarConceptos() {
 function tipoMovCambio() {
   const sel = $("mTipo"), hint = $("mTipoHint"), campo = $("mCliCampo");
   if (!sel) return;
+  // Si ya había una búsqueda de clienta hecha, se rehace con el filtro del
+  // tipo nuevo (una garantía enseña liquidadas y bajas; una liquidación no).
+  const bq = $("mBuscaCli");
+  if (bq && bq.value.trim().length >= 2) bq.dispatchEvent(new Event("input"));
   const c = CONCEPTOS.find((x) => x.nombre === sel.value) || {};
   if (hint) hint.innerHTML = c.entrada
     ? '<b style="color:#0B7247">Entra dinero a la caja</b> — suma al efectivo que se entrega.'
@@ -1743,18 +1747,33 @@ function armarBuscadorClienta() {
       let d;
       try { d = await (await fetch("/api/clientes?q=" + encodeURIComponent(q), { credentials: "include" })).json(); }
       catch { return; }
-      const con = (d.resultados || []).filter((c) => (c.saldoActual != null ? c.saldoActual : c.saldo) > 0.009);
+      // QUIÉN SALE EN LA LISTA DEPENDE DEL TIPO (Monse, 8-sep: «no me deja
+      // liberar la garantía de la que liquidó y no renovó»). Una liquidación
+      // necesita un crédito VIVO con saldo; una GARANTÍA es al revés — se
+      // entrega justamente cuando el crédito terminó — así que ahí salen
+      // también las liquidadas (saldo 0) y hasta las dadas de BAJA, marcadas.
+      const tipoSel0 = (($("mTipo") || {}).value || "");
+      const bajaSaldo0 = /^(liquidaci|recuperaci|adelant)/i.test(tipoSel0);
+      const esGar0 = /^garant/i.test(tipoSel0);
+      const saldoDe = (c) => (c.saldoActual != null ? c.saldoActual : c.saldo) || 0;
+      const viva0 = (c) => c.activa !== false && c.estatus !== "BAJA";
+      const con = (d.resultados || []).filter((c) =>
+        bajaSaldo0 ? (saldoDe(c) > 0.009 && viva0(c))
+        : esGar0 ? true
+        : viva0(c));
       // El valor lleva SOCIO y PRODUCTO. Antes era sólo el socio: la lista
       // mostraba un renglón por crédito, así que Dirección creía estar eligiendo
       // uno, pero los dos renglones de una misma clienta mandaban lo mismo y el
       // abono acababa en el primer crédito de la lista (8-ago-2026).
       sel.innerHTML = '<option value="">— Sin clienta —</option>'
         + con.map((c) => '<option value="' + hesc(c.id + "|" + c.producto) + '">' + hesc(c.nombre) + " · " + hesc(c.producto)
-            + " · debe " + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</option>").join("");
+            + (!viva0(c) ? " · BAJA" : saldoDe(c) > 0.009 ? " · debe " + dinero(saldoDe(c)) : " · liquidada")
+            + "</option>").join("");
       if (con.length === 1) sel.selectedIndex = 1;
       $("mCliHint").textContent = con.length
-        ? "Elige el CRÉDITO, no sólo a la clienta: el abono le baja el saldo a ese y a ningún otro."
-        : "No hay clientas activas con saldo que empaten con “" + q + "”.";
+        ? (esGar0 ? "Elige a la clienta y su crédito — para garantías también salen las liquidadas y las dadas de baja."
+                  : "Elige el CRÉDITO, no sólo a la clienta: el abono le baja el saldo a ese y a ningún otro.")
+        : (esGar0 ? "Nadie empata con “" + q + "”." : "No hay clientas activas con saldo que empaten con “" + q + "”.");
       if (con.length === 1) desgloseDelMov();
     }, 250);
   });
