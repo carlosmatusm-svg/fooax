@@ -1174,6 +1174,7 @@ function tarjetaCredito(c, i) {
       + '<button class="credbtn" onclick="verPagos(this,' + i + ')">Ver pagos</button>'
       + '<button class="credbtn" onclick="pedirAjuste(this,' + i + ')">Ajustar saldo</button>'
       + '<button class="credbtn" onclick="pedirEtiqueta(this,' + i + ')">' + (c.etiqueta ? "Cambiar etiqueta" : "Etiquetar") + "</button>"
+      + '<button class="credbtn" onclick="pedirDocsRenovacion(this,' + i + ')">' + (c.documentosRenovacion ? "Ver documentos renovación" : "Documentos renovación") + "</button>"
       + venc + reda + "</div>";
   }
   return '<div class="rcard">'
@@ -1200,6 +1201,12 @@ function tarjetaCredito(c, i) {
     + ((c.ciclo || 1) > 1
         ? '<span class="rbadge-eti" title="Cuántas veces ha tomado este producto">ciclo '
           + String(c.ciclo).padStart(2, "0") + "</span>" : "")
+    // CU-007: documentos de renovación (INE + comprobante de domicilio). Solo
+    // avisa que YA se capturaron y cuándo — no bloquea nada (CU-007 §10.6,
+    // todavía sin definir si un documento vencido debe impedir la renovación).
+    + (c.documentosRenovacion && c.documentosRenovacion.ine
+        ? '<span class="rbadge-eti" style="background:#EAF7EF;color:#0B7247" title="INE y comprobante de domicilio capturados">docs. renovación '
+          + hesc(c.documentosRenovacion.ine) + "</span>" : "")
     + (c.liquidadoEl
         ? '<span class="rpago" style="background:#EAF7EF;color:#0B7247">liquidó el '
           + hesc(c.liquidadoEl) + "</span>" : "")
@@ -1316,6 +1323,63 @@ async function ponerEtiqueta(btn, i) {
   } catch { alert("Sin conexión con el servidor."); btn.disabled = false; btn.textContent = "Guardar"; return; }
   if (d.error) { alert(d.error); btn.disabled = false; btn.textContent = "Guardar"; return; }
   refrescarLista();
+}
+// DOCUMENTOS DE RENOVACIÓN (CU-007 §3, precisión de Karina 24-ago): INE y
+// comprobante de domicilio son SIEMPRE obligatorios al renovar — por eso los
+// dos checks vienen prendidos y no se puede guardar con uno solo. También se
+// muestra el ciclo (cuántas veces ha tomado este producto), que ya existía
+// como contador desde el 15-ago. Esto NO decide si un documento vencido
+// bloquea la renovación (CU-007 §10.6, todavía sin definir) — solo registra
+// la captura, con motivo en la bitácora.
+async function pedirDocsRenovacion(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  box.className = "credbox";
+  const dr = c.documentosRenovacion || {};
+  const yaTiene = !!dr.ine;
+  box.innerHTML = "<span>Documentos de renovación de <b>" + hesc(c.nombre) + "</b>"
+    + " · ciclo " + String(c.ciclo || 1).padStart(2, "0")
+    + (yaTiene ? " (última captura: " + hesc(dr.ine) + ")" : "") + ":</span>"
+    + '<label class="credin ancho" style="display:flex;gap:6px;align-items:center">'
+    + '<input type="checkbox" id="drIne" checked> INE actualizada</label>'
+    + '<label class="credin ancho">Fecha de vencimiento de la INE (impresa en la credencial)'
+    + '<input type="date" class="credin ancho" id="drIneVenc" value="' + hesc(dr.ineFechaVencimiento || "") + '"></label>'
+    + '<label class="credin ancho" style="display:flex;gap:6px;align-items:center">'
+    + '<input type="checkbox" id="drComp" checked> Comprobante de domicilio actualizado</label>'
+    + '<label class="credin ancho">Fecha de emisión del comprobante'
+    + '<input type="date" class="credin ancho" id="drCompEmi" value="' + hesc(dr.comprobanteFechaEmision || "") + '"></label>'
+    + '<input class="credin ancho" id="drMotivo" placeholder="motivo (ej. renovación en sucursal, revisado en la cita)">'
+    + '<button class="credok" onclick="hacerDocsRenovacion(this,' + i + ')">Guardar</button>'
+    + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
+    + '<div class="crederr" id="drErr"></div>'
+    + '<div class="crederr" id="drVigencia" style="color:#9A6700"></div>';
+  // DOC-01 (carta Dirección 02-sep): solo AVISA si algo venció por su propia
+  // fecha, no bloquea nada (CU-007 §10.6 sigue sin definir). Se consulta
+  // aparte porque la vigencia se calcula en el servidor (parámetro
+  // configurable, nunca fijo aquí en el frontend).
+  try {
+    const rv = await fetch("/api/creditos/renovacion?id=" + encodeURIComponent(c.id) + "&producto=" + encodeURIComponent(c.producto), { credentials: "include" });
+    const dv = await rv.json().catch(() => ({}));
+    const v = dv.vigenciaDocumentosRenovacion;
+    const avisos = [];
+    if (v && v.ine === true) avisos.push("la INE ya venció");
+    if (v && v.comprobanteDomicilio === true) avisos.push("el comprobante de domicilio ya venció");
+    const nota = $("drVigencia");
+    if (nota) nota.textContent = avisos.length ? "⚠ " + avisos.join(" y ") + " (no bloquea el registro, solo avisa)." : "";
+  } catch { /* si falla la consulta de vigencia, el registro sigue funcionando igual */ }
+}
+async function hacerDocsRenovacion(btn, i) {
+  const c = credRow(i), err = $("drErr"); btn.disabled = true;
+  const body = { id: c.id, producto: c.producto, motivo: $("drMotivo").value,
+    ine: $("drIne").checked, comprobanteDomicilio: $("drComp").checked };
+  const ineVenc = $("drIneVenc").value; if (ineVenc) body.ineFechaVencimiento = ineVenc;
+  const compEmi = $("drCompEmi").value; if (compEmi) body.comprobanteFechaEmision = compEmi;
+  try {
+    const r = await fetch("/api/creditos/documentos-renovacion", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = d.error || "No se pudo registrar."; btn.disabled = false; return; }
+    refrescarLista();
+  } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
 }
 function pedirAjuste(btn, i) {
   const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
