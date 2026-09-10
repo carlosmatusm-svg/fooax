@@ -2595,6 +2595,29 @@ app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, r
   res.end(Buffer.from(buf));
 });
 
+// ---------- LA HOJA DE COBRANZA AUTOMÁTICA ----------
+// El libro completo de 25 pestañas que Dirección armaba a mano cada semana
+// (HOJA COBRANZA v4), generado desde los datos vivos: capturas de las apps,
+// cartera, mora, motor de intereses y renovaciones. Contrato de la Hoja de
+// Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su contexto.
+const hojaCobranza = require("./hoja-cobranza");
+app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, res) => {
+  try {
+    const ctx = { PADRON, USUARIOS, idsEjecutivos, carteraViva, infoCredito, moraDeLaSemana,
+      movsDeFecha, tipoDeMov, motor, corteSaldos, hoyMX, lunesDeLaSemana, norm,
+      numeroDePago, vencidaPorPlazo, esVencido, esCuotaVariable, store };
+    const { wb, semanaTxt } = await hojaCobranza.generar(ctx, ExcelJS, req.usuario, req.query.lunes);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition",
+      "attachment; filename=\"HOJA COBRANZA FOOAX " + semanaTxt.replace(/[^0-9a-zA-Záéíóúñ ]/gi, "") + ".xlsx\"");
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (e) {
+    console.error("[hoja-cobranza]", e.message);
+    res.status(500).json({ error: "No se pudo generar la hoja: " + e.message });
+  }
+});
+
 app.get("/api/sin-desembolso/excel", requiere("direccion", "admin"), async (req, res) => {
   const d = sinFechaDesembolso(req.usuario);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";

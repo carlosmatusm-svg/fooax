@@ -5655,6 +5655,21 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     body: JSON.stringify({ nombre: "CENTRO RENACIDO", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) }));
   ok("y su número queda LIBRE para un centro de verdad", cen99b.ok === true, JSON.stringify(cen99b).slice(0, 70));
 
+  console.log("\n— 62b. LA HOJA DE COBRANZA AUTOMÁTICA (10-sep: el libro de 25 pestañas, generado) —");
+  {
+    const rH = await fetch(U + "/api/hoja-cobranza/excel", { headers: H(cm) });
+    ok("el libro de la Hoja de Cobranza baja como Excel", rH.status === 200
+      && /spreadsheet/.test(rH.headers.get("content-type") || ""), "status " + rH.status);
+    const bufH = Buffer.from(await rH.arrayBuffer());
+    ok("y pesa como un libro de verdad (25 pestañas adentro)", bufH.length > 30000, bufH.length + " bytes");
+    const wbH = new (require("exceljs")).Workbook();
+    await wbH.xlsx.load(bufH);
+    const nombresH = wbH.worksheets.map((w) => w.name);
+    ok("trae sus 25 pestañas, portada y control incluidos",
+      nombresH.length === 25 && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA"]
+        .every((m) => nombresH.includes(m)), nombresH.length + ": " + nombresH.slice(0, 6).join(","));
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
