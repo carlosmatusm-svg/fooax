@@ -45,6 +45,45 @@ por ejecutiva en `apps/`, tablero de dirección en `public/tablero.html`.
    servidor de trabajo y sus datos siguen intactos. Si algún día hay que vaciar
    `data/` de verdad, **respaldar primero** (`archivo.bak-FECHA`).
 
+## Reducir dependencia del monolito `server.js` (arrancado 10-sep-2026)
+
+`server.js` (8300+ líneas) mezcla en un solo archivo: rutas HTTP, acceso a datos
+(`store.js`/Postgres) y la lógica de negocio pura (cálculos de garantías, mora,
+amortización). Reescribirlo de golpe es riesgo alto en un sistema financiero en
+producción sin CI más allá de `smoke.js`/`bateria_arqueo.js`. En su lugar, se
+adopta un patrón "strangler fig": sacar la lógica de negocio pura a módulos
+propios, uno a la vez, cada vez que de todos modos se está tocando ese dominio —
+nunca como un refactor grande aparte.
+
+- **Carpeta `dominios/`** (nueva): un archivo por dominio de negocio
+  (`dominios/garantia_liquida.js`, y así sucesivamente conforme se toquen mora,
+  amortización, etc.). Solo funciones puras o casi-puras: reciben datos, regresan
+  datos, sin abrir `require('http')` ni definir rutas. Pueden llamar a
+  `store.js` si su rol es justo eso (ej. `store.agregarMovimiento`), pero no
+  conocen `req`/`res`.
+- **`server.js` se queda con el "pegamento"**: parsear el request, validar
+  forma básica, llamar a la función del dominio correspondiente, mandar la
+  respuesta. Ninguna regla de cálculo nueva se escribe directo en un handler de
+  `server.js` — si es lógica de negocio, va a `dominios/`.
+- **Cuándo extraer:** oportunista, no una tarea aparte. Cada vez que se
+  construye o corrige un CU, se extrae ESE dominio como parte del mismo PR (o
+  un PR de limpieza inmediato sobre la misma rama, antes de mergear). No se
+  hace una extracción masiva de todo `server.js` de una sola vez.
+- **Checklist de toda extracción (es refactor puro, NUNCA cambia comportamiento):**
+  1. Mover las funciones tal cual (mismos nombres, misma firma) a
+     `dominios/<nombre>.js`; `server.js` las importa con `require(...)`.
+  2. `node --check server.js` y `node --check dominios/<nombre>.js`.
+  3. Correr primero la prueba unitaria del dominio si existe (contra el módulo
+     directo, sin levantar servidor — más rápido y aísla el dominio).
+  4. Correr `smoke.js` + `bateria_arqueo.js` (`DATA_DIR` desechable) completos
+     y confirmar CERO cambio de números — si algo cambia, es que no fue un
+     refactor puro y hay que revisar antes de commitear.
+  5. El PR dice explícitamente "refactor sin cambio de comportamiento" y cita
+     los resultados de las pruebas.
+- **Beneficio esperado:** cada dominio se puede probar y entender sin arrancar
+  el servidor completo, y `server.js` deja de crecer con lógica de cálculo
+  nueva — solo enruta.
+
 ## Gotchas que ya nos mordieron (no reaprender)
 
 - **La app manda el snapshot como TEXTO** (su localStorage tal cual), no como
