@@ -3534,7 +3534,7 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   const diaPagoAlta = String(b.diaPago || "").trim().toUpperCase();
   if (diaPagoAlta && !idxDia(diaPagoAlta))
     return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
-  const clienta = {
+  let clienta = {
     id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
     // EL IMPORTE ORIGINAL: lo que se le prestó, SIN intereses (Karina, 23-ago).
@@ -3546,6 +3546,13 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
     desembolso: desembolso || null,
     diaPago: diaPagoAlta || diaDelCentro(centro) || null,
   };
+  // SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014): en el mismo
+  // acto del alta, sin pantallas ni pasos aparte, se generan el pagaré, el
+  // plan de pagos y el sobre de dispersión — ver la sección de funciones
+  // arriba de diaDelCentro para el detalle y lo que a propósito no hace.
+  // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
+  // muta la de entrada — por eso se reasigna aquí.
+  clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
     fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
@@ -3734,6 +3741,158 @@ function diaDelCentro(centro) {
   }
   return dias.size === 1 ? [...dias][0] : "";
 }
+// ---------- SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014) ----------
+// En este sistema no hay un paso separado de "dispersar": dar de alta o
+// re-dar un crédito ES el desembolso (el dinero ya se entregó cuando se
+// captura). Por eso, en el MISMO acto de /api/clientes/alta y de
+// /api/creditos/recredito, se genera junto con el crédito: el pagaré
+// (registro simple, ver más abajo), el plan de pagos (fechas por el MISMO
+// método que ya usa vencimientosEntre/calendarioDelCredito para medir la
+// mora, con el desglose capital/interés/IVA del motor de reglas real cuando
+// el producto resuelve contra el catálogo — ver CORRECCIÓN 09-sep-2026 en
+// generarPlanPagos) y el sobre de dispersión (comisión + garantía líquida +
+// neto, Anexo F Secciones 7/8, Regla 3.3: "cada pago se desglosa y se
+// almacena separado"). El registro en cartera no necesita nada nuevo:
+// carteraViva() ya lee directo del PADRON, así que en cuanto existe el alta
+// ya está en cartera — cero recaptura, cero volver a subir nada.
+//
+// Lo que esto NO hace, a propósito, por los mismos huecos que ya documenta
+// CU-014 §10: no genera el PDF legal del pagaré (catálogo de productos
+// formal y validación legal del Lic. César Cáceres siguen pendientes), y no
+// decide la mecánica real de "cómo se entrega el efectivo" (DISP-01/02,
+// sigue sin definir en Pendientes por Confirmar). Tampoco toca el campo
+// `cuota` ya guardado en el crédito (el que usan mora/saldo en todo el
+// resto del sistema) aunque el motor calcule una cuota distinta — cambiar
+// ESE campo es una decisión aparte, con su propio impacto en mora y saldo,
+// que no es parte de este cambio.
+
+// Porcentaje de garantía líquida retenida al desembolsar. Anexo F, Secciones
+// 7 y 8 ("el 10% que normalmente se recibe de la clienta"), validado por
+// CLIC (Contadora Consuelo). Parámetro de entorno, nunca fijo en código —
+// mismo patrón que COMPROBANTE_DOMICILIO_MESES_MAX (DOC-01).
+const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUIDA) || 10;
+
+// EL SOBRE DE DISPERSIÓN. `comision` y `seguro` son datos manuales
+// opcionales (0 si no se capturan) — igual que la cuota, no hay catálogo de
+// comisiones ni de seguros todavía (CU-014 §10.1). La garantía SÍ tiene
+// regla validada (Anexo F): 10% del importe prestado, redondeado a
+// centavos. Regla 3.1 del Anexo F: el IVA nunca aplica sobre la garantía ni
+// sobre capital — por eso este sobre no calcula IVA.
+function generarSobreDispersion(importe, comisionCapturada, seguroCapturado) {
+  const monto = Number(importe) ?? 0;
+  const comision = Math.max(0, Number(comisionCapturada ?? 0));
+  const seguro = Math.max(0, Number(seguroCapturado ?? 0));
+  const garantia = Math.round(monto * (PORCENTAJE_GARANTIA_LIQUIDA / 100) * 100) / 100;
+  const neto = Math.round((monto - comision - seguro - garantia) * 100) / 100;
+  return { monto, comision, seguro, garantia, porcentajeGarantia: PORCENTAJE_GARANTIA_LIQUIDA, neto };
+}
+
+// EL PAGARÉ — registro simple (folio + datos), NO el documento legal. Emitir
+// el PDF real depende del catálogo de productos formal y de la validación
+// legal del Lic. César Cáceres (CU-014 §2/§10, sigue pendiente); aquí solo
+// se genera el registro para que exista UN lugar ligado al crédito, sin
+// recapturar nada en otro módulo.
+function generarPagare(id, producto, importe, plazo, fechaISO) {
+  const fecha = fechaISO ?? hoyMX();
+  const claveProducto = nprod(producto).slice(0, 12);
+  const sufijoFecha = String(fecha).replace(/-/g, "");
+  return {
+    folio: `PAG-${id}-${claveProducto}-${sufijoFecha}`,
+    monto: Number(importe) ?? 0,
+    plazo: Number(plazo) ?? 0,
+    producto,
+    fecha,
+  };
+}
+
+// EL PLAN DE PAGOS — una fecha programada por cuota, ligada al día de
+// cobranza del crédito. Las FECHAS siempre salen del mismo método que
+// vencimientosEntre (misma cuenta que ya es confiable para la mora) — eso no
+// cambia nunca. Lo que sí cambia es de dónde sale el MONTO/desglose de cada
+// fecha:
+//
+// CORRECCIÓN 09-sep-2026: la primera versión de esta función (09-sep-2026,
+// misma tarde) asumía que no existía ningún motor de amortización en el
+// sistema — así lo documentaba CU-014 §10 en ese momento — y por eso solo
+// repetía la cuota manual en cada fecha, sin desglose. Resulta que
+// motor-reglas.js (mergeado a develop ANTES de hoy, commits 196611b..0978c25,
+// nadie lo había conectado aquí) sí calcula una tabla de amortización real
+// —capital, interés e IVA por pago, contra el catálogo de
+// data/reglas-productos.json— y ya se usa para "ver el desglose de un
+// crédito vivo" (desgloseDeCredito, más abajo). Ahora el plan de pagos
+// intenta ESA tabla real primero, con el mismo criterio de "no se inventa,
+// se dice qué falta" que ya sigue el motor: si el producto no resuelve
+// contra el catálogo (motor.resolverCredito o motor.tablaAmortizacion se
+// niegan — falta equivalencia, falta plazo, monto fuera de rango, etc.), cae
+// al respaldo de siempre: la cuota manual repetida en cada fecha, sin
+// desglose. Cada pago del plan trae `fuente: "motor"` o `fuente: "manual"`
+// para que nunca se confunda un desglose real con uno de respaldo.
+function generarPlanPagos(credito, desembolsoISO, diaPagoStr, cuotaManual) {
+  const diaIdx = idxDia(diaPagoStr);
+  const des = String(desembolsoISO ?? "").slice(0, 10);
+  const n = Number(credito?.plazo) || 0;
+  if (!diaIdx || !/^\d{4}-\d{2}-\d{2}$/.test(des) || n <= 0) return [];
+
+  const fechas = [];
+  {
+    let cursor = diaSiguiente(des), numero = 0, guardas = 0;   // tope: ~10 años
+    while (numero < n && guardas < 3660) {
+      const d = new Date(`${cursor}T12:00:00`);
+      const g = d.getDay();
+      if ((g === 0 ? 7 : g) === diaIdx) { numero++; fechas.push(cursor); }
+      cursor = diaSiguiente(cursor);
+      guardas++;
+    }
+  }
+
+  // Intento 1 — motor de reglas real, si el producto resuelve contra el
+  // catálogo. Se usa el IMPORTE (el capital prestado), no el saldo con
+  // interés ya cargado, para elegir variante y calcular la tabla — mismo
+  // criterio que desgloseDeCredito.
+  const monto = Number(credito?.importe) || 0;
+  if (monto > 0) {
+    try {
+      const r = motor.resolverCredito({ ...credito, saldo: monto });
+      if (r?.ok) {
+        const t = motor.tablaAmortizacion({ producto: r.clave, monto, plazo: n, ciclo: r.ciclo });
+        if (t?.ok && t.pagos.length === fechas.length) {
+          return t.pagos.map((p, i) => ({
+            numero: p.n, fecha_programada: fechas[i], monto: p.cuota,
+            capital: p.capital, interes: p.interes, iva: p.iva, saldo: p.saldo,
+            fuente: "motor", producto: r.clave,
+          }));
+        }
+      }
+    } catch (error) {
+      // El motor no debe tumbar el alta/recrédito: si falla, cae al
+      // respaldo de cuota manual — se documenta el porqué, no se oculta.
+      console.error(`[generarPlanPagos] motor.resolverCredito/tablaAmortizacion falló, usando respaldo manual: ${error.message}`);
+    }
+  }
+
+  // Intento 2 (respaldo) — cuota manual repetida, sin desglose. La cuota es
+  // la que ya capturó quien dio de alta; no se recalcula ni se inventa.
+  return fechas.map((fecha, i) => ({
+    numero: i + 1, fecha_programada: fecha, monto: Number(cuotaManual) ?? 0,
+    fuente: "manual",
+  }));
+}
+
+// Junta las tres piezas y las cuelga en el crédito, en el mismo acto de alta
+// o recrédito. Si falta desembolso, día de pago o plazo, el plan de pagos
+// sale vacío (igual que calendarioDelCredito ya devuelve null cuando "no hay
+// calendario confiable") — no bloquea el alta, solo no se puede generar
+// todavía.
+function sincronizarAlDesembolsar(clienta, comisionCapturada, seguroCapturado) {
+  const { id, producto, importe, plazo, desembolso, diaPago, cuota } = clienta;
+  const pagare = generarPagare(id, producto, importe, plazo, desembolso);
+  const planPagos = generarPlanPagos(clienta, desembolso, diaPago, cuota);
+  const sobreDispersion = generarSobreDispersion(importe, comisionCapturada, seguroCapturado);
+  // Inmutable: regresa una clienta nueva en vez de mutar el argumento — quien
+  // llama debe reasignar su variable con el resultado.
+  return { ...clienta, pagare, planPagos, sobreDispersion };
+}
+
 function aunNoDesembolsa(c) {
   const d = String(c.desembolso || "").slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(d) && d > hoyMX();
@@ -4469,6 +4628,25 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   res.json({ total: base.length, resultados: lista });
 });
 
+// PAGARÉ + PLAN DE PAGOS + SOBRE DE DISPERSIÓN de un crédito (CU-013/CU-014,
+// sincronización automática al desembolsar). No recalcula nada: solo lee lo
+// que ya se generó en /api/clientes/alta o /api/creditos/recredito y lo
+// devuelve junto, para verificar sin tener que abrir el padrón entero.
+app.get("/api/creditos/plan-pagos", soloAnelMonse, (req, res) => {
+  const id = String(req.query.id || "").replace(/[\s\-.]/g, "").trim();
+  const producto = String(req.query.producto || "").trim();
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  const c = PADRON.find((x) => x.activa !== false && x.estatus !== "BAJA" && String(x.id) === id
+    && (!producto || nprod(x.producto) === nprod(producto)));
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({
+    id: c.id, producto: c.producto, centro: c.centro, diaPago: c.diaPago || null,
+    pagare: c.pagare || null,
+    planPagos: c.planPagos || [],
+    sobreDispersion: c.sobreDispersion || null,
+  });
+});
+
 // HISTORIAL DE PAGOS de un crédito: qué pagó, en qué fecha y quién lo capturó.
 // Pedido por Karina el 5-ago: «cuando le piquen a una clienta que sepa lo que
 // pagó y en qué fecha, para asegurarme de que sí se está bajando».
@@ -4911,7 +5089,7 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   const diaPagoRc = String(b.diaPago || "").trim().toUpperCase();
   if (diaPagoRc && !idxDia(diaPagoRc))
     return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
-  const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
+  let clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
     importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
     // CICLO INTERNO (Karina, 15-ago): «si alguien liquida su Grupal-Básico y
@@ -4922,6 +5100,13 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     desembolso: desembolsoRc || null,
     diaPago: diaPagoRc || String((choca || previa).diaPago || "").toUpperCase() || diaDelCentro(centro) || null,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
+  // SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014): la renovación
+  // es un desembolso nuevo igual que el alta — mismo acto, mismas tres
+  // piezas (pagaré, plan de pagos, sobre de dispersión), para el ciclo que
+  // nace ahora.
+  // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
+  // muta la de entrada — por eso se reasigna aquí.
+  clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
   // nuevo y dejarlo dado de baja el mismo día que se abrió.
@@ -7291,6 +7476,13 @@ function datosVivosParaApp(usuario) {
       const soc = String(c.id);
       const devuelve = Math.min(bolsa[soc] || 0, info.liquidado || 0);
       if (devuelve > 0) bolsa[soc] -= devuelve;
+      // CUÁL CUOTA LE TOCA HOY (CU-013/CU-014, sincronización automática al
+      // desembolsar): busca en el plan de pagos ya generado al alta/recrédito
+      // la fila cuya fecha_programada es HOY. Es la misma información que ya
+      // trae `dia` (el día de cobranza de la semana), pero con el número de
+      // cuota exacto — para que "el día que cae cada pago aparece solo en la
+      // app" no dependa de que la ejecutiva cuente a mano en qué cuota va.
+      const cuotaHoy = (c.planPagos || []).find((p) => p.fecha_programada === hoy) || null;
       return {
         id: soc, producto: c.producto,
         saldo: Math.max(0, info.saldoActual + pagoHoy + devuelve),
@@ -7307,6 +7499,12 @@ function datosVivosParaApp(usuario) {
         // ciclos, y la cuota que la ejecutiva guardó a mano en el ciclo
         // anterior se quedaba pegada ganándole a la cuota nueva.
         ciclo: Number(c.ciclo) || 1,
+        // Sincronizado en el mismo acto del alta/recrédito — sin recaptura,
+        // sin volver a subir nada: viaja tal cual se generó.
+        pagare: c.pagare || null,
+        planPagos: c.planPagos || [],
+        sobreDispersion: c.sobreDispersion || null,
+        cuotaDeHoy: cuotaHoy ? cuotaHoy.numero : null,
       };
     });
 }
