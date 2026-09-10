@@ -5122,6 +5122,85 @@ app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => 
   res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
 });
 
+// DOC-01 (carta "Definiciones de Dirección aprobadas", Dirección General,
+// 02-sep-2026): INE vigente por su propia fecha de vencimiento (impresa en
+// la credencial); comprobante de domicilio vigente solo dentro de esta
+// antigüedad máxima desde su fecha de emisión. Parámetro configurable —
+// NUNCA hardcodeado en la lógica de negocio.
+const COMPROBANTE_DOMICILIO_MESES_MAX = Number(process.env.COMPROBANTE_DOMICILIO_MESES_MAX) || 3;
+
+// DOC-01: vigencia de los documentos de renovación por su PROPIA fecha (no
+// la de captura, que es lo único que existía hasta ahora). SOLO informa —
+// no decide si un documento vencido bloquea la renovación (CU-007 §10.6,
+// todavía sin definir). null = no se capturó la fecha propia del documento,
+// así que no se puede saber si venció (no es lo mismo que "vigente").
+function vigenciaDocumentosRenovacion(c) {
+  const dr = c && c.documentosRenovacion;
+  if (!dr) return null;
+  const hoy = new Date(hoyMX() + "T12:00");
+  let ine = null;
+  if (dr.ineFechaVencimiento) ine = new Date(dr.ineFechaVencimiento + "T12:00") < hoy;
+  let comprobanteDomicilio = null;
+  if (dr.comprobanteFechaEmision) {
+    const limite = new Date(dr.comprobanteFechaEmision + "T12:00");
+    limite.setMonth(limite.getMonth() + COMPROBANTE_DOMICILIO_MESES_MAX);
+    comprobanteDomicilio = limite < hoy;
+  }
+  return { ine, comprobanteDomicilio };
+}
+
+// Documentos de renovación (CU-007 §3, precisión de Karina 24-ago sobre qué
+// cuenta como "actualizado" al renovar): INE y comprobante de domicilio son
+// SIEMPRE obligatorios, sin excepción — por eso el candado exige los dos, no
+// uno solo. Lo que este endpoint NO hace: decidir si un documento vencido
+// bloquea la renovación (CU-007 §10.6, todavía sin definir) — solo registra
+// que se capturaron y cuándo, con motivo en la bitácora.
+// DOC-01 (carta Dirección 02-sep): además de la fecha de captura, ahora se
+// puede mandar la fecha PROPIA de cada documento (vencimiento de la INE,
+// emisión del comprobante) — opcional, para no romper capturas que todavía
+// no la mandan. Sin ella, simplemente no se puede saber si venció
+// (vigenciaDocumentosRenovacion la marca en null, no en falso).
+app.post("/api/creditos/documentos-renovacion", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  if (!b.ine || !b.comprobanteDomicilio)
+    return res.status(400).json({ error: "INE y comprobante de domicilio son siempre obligatorios para renovar (CU-007)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  const fecha = String(b.fecha || hoyMX()).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "La fecha no se entiende (usa el calendario)." });
+  const docsRenov = { ine: fecha, comprobanteDomicilio: fecha };
+  if (b.ineFechaVencimiento != null) {
+    const v = String(b.ineFechaVencimiento).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return res.status(400).json({ error: "La fecha de vencimiento de la INE no se entiende (usa el calendario)." });
+    docsRenov.ineFechaVencimiento = v;
+  }
+  if (b.comprobanteFechaEmision != null) {
+    const v = String(b.comprobanteFechaEmision).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return res.status(400).json({ error: "La fecha de emisión del comprobante no se entiende (usa el calendario)." });
+    docsRenov.comprobanteFechaEmision = v;
+  }
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto,
+    campos: { documentosRenovacion: docsRenov },
+    motivo, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
+// Estado de renovación de un crédito: el ciclo (ya existía como contador de
+// re-crédito, Karina 15-ago — ver cicloSiguiente) junto con los documentos de
+// renovación ya capturados y su vigencia (DOC-01), para que el frontend no
+// tenga que combinarlos.
+app.get("/api/creditos/renovacion", requiere("direccion", "admin"), (req, res) => {
+  const c = creditoActivo(req.query.id, req.query.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({ ciclo: Number(c.ciclo) || 1, documentosRenovacion: c.documentosRenovacion || null,
+    vigenciaDocumentosRenovacion: vigenciaDocumentosRenovacion(c) });
+});
+
 // Re-dar crédito a una clienta que LIQUIDÓ: crédito NUEVO (monto+cuota), mismo
 // grupo, con nombre de producto distinto. El crédito anterior queda en el
 // historial (no se toca). Reusa la protección de socio y centro del alta.
@@ -5265,6 +5344,15 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   let clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
     importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
+    // DOC-01: los documentos de renovacion (INE + comprobante, con sus fechas
+    // propias) capturados para este ciclo se estaban perdiendo al renovar --
+    // el credito nuevo siempre nacia sin documentosRenovacion, aunque se
+    // hubieran subido momentos antes de liquidar (CU-007: "documentos exactos
+    // requeridos al renovar", RESUELTO 25-ago-2026). Se cargan hacia el ciclo
+    // nuevo tal cual estaban en el credito que se cierra. NO decide si un
+    // documento vencido bloquea la renovacion (CU-007 SEC 10.6 sigue sin
+    // definir) -- solo evita perder lo ya capturado.
+    documentosRenovacion: (choca && choca.documentosRenovacion) || null,
     // CICLO INTERNO (Karina, 15-ago): «si alguien liquida su Grupal-Básico y
     // renueva otro Grupal-Básico, ponerle un folio interno 02, 03 — para ver
     // cuántos renovó con nosotros». Es un CONTADOR, no parte del nombre: la

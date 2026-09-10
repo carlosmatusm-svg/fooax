@@ -5613,6 +5613,96 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const cen99b = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
     body: JSON.stringify({ nombre: "CENTRO RENACIDO", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) }));
   ok("y su número queda LIBRE para un centro de verdad", cen99b.ok === true, JSON.stringify(cen99b).slice(0, 70));
+  console.log("\n— 103. DOCUMENTOS DE RENOVACIÓN Y CICLOS CUMPLIDOS (CU-007) —");
+  // Documentos "actualizados" al renovar = INE + comprobante de domicilio
+  // (nota de Karina en Drive, 24-ago-2026, confirmado en CU-007 §2). Aquí solo
+  // se prueba que el sistema los registra con fecha y motivo, y que el ciclo
+  // (contador que ya existía desde el 15-ago para re-crédito) se puede
+  // consultar junto con ellos. El candado de BLOQUEAR la renovación por
+  // documento vencido sigue sin definir (CU-007 §10.6) — no se construye aquí.
+  const ID103 = "70000000096", PROD103 = "Credito Renovacion Test";
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, nombre: "RENOVACION TEST", producto: PROD103, centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 5000, cuota: 500 }) }));
+  const qs103 = "id=" + ID103 + "&producto=" + encodeURIComponent(PROD103);
+  let dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ce), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "Renovación de prueba" }) }));
+  ok("la ejecutiva NO puede capturar documentos de renovación (403)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, motivo: "Renovación de prueba" }) }));
+  ok("sin comprobante de domicilio se rechaza (los dos son siempre obligatorios)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "" }) }));
+  ok("sin motivo se rechaza (queda en la bitácora)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "Renovación de prueba, documentos vigentes" }) }));
+  ok("Dirección sí puede capturar los documentos de renovación", dr103.ok === true && !!(dr103.clienta || {}).documentosRenovacion, JSON.stringify(dr103).slice(0, 80));
+  const est103 = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("el estado de renovación trae el ciclo (1, todavía no ha renovado)", est103.ciclo === 1, "ciclo " + est103.ciclo);
+  ok("y trae los documentos ya capturados con su fecha", !!(est103.documentosRenovacion && est103.documentosRenovacion.ine), JSON.stringify(est103.documentosRenovacion));
+  const est103b = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ce) }));
+  ok("la ejecutiva tampoco puede consultar el estado de renovación (403)", !!est103b.error, JSON.stringify(est103b).slice(0, 60));
+
+  // DOC-01 (carta Dirección 02-sep): la fecha PROPIA de cada documento
+  // (vencimiento INE, emisión comprobante) es aparte de la fecha de captura
+  // de arriba, y es opcional — sin ella, vigencia queda en null (no se
+  // sabe, no es lo mismo que "vigente"). Nada de esto bloquea nada (CU-007
+  // §10.6 sigue sin definir): se prueba que la renovación sigue
+  // funcionando igual en todos los casos.
+  let est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("sin fecha propia capturada, la vigencia es null (no se sabe, no bloquea)",
+    est103c.vigenciaDocumentosRenovacion
+      && est103c.vigenciaDocumentosRenovacion.ine === null
+      && est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === null,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+
+  const hoy103 = new Date().toISOString().slice(0, 10);
+  const fechaMuyVieja103 = "2020-01-01"; // vencida por cualquier tope razonable
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: INE vencida a propósito",
+    ineFechaVencimiento: fechaMuyVieja103, comprobanteFechaEmision: hoy103 }) }));
+  ok("acepta las fechas propias del documento (DOC-01)", dr103.ok === true, JSON.stringify(dr103).slice(0, 80));
+  est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("INE vencida por su propia fecha se marca vencida", est103c.vigenciaDocumentosRenovacion.ine === true,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("comprobante recién emitido no está vencido", est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === false,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("la renovación NO se bloquea aunque la INE esté vencida (CU-007 §10.6 sigue sin definir)",
+    dr103.ok === true && !dr103.error, "el endpoint debía seguir aceptando la captura");
+
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: comprobante vencido a propósito",
+    comprobanteFechaEmision: fechaMuyVieja103 }) }));
+  est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("comprobante con antigüedad mayor al parámetro configurado se marca vencido",
+    est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === true, JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("la fecha de vencimiento de la INE capturada antes no se perdió (se fusiona, no se reemplaza)",
+    est103c.vigenciaDocumentosRenovacion.ine === true, "la captura de arriba no mandó ineFechaVencimiento, debía conservarse");
+
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: fecha inválida",
+    ineFechaVencimiento: "no-es-fecha" }) }));
+  ok("fecha de vencimiento de INE inválida se rechaza", !!dr103.error, JSON.stringify(dr103).slice(0, 80));
+
+    // CARRY-FORWARD AL RENOVAR (hallazgo 02-sep-2026, al verificar localmente el
+  // PR de DOC-01 con Karina): /api/creditos/recredito siempre creaba el ciclo
+  // nuevo con documentosRenovacion en null, aunque se hubieran capturado
+  // momentos antes de liquidar -- el trabajo de subir INE/comprobante se
+  // perdia justo al renovar. Esto NO decide nada de CU-007 SEC 10.6 (bloquear o
+  // no por documento vencido, sigue sin definir): solo evita perder lo ya
+  // capturado.
+  const docsAntesDeRenovar103 = (await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }))).documentosRenovacion;
+  ok("hay documentos capturados en el ciclo viejo antes de renovar (precondicion de esta prueba)",
+    !!(docsAntesDeRenovar103 && docsAntesDeRenovar103.ine && docsAntesDeRenovar103.comprobanteDomicilio),
+    JSON.stringify(docsAntesDeRenovar103));
+  await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, saldo: 0, motivo: "Liquidado para prueba de renovacion (carry-forward DOC-01)" }) }));
+  const ren103 = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, saldo: 4000, cuota: 400, ejecutivo: "Neri" }) }));
+  ok("renovar (recredito) con el mismo nombre funciona tras liquidar",
+    ren103.ok === true && ren103.clienta && ren103.clienta.recredito === true, JSON.stringify(ren103).slice(0, 120));
+  ok("los documentos de renovacion del ciclo viejo SE CARGAN al ciclo nuevo (antes se perdian)",
+    ren103.ok === true && JSON.stringify(ren103.clienta.documentosRenovacion) === JSON.stringify(docsAntesDeRenovar103),
+    JSON.stringify({ antes: docsAntesDeRenovar103, despues: ren103.clienta && ren103.clienta.documentosRenovacion }));
+  const est103d = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("el ciclo nuevo (ciclo 2) tambien trae ya calculada la vigencia sobre esos documentos cargados",
+    est103d.ciclo === 2 && est103d.vigenciaDocumentosRenovacion
+      && est103d.vigenciaDocumentosRenovacion.ine === true && est103d.vigenciaDocumentosRenovacion.comprobanteDomicilio === true,
+    JSON.stringify({ ciclo: est103d.ciclo, vig: est103d.vigenciaDocumentosRenovacion }));
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

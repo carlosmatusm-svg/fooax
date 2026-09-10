@@ -129,6 +129,12 @@ function aplicarCambios(base, cambios) {
         // replay nunca lo aplicaba: quedaba en la bitácora sin efecto. Con esta
         // línea, los capturados ese tiempo se aplican solos al re-reproducirse.
         if (k.plazo != null && Number.isFinite(Number(k.plazo))) { cl.plazo_anterior = cl.plazo || null; cl.plazo = Number(k.plazo); }
+        // Documentos de renovación (CU-007, confirmado 25-ago: INE + comprobante
+        // de domicilio siempre). Solo se registra que se capturaron y cuándo — el
+        // sistema todavía no decide si un documento vencido debe bloquear la
+        // renovación (pendiente, CU-007 §10.6). Se fusiona, no se reemplaza: una
+        // segunda captura no borra la fecha del documento que no se volvió a tocar.
+        if (k.documentosRenovacion) cl.documentosRenovacion = Object.assign({}, cl.documentosRenovacion, k.documentosRenovacion);
         // Etiqueta (Recuperación, Renovación…). La cadena vacía SÍ cuenta: es
         // como se quita. Por eso se compara contra undefined y no con un if
         // truthy — con un truthy nunca se podría borrar.
