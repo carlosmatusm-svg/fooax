@@ -3483,64 +3483,43 @@ app.post("/api/padron/purga", requiere("direccion", "admin"), (req, res) => {
   res.json({ ok: true, socios, centros });
 });
 
-app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
-  const b = req.body || {};
-  // El socio se limpia de espacios y guiones antes de validar: al copiarlo de
-  // otra hoja a veces viene "1111 3077 777" o "1111-3077-777".
+// Núcleo del alta real: valida, genera pagaré/plan/sobre (sincronización
+// automática) y escribe al padrón. Extraído 09-sep-2026 para que el flujo de
+// sobres/segregación (dispersar, más abajo) dé de alta EXACTAMENTE igual que
+// /api/clientes/alta — un crédito nacido por cualquiera de las dos puertas
+// queda idéntico, sin reglas de negocio duplicadas que puedan desalinearse.
+function procesarAltaPadron(b, usuario) {
+  b = b || {};
   const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
   const nombre = (b.nombre || "").trim();
   const centro = (b.centro || "").trim();
   const ejecutivo = (b.ejecutivo || "").trim();
-  // La cuenta de prueba NO toca el padrón real (probar el alta metía
-  // clientas falsas al padrón de verdad).
-  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." });
-  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
-  // Solo dígitos: un socio con letras o espacios jamás hará match con sus
-  // pagos (la llave de crédito es socio+producto) — sería basura en el padrón.
-  if (!/^\d{5,15}$/.test(id)) return res.status(400).json({ error: "El número de socio debe ser solo dígitos (ej. 11113075182)." });
-  if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
-  if (!centro) return res.status(400).json({ error: "Falta el centro." });
-  if (!ejecutivo) return res.status(400).json({ error: "Falta el ejecutivo." });
-  // El centro debe EXISTIR (evita centros fantasma por dedazo). "C-0" = individual.
+  if (usuario.test) return { status: 400, error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." };
+  if (!id) return { status: 400, error: "Falta el número de socio." };
+  if (!/^\d{5,15}$/.test(id)) return { status: 400, error: "El número de socio debe ser solo dígitos (ej. 11113075182)." };
+  if (!nombre) return { status: 400, error: "Falta el nombre de la clienta." };
+  if (!centro) return { status: 400, error: "Falta el centro." };
+  if (!ejecutivo) return { status: 400, error: "Falta el ejecutivo." };
   if (!/^c-?0$/i.test(centro) && !listaCentros().some((c) => norm(c.centro) === norm(centro)))
-    return res.status(400).json({ error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." });
-  // Duplicado exacto: mismo socio + mismo producto ya activo. Antes el alta se
-  // IGNORABA en silencio y parecía que sí se registró. El mensaje dice DÓNDE
-  // está el crédito que choca y cómo seguir — clave en reestructuras, donde la
-  // clienta suele existir ya con su crédito original.
-  // Si escribieron un producto que ya existe con otra puntuación, se guarda con
-  // el nombre que ya usa el padrón (no nace un "Foxi Plus 2" al lado del
-  // "Foxi Plus - 2" que ya estaba).
+    return { status: 400, error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." };
   const productoAlta = productoCanonico(b.producto);
-  if (!productoAlta) return res.status(400).json({ error: "Elige el tipo de crédito." });
+  if (!productoAlta) return { status: 400, error: "Elige el tipo de crédito." };
   const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(productoAlta));
   if (choca) {
     const donde = [choca.centro, choca.ejecutivo].filter(Boolean).join(" · ");
-    return res.status(400).json({
-      error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
+    return { status: 400, error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
         (donde ? " en " + donde : "") + ". Si está RENOVANDO ese mismo crédito, no la des de alta: usa \"Re-dar crédito\" en Créditos y saldos — ahí sí puede conservar el mismo nombre. " +
-        "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\").",
-    });
+        "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\")." };
   }
-  // FECHA DE DESEMBOLSO (Karina, 12-ago). Sin ella el sistema no puede saber
-  // que un crédito futuro aún no debe: PILAR PEREZ se renovó con desembolso al
-  // 28-ago, el re-crédito no cargó la fecha y salió en la mora tres semanas
-  // antes de recibir el dinero. Puede ser futura — ese es justo el caso.
   const desembolso = String(b.desembolso || "").slice(0, 10);
   if (desembolso && !/^\d{4}-\d{2}-\d{2}$/.test(desembolso))
-    return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
-  // DÍA DE PAGO: el que digan, o el del centro. Sin día la clienta queda fuera
-  // de la mora semanal (invisible) — es justo lo que no debe pasar.
+    return { status: 400, error: "La fecha de desembolso no se entiende (usa el calendario)." };
   const diaPagoAlta = String(b.diaPago || "").trim().toUpperCase();
   if (diaPagoAlta && !idxDia(diaPagoAlta))
-    return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
+    return { status: 400, error: "Ese día de pago no existe (Lunes a Sábado)." };
   let clienta = {
     id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
-    // EL IMPORTE ORIGINAL: lo que se le prestó, SIN intereses (Karina, 23-ago).
-    // El saldo del padrón es lo que va a PAGAR (con interés e IVA); sin este
-    // campo, el monto prestado no quedaba en ningún lado y el motor tenía que
-    // deducirlo de la cuota. Es el mismo IMPORTE de su CARTERA MAESTRA.
     importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0,
     desembolso: desembolso || null,
@@ -3555,27 +3534,221 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
   clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
-    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+    fecha: hoyMX(), por: usuario.nombre, ts: Date.now(),
   });
   refrescarPadron();
-  // AVISO DE COBROS QUE YA TRAÍA. Cuando se da de alta a una clienta a la que la
-  // ejecutiva YA le cobró (el caso de "Agregar clienta nueva" en la app), hay
-  // dos formas de equivocarse y ninguna se ve:
-  //   1. capturar el saldo que debe HOY en vez del ORIGINAL → el sistema le
-  //      resta el pago otra vez y la clienta queda debiendo de menos;
-  //   2. escribir el producto distinto al del cobro → el pago se queda huérfano.
-  // Se contesta con lo que de verdad quedó, para que se vea en el momento.
-  const yaCobrado = cobranzaSinCredito(req.usuario, corteSaldos())
+  const yaCobrado = cobranzaSinCredito(usuario, corteSaldos())
     .filter((x) => String(x.socio) === id);
-  const info = infoCredito(carteraViva(req.usuario), clienta);
-  res.json({ ok: true, clienta,
+  const info = infoCredito(carteraViva(usuario), clienta);
+  return {
+    ok: true, clienta,
     saldoCapturado: clienta.saldo,
     yaLePagaron: Math.round((info.pagado || 0) * 100) / 100,
     saldoQuedaEn: Math.round((info.saldoActual || 0) * 100) / 100,
-    // Cobros de ESE socio que siguen sin empatar: casi siempre el producto se
-    // escribió distinto.
     cobrosQueSiguenSueltos: yaCobrado.map((x) => ({ producto: x.producto, monto: x.pago })),
+  };
+}
+
+app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
+  const r = procesarAltaPadron(req.body, req.usuario);
+  if (r.error) return res.status(r.status || 400).json({ error: r.error });
+  res.json(r);
+});
+
+// ---------- SOBRES / SEGREGACIÓN DE FUNCIONES (CU-011/012/013, Regla K.2, CU-021) ----------
+// Reconstruido en el repo real 09-sep-2026. Carlos: "lo que estaba en el fork
+// carlosmatusm-svg/fooax se tiene que volver a hacer pero ahora en el repo de
+// Karina, tomando lo que está en los PR y en main". Se toma como referencia el
+// diseño de store_credito.js/rutas_credito.js del fork (commit c303b0a) —
+// solicitud → autoriza → dispersa → entrega → custodia — pero SIN portar su
+// taxonomía de "puestos" (Gerencia de Sucursal, Administración y Finanzas,
+// Control Operativo…): este repo real solo tiene rol ejecutivo|direccion|admin.
+// La Regla K.2 (quien autoriza no dispersa, quien dispersa no entrega, quien
+// entrega no custodia) se resuelve comparando el USUARIO literal de cada paso
+// — no un puesto — que es el equivalente más honesto sin inventar una
+// taxonomía que Dirección no ha confirmado (ver PENDIENTES §28, ESC-01).
+//
+// DIFERENCIA DELIBERADA con el fork: ahí "dispersar" dejaba un
+// `cartera_pendiente_alta` SIN tocar el padrón real (limitación documentada).
+// Aquí "dispersar" SÍ escribe al padrón real — reutiliza `procesarAltaPadron`,
+// la misma función que usa /api/clientes/alta, para que un crédito nacido por
+// este flujo quede IDÉNTICO a uno nacido por el alta directa (mismo pagaré,
+// mismo plan de pagos, mismo sobre de dispersión — sincronización automática
+// CU-013/CU-014 corre en el mismo acto).
+//
+// ESCALERA DE AUTORIZACIÓN: configurable por Dirección vía
+// /api/configuracion/escalera-autorizacion, VACÍA por defecto (mismo criterio
+// del fork: los montos/nombres de la escalera — ESC-01 — siguen sin
+// confirmarse, así que no se inventan). Con la escalera vacía, cualquier
+// dirección/admin puede autorizar; en cuanto Dirección registre usuarios ahí,
+// SOLO esos usuarios pueden autorizar (aunque no sean dirección/admin —
+// Dirección puede delegar la autorización a quien decida).
+//
+// La cuenta de PRUEBA puede solicitar/autorizar/entregar/custodiar (para
+// poder probar el flujo completo), pero JAMÁS dispersar — dispersar es el paso
+// que escribe al padrón real, y ninguna cuenta de prueba toca el padrón real
+// (mismo candado que ya tiene /api/clientes/alta).
+
+function folioSolicitud() {
+  return "SOL-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+}
+function solicitudPorFolio(folio) {
+  return store.solicitudes().find((s) => s.folio === String(folio || ""));
+}
+function escaleraAutorizacion() {
+  const cfg = store.configuracion() || {};
+  return Array.isArray(cfg.escaleraAutorizacion) ? cfg.escaleraAutorizacion : [];
+}
+function puedeAutorizar(usuario) {
+  const escalera = escaleraAutorizacion();
+  if (escalera.length) return escalera.includes(usuario.id);
+  return usuario.rol === "direccion" || usuario.rol === "admin";
+}
+
+// SOLICITAR (paso 1): cualquier ejecutivo/dirección/admin puede levantar la
+// solicitud — es la captura de la información, todavía no compromete dinero.
+app.post("/api/solicitudes", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
+  const nombre = (b.nombre || "").trim();
+  const centro = (b.centro || "").trim();
+  const ejecutivo = (b.ejecutivo || req.usuario.nombre || "").trim();
+  const productoSolicitado = productoCanonico(b.producto);
+  const importe = Number(b.importe) || 0;
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
+  if (!productoSolicitado) return res.status(400).json({ error: "Elige el tipo de crédito." });
+  if (importe <= 0) return res.status(400).json({ error: "Falta el importe solicitado." });
+  const solicitud = {
+    folio: folioSolicitud(),
+    estado: "solicitada",
+    test: !!req.usuario.test,
+    id, nombre, centro, ejecutivo, producto: productoSolicitado,
+    importe, plazo: Number(b.plazo) || 0, saldo: Number(b.saldo) || 0,
+    cuota: Number(b.cuota) || 0,
+    desembolso: String(b.desembolso || "").slice(0, 10) || null,
+    diaPago: String(b.diaPago || "").trim().toUpperCase() || null,
+    comision: b.comision != null ? Number(b.comision) : null,
+    seguro: b.seguro != null ? Number(b.seguro) : null,
+    solicitadaPor: req.usuario.nombre, solicitadaPorId: req.usuario.id, solicitadaTs: Date.now(),
+  };
+  store.agregarSolicitud(solicitud);
+  res.json({ ok: true, solicitud });
+});
+
+app.get("/api/solicitudes", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const estado = (req.query.estado || "").trim();
+  let lista = store.solicitudes().filter((s) => !!s.test === !!req.usuario.test);
+  if (estado) lista = lista.filter((s) => s.estado === estado);
+  res.json({ ok: true, solicitudes: lista });
+});
+
+app.get("/api/solicitudes/:folio", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  res.json({ ok: true, solicitud: s });
+});
+
+// AUTORIZA (paso 2, escalera K.2).
+app.post("/api/solicitudes/:folio/autorizar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  if (s.estado !== "solicitada") return res.status(400).json({ error: "Esa solicitud ya no está pendiente de autorizar (estado: " + s.estado + ")." });
+  if (!puedeAutorizar(req.usuario)) return res.status(403).json({ error: "No estás en la escalera de autorización." });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "autorizada",
+    autorizadaPor: req.usuario.nombre, autorizadaPorId: req.usuario.id, autorizadaTs: Date.now(),
   });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// RECHAZAR: se puede rechazar mientras no se haya dispersado (después de
+// dispersar ya hay dinero comprometido — eso ya no se "rechaza", se maneja
+// como baja, igual que cualquier otro crédito activo).
+app.post("/api/solicitudes/:folio/rechazar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  if (!["solicitada", "autorizada"].includes(s.estado)) return res.status(400).json({ error: "Esa solicitud ya no se puede rechazar (estado: " + s.estado + ")." });
+  const motivo = ((req.body && req.body.motivo) || "").trim();
+  if (!motivo) return res.status(400).json({ error: "Escribe el motivo del rechazo." });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "rechazada", rechazadaPor: req.usuario.nombre, rechazadaPorId: req.usuario.id,
+    rechazadaTs: Date.now(), motivoRechazo: motivo,
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// DISPERSA (paso 3, Regla K.2: quien autoriza NO dispersa). Este es el paso
+// que de verdad da de alta en el padrón real — usa procesarAltaPadron, la
+// MISMA función que usa el alta directa, para que el resultado sea idéntico
+// sin importar por cuál puerta entró el crédito.
+app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  if (s.estado !== "autorizada") return res.status(400).json({ error: `Esa solicitud todavía no está autorizada (estado: ${s.estado}).` });
+  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dispersar en el padrón real." });
+  if (req.usuario.id === s.autorizadaPorId) return res.status(403).json({ error: `Regla K.2: quien autorizó (${s.autorizadaPor}) no puede dispersar el mismo crédito.` });
+
+  // El paso que de verdad mueve dinero: si algo truena aquí (motor de
+  // reglas, store), se responde 500 en vez de tumbar el proceso completo —
+  // la solicitud se queda en "autorizada" y se puede reintentar.
+  let altaRes;
+  try {
+    altaRes = procesarAltaPadron(s, req.usuario);
+  } catch (error) {
+    console.error(`[dispersar ${s.folio}] procesarAltaPadron falló: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo dispersar por un error interno. Intenta de nuevo o avisa a soporte." });
+  }
+  if (altaRes.error) return res.status(altaRes.status || 400).json({ error: altaRes.error });
+
+  const { clienta } = altaRes;
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "dispersada",
+    dispersadaPor: req.usuario.nombre, dispersadaPorId: req.usuario.id, dispersadaTs: Date.now(),
+    pagare: clienta.pagare ?? null,
+    planPagos: clienta.planPagos ?? [],
+    sobreDispersion: clienta.sobreDispersion ?? null,
+  });
+  res.json({ ok: true, solicitud: actualizada, clienta });
+});
+
+// ENTREGA (paso 4, Regla K.2: quien dispersa NO entrega) — el sobre físico
+// (pagaré + tabla + ticket) se entrega a la clienta (paso 3 del mockup "3B").
+app.post("/api/solicitudes/:folio/entregar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  if (s.estado !== "dispersada") return res.status(400).json({ error: "Esa solicitud todavía no está dispersada (estado: " + s.estado + ")." });
+  if (req.usuario.id === s.dispersadaPorId) return res.status(403).json({ error: "Regla K.2: quien dispersó (" + s.dispersadaPor + ") no puede entregar el mismo sobre." });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "entregada", entregadaPor: req.usuario.nombre, entregadaPorId: req.usuario.id, entregadaTs: Date.now(),
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// CUSTODIA DEL PAGARÉ (paso 5, Regla K.2: quien entrega NO custodia) — cierra
+// el ciclo: el pagaré firmado regresa a resguardo (CU-014, paso 7 del mockup).
+app.post("/api/solicitudes/:folio/custodiar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  if (s.estado !== "entregada") return res.status(400).json({ error: "Esa solicitud todavía no está entregada (estado: " + s.estado + ")." });
+  if (req.usuario.id === s.entregadaPorId) return res.status(403).json({ error: "Regla K.2: quien entregó (" + s.entregadaPor + ") no puede custodiar el mismo pagaré." });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "en_custodia", custodiadaPor: req.usuario.nombre, custodiadaPorId: req.usuario.id, custodiadaTs: Date.now(),
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// Configuración de la escalera de autorización — solo Dirección/admin.
+app.get("/api/configuracion/escalera-autorizacion", requiere("direccion", "admin"), (req, res) => {
+  res.json({ ok: true, escaleraAutorizacion: escaleraAutorizacion() });
+});
+app.put("/api/configuracion/escalera-autorizacion", requiere("direccion", "admin"), (req, res) => {
+  const lista = Array.isArray(req.body && req.body.escaleraAutorizacion) ? req.body.escaleraAutorizacion : null;
+  if (!lista) return res.status(400).json({ error: "Manda escaleraAutorizacion como lista de usuarios." });
+  const invalidos = lista.filter((u) => !USUARIOS[u]);
+  if (invalidos.length) return res.status(400).json({ error: "Usuario(s) inexistente(s): " + invalidos.join(", ") });
+  const cfg = store.guardarConfiguracion(Object.assign({}, store.configuracion(), { escaleraAutorizacion: lista }));
+  res.json({ ok: true, escaleraAutorizacion: cfg.escaleraAutorizacion });
 });
 
 app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {

@@ -17,6 +17,7 @@ const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;
 const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [],
+  solicitudes: [], config: {},
   // Gestión de renovaciones: en qué va cada clienta que está por terminar
   // (Pendiente, Contactada, Renovó, Solo recuperación…). Vivía en el
   // localStorage del teléfono junto con la captura del día, así que al
@@ -166,6 +167,15 @@ async function init() {
     // Gestión de renovaciones por crédito. Append-only: el estado vigente es
     // el último de cada clave, y el historial queda para saber quién movió qué.
     await pool.query("CREATE TABLE IF NOT EXISTS renov_gestion (id serial PRIMARY KEY, data jsonb, ts bigint)");
+    // Sobres/segregación de funciones (Regla K.2, CU-011/012/013, reconstruido
+    // 09-sep-2026): cada solicitud es un registro MUTABLE — folio fijo, estado
+    // que avanza (solicitada→autorizada→dispersada→entregada→en_custodia) y se
+    // ACTUALIZA en el mismo renglón (no se re-inserta), a diferencia de
+    // renov_gestion que es puro historial append-only.
+    await pool.query("CREATE TABLE IF NOT EXISTS solicitudes_credito (folio text PRIMARY KEY, data jsonb, ts bigint)");
+    // Configuración runtime (por ahora solo la escalera de autorización K.2,
+    // vacía por defecto — ver Regla K.2 y PENDIENTES §28, ESC-01 sin confirmar).
+    await pool.query("CREATE TABLE IF NOT EXISTS configuracion (clave text PRIMARY KEY, data jsonb)");
     // Historial de snapshots: cada vez que un sync REEMPLAZA la foto de un día,
     // la versión anterior se archiva aquí (append-only). Así una captura con
     // fecha equivocada nunca destruye cobranza real: siempre es recuperable.
@@ -196,6 +206,10 @@ async function init() {
     mem.ajustes = aj.rows.map((r) => r.data);
     const gr = await pool.query("SELECT data FROM renov_gestion ORDER BY ts");
     mem.renov = gr.rows.map((r) => r.data);
+    const sc = await pool.query("SELECT data FROM solicitudes_credito ORDER BY ts");
+    mem.solicitudes = sc.rows.map((r) => r.data);
+    const cf = await pool.query("SELECT data FROM configuracion WHERE clave=$1", ["global"]).catch(() => ({ rows: [] }));
+    mem.config = (cf.rows[0] && cf.rows[0].data) || {};
     const cb = await pool.query("SELECT data FROM padron_cambios ORDER BY ts");
     mem.cambios = cb.rows.map((r) => r.data);
 
@@ -225,6 +239,8 @@ async function init() {
     try { mem.cambios = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron_cambios.json"), "utf8")); } catch { mem.cambios = []; }
     try { mem.ajustes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "cobranza_ajustes.json"), "utf8")); } catch { mem.ajustes = []; }
     try { mem.renov = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "renov_gestion.json"), "utf8")); } catch { mem.renov = []; }
+    try { mem.solicitudes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "solicitudes.json"), "utf8")); } catch { mem.solicitudes = []; }
+    try { mem.config = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "configuracion.json"), "utf8")); } catch { mem.config = {}; }
     try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
@@ -420,6 +436,45 @@ module.exports = {
         .catch((e) => console.error("[store] renov:", e.message));
     } else escribirJSON("renov_gestion.json", mem.renov);
     return g;
+  },
+
+  // ---------- Sobres / segregación de funciones (K.2) ----------
+  // Lista completa (para listados/filtros del lado del servidor).
+  solicitudes() { return mem.solicitudes; },
+  agregarSolicitud(s) {
+    toco();
+    mem.solicitudes.push(s);
+    if (usePg) {
+      pool.query("INSERT INTO solicitudes_credito (folio, data, ts) VALUES ($1,$2,$3)", [s.folio, s, s.solicitadaTs || Date.now()])
+        .catch((e) => console.error("[store] solicitud:", e.message));
+    } else escribirJSON("solicitudes.json", mem.solicitudes);
+    return s;
+  },
+  // Fusiona `patch` sobre la solicitud existente (folio fijo) y persiste el
+  // renglón completo — igual que corregirMovimiento/setMovimientoAnulado.
+  actualizarSolicitud(folio, patch) {
+    toco();
+    const s = mem.solicitudes.find((x) => x.folio === folio);
+    if (!s) return null;
+    Object.assign(s, patch);
+    if (usePg) {
+      pool.query("UPDATE solicitudes_credito SET data=$2 WHERE folio=$1", [folio, s])
+        .catch((e) => console.error("[store] actualizar solicitud:", e.message));
+    } else escribirJSON("solicitudes.json", mem.solicitudes);
+    return s;
+  },
+  // Configuración runtime (hoy solo la escalera de autorización K.2).
+  configuracion() { return mem.config; },
+  guardarConfiguracion(cfg) {
+    toco();
+    mem.config = cfg || {};
+    if (usePg) {
+      pool.query(
+        "INSERT INTO configuracion (clave, data) VALUES ('global',$1) ON CONFLICT (clave) DO UPDATE SET data=$1",
+        [mem.config]
+      ).catch((e) => console.error("[store] configuracion:", e.message));
+    } else escribirJSON("configuracion.json", mem.config);
+    return mem.config;
   },
 
   agregarAjusteCobranza(a) {
