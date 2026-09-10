@@ -5665,9 +5665,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const wbH = new (require("exceljs")).Workbook();
     await wbH.xlsx.load(bufH);
     const nombresH = wbH.worksheets.map((w) => w.name);
-    ok("trae sus 25 pestañas, portada y control incluidos",
-      nombresH.length === 25 && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA"]
-        .every((m) => nombresH.includes(m)), nombresH.length + ": " + nombresH.slice(0, 6).join(","));
+    ok("trae sus 28 pestañas: el v4 completo más los módulos M2/M4/M5 de los CU",
+      nombresH.length === 28 && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
+        "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA"]
+        .every((m) => nombresH.includes(m)), nombresH.length + ": " + nombresH.slice(0, 8).join(","));
   }
 
   console.log("\n══════════════════════════════════");

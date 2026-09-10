@@ -751,6 +751,44 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       const p = ws2.getRow(f).getCell(6); p.value = carteraHoy > 0 ? r2(crecimiento * pc / carteraHoy) : 0; p.numFmt = PCT;
     });
     sub(ws2, 12, "Planea con el realista (75%). Requieren análisis de capacidad de pago: " + analisis + ".", 6);
+    // CU-031 · M3: la SEMANA ENTRANTE — cobranza programada del calendario,
+    // ajustada por la recuperación real de las últimas semanas. Los
+    // desembolsos comprometidos y las garantías por devolver se encienden
+    // cuando lleguen las entregas 3B/3C; aquí ya tienen su renglón.
+    let f2 = 14;
+    ws2.getRow(f2).getCell(2).value = "SEMANA ENTRANTE (M3)";
+    ws2.getRow(f2).getCell(2).font = { bold: true };
+    f2++;
+    enc(ws2, f2, ["", "CONCEPTO", "", "", "MONTO", ""]);
+    f2++;
+    const programada = cartera.filter((c) => c.estatus !== "VENCIDO").reduce((t, c) => t + c.cuota, 0);
+    // % de recuperación global de las últimas 4 semanas (cobrado / esperado).
+    let recupPct = null;
+    {
+      let cob4 = 0, sem4 = 0;
+      let L = lunes;
+      for (let k = 0; k < 4; k++) {
+        const dl = new Date(L + "T12:00:00"); dl.setDate(dl.getDate() - 7);
+        L = dl.toISOString().slice(0, 10);
+        if (L < ctx.lunesDeLaSemana(ctx.corteSaldos())) break;
+        cob4 += capturasDeLaSemana(ctx, usuario, fechasDeLaSemana(L)).reduce((t, r) => t + r.pago + r.sol, 0);
+        sem4++;
+      }
+      if (sem4 > 0 && programada > 0) recupPct = Math.min(1.2, (cob4 / sem4) / programada);
+    }
+    const filasM3 = [
+      ["Cobranza programada (cuotas del calendario)", programada],
+      ["Cobranza esperada ajustada (× " + (recupPct != null ? Math.round(recupPct * 100) + "% recuperación reciente" : "sin historial") + ")",
+        recupPct != null ? programada * recupPct : programada],
+      ["− Desembolsos comprometidos (se enciende con la entrega 3B)", null],
+      ["− Garantías por devolver (se enciende con la entrega 3C)", null],
+      ["= FLUJO NETO ESTIMADO (con lo que el sistema ya ve)", recupPct != null ? programada * recupPct : programada],
+    ];
+    for (const [txt, v] of filasM3) {
+      ws2.getRow(f2).getCell(2).value = txt;
+      if (v != null) dinero(ws2, f2, 5, v, txt.startsWith("=")); else ws2.getRow(f2).getCell(5).value = "—";
+      f2++;
+    }
   }
 
   // ===== SEMÁFORO =====
@@ -818,6 +856,151 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         ejecutivas.reduce((t, e) => t + (porE[e.nombre] || 0), 0));
       f++;
     }
+  }
+
+  // ===== CARTERA POR PRODUCTO (CU-032 · M4) =====
+  {
+    const ws = wb.addWorksheet("CARTERA POR PRODUCTO");
+    ws.columns = [{ width: 4 }, { width: 30 }, { width: 10 }, { width: 15 }, { width: 12 }, { width: 15 }, { width: 15 }, { width: 13 }, { width: 15 }, { width: 13 }];
+    tit(ws, 1, "FOOAX · CARTERA POR PRODUCTO DEL CATÁLOGO (M4)", 10);
+    sub(ws, 2, "Dónde vive la mora y qué producto crece · la suma de productos ES la cartera total · semana " + semanaTxt, 10);
+    enc(ws, 4, ["", "PRODUCTO (catálogo)", "CRÉDITOS", "SALDO INSOLUTO", "% CARTERA", "ESPERADO SEMANA", "COBRADO SEMANA", "% RECUPER.", "MORA SEMANA", "RECUPERACIÓN (vencidos)"]);
+    const porProd = {};
+    for (const c of cartera) {
+      const r = ctx.motor.resolverCredito({ producto: c.producto, plazo: c.plazo, cuota: c.cuota, id: c.socio, nombre: c.clienta });
+      const nombre = (r && r.ok && r.producto && r.producto.nombre) ? r.producto.nombre : "Sin clasificar (" + c.producto + ")";
+      const b = porProd[nombre] || (porProd[nombre] = { n: 0, saldo: 0, esperado: 0, cobrado: 0, mora: 0, recup: 0, padron: new Set() });
+      b.n++; b.saldo += c.saldo; b.mora += c.mora;
+      if (c.estatus === "VENCIDO") b.recup += c.saldo; else b.esperado += c.cuota;
+      b.padron.add(ctx.norm(c.producto));
+    }
+    for (const r of captura) {
+      let nombre = null;
+      for (const k in porProd) if (porProd[k].padron.has(ctx.norm(r.producto))) { nombre = k; break; }
+      if (nombre) porProd[nombre].cobrado += r.pago + r.sol;
+    }
+    const carteraTotal = cartera.reduce((t, c) => t + c.saldo, 0);
+    let f = 5;
+    for (const nombre of Object.keys(porProd).sort((a, b) => porProd[b].saldo - porProd[a].saldo)) {
+      const b = porProd[nombre];
+      const row = ws.getRow(f);
+      row.getCell(2).value = nombre;
+      row.getCell(3).value = b.n;
+      dinero(ws, f, 4, b.saldo);
+      const p = row.getCell(5); p.value = carteraTotal > 0 ? r2(b.saldo / carteraTotal) : 0; p.numFmt = PCT;
+      dinero(ws, f, 6, b.esperado); dinero(ws, f, 7, b.cobrado);
+      const pr = row.getCell(8); pr.value = b.esperado > 0 ? r2(b.cobrado / b.esperado) : 0; pr.numFmt = PCT;
+      const cm = dinero(ws, f, 9, b.mora);
+      if (b.mora > 0) cm.font = { color: { argb: ROJO } };
+      dinero(ws, f, 10, b.recup);
+      f++;
+    }
+    ws.getRow(f).getCell(2).value = "TOTAL"; ws.getRow(f).getCell(2).font = { bold: true };
+    formula(ws, f, 3, "SUM(C5:C" + (f - 1) + ")", cartera.length, "#,##0");
+    formula(ws, f, 4, "SUM(D5:D" + (f - 1) + ")", carteraTotal);
+    formula(ws, f, 6, "SUM(F5:F" + (f - 1) + ")", Object.values(porProd).reduce((t, b) => t + b.esperado, 0));
+    formula(ws, f, 7, "SUM(G5:G" + (f - 1) + ")", Object.values(porProd).reduce((t, b) => t + b.cobrado, 0));
+    formula(ws, f, 9, "SUM(I5:I" + (f - 1) + ")", Object.values(porProd).reduce((t, b) => t + b.mora, 0));
+    formula(ws, f, 10, "SUM(J5:J" + (f - 1) + ")", Object.values(porProd).reduce((t, b) => t + b.recup, 0));
+    ctx._carteraPorProductoTotal = r2(Object.values(porProd).reduce((t, b) => t + b.saldo, 0));
+    ctx._carteraTotal = r2(carteraTotal);
+  }
+
+  // ===== SEMÁFORO POR CENTRO (CU-030 · M2, con histórico reconstruido) =====
+  {
+    const ws = wb.addWorksheet("SEMÁFORO POR CENTRO");
+    ws.columns = [{ width: 4 }, { width: 24 }, { width: 13 }, { width: 14 }, { width: 14 }, { width: 11 }, { width: 13 },
+      ...Array(8).fill({ width: 10 })];
+    tit(ws, 1, "FOOAX · SEMÁFORO POR CENTRO (M2) · verde ≥97% · ámbar 85–96% · rojo <85%", 15);
+    sub(ws, 2, "El color no lo pone nadie: esperado (cuotas de la semana) vs cobrado (apps) · umbrales sugeridos, Dirección los fija · los rojos arriba · semana " + semanaTxt, 15);
+    const semanasHist = [];
+    {
+      let L = lunes;
+      for (let k = 0; k < 8; k++) {
+        semanasHist.unshift(L);
+        const d = new Date(L + "T12:00:00"); d.setDate(d.getDate() - 7);
+        if (d.toISOString().slice(0, 10) < ctx.lunesDeLaSemana(ctx.corteSaldos())) break;
+        L = d.toISOString().slice(0, 10);
+      }
+    }
+    const capPorSemana = {};
+    for (const lw of semanasHist)
+      capPorSemana[lw] = lw === lunes ? captura : capturasDeLaSemana(ctx, usuario, fechasDeLaSemana(lw));
+    enc(ws, 4, ["", "CENTRO", "EJECUTIVO", "ESPERADO", "COBRADO", "% RECUP.", "SEMÁFORO",
+      ...semanasHist.map((lw) => "S. " + lw.slice(5))]);
+    const esperadoCentro = {};
+    for (const c of cartera) {
+      if (c.estatus === "VENCIDO") continue;
+      const k = ctx.norm(c.centro);
+      const b = esperadoCentro[k] || (esperadoCentro[k] = { centro: c.centro, ejec: c.ejecutivo, esperado: 0 });
+      b.esperado += c.cuota;
+    }
+    const colorDe = (pct, esperado) => esperado <= 0 ? ["GRIS", "FFB9B9C4"]
+      : pct >= 0.97 ? ["🟢 VERDE", "FF9FD8B4"] : pct >= 0.85 ? ["🟡 ÁMBAR", "FFF5DC8C"] : ["🔴 ROJO", "FFF2A9B2"];
+    const filasC = Object.values(esperadoCentro)
+      .map((b) => {
+        const cobrado = captura.filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro)).reduce((t, r) => t + r.pago + r.sol, 0);
+        const pct = b.esperado > 0 ? cobrado / b.esperado : 0;
+        return { ...b, cobrado, pct };
+      })
+      .sort((a, b) => a.pct - b.pct);
+    let f = 5;
+    for (const b of filasC) {
+      const row = ws.getRow(f);
+      row.getCell(2).value = b.centro; row.getCell(3).value = b.ejec;
+      dinero(ws, f, 4, b.esperado); dinero(ws, f, 5, b.cobrado);
+      const p = row.getCell(6); p.value = r2(b.pct); p.numFmt = PCT;
+      const [texto, color] = colorDe(b.pct, b.esperado);
+      const cSem = row.getCell(7); cSem.value = texto;
+      cSem.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+      semanasHist.forEach((lw, i) => {
+        const capW = capPorSemana[lw].filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro))
+          .reduce((t, r) => t + r.pago + r.sol, 0);
+        const pctW = b.esperado > 0 ? capW / b.esperado : 0;
+        const c2 = row.getCell(8 + i);
+        c2.value = r2(pctW); c2.numFmt = "0%";
+        c2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colorDe(pctW, b.esperado)[1] } };
+      });
+      f++;
+    }
+    ws.getRow(f).getCell(2).value = "TOTAL"; ws.getRow(f).getCell(2).font = { bold: true };
+    formula(ws, f, 4, "SUM(D5:D" + (f - 1) + ")", filasC.reduce((t, b) => t + b.esperado, 0));
+    formula(ws, f, 5, "SUM(E5:E" + (f - 1) + ")", filasC.reduce((t, b) => t + b.cobrado, 0));
+    sub(ws, f + 1, "El histórico se reconstruye de las capturas guardadas (con el esperado actual como referencia). Cuando el módulo M2 encienda su corte semanal guardado, cada semana conservará su esperado exacto de entonces.", 15);
+    ws.views = [{ state: "frozen", ySplit: 4 }];
+  }
+
+  // ===== COBRANZA CRUZADA (CU-033 · M5, la parte visible) =====
+  {
+    const ws = wb.addWorksheet("COBRANZA CRUZADA");
+    ws.columns = [{ width: 4 }, { width: 14 }, { width: 30 }, { width: 22 }, { width: 40 }, { width: 13 }, { width: 14 }, { width: 24 }];
+    tit(ws, 1, "FOOAX · COBRANZA CRUZADA (M5) · socias con más de un crédito vivo", 8);
+    sub(ws, 2, "La regla completa (un solo importe en la app y reparto vencido-primero) es del módulo M5; esta hoja ya enseña a quiénes aplica y cómo pagaron · semana " + semanaTxt, 8);
+    enc(ws, 4, ["", "No.SOCIO", "CLIENTA", "CENTRO", "CRÉDITOS VIVOS (cuota c/u)", "CUOTA TOTAL", "PAGADO SEMANA", "OBSERVACIÓN"]);
+    const porSocia = {};
+    for (const c of cartera) (porSocia[c.socio] = porSocia[c.socio] || []).push(c);
+    let f = 5;
+    for (const socio of Object.keys(porSocia)) {
+      const creds = porSocia[socio];
+      if (creds.length < 2) continue;
+      const pagado = captura.filter((r) => r.socio === socio).reduce((t, r) => t + r.pago + r.sol, 0);
+      const cuotaTotal = creds.reduce((t, c) => t + c.cuota, 0);
+      const pagoPorCred = creds.map((c) => captura.filter((r) => r.socio === socio && ctx.norm(r.producto) === ctx.norm(c.producto))
+        .reduce((t, r) => t + r.pago + r.sol, 0));
+      const desbalance = pagoPorCred.some((p) => p > 0.009) && pagoPorCred.some((p, i) => p <= 0.009 && creds[i].cuota > 0);
+      const row = ws.getRow(f);
+      row.getCell(2).value = socio; row.getCell(3).value = creds[0].clienta;
+      row.getCell(4).value = creds[0].centro;
+      row.getCell(5).value = creds.map((c) => c.producto + " ($" + Math.round(c.cuota) + ")").join(" · ");
+      dinero(ws, f, 6, cuotaTotal); dinero(ws, f, 7, pagado);
+      const obs = row.getCell(8);
+      if (desbalance && pagado > 0) { obs.value = "pagó a un crédito y al otro no"; obs.font = { color: { argb: ROJO } }; }
+      else if (pagado <= 0.009) obs.value = "sin pago esta semana";
+      else obs.value = "";
+      f++;
+    }
+    if (f === 5) sub(ws, 5, "Ninguna socia con más de un crédito vivo.", 8);
+    ws.views = [{ state: "frozen", ySplit: 4 }];
   }
 
   // ===== RESUMEN CENTRO =====
@@ -1005,6 +1188,49 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     }
     ws.getRow(f).getCell(5).value = "TOTAL"; ws.getRow(f).getCell(5).font = { bold: true };
     formula(ws, f, 8, f > 5 ? "SUM(H5:H" + (f - 1) + ")" : "0", tot);
+    // CU-034 · M6: autorizado vs entregado, por centro, con sus alertas. El
+    // sistema ya captura los DOS conceptos (Autorización de préstamo y
+    // Desembolso), así que el cruce sale solo; los sobres y la custodia del
+    // pagaré llegan con la entrega 3B y aquí se les hace lugar.
+    f += 2;
+    ws.getRow(f).getCell(2).value = "AUTORIZADO vs ENTREGADO POR CENTRO (M6)";
+    ws.getRow(f).getCell(2).font = { bold: true };
+    f++;
+    enc(ws, f, ["", "CENTRO", "AUTORIZADO", "ENTREGADO", "DIFERENCIA", "ALERTA"]);
+    f++;
+    const porCentroM6 = {};
+    for (const fe of fechas) {
+      for (const m of ctx.movsDeFecha(fe, usuario)) {
+        if (m.anulado || m.entrada) continue;
+        const t2 = ctx.tipoDeMov(m) || "";
+        const esAut = /autorizaci/i.test(t2), esDes = /desembols/i.test(t2);
+        if (!esAut && !esDes) continue;
+        const k = m.centro || "(sin centro)";
+        const b = porCentroM6[k] || (porCentroM6[k] = { aut: 0, ent: 0 });
+        if (esAut) b.aut += Number(m.monto) || 0; else b.ent += Number(m.monto) || 0;
+      }
+    }
+    const f0m6 = f;
+    let tA = 0, tE = 0;
+    for (const k of Object.keys(porCentroM6).sort((a, b) => a.localeCompare(b, "es"))) {
+      const b = porCentroM6[k];
+      const row = ws.getRow(f);
+      row.getCell(2).value = k;
+      dinero(ws, f, 3, b.aut); dinero(ws, f, 4, b.ent);
+      formula(ws, f, 5, "C" + f + "-D" + f, b.aut - b.ent);
+      const al = row.getCell(6);
+      if (b.ent > b.aut + 0.009) { al.value = "⚠ entregado SIN autorización"; al.font = { bold: true, color: { argb: ROJO } }; }
+      else if (b.aut > b.ent + 0.009) { al.value = "autorizado sin entregar"; al.font = { color: { argb: AMBAR } }; }
+      tA += b.aut; tE += b.ent;
+      f++;
+    }
+    if (f === f0m6) { sub(ws, f, "Sin autorizaciones ni desembolsos esta semana.", 6); f++; }
+    else {
+      ws.getRow(f).getCell(2).value = "TOTAL"; ws.getRow(f).getCell(2).font = { bold: true };
+      formula(ws, f, 3, "SUM(C" + f0m6 + ":C" + (f - 1) + ")", tA);
+      formula(ws, f, 4, "SUM(D" + f0m6 + ":D" + (f - 1) + ")", tE);
+      formula(ws, f, 5, "C" + f + "-D" + f, tA - tE);
+    }
   }
 
   // ===== CONTROL (cuadres) =====
@@ -1036,6 +1262,8 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     check("GARANTÍAS de la matriz vs garantías capturadas", totG.G, capGar);
     const porEjecSuma = Object.values(capPorEjec).reduce((a, b) => a + b, 0);
     check("POR EJECUTIVO total vs captura de las apps", porEjecSuma, capTotal);
+    check("CARTERA POR PRODUCTO: suma de productos vs cartera total (CU-032)",
+      ctx._carteraPorProductoTotal || 0, ctx._carteraTotal || 0);
     for (const g of ["BASICO", "MICROEMPRESAS", "ADICIONALES", "INDIVIDUALES"]) {
       const t = totalesGrupo[g];
       if (t) check("COBRADO hoja " + g + " vs capturas de ese producto", t.cobrado,
