@@ -2595,6 +2595,29 @@ app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, r
   res.end(Buffer.from(buf));
 });
 
+// ---------- LA HOJA DE COBRANZA AUTOMÁTICA ----------
+// El libro completo de 25 pestañas que Dirección armaba a mano cada semana
+// (HOJA COBRANZA v4), generado desde los datos vivos: capturas de las apps,
+// cartera, mora, motor de intereses y renovaciones. Contrato de la Hoja de
+// Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su contexto.
+const hojaCobranza = require("./hoja-cobranza");
+app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, res) => {
+  try {
+    const ctx = { PADRON, USUARIOS, idsEjecutivos, carteraViva, infoCredito, moraDeLaSemana,
+      movsDeFecha, tipoDeMov, motor, corteSaldos, hoyMX, lunesDeLaSemana, norm,
+      numeroDePago, vencidaPorPlazo, esVencido, esCuotaVariable, store };
+    const { wb, semanaTxt } = await hojaCobranza.generar(ctx, ExcelJS, req.usuario, req.query.lunes);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition",
+      "attachment; filename=\"HOJA COBRANZA FOOAX " + semanaTxt.replace(/[^0-9a-zA-Záéíóúñ ]/gi, "") + ".xlsx\"");
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (e) {
+    console.error("[hoja-cobranza]", e.message);
+    res.status(500).json({ error: "No se pudo generar la hoja: " + e.message });
+  }
+});
+
 app.get("/api/sin-desembolso/excel", requiere("direccion", "admin"), async (req, res) => {
   const d = sinFechaDesembolso(req.usuario);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
@@ -5886,7 +5909,18 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim() || null;
   let producto = String(b.producto || "").trim() || null;
   if (socio) {
-    const cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+    let cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+    // LA GARANTÍA SE ENTREGA CUANDO EL CRÉDITO YA TERMINÓ (Monse, 8-sep: «la
+    // clienta liquidó y no renovó, y no me deja liberar su garantía»). Si la
+    // clienta ya no tiene crédito activo —liquidó y se dio de baja—, el
+    // linkeo de una GARANTÍA cae a su crédito más reciente aunque esté de
+    // baja: el dinero queda amarrado a su historia. Las liquidaciones y
+    // recuperaciones NO: esas sí necesitan un crédito vivo al cual bajarle.
+    if (!cred.length && /^garant/i.test(String(b.tipo || ""))) {
+      cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio)
+        .sort((c1, c2) => String(c2.alta_fecha || "").localeCompare(String(c1.alta_fecha || "")));
+      if (cred.length > 1 && !producto) cred = [cred[0]];
+    }
     if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
     // DE CUÁL DE SUS CRÉDITOS. Una liquidación baja el saldo de UN crédito, no de
     // la clienta: ~146 socias tienen más de uno. Sin este dato el sistema se lo

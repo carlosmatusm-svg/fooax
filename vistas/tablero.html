@@ -770,7 +770,8 @@
     <button class="dlbtn" id="btnArqueo" onclick="descargar('/api/arqueo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.4z"/><path d="M9.5 8h5M9.5 12h5"/></svg><span>Arqueo de caja del día</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/caja/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v.01M18 14.5v.01"/></svg><span>Cierre de caja de la semana</span></button>
     <button class="dlbtn" onclick="descargar('/api/semana/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Saldos actualizados de la semana</span></button>
-    <button class="dlbtn" id="btnSinDes" onclick="descargar('/api/sin-desembolso/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18M12 15v3"/></svg><span>Créditos sin fecha de desembolso</span></button>
+    <button class="dlbtn" onclick="descargar('/api/hoja-cobranza/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 4v17M12 13h5M12 17h5"/></svg><span>Hoja de Cobranza (semana completa)</span></button>
+  <button class="dlbtn" id="btnSinDes" onclick="descargar('/api/sin-desembolso/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18M12 15v3"/></svg><span>Créditos sin fecha de desembolso</span></button>
     <!-- Mismo patrón: dice cuántos faltan y se esconde solo al llegar a cero. -->
     <button class="dlbtn" id="btnSinCat" style="display:none" onclick="descargar('/api/sin-catalogo/excel')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18.5" cy="17" r="3"/><path d="M18.5 15.6v1.4l1 .7"/></svg><span>Créditos sin plazo</span></button>
     <button class="dlbtn secun" onclick="descargar('/api/respaldo')"><svg class="dlico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12l4 4v12H4z"/><path d="M8 4v6h8V4M8 20v-5h8v5"/></svg><span>Respaldo completo (toda la cobranza)</span></button>
@@ -1772,6 +1773,10 @@ async function cargarConceptos() {
 function tipoMovCambio() {
   const sel = $("mTipo"), hint = $("mTipoHint"), campo = $("mCliCampo");
   if (!sel) return;
+  // Si ya había una búsqueda de clienta hecha, se rehace con el filtro del
+  // tipo nuevo (una garantía enseña liquidadas y bajas; una liquidación no).
+  const bq = $("mBuscaCli");
+  if (bq && bq.value.trim().length >= 2) bq.dispatchEvent(new Event("input"));
   const c = CONCEPTOS.find((x) => x.nombre === sel.value) || {};
   if (hint) hint.innerHTML = c.entrada
     ? '<b style="color:#0B7247">Entra dinero a la caja</b> — suma al efectivo que se entrega.'
@@ -1807,18 +1812,33 @@ function armarBuscadorClienta() {
       let d;
       try { d = await (await fetch("/api/clientes?q=" + encodeURIComponent(q), { credentials: "include" })).json(); }
       catch { return; }
-      const con = (d.resultados || []).filter((c) => (c.saldoActual != null ? c.saldoActual : c.saldo) > 0.009);
+      // QUIÉN SALE EN LA LISTA DEPENDE DEL TIPO (Monse, 8-sep: «no me deja
+      // liberar la garantía de la que liquidó y no renovó»). Una liquidación
+      // necesita un crédito VIVO con saldo; una GARANTÍA es al revés — se
+      // entrega justamente cuando el crédito terminó — así que ahí salen
+      // también las liquidadas (saldo 0) y hasta las dadas de BAJA, marcadas.
+      const tipoSel0 = (($("mTipo") || {}).value || "");
+      const bajaSaldo0 = /^(liquidaci|recuperaci|adelant)/i.test(tipoSel0);
+      const esGar0 = /^garant/i.test(tipoSel0);
+      const saldoDe = (c) => (c.saldoActual != null ? c.saldoActual : c.saldo) || 0;
+      const viva0 = (c) => c.activa !== false && c.estatus !== "BAJA";
+      const con = (d.resultados || []).filter((c) =>
+        bajaSaldo0 ? (saldoDe(c) > 0.009 && viva0(c))
+        : esGar0 ? true
+        : viva0(c));
       // El valor lleva SOCIO y PRODUCTO. Antes era sólo el socio: la lista
       // mostraba un renglón por crédito, así que Dirección creía estar eligiendo
       // uno, pero los dos renglones de una misma clienta mandaban lo mismo y el
       // abono acababa en el primer crédito de la lista (8-ago-2026).
       sel.innerHTML = '<option value="">— Sin clienta —</option>'
         + con.map((c) => '<option value="' + hesc(c.id + "|" + c.producto) + '">' + hesc(c.nombre) + " · " + hesc(c.producto)
-            + " · debe " + dinero(c.saldoActual != null ? c.saldoActual : c.saldo) + "</option>").join("");
+            + (!viva0(c) ? " · BAJA" : saldoDe(c) > 0.009 ? " · debe " + dinero(saldoDe(c)) : " · liquidada")
+            + "</option>").join("");
       if (con.length === 1) sel.selectedIndex = 1;
       $("mCliHint").textContent = con.length
-        ? "Elige el CRÉDITO, no sólo a la clienta: el abono le baja el saldo a ese y a ningún otro."
-        : "No hay clientas activas con saldo que empaten con “" + q + "”.";
+        ? (esGar0 ? "Elige a la clienta y su crédito — para garantías también salen las liquidadas y las dadas de baja."
+                  : "Elige el CRÉDITO, no sólo a la clienta: el abono le baja el saldo a ese y a ningún otro.")
+        : (esGar0 ? "Nadie empata con “" + q + "”." : "No hay clientas activas con saldo que empaten con “" + q + "”.");
       if (con.length === 1) desgloseDelMov();
     }, 250);
   });
