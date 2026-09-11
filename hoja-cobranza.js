@@ -589,6 +589,14 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   // ---- las tres grupales: una fila por CENTRO (y por producto) ----
   for (const grupo of ["BASICO", "MICROEMPRESAS", "ADICIONALES"]) {
     const conRedondeo = grupo === "MICROEMPRESAS";
+    // Lo que cada socia pagó EN LA SEMANA dentro de esta familia de producto:
+    // sirve para cachar el caso "cayó en mora completa pero SÍ pagó" — la
+    // captura no empató con su crédito (producto/clave distinta) y el sistema
+    // cree que no recibió nada (casos YA MUGHNI/LA JOYA/SUCHIL, Karina 10-sep:
+    // "no me cuadra con el total que se tuvo que haber recibido").
+    const capSemFam = {};
+    for (const r of captura) if (grupoDe(r.producto) === grupo)
+      capSemFam[r.socio] = r2((capSemFam[r.socio] || 0) + r.pago);
     const conCuotaSaldo = grupo === "BASICO";
     // columnas: FECHA CENTRO NOMBRE PRESTAMO ABONO INTERES IVA + variables
     const encs = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA"];
@@ -636,12 +644,15 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
           filaFecha(ws, f, fechas[di]);
           row.getCell(2).value = info.num; row.getCell(2).alignment = { horizontal: "center" };
           row.getCell(3).value = info.nombre;
-          let prestamo = 0, abono = 0, interes = 0, iva = 0, teorico = 0, cuota = 0, moraC = 0, nMora = 0;
+          let prestamo = 0, abono = 0, interes = 0, iva = 0, teorico = 0, cuota = 0, moraC = 0, nMora = 0, nSinEmpatar = 0;
           if (g) for (const c of g.creditos) {
             const t = teoriaDe(ctx, c);
             prestamo += c.importe; abono += t.abono; interes += t.interes;
             iva += t.iva; teorico += t.teorico; cuota += t.cuotaReal;
-            if (c.mora > 0.009) { moraC += c.mora; nMora++; }
+            if (c.mora > 0.009) {
+              moraC += c.mora; nMora++;
+              if ((capSemFam[c.socio] || 0) >= c.mora - 1) nSinEmpatar++;
+            }
           }
           const pr = row.getCell(4); pr.value = r2(prestamo); pr.numFmt = FMT_ENTERO;
           dinero(ws, f, 5, abono); dinero(ws, f, 6, interes); dinero(ws, f, 7, iva);
@@ -666,7 +677,8 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
           }
           if (moraC > 0.009) {
             enMoraDia += nMora;
-            marcaMora(row.getCell(colMora), moraC, "una parte cayó en mora (" + nMora + ")");
+            marcaMora(row.getCell(colMora), moraC, "una parte cayó en mora (" + nMora + ")"
+              + (nSinEmpatar > 0 ? " · ⚠ " + nSinEmpatar + " SÍ pagó: la captura no empató con su crédito, corregirla" : ""));
           } else if (g && fechas[di] < hoy && cobrado + 0.009 < cuota) {
             // Cobró menos de la cuota SU día pero no hay mora semanal: completó
             // otro día de la semana o trae adelanto que la cubre. Se dice para
