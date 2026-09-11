@@ -597,6 +597,34 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       }
       f++;
     }
+    // SIN DÍA DE PAGO: un crédito sin día no cae en ninguna fila — no se
+    // proyecta ni se cobra, y nadie lo ve (casos Apolonia Lorenza y María
+    // Elena Oliva en ADNACHIEL, Observaciones 11-sep). Se delatan en rojo
+    // para que Dirección les ponga su día en el tablero (Capturar). Los
+    // mensuales legítimos ("DÍA 30") no son huérfanos y no se listan.
+    {
+      const sinDia = cartera.filter((c) => c.grupo === "INDIVIDUALES" && c.estatus !== "VENCIDO"
+        && !DIAS_KEY.includes(c.diaPago) && !/^D[IÍ]A /i.test(String(c.diaPago || ""))
+        && !ctx.esCuotaVariable(c.producto));
+      if (sinDia.length) {
+        f++;
+        const t1 = ws.getRow(f).getCell(3);
+        t1.value = "SIN DÍA DE PAGO — no caen en ningún día y NO se están cobrando: ponerles su día en el tablero (Capturar)";
+        t1.font = { bold: true, size: 9.5, color: { argb: ROJO }, name: "Century Gothic" };
+        f++;
+        for (const c of sinDia) {
+          const row = ws.getRow(f);
+          row.getCell(2).value = String(c.noCentro || "").replace(/^C-?/i, "");
+          row.getCell(2).alignment = { horizontal: "center" };
+          const cel = row.getCell(3);
+          cel.value = (c.centro && c.centro !== "INDIVIDUAL" ? c.centro + " · " : "") + c.clienta
+            + " · cuota $" + r2(c.cuota).toLocaleString("en-US") + " · saldo $" + r2(c.saldo).toLocaleString("en-US", { minimumFractionDigits: 2 });
+          cel.font = { size: 9, color: { argb: ROJO }, name: "Century Gothic" };
+          f++;
+        }
+        f++;
+      }
+    }
     pintaTotal(ws, f, 11, [4, 5, 6, 7, 8, 9, 10],
       { 4: tot.prestamo, 5: tot.abono, 6: tot.interes, 7: tot.iva, 8: tot.teorico, 9: tot.cuota, 10: tot.teorico - tot.cuota },
       { 4: FMT_ENTERO });
@@ -768,6 +796,34 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     totPorCol[colCobrado] = tot.cobrado;
     const colsDineroT = conRedondeo ? [4, 5, 6, 7, 8, 9, colCobrado]
       : conCuotaSaldo ? [4, 5, 6, 7, 8, 9, 10, colCobrado] : [4, 5, 6, 7, 8, colCobrado];
+    // SIN DÍA DE PAGO: un crédito sin día no cae en ninguna fila — no se
+    // proyecta ni se cobra, y nadie lo ve (casos Apolonia Lorenza y María
+    // Elena Oliva en ADNACHIEL, Observaciones 11-sep). Se delatan en rojo
+    // para que Dirección les ponga su día en el tablero (Capturar). Los
+    // mensuales legítimos ("DÍA 30") no son huérfanos y no se listan.
+    {
+      const sinDia = cartera.filter((c) => c.grupo === grupo && c.estatus !== "VENCIDO"
+        && !DIAS_KEY.includes(c.diaPago) && !/^D[IÍ]A /i.test(String(c.diaPago || ""))
+        && !ctx.esCuotaVariable(c.producto));
+      if (sinDia.length) {
+        f++;
+        const t1 = ws.getRow(f).getCell(3);
+        t1.value = "SIN DÍA DE PAGO — no caen en ningún día y NO se están cobrando: ponerles su día en el tablero (Capturar)";
+        t1.font = { bold: true, size: 9.5, color: { argb: ROJO }, name: "Century Gothic" };
+        f++;
+        for (const c of sinDia) {
+          const row = ws.getRow(f);
+          row.getCell(2).value = String(c.noCentro || "").replace(/^C-?/i, "");
+          row.getCell(2).alignment = { horizontal: "center" };
+          const cel = row.getCell(3);
+          cel.value = (c.centro && c.centro !== "INDIVIDUAL" ? c.centro + " · " : "") + c.clienta
+            + " · cuota $" + r2(c.cuota).toLocaleString("en-US") + " · saldo $" + r2(c.saldo).toLocaleString("en-US", { minimumFractionDigits: 2 });
+          cel.font = { size: 9, color: { argb: ROJO }, name: "Century Gothic" };
+          f++;
+        }
+        f++;
+      }
+    }
     pintaTotal(ws, f, nCols, colsDineroT, totPorCol, { 4: FMT_ENTERO });
     ws.views = [{ state: "frozen", ySplit: 5 }];
     totalesGrupo[grupo] = { ...tot, filaTotal: f };
