@@ -8,7 +8,7 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v20"; // v20: un día de puros movimientos también cierra su arqueo
+const CACHE = "fooax-v21"; // v21: el login estrena el diseño del lienzo (10-sep)
 
 // LA LÓGICA VIVA NUNCA SE SIRVE VIEJA (Karina, 15-ago: «no encontré lo de la
 // mora en la app de Neri»). Estos archivos son el cerebro que baja del

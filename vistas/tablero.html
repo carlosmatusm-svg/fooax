@@ -14,43 +14,45 @@
 <script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){});});}</script>
 <style>
   :root{
-    /* Paleta oficial FOOAX (manual de marca, ene-2025) */
-    --aurora:#F1228E; --atardecer:#FD6E29; --rio:#324AB6;
-    --cielo:#ADE6ED; --riqueza:#F2BB06; --llama:#F44C5D; --morado:#7A3EA8;
-    --verde:#13A463; --ambar:#E8960C;
-    --tinta:#2A1F35; --gris:#7A6E86; --fondo:#F6F3F9; --tarjeta:#FFFFFF;
-    --linea:#ECE6F1; --lav:#F1ECF7;
-    --fuente:"Century Gothic","Futura","Avant Garde","Trebuchet MS",-apple-system,BlinkMacSystemFont,sans-serif;
-    --grad:linear-gradient(120deg,var(--atardecer),var(--llama) 26%,var(--aurora) 50%,var(--morado) 72%,var(--rio));
+    /* Sistema visual del lienzo «Módulos contratados FOOAX» (10-sep-2026).
+       Mismos nombres de token que siempre, valores del diseño nuevo. */
+    --aurora:#F1228E; --atardecer:#FD6E29; --rio:#2563EB;
+    --cielo:#ADE6ED; --riqueza:#B45309; --llama:#B91C1C; --morado:#7A3EA8;
+    --verde:#059669; --ambar:#B45309;
+    --tinta:#18181B; --gris:#71717A; --fondo:#FAFAFA; --tarjeta:#FFFFFF;
+    --linea:#E4E4E7; --lav:#F1F1F3;
+    --fuente:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:"SF Mono",SFMono-Regular,Menlo,Monaco,Consolas,"Courier New",monospace;
+    --grad:linear-gradient(90deg,#fd6e29,#f1228e,#7a3ea8,#324ab6);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:var(--fuente);background:var(--fondo);
     color:var(--tinta);display:flex;justify-content:center;min-height:100vh}
   .marco{width:100%;max-width:460px;padding-bottom:40px}
   header{
-    color:#fff;padding:20px 18px 18px;display:flex;align-items:center;gap:12px;
-    background:var(--grad);
-    box-shadow:0 6px 20px rgba(227,72,129,.28);
+    color:var(--tinta);padding:18px 18px 14px;display:flex;align-items:center;gap:12px;
+    background:var(--tarjeta);
+    border-bottom:1px solid var(--linea);
   }
   header .logo{width:40px;height:40px;border-radius:12px;object-fit:cover;
-    box-shadow:0 3px 10px rgba(0,0,0,.18);flex-shrink:0}
+    flex-shrink:0}
   header .t{flex:1;min-width:0}
   header .t b{font-size:18px;display:block;line-height:1.15}
-  header .t small{opacity:.9;font-size:12px}
-  header button{background:rgba(255,255,255,.22);border:none;color:#fff;font:600 12.5px inherit;
-    padding:8px 13px;border-radius:99px;cursor:pointer;font-family:inherit;flex-shrink:0}
-  header button:focus-visible{outline:2px solid #fff;outline-offset:2px}
-  .campana{position:relative;background:rgba(255,255,255,.22);border:none;color:#fff;
-    width:38px;height:38px;border-radius:50%;cursor:pointer;flex-shrink:0;display:flex;
+  header .t small{color:var(--gris);font-size:12px}
+  header button{background:var(--tarjeta);border:1px solid var(--linea);color:var(--tinta);font:600 12.5px inherit;
+    padding:11px 14px;border-radius:8px;cursor:pointer;font-family:inherit;flex-shrink:0}
+  header button:focus-visible{outline:2px solid var(--rio);outline-offset:2px}
+  .campana{position:relative;background:var(--tarjeta);border:1px solid var(--linea);color:var(--tinta);
+    width:42px;height:42px;border-radius:50%;cursor:pointer;flex-shrink:0;display:flex;
     align-items:center;justify-content:center;padding:0}
   .campana svg{width:19px;height:19px}
-  .campana .badge{position:absolute;top:-3px;right:-3px;background:var(--riqueza);color:#2A1F35;
+  .campana .badge{position:absolute;top:-3px;right:-3px;background:var(--riqueza);color:#fff;
     font-size:10px;font-weight:800;min-width:17px;height:17px;border-radius:99px;
-    display:flex;align-items:center;justify-content:center;padding:0 3px;box-shadow:0 0 0 2px var(--aurora)}
+    display:flex;align-items:center;justify-content:center;padding:0 3px;box-shadow:0 0 0 2px var(--tarjeta)}
   .campana .badge:empty{display:none}
   .panel-campana{position:fixed;top:66px;right:12px;width:min(360px,92vw);max-height:70vh;
-    overflow-y:auto;background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;
-    box-shadow:0 12px 40px rgba(42,31,53,.28);z-index:50;display:none;padding:14px 15px}
+    overflow-y:auto;background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;
+    box-shadow:0 12px 40px rgba(24,24,27,.28);z-index:50;display:none;padding:14px 15px}
   .panel-campana.abierto{display:block}
   .panel-campana h4{font-size:14px;font-weight:800;color:var(--tinta)}
   .panel-campana .pc-fecha{font-size:11.5px;color:var(--gris);margin:1px 0 10px}
@@ -63,10 +65,10 @@
   .velo-campana{position:fixed;inset:0;z-index:49;display:none}
   .velo-campana.abierto{display:block}
   .tarjeta{margin:14px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);
-    border-radius:18px;padding:18px;box-shadow:0 2px 10px rgba(42,31,53,.04)}
-  .eti{font-size:11.5px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.08em}
-  .cifra{font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:4px;line-height:1;
-    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+    border-radius:10px;padding:18px}
+  .eti{font-size:10px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono)}
+  .cifra{font-size:31px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px;line-height:1;
+    color:var(--tinta);font-family:var(--mono)}
   .split{display:flex;margin-top:14px;border-radius:8px;overflow:hidden;height:11px;background:var(--lav)}
   .split .efe{background:var(--verde)}.split .tra{background:var(--rio)}
   .split-eti{display:flex;justify-content:space-between;font-size:12px;color:var(--gris);margin-top:8px}
@@ -76,11 +78,11 @@
   .split-eti .ico.efe{color:var(--verde)}
   .split-eti .ico.tra{color:var(--rio)}
   .sub{display:flex;gap:10px;margin:12px 16px 0}
-  .mini{flex:1;background:var(--tarjeta);border:1px solid var(--linea);border-radius:15px;padding:13px 15px;
-    box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .mini{flex:1;background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:13px 15px;
+    }
   .mini .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:3px}
-  .ejec{margin:10px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;
-    padding:14px 16px;box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .ejec{margin:10px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;
+    padding:14px 16px;}
   .ejec .f1{display:flex;align-items:center;gap:11px}
   .ava{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
     color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
@@ -88,40 +90,40 @@
   .ejec .monto{font-weight:800;font-variant-numeric:tabular-nums}
   .ejec .pie{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;
     color:var(--gris);margin-top:9px;gap:8px}
-  .btncorr{border:1px solid #8E0019;background:#fff;color:#8E0019;cursor:pointer;display:inline-flex;
+  .btncorr{border:1px solid #B91C1C;background:#fff;color:#B91C1C;cursor:pointer;display:inline-flex;
     align-items:center;gap:4px;font-family:inherit}
-  .btncorr:hover{background:#8E0019;color:#fff}
-  .corrbox{margin-top:10px;border:2px solid #8E0019;border-radius:12px;padding:14px;background:#FFF7F8}
-  .corrbox h4{margin:0 0 4px;font-size:15px;color:#8E0019}
+  .btncorr:hover{background:#B91C1C;color:#fff}
+  .corrbox{margin-top:10px;border:2px solid #B91C1C;border-radius:10px;padding:14px;background:#FEF2F2}
+  .corrbox h4{margin:0 0 4px;font-size:15px;color:#B91C1C}
   .corrfila{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 10px;
-    border-bottom:1px solid #F0D8DC;flex-wrap:wrap}
+    border-bottom:1px solid #FECACA;flex-wrap:wrap}
   .corrfila:last-child{border-bottom:0}
   .corrfila .cn{font-weight:700;font-size:13px}
   .corrfila .cm{font-variant-numeric:tabular-nums;font-weight:800}
   .corrfila .anulada{text-decoration:line-through;opacity:.55}
   .corrbtns{display:flex;gap:6px;flex-wrap:wrap}
   .cbtn{font-size:11px;font-weight:700;padding:4px 9px;border-radius:8px;cursor:pointer;
-    border:1px solid #B9C2CC;background:#fff;font-family:inherit}
-  .cbtn.rojo{border-color:#8E0019;color:#8E0019}
-  .cbtn.rojo:hover{background:#8E0019;color:#fff}
+    border:1px solid #E4E4E7;background:#fff;font-family:inherit}
+  .cbtn.rojo{border-color:#B91C1C;color:#B91C1C}
+  .cbtn.rojo:hover{background:#B91C1C;color:#fff}
   .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;white-space:nowrap;
     display:inline-flex;align-items:center;gap:4px}
   .pie .detpago{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
-  .pill.ok{background:#E7F6EE;color:#0B7247}
-  .pill.no{background:#FDECEC;color:#B4232F}
+  .pill.ok{background:#ECFDF5;color:#059669}
+  .pill.no{background:#FEF2F2;color:#B91C1C}
   h3{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--gris);margin:20px 18px 2px;font-weight:700}
-  .resp{margin:14px 16px 0;background:#EAF7EF;border:1px solid #C6EAD6;border-radius:15px;
-    padding:13px 16px;font-size:13px;color:#0B7247;line-height:1.5}
-  .resp b{font-weight:700}.resp a{color:#0B7247;font-weight:700}
+  .resp{margin:14px 16px 0;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;
+    padding:13px 16px;font-size:13px;color:#059669;line-height:1.5}
+  .resp b{font-weight:700}.resp a{color:#059669;font-weight:700}
   .buscador{margin:14px 16px 0;position:relative}
   .buscador input{width:100%;font:inherit;font-size:15px;padding:13px 14px 13px 44px;
-    border:1px solid var(--linea);border-radius:14px;background:var(--tarjeta);
-    box-shadow:0 2px 10px rgba(42,31,53,.04)}
+    border:1px solid var(--linea);border-radius:10px;background:var(--tarjeta);
+    }
   .buscador input:focus{outline:none;border-color:var(--aurora);box-shadow:0 0 0 3px rgba(241,34,142,.12)}
   .buscador .lupa{position:absolute;left:15px;top:50%;transform:translateY(-50%);
     width:18px;height:18px;color:var(--gris);pointer-events:none}
   .resultados{margin:8px 16px 0;display:flex;flex-direction:column;gap:8px}
-  .rcard{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:12px 14px}
+  .rcard{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:12px 14px}
   .rcard .rn{font-weight:700;font-size:14.5px}
   .rcard .rm{font-size:11.5px;color:var(--gris);margin-top:2px}
   .rcard .rd{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-size:12px;color:var(--gris)}
@@ -137,25 +139,25 @@
   .bajabox>span{font-size:11.5px;font-weight:700;color:var(--gris);width:100%}
   .motbtn{font:inherit;font-size:11.5px;font-weight:600;color:var(--tinta);background:var(--lav);
     border:1px solid var(--linea);border-radius:99px;padding:6px 11px;cursor:pointer}
-  .motbtn:active{background:#FDECEC;color:#B4232F}
+  .motbtn:active{background:#FEF2F2;color:#B91C1C}
   /* Créditos y saldos · solo Anel y Monse */
   .credpanel{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:2px 16px 10px}
-  .credlbl{font-size:11px;font-weight:800;color:var(--rio,#324AB6);letter-spacing:.02em;width:100%}
-  .credchip{font:inherit;font-size:12px;font-weight:700;color:var(--rio,#324AB6);background:none;
-    border:1.5px solid var(--rio,#324AB6);border-radius:99px;padding:6px 13px;cursor:pointer}
-  .credchip:active{background:#E5EAFB}
+  .credlbl{font-size:11px;font-weight:800;color:var(--rio,#2563EB);letter-spacing:.02em;width:100%}
+  .credchip{font:inherit;font-size:12px;font-weight:700;color:var(--rio,#2563EB);background:none;
+    border:1.5px solid var(--rio,#2563EB);border-radius:99px;padding:6px 13px;cursor:pointer}
+  .credchip:active{background:#EFF6FF}
   .credchip.credx{color:var(--gris);border-color:var(--linea)}
-  .rbadge-venc{font-size:10px;font-weight:800;color:#fff;background:#B00020;
+  .rbadge-venc{font-size:10px;font-weight:800;color:#fff;background:#B91C1C;
     border-radius:99px;padding:2px 8px;vertical-align:middle;letter-spacing:.03em}
-  .rbadge-liq{font-size:10px;font-weight:800;color:#fff;background:#0B7247;
+  .rbadge-liq{font-size:10px;font-weight:800;color:#fff;background:#059669;
     border-radius:99px;padding:2px 8px;vertical-align:middle;letter-spacing:.03em}
   .hcaja{display:flex;flex-direction:column;gap:5px;width:100%;font-size:13px}
   .hres{font-size:12px;color:var(--gris);background:var(--lav);border-radius:8px;padding:6px 9px}
   .hsec{font-size:11px;font-weight:800;color:var(--rio);text-transform:uppercase;
     letter-spacing:.03em;margin-top:6px;line-height:1.35}
   .hpago{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;
-    padding:5px 9px;border-radius:8px;background:#F0F7F3}
-  .hpago b{color:#0B7247}
+    padding:5px 9px;border-radius:8px;background:#ECFDF5}
+  .hpago b{color:#059669}
   .hpago span{font-size:12px;color:var(--gris)}
   .hpago.hprevio{background:var(--lav);opacity:.75}
   .hpago.hprevio b{color:var(--gris)}
@@ -163,48 +165,48 @@
      aparece abajo, así que este bloque es lo único que lo explica. */
   /* Etiqueta de clasificación (Recuperación, Renovación…). No es un estado del
      crédito, es una marca de Dirección: por eso va en morado y no en rojo. */
-  .perwrap{background:var(--lav);border-radius:12px;padding:12px 14px;margin:8px 0 14px}
+  .perwrap{background:var(--lav);border-radius:10px;padding:12px 14px;margin:8px 0 14px}
   .perttl{font-weight:800;color:var(--rio);font-size:13px}
   .permeta{font-size:12px;color:var(--gris);margin-top:4px;line-height:1.45}
   .perrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px}
   .perrow label{font-size:12px;color:var(--gris);font-weight:700}
-  .perrow input{padding:7px 9px;border:1px solid #D9D2E6;border-radius:9px;font:inherit;font-size:13px}
-  .rsindia{font-weight:800;color:#8E0019;background:#FCEDEF;border-radius:6px;padding:1px 6px;font-size:11px}
+  .perrow input{padding:7px 9px;border:1px solid #DDD6FE;border-radius:9px;font:inherit;font-size:13px}
+  .rsindia{font-weight:800;color:#B91C1C;background:#FEF2F2;border-radius:6px;padding:1px 6px;font-size:11px}
   .rbadge-eti{display:inline-block;vertical-align:middle;font-size:10px;font-weight:800;
     letter-spacing:.04em;padding:2px 7px;border-radius:999px;
-    background:#EDE6F7;color:#5B2E8C;border:1px solid #C9B3E4}
+    background:#F5F3FF;color:#7A3EA8;border:1px solid #DDD6FE}
   .renstats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-  .renstat{flex:1 1 128px;min-width:126px;background:#fff;border:1px solid #E4DDF0;border-radius:10px;padding:9px 11px}
+  .renstat{flex:1 1 128px;min-width:126px;background:#fff;border:1px solid #DDD6FE;border-radius:10px;padding:9px 11px}
   .renstat .rn{font-size:20px;font-weight:800;color:var(--tinta);line-height:1.15}
   .renstat .rl{font-size:11px;color:var(--gris);font-weight:700;margin-top:2px;line-height:1.3}
   .renstat .rm{font-size:11px;color:var(--gris);margin-top:1px}
   .rensec{font-size:12px;font-weight:800;color:var(--tinta);margin:13px 0 2px;letter-spacing:.02em}
-  .renrow{display:flex;justify-content:space-between;gap:10px;background:#fff;border:1px solid #EEE9F6;
+  .renrow{display:flex;justify-content:space-between;gap:10px;background:#fff;border:1px solid #F5F3FF;
     border-radius:8px;padding:6px 10px;margin-top:4px;font-size:12.5px;align-items:center}
   .renrow .rq{color:var(--gris);white-space:nowrap;text-align:right}
   .renejec{font-size:12px;color:var(--gris);margin-top:3px}
-  .hcorr{padding:7px 10px;border-radius:8px;background:#FCEDEF;
-    border-left:4px solid #8E0019;line-height:1.4}
-  .hcorr>b{color:#8E0019;font-size:13px}
+  .hcorr{padding:7px 10px;border-radius:8px;background:#FEF2F2;
+    border-left:4px solid #B91C1C;line-height:1.4}
+  .hcorr>b{color:#B91C1C;font-size:13px}
   .hcorrm{font-size:12px;color:var(--gris);margin-top:2px}
   .hcorrm b{color:var(--tinta)}
   .credacc{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
   .credbtn{font:inherit;font-size:12px;font-weight:700;background:none;border-radius:99px;
-    border:1.5px solid var(--rio,#324AB6);color:var(--rio,#324AB6);padding:5px 12px;cursor:pointer}
-  .credbtn.venc{border-color:#B00020;color:#B00020}
-  .credbtn.reda{border-color:var(--verde,#0B7247);color:var(--verde,#0B7247)}
+    border:1.5px solid var(--rio,#2563EB);color:var(--rio,#2563EB);padding:5px 12px;cursor:pointer}
+  .credbtn.venc{border-color:#B91C1C;color:#B91C1C}
+  .credbtn.reda{border-color:var(--verde,#059669);color:var(--verde,#059669)}
   .credbox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
   .credbox>span{font-size:11.5px;font-weight:700;color:var(--gris);width:100%}
   .credin{font:inherit;font-size:12.5px;border:1px solid var(--linea);border-radius:9px;padding:7px 9px;width:110px;background:var(--tarjeta);color:var(--tinta)}
   .credin.ancho{width:100%}
-  .credok{font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--verde,#0B7247);
+  .credok{font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--verde,#059669);
     border:none;border-radius:99px;padding:7px 14px;cursor:pointer}
   .credno{font:inherit;font-size:12px;font-weight:700;color:var(--gris);background:none;border:1px solid var(--linea);border-radius:99px;padding:7px 12px;cursor:pointer}
-  .crederr{width:100%;font-size:11.5px;font-weight:700;color:#B00020}
+  .crederr{width:100%;font-size:11.5px;font-weight:700;color:#B91C1C}
   .altawrap{margin:8px 16px 0}
   .altatoggle{width:100%;font:inherit;font-size:14px;font-weight:700;color:var(--verde);
-    background:var(--tarjeta);border:1.5px dashed #B7DEC8;border-radius:14px;padding:12px;cursor:pointer}
-  .altaform{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px;
+    background:var(--tarjeta);border:1.5px dashed #A7F3D0;border-radius:10px;padding:12px;cursor:pointer}
+  .altaform{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px;
     margin-top:8px;display:flex;flex-direction:column;gap:10px}
   .altaform .arow{display:flex;gap:10px}
   .altaform .arow .acampo{flex:1}
@@ -214,23 +216,50 @@
     border:1.5px solid var(--linea);border-radius:11px;background:#fff}
   .acampo input:focus,.acampo select:focus{outline:none;border-color:var(--aurora)}
   .altasubmit{font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--verde);
-    border:none;border-radius:12px;padding:12px;cursor:pointer}
+    border:none;border-radius:8px;padding:12px;cursor:pointer}
   .altasubmit:disabled{opacity:.6}
+  .hilo{position:fixed;top:0;left:0;right:0;height:3px;background:var(--grad);z-index:80}
   .tbnav{position:sticky;top:0;z-index:40;display:flex;gap:7px;padding:10px 16px 9px;
     background:var(--fondo);border-bottom:1px solid var(--linea)}
-  .tbt{flex:1;font:700 13px var(--fuente);padding:9px 2px;border-radius:99px;cursor:pointer;
+  .tbt{flex:1;font:700 13px var(--fuente);padding:13px 2px;border-radius:99px;cursor:pointer;
     background:var(--tarjeta);color:var(--gris);border:1px solid var(--linea)}
-  .tbt.active{background:var(--grad);color:#fff;border-color:transparent}
-  .cnuevo{background:#F6F3F9;border:1.5px dashed var(--rio);border-radius:12px;padding:10px 12px;margin:2px 0 8px}
+  .tbt.active{background:var(--tinta);color:#fff;border-color:transparent}
+  .lat{display:none;flex-direction:column;position:fixed;top:3px;bottom:0;left:0;width:250px;
+    background:var(--tarjeta);border-right:1px solid var(--linea);padding:20px 0 16px;z-index:70}
+  .lat-marca{display:flex;align-items:center;gap:10px;padding:0 18px 16px}
+  .lat-marca img{width:34px;height:34px;border-radius:9px;object-fit:cover}
+  .lat-marca b{font-size:16px;letter-spacing:.14em}
+  .lat-marca small{display:block;font:600 9px var(--mono);color:var(--gris);letter-spacing:.08em;margin-top:2px}
+  .lat-eti{font:600 10px var(--mono);color:var(--gris);letter-spacing:.08em;padding:12px 18px 6px;text-transform:uppercase}
+  .lit{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:600 13px var(--fuente);
+    color:var(--tinta);background:none;border:none;border-left:3px solid transparent;
+    padding:9px 18px 9px 15px;cursor:pointer}
+  .lit:hover{background:var(--fondo)}
+  .lit.active{background:#F6F5F8;border-left-color:var(--aurora);font-weight:700}
+  .lit .cod{font:600 10px var(--mono);color:var(--gris);width:18px;flex-shrink:0}
+  .lat-pie{margin-top:auto;padding:14px 18px 0;border-top:1px solid var(--lav);
+    font:500 9.5px var(--mono);color:var(--gris);line-height:1.75}
+  /* En pantalla ancha las secciones viven en la barra lateral (lienzo 10-sep);
+     las pastillas de arriba quedan para el telefono. */
+  @media(min-width:940px){
+    .tbnav{display:none}
+    body{padding-left:250px}
+    .marco{max-width:600px}
+    header{padding-left:22px;padding-right:22px}
+    header .logo{display:none}
+    header .t b{font-size:23px}
+    .lat{display:flex}
+  }
+  .cnuevo{background:#FAFAFA;border:1.5px dashed var(--rio);border-radius:10px;padding:10px 12px;margin:2px 0 8px}
   .cn-t{font-weight:800;font-size:12.5px;color:var(--rio);margin-bottom:7px}
   .altaerr{font-size:12.5px;font-weight:600}
-  .altaerr.err{color:#B4232F}.altaerr.ok{color:var(--verde)}
+  .altaerr.err{color:#B91C1C}.altaerr.ok{color:var(--verde)}
   .rvacio{color:var(--gris);font-size:13px;text-align:center;padding:12px}
   .movwrap{margin:8px 16px 0}
   .movtoggle{width:100%;font:inherit;font-size:14px;font-weight:700;color:var(--rio);
-    background:var(--tarjeta);border:1.5px dashed #C9D0E8;border-radius:14px;padding:12px;cursor:pointer}
+    background:var(--tarjeta);border:1.5px dashed #E4E4E7;border-radius:10px;padding:12px;cursor:pointer}
   .movtoggle:focus-visible{outline:3px solid var(--aurora);outline-offset:2px}
-  .movform{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px;
+  .movform{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px;
     margin-top:8px;display:flex;flex-direction:column;gap:10px}
   .movform .mrow{display:flex;gap:10px}
   .movform .mrow .mcampo{flex:1}
@@ -240,23 +269,23 @@
     border:1.5px solid var(--linea);border-radius:11px;background:#fff}
   .mcampo input:focus,.mcampo select:focus{outline:none;border-color:var(--aurora)}
   .movsubmit{font:inherit;font-size:15px;font-weight:700;color:#fff;background:var(--grad);
-    border:none;border-radius:12px;padding:12px;cursor:pointer}
+    border:none;border-radius:8px;padding:12px;cursor:pointer}
   .movsubmit:disabled{opacity:.6}
-  .moverr{display:none;color:#B4232F;font-size:12.5px;font-weight:600}
+  .moverr{display:none;color:#B91C1C;font-size:12.5px;font-weight:600}
   .moverr.on{display:block}
   .movlista{margin:8px 16px 0;display:flex;flex-direction:column;gap:7px}
   .movitem.anulado{opacity:.5}.movitem.anulado .mi-monto{text-decoration:line-through}
-  .mi-anulado{font-size:10px;font-weight:800;color:#B00020;letter-spacing:.04em}
+  .mi-anulado{font-size:10px;font-weight:800;color:#B91C1C;letter-spacing:.04em}
   .mi-anular{background:none;border:1px solid var(--linea);color:var(--gris);font:700 11px inherit;
     border-radius:99px;padding:3px 10px;margin-left:10px;cursor:pointer;flex:0 0 auto}
-  .mi-anular:hover{border-color:#B00020;color:#B00020}
+  .mi-anular:hover{border-color:#B91C1C;color:#B91C1C}
   /* Reactivar: el reverso de Anular. El endpoint siempre lo soportó
      (anular:false «revive»), pero no había forma de llamarlo desde la pantalla:
      una anulación por error solo se podía deshacer entrando a la base. */
   .mi-revivir{background:none;border:1px solid var(--linea);color:var(--gris);font:700 11px inherit;
     border-radius:8px;padding:3px 9px;cursor:pointer;white-space:nowrap}
-  .mi-revivir:hover{border-color:#0B7247;color:#0B7247}
-  .movitem{background:var(--tarjeta);border:1px solid var(--linea);border-radius:13px;
+  .mi-revivir:hover{border-color:#059669;color:#059669}
+  .movitem{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;
     padding:11px 13px;display:flex;align-items:center;gap:10px}
   .movitem .mi-info{flex:1;min-width:0}
   .movitem .mi-cat{font-weight:700;font-size:13.5px}
@@ -265,8 +294,8 @@
   .movtot{margin-top:2px;font-size:12px;color:var(--gris);text-align:right;padding:2px 4px 0}
   .movtot b{color:var(--tinta);font-variant-numeric:tabular-nums}
   .arqueo{margin:8px 16px 0;display:flex;flex-direction:column;gap:10px}
-  .arq-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;
-    box-shadow:0 2px 10px rgba(42,31,53,.04)}
+  .arq-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;
+    }
   .arq-h{font-size:11.5px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
   .arq-tab{width:100%;border-collapse:collapse;font-size:13.5px}
   .arq-tab th{text-align:left;font-size:10.5px;font-weight:700;color:var(--gris);text-transform:uppercase;
@@ -279,11 +308,11 @@
   .arq-fila b{font-variant-numeric:tabular-nums;font-weight:700}
   .arq-fila.rojo b{color:var(--llama)}
   .arq-entregar{display:flex;justify-content:space-between;align-items:baseline;margin:8px 0;padding:11px 12px;
-    background:#EAF7EF;border:1px solid #C6EAD6;border-radius:12px;font-weight:700;color:#0B7247}
+    background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;font-weight:700;color:#059669}
   .arq-entregar b{font-size:19px;font-variant-numeric:tabular-nums}
   .arq-vacio{color:var(--gris);font-size:13px;padding:4px 0}
   /* Fase 2 · cartera, mora y semáforo */
-  .ct-hero{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;margin:12px 16px 0}
+  .ct-hero{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;margin:12px 16px 0}
   .ct-hero .eti{font-size:11.5px;font-weight:800;color:var(--gris);letter-spacing:.03em;text-transform:uppercase}
   /* HERO DE CARTERA. Antes eran cinco números del mismo tamaño en cajas de
      min-width 120px: con cifras de seis dígitos a 21px no cabían y se
@@ -292,13 +321,13 @@
      abajo en una rejilla que sí respeta el ancho del teléfono. */
   .ct-tit{display:flex;align-items:flex-end;gap:12px;margin-top:8px;flex-wrap:wrap}
   .ct-pct{font:800 40px/1 var(--fuente);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-  .ct-pct.bien{color:#0B7247}.ct-pct.medio{color:#8A4A12}.ct-pct.mal{color:#B00020}
+  .ct-pct.bien{color:#059669}.ct-pct.medio{color:#B45309}.ct-pct.mal{color:#B91C1C}
   .ct-pct-l{font-size:12px;color:var(--gris);line-height:1.3;padding-bottom:4px}
   .ct-vs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;margin-top:12px}
   .ct-vs>div{min-width:0}
   .ct-n{font:800 17px/1.2 var(--fuente);font-variant-numeric:tabular-nums;color:var(--tinta);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ct-n.mora{color:#B00020}.ct-n.ok{color:#0B7247}.ct-n.rec{color:#8A5A00}
+  .ct-n.mora{color:#B91C1C}.ct-n.ok{color:#059669}.ct-n.rec{color:#B45309}
   .ct-l{font-size:11px;color:var(--gris);margin-top:1px;line-height:1.25}
   .ct-barra{display:flex;height:10px;border-radius:99px;overflow:hidden;margin-top:11px;background:var(--lav)}
   .ct-barra i{display:block}
@@ -312,14 +341,14 @@
      importante quedaba enterrado bajo un muro de texto. Ahora la severidad se
      lee de un vistazo: barra de color a la izquierda, título propio y el
      detalle plegado cuando es largo. */
-  .av{border-radius:14px;margin:10px 16px 0;background:#fff;border:1px solid var(--lav);
+  .av{border-radius:10px;margin:10px 16px 0;background:#fff;border:1px solid var(--lav);
     border-left:4px solid var(--lav);overflow:hidden}
-  .av-alta{border-left-color:#B00020;background:#FFF5F6}
-  .av-media{border-left-color:#FD6E29;background:#FFF8F1}
-  .av-ok{border-left-color:#0B7247;background:#F2FAF6}
-  .av-info{border-left-color:#C9CEE6}
+  .av-alta{border-left-color:#B91C1C;background:#FEF2F2}
+  .av-media{border-left-color:#FD6E29;background:#FFFBEB}
+  .av-ok{border-left-color:#059669;background:#ECFDF5}
+  .av-info{border-left-color:#E4E4E7}
   .av-h{display:flex;align-items:baseline;gap:8px;padding:11px 14px;font-size:13px;font-weight:800;color:var(--tinta)}
-  .av-alta .av-h{color:#8E0019} .av-media .av-h{color:#8A4A12} .av-ok .av-h{color:#0B7247}
+  .av-alta .av-h{color:#B91C1C} .av-media .av-h{color:#B45309} .av-ok .av-h{color:#059669}
   .av-monto{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
   .av-b{padding:0 14px 12px;font-size:11.5px;line-height:1.5;color:var(--gris)}
   .av-li{padding:6px 14px;font-size:11.5px;line-height:1.45;color:var(--tinta);border-top:1px solid rgba(0,0,0,.05)}
@@ -327,18 +356,18 @@
   .av-mas{width:100%;font:inherit;font-size:11.5px;font-weight:700;color:var(--rio);background:none;
     border:none;border-top:1px solid rgba(0,0,0,.05);padding:9px;cursor:pointer;text-align:center}
   .av-mas:active{background:rgba(0,0,0,.03)}
-  .ct-nota{font-size:11.5px;line-height:1.45;color:var(--gris);background:#FFF6E9;border:1px solid #F0DCC0;
-    border-radius:12px;padding:9px 11px;margin:10px 16px 0}
+  .ct-nota{font-size:11.5px;line-height:1.45;color:var(--gris);background:#FFFBEB;border:1px solid #FDE68A;
+    border-radius:10px;padding:9px 11px;margin:10px 16px 0}
   .ct-grp{font-size:10.5px;font-weight:800;color:var(--gris);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 2px}
-  .ej-card{background:#fff;border:1px solid #EEE9F6;border-radius:10px;padding:9px 11px;margin-top:6px}
+  .ej-card{background:#fff;border:1px solid #F5F3FF;border-radius:10px;padding:9px 11px;margin-top:6px}
   .ej-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .ej-nom{font-weight:800;color:var(--tinta);font-size:13px}
   .ej-pct{font-weight:800;font-size:16px;white-space:nowrap}
-  .ej-bar{height:6px;border-radius:4px;background:#EDE8F5;margin:6px 0 5px;overflow:hidden}
-  .ej-bar i{display:block;height:100%;background:#0B7247}
+  .ej-bar{height:6px;border-radius:4px;background:#F5F3FF;margin:6px 0 5px;overflow:hidden}
+  .ej-bar i{display:block;height:100%;background:#059669}
   .ej-det{font-size:11.5px;color:var(--gris);line-height:1.5}
   .ej-det b{color:var(--tinta)}
-  .resum{font-size:12.5px;line-height:1.6;color:var(--tinta);background:#fff;border:1px solid #EEE9F6;
+  .resum{font-size:12.5px;line-height:1.6;color:var(--tinta);background:#fff;border:1px solid #F5F3FF;
     border-radius:10px;padding:10px 12px;margin-top:8px;white-space:pre-wrap;word-break:break-word}
   .rescopy{margin-top:8px;font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--rio);
     border:0;border-radius:9px;padding:8px 14px;cursor:pointer}
@@ -351,7 +380,7 @@
   .ct-tab th:first-child{text-align:left}
   .ct-tab td{text-align:right;padding:7px 0;border-top:1px solid var(--lav);font-variant-numeric:tabular-nums}
   .ct-tab td:first-child{text-align:left;font-weight:700;color:var(--tinta)}
-  .tn-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px;margin:12px 16px 0}
+  .tn-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;margin:12px 16px 0}
   .tn-h{font-size:11.5px;font-weight:800;color:var(--gris);letter-spacing:.03em;text-transform:uppercase;margin-bottom:4px}
   .tn-sub{font-size:11.5px;color:var(--gris);margin-bottom:10px}
   .tn-svg{width:100%;height:auto;display:block;overflow:visible}
@@ -363,12 +392,12 @@
   .arq-ejec b{color:var(--tinta);font-variant-numeric:tabular-nums}
   .arq-cuadre{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--gris);padding:0 0 6px}
   .arq-cuadre b{color:var(--tinta);font-variant-numeric:tabular-nums}
-  .arq-cuadre .cuadraok{color:#0B7247;font-weight:800}
-  .arq-cuadre .cuadrano{color:#B00020;font-weight:800}
+  .arq-cuadre .cuadraok{color:#059669;font-weight:800}
+  .arq-cuadre .cuadrano{color:#B91C1C;font-weight:800}
   .arq-enviar{width:100%;margin-top:12px;font:inherit;font-size:14px;font-weight:700;color:#fff;border:none;
-    border-radius:12px;padding:12px;cursor:pointer;background:linear-gradient(90deg,#0B7247,#12A15F)}
+    border-radius:8px;padding:12px;cursor:pointer;background:var(--verde)}
   .arq-enviar:active{filter:brightness(.94)}
-  .segwrap{margin:8px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);border-radius:16px;padding:14px 16px}
+  .segwrap{margin:8px 16px 0;background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:14px 16px}
   .seghint{font-size:12.5px;color:var(--gris);margin-bottom:10px;line-height:1.4}
   .segfila{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--lav)}
   .segfila:first-of-type{border-top:none}
@@ -377,17 +406,17 @@
     border:1.5px solid var(--llama);border-radius:99px;padding:5px 12px;cursor:pointer}
   .segmarcado{font-size:11.5px;font-weight:700;color:var(--llama)}
   .descargas{display:flex;flex-direction:column;gap:8px;margin:8px 16px 0}
-  .dlbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;border:none;border-radius:12px;
-    padding:13px 14px;cursor:pointer;text-align:left;background:linear-gradient(120deg,var(--atardecer),var(--aurora),var(--rio));
-    box-shadow:0 3px 12px rgba(241,34,142,.22);-webkit-tap-highlight-color:transparent;
+  .dlbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;border:none;border-radius:10px;
+    padding:13px 14px;cursor:pointer;text-align:left;background:var(--tinta);
+    -webkit-tap-highlight-color:transparent;
     display:flex;align-items:center;gap:10px}
   /* Iconos de línea, monocromos: heredan el color del botón y se ven igual sobre
-     el degradado y sobre el fondo claro del secundario. Nada de emojis. */
+     el fondo oscuro del principal y sobre el fondo claro del secundario. Nada de emojis. */
   .dlico{width:19px;height:19px;flex:0 0 19px;opacity:.92}
   .dlbtn:active{transform:translateY(1px)}
-  .dlbtn.secun{background:#EEF0F8;color:var(--rio);box-shadow:none}
+  .dlbtn.secun{background:#F1F1F3;color:var(--rio);box-shadow:none}
   .dlhint{font-size:11.5px;color:var(--gris);margin:8px 16px 0}
-  .reccard{background:#fff;border:1px solid var(--lav);border-radius:16px;padding:14px 16px;margin:0 16px}
+  .reccard{background:#fff;border:1px solid var(--lav);border-radius:10px;padding:14px 16px;margin:0 16px}
   .rechint{font-size:12px;color:var(--gris);line-height:1.45;margin-bottom:10px}
   .recbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .recinput{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--lav);border-radius:10px;color:var(--tinta)}
@@ -399,12 +428,12 @@
   .recact{font-size:12px;color:var(--gris);margin-bottom:8px}
   .recver{display:flex;justify-content:space-between;align-items:center;gap:10px;
     padding:8px 10px;border:1px solid var(--lav);border-radius:10px;margin-bottom:6px;font-size:12px}
-  .recver.igual{background:#F4F7FB;border-color:#D8E0EE}
-  .recver.alcierre{background:#EAF7EF;border:2px solid #0B7247}
+  .recver.igual{background:#F1F1F3;border-color:#E4E4E7}
+  .recver.alcierre{background:#ECFDF5;border:2px solid #059669}
   .recver b{font-variant-numeric:tabular-nums;color:var(--tinta)}
-  .recvbtn{font:inherit;font-size:12px;font-weight:700;color:#fff;background:#0B7247;border:none;
+  .recvbtn{font:inherit;font-size:12px;font-weight:700;color:#fff;background:#059669;border:none;
     border-radius:99px;padding:7px 13px;cursor:pointer;flex-shrink:0}
-  .recvbtn[disabled]{background:#B9C2D2;cursor:default}
+  .recvbtn[disabled]{background:#E4E4E7;cursor:default}
   /* barra de fecha + actualizado */
   .fbar{display:flex;align-items:center;gap:8px;margin:10px 16px 0;flex-wrap:wrap}
   .fbar input[type=date]{font:inherit;font-size:13px;padding:7px 9px;border:1.5px solid var(--linea);
@@ -412,8 +441,8 @@
   .fhoy{font:inherit;font-size:12px;font-weight:700;color:#fff;background:var(--rio);border:none;
     border-radius:99px;padding:7px 13px;cursor:pointer}
   .fact{font-size:11px;color:var(--gris);margin-left:auto}
-  body.pasado .fbar input[type=date]{border-color:var(--riqueza);box-shadow:0 0 0 3px rgba(242,187,6,.18)}
-  .aviso-pasado{display:none;margin:8px 16px 0;background:#FFF6DC;border:1px solid #F0DFA0;color:#8A6D00;
+  body.pasado .fbar input[type=date]{border-color:var(--riqueza);box-shadow:0 0 0 3px rgba(180,83,9,.18)}
+  .aviso-pasado{display:none;margin:8px 16px 0;background:#FFFBEB;border:1px solid #FDE68A;color:#B45309;
     font-size:12.5px;font-weight:600;padding:8px 12px;border-radius:10px}
   body.pasado .aviso-pasado{display:block}
   /* chips de sincronización */
@@ -421,12 +450,12 @@
   .cs{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
     padding:5px 10px;border-radius:99px}
   .cs .ico{width:12px;height:12px}
-  .cs.ok{background:#E7F6EE;color:#0B7247}
-  .cs.no{background:#FDECEC;color:#B4232F}
+  .cs.ok{background:#ECFDF5;color:#059669}
+  .cs.no{background:#FEF2F2;color:#B91C1C}
   /* semana */
   .sembar{display:flex;gap:8px;align-items:flex-end;margin-top:12px}
   .semd{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
-  .semd .semv{width:100%;max-width:34px;background:linear-gradient(180deg,var(--aurora),var(--rio));
+  .semd .semv{width:100%;max-width:34px;background:var(--rio);
     border-radius:6px 6px 3px 3px;min-height:4px}
   .semd span{font-size:10.5px;font-weight:700;color:var(--gris)}
   .semd small{font-size:9px;color:var(--gris)}
@@ -438,9 +467,26 @@
     .arq-tab{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .fact{width:100%;margin-left:0;text-align:right}
   }
+  /* Sistema nuevo: TODO dato técnico va en monoespaciada (montos, folios,
+     fechas, KPI); las pastillas de estado en mono 10px mayúsculas. */
+  .ct-n,.bc-n,.split-eti b,.movtot,.kv b,.hpago b,.hres b,.ct-pct,.arq-cuadre b,
+  .av-monto,.ej-pct,.renstat b,.mi-anulado b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .pill,.cs,.rbadge-baja,.rbadge-eti,.rbadge-liq,.rbadge-venc,.credchip{font-family:var(--mono);letter-spacing:.03em}
+  .rm,.mn,.permeta,.dlhint,.hcorrm{font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
+<div class="hilo"></div>
+<aside class="lat">
+  <div class="lat-marca"><img src="/img/logo-fooax.jpg" alt=""><div><b>FOOAX</b><small>S.A. DE C.V. · OAXACA</small></div></div>
+  <div class="lat-eti">Tablero</div>
+  <button class="lit active" data-tb="hoy" onclick="tbShow('hoy')"><span class="cod">HO</span>Hoy</button>
+  <button class="lit" data-tb="caja" onclick="tbShow('caja')"><span class="cod">CJ</span>Caja</button>
+  <button class="lit" data-tb="cartera" onclick="tbShow('cartera')"><span class="cod">CT</span>Cartera</button>
+  <button class="lit" data-tb="clientas" onclick="tbShow('clientas')"><span class="cod">CL</span>Clientas</button>
+  <button class="lit" data-tb="mas" onclick="tbShow('mas')"><span class="cod">MS</span>Más</button>
+  <div class="lat-pie">RFC FOO2411271T3<br>UMA vigente · $117.31<br>Anel Aydee Díaz Silva<br>Rep. legal</div>
+</aside>
 <div class="marco">
   <header>
     <img class="logo" src="/img/logo-fooax.jpg" alt="FOOAX">
@@ -505,7 +551,7 @@
            desembolso y el día de pago. Mismos IDs de siempre: registrarAlta no
            cambia. -->
       <div id="altaPaso1">
-      <div class="permeta" style="font-weight:800;color:#324AB6">Paso 1 de 2 · La clienta y su crédito</div>
+      <div class="permeta" style="font-weight:800;color:#2563EB">Paso 1 de 2 · La clienta y su crédito</div>
       <div class="acampo"><label>Nombre de la clienta</label><input id="aNombre" required></div>
       <div class="arow">
         <div class="acampo"><label>Socio (ID)</label><input id="aSocio" inputmode="numeric" required></div>
@@ -560,7 +606,7 @@
 
       <!-- ============ PANTALLA 2: el linkeo y el remate ============ -->
       <div id="altaPaso2" style="display:none">
-      <div class="permeta" style="font-weight:800;color:#324AB6">Paso 2 de 2 · Confirmar y registrar</div>
+      <div class="permeta" style="font-weight:800;color:#2563EB">Paso 2 de 2 · Confirmar y registrar</div>
       <div id="aLink" class="cnuevo" style="display:block;margin:8px 0"></div>
       <div class="arow">
         <div class="acampo"><label>Saldo (total a pagar)</label><input id="aSaldo" type="number" inputmode="decimal" oninput="window.__saldoTecleado=true" title="Lo que la clienta va a pagar EN TOTAL (capital + interés + IVA). Viene puesto por el motor; solo captúralo a mano si el crédito no está en el catálogo."></div>
@@ -782,7 +828,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const dinero = n => { const v = Math.round((+n || 0) * 100) / 100; return "$" + v.toLocaleString("es-MX", { minimumFractionDigits: (v % 1) ? 2 : 0, maximumFractionDigits: 2 }); };
-const COLORES = { neri: "#F44C5D", karina: "#F1228E", christopher: "#FD6E29" };
+const COLORES = { neri: "#B91C1C", karina: "#F1228E", christopher: "#FD6E29" };
 const SVG_OPEN = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
 const IC = {
   cash: SVG_OPEN + '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>',
@@ -923,7 +969,7 @@ async function abrirCorreccion(id){
   const filas = (d.clientas || []).map((c) => {
     const anul = c.anulado ? " anulada" : "";
     const fTxt = FORMAS_TXT[c.forma] || (c.forma ? hesc(c.forma) : "Efectivo");
-    const fColor = c.forma === "T" ? "#B00020" : (c.forma === "D" || c.forma === "M" || c.forma === "CH" ? "#324AB6" : "#6B6480");
+    const fColor = c.forma === "T" ? "#B91C1C" : (c.forma === "D" || c.forma === "M" || c.forma === "CH" ? "#2563EB" : "#71717A");
     return '<div class="corrfila">'
       + '<span class="cn' + anul + '">' + hesc(c.nombre) + '<br>'
       + '<span class="sub">' + hesc(c.centro || "Individual")
@@ -943,7 +989,7 @@ async function abrirCorreccion(id){
     + '<div class="sub" style="margin-bottom:10px">Nada se borra: la corrección queda encima, con tu nombre y el motivo, '
     + "y le baja sola al teléfono de " + hesc(d.nombre) + ".</div>"
     + (filas || '<div class="sub">No capturó ninguna clienta ese día.</div>')
-    + '<div class="corrfila" style="border-top:2px solid #F0D8DC;margin-top:8px">'
+    + '<div class="corrfila" style="border-top:2px solid #FECACA;margin-top:8px">'
     + '<span class="cn">Efectivo contado (arqueo)</span>'
     + '<span class="cm">' + dinero(contado) + "</span>"
     + '<span class="corrbtns"><button class="cbtn rojo" onclick="corregirArqueo()">Corregir el conteo</button></span></div>'
@@ -1083,7 +1129,7 @@ async function rcCotiza() {
   } catch { box.style.display = "none"; return; }
   box.style.display = "";
   if (!d || !d.ok) {
-    box.innerHTML = '<span style="color:#6B6480">El motor no cotiza este producto: '
+    box.innerHTML = '<span style="color:#71717A">El motor no cotiza este producto: '
       + hesc(String((d && d.motivo) || "falta un dato")) + " · captura saldo y cuota a mano.</span>";
     return;
   }
@@ -1093,7 +1139,7 @@ async function rcCotiza() {
   if (!plazo && (d.pagos || []).length) $("rcPlazo").value = d.pagos.length;
   box.innerHTML = "Cuota <b>" + dinero(d.cuota || 0) + "</b> · paga en total <b>" + dinero(t.aPagar || 0)
     + "</b> · interés " + dinero(t.interes || 0) + (t.iva ? " + IVA " + dinero(t.iva) : " (sin IVA)")
-    + ' <span style="color:#6B6480">· ' + hesc(d.producto || "") + "</span>";
+    + ' <span style="color:#71717A">· ' + hesc(d.producto || "") + "</span>";
 }
 // EL DESGLOSE DE UN CRÉDITO (Karina, 23-ago). Se pide al servidor —que lo saca
 // del motor— y se pinta bajo la tarjeta. Clic otra vez lo cierra.
@@ -1112,7 +1158,7 @@ async function verDesglose(el, i) {
       + "&producto=" + encodeURIComponent(c.producto), { credentials: "include" })).json();
   } catch { box.textContent = "Sin conexión con el servidor."; return; }
   if (!d || !d.ok) {
-    box.innerHTML = '<span style="color:#8E0019">' + hesc(String((d && d.motivo) || "No se pudo desglosar.")) + "</span>";
+    box.innerHTML = '<span style="color:#B91C1C">' + hesc(String((d && d.motivo) || "No se pudo desglosar.")) + "</span>";
     return;
   }
   const t = d.totales || {}, p0 = d.primerPago || {};
@@ -1121,9 +1167,9 @@ async function verDesglose(el, i) {
     + "<br>Total a pagar <b>" + dinero(t.aPagar || 0) + "</b> · interés total " + dinero(t.interes || 0)
     + (t.iva ? " + IVA " + dinero(t.iva) : "")
     + "<br>Sobre un préstamo de <b>" + dinero(d.monto) + "</b>"
-    + (d.deducido ? ' <span style="color:#6B6480">(deducido de la cuota: el importe no quedó capturado)</span>' : "")
+    + (d.deducido ? ' <span style="color:#71717A">(deducido de la cuota: el importe no quedó capturado)</span>' : "")
     + " · " + hesc(d.producto || "")
-    + (d.coincide ? "" : '<br><b style="color:#8E0019">Ojo: la cuota capturada (' + dinero(d.cuotaCapturada)
+    + (d.coincide ? "" : '<br><b style="color:#B91C1C">Ojo: la cuota capturada (' + dinero(d.cuotaCapturada)
         + ") no coincide con la del catálogo (" + dinero(d.cuota) + ").</b>");
 }
 function refrescarLista() { if (window.__CRED_MODO && window.__CRED_MODO !== "buscar") verCreditos(window.__CRED_MODO); else buscar(); }
@@ -1201,12 +1247,12 @@ function tarjetaCredito(c, i) {
         ? '<span class="rbadge-eti" title="Cuántas veces ha tomado este producto">ciclo '
           + String(c.ciclo).padStart(2, "0") + "</span>" : "")
     + (c.liquidadoEl
-        ? '<span class="rpago" style="background:#EAF7EF;color:#0B7247">liquidó el '
+        ? '<span class="rpago" style="background:#ECFDF5;color:#059669">liquidó el '
           + hesc(c.liquidadoEl) + "</span>" : "")
     + (c.pagadoEstaSemana > 0
         ? '<span class="rpago">pagó ' + dinero(c.pagadoEstaSemana) + " esta sem.</span>" : "")
     + ((c.porSemana || []).filter((w) => w.lunes !== c.lunesDeHoy).length
-        ? '<span class="rpago" style="background:#EDE9F7;color:#4A3F6B">antes: '
+        ? '<span class="rpago" style="background:#F5F3FF;color:#7A3EA8">antes: '
           + (c.porSemana || []).filter((w) => w.lunes !== c.lunesDeHoy).slice(0, 4)
               .map((w) => dinero(w.monto) + " (sem. " + hesc(w.lunes.slice(8, 10) + "-" + w.lunes.slice(5, 7)) + ")")
               .join(" · ")
@@ -1239,8 +1285,8 @@ async function verPagos(btn, i) {
     + "<span>" + (h.tipo === "liquidacion" ? "liquidación"
         : (h.solidario > 0 && !(h.pago > 0)) ? "aporte solidario" : "pago") + "</span>"
     + "<b>" + dinero((h.pago || 0) + (h.solidario || 0)) + "</b>"
-    + (h.solidario > 0 && h.pago > 0 ? '<span style="color:#5B2E8C;font-weight:800">incluye solidario ' + dinero(h.solidario) + "</span>" : "")
-    + (h.solidario > 0 && !(h.pago > 0) ? '<span style="color:#5B2E8C;font-weight:800">SOLIDARIO</span>' : "")
+    + (h.solidario > 0 && h.pago > 0 ? '<span style="color:#7A3EA8;font-weight:800">incluye solidario ' + dinero(h.solidario) + "</span>" : "")
+    + (h.solidario > 0 && !(h.pago > 0) ? '<span style="color:#7A3EA8;font-weight:800">SOLIDARIO</span>' : "")
     + (h.garantia ? "<span>+ gar. " + dinero(h.garantia) + "</span>" : "")
     + "<span>" + hesc(h.ejecutivo || "—") + "</span></div>";
   // LO QUE LE CORRIGIÓ DIRECCIÓN. Va ARRIBA de todo y en rojo: un pago anulado
@@ -1327,7 +1373,7 @@ function pedirAjuste(btn, i) {
     // 5.67%, Básico 24 cobra 6.32%). Sin él, el motor no calcula esa clienta.
     + '<input class="credin" id="ajPlazo" inputmode="numeric" placeholder="plazo · n° de pagos'
     + (c.plazo ? ' (hoy ' + c.plazo + ')' : ' — LE FALTA') + '"'
-    + (c.plazo ? '' : ' style="border-color:#D68910;background:#FFF6E9"') + '>'
+    + (c.plazo ? '' : ' style="border-color:#B45309;background:#FFFBEB"') + '>'
     + '<input class="credin ancho" id="ajMotivo" placeholder="motivo (ej. condonación, error de captura)">'
     + '<button class="credok" onclick="hacerAjuste(this,' + i + ')">Guardar</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1489,7 +1535,7 @@ async function _calcularCuotaAlta() {
   box.style.display = "";
   if (!d || !d.ok) {
     // No se puede calcular: se dice por qué, sin estorbar. El alta sigue.
-    box.innerHTML = '<span style="color:#6B6480">El motor no calcula este crédito: '
+    box.innerHTML = '<span style="color:#71717A">El motor no calcula este crédito: '
       + hesc(String((d && d.motivo) || "falta un dato")) + " · captura la cuota a mano.</span>";
     return;
   }
@@ -1507,7 +1553,7 @@ async function _calcularCuotaAlta() {
   // que dar de alta se sienta igual que cotizar.
   const p0 = (d.pagos && d.pagos[0]) || {};
   box.innerHTML = '<div class="renstats">'
-    + '<div class="renstat"><div class="rn" style="color:#0B7247">' + dinero(d.cuota || 0)
+    + '<div class="renstat"><div class="rn" style="color:#059669">' + dinero(d.cuota || 0)
     + '</div><div class="rl">cuota</div><div class="rm">cap ' + dinero(p0.capital || 0)
     + " + int " + dinero(p0.interes || 0) + (p0.iva ? " + IVA " + dinero(p0.iva) : "") + "</div></div>"
     + '<div class="renstat"><div class="rn">' + dinero(t.aPagar || 0)
@@ -1518,7 +1564,7 @@ async function _calcularCuotaAlta() {
     + "</div>"
     + '<div class="permeta">' + hesc(d.producto || "") + " · " + (d.pagos || []).length + " pagos</div>"
     + (dif > 0.5
-        ? '<br><b style="color:#8E0019">Ojo: capturaste ' + dinero(tecleada)
+        ? '<br><b style="color:#B91C1C">Ojo: capturaste ' + dinero(tecleada)
           + " y el catálogo dice " + dinero(d.cuota || 0) + " (" + dinero(dif) + " de diferencia).</b>"
         : "");
 }
@@ -1714,8 +1760,8 @@ function tipoMovCambio() {
   if (bq && bq.value.trim().length >= 2) bq.dispatchEvent(new Event("input"));
   const c = CONCEPTOS.find((x) => x.nombre === sel.value) || {};
   if (hint) hint.innerHTML = c.entrada
-    ? '<b style="color:#0B7247">Entra dinero a la caja</b> — suma al efectivo que se entrega.'
-    : '<b style="color:#B00020">Sale dinero de la caja</b> — resta del efectivo que se entrega.';
+    ? '<b style="color:#059669">Entra dinero a la caja</b> — suma al efectivo que se entrega.'
+    : '<b style="color:#B91C1C">Sale dinero de la caja</b> — resta del efectivo que se entrega.';
   if (campo) {
     campo.style.display = c.clienta ? "" : "none";
     const lab = campo.querySelector("label");
@@ -1806,7 +1852,7 @@ async function desgloseDelMov() {
   hint.innerHTML = "Este crédito: cuota <b>" + dinero(d.cuota) + "</b> · total a pagar <b>"
     + dinero(t.aPagar || 0) + "</b> · interés " + dinero(t.interes || 0)
     + (t.iva ? " + IVA " + dinero(t.iva) : " (sin IVA)")
-    + ' <span style="color:#6B6480">· ' + cola + "</span>";
+    + ' <span style="color:#71717A">· ' + cola + "</span>";
 }
 let ejecsCargadas = false;
 async function cargarEjecutivos() {
@@ -1843,7 +1889,7 @@ async function cargarCajaSemana() {
     // lo de créditos en recuperación aparte. Comparar los dos sin este desglose
     // no cuadra nunca — lo preguntó Karina el 6-ago.
     + (c.cobranza
-        ? '<div class="rechint" style="margin:10px 0 0;padding:9px 11px;background:#F4F5FB;border-radius:10px">'
+        ? '<div class="rechint" style="margin:10px 0 0;padding:9px 11px;background:#F1F1F3;border-radius:10px">'
           + "<b>De toda la cobranza de la semana (" + dinero(c.cobranza.total) + "):</b><br>"
           + "&nbsp;&nbsp;• " + dinero(c.cobranza.efectivo) + " en <b>efectivo</b> — es lo único que entra a esta caja<br>"
           + (c.cobranza.transferencia ? "&nbsp;&nbsp;• " + dinero(c.cobranza.transferencia) + " en transferencias — van al banco<br>" : "")
@@ -1906,7 +1952,7 @@ async function cargarMovs() {
     // Las entradas (recuperación, comisión, garantía, liquidación) METEN
     // dinero a la caja. Pintarlas con "−" como todo lo demás hacía leer una
     // recuperación como si fuera un gasto.
-    + '<div class="mi-monto"' + (m.entrada ? ' style="color:#0B7247"' : "") + ">"
+    + '<div class="mi-monto"' + (m.entrada ? ' style="color:#059669"' : "") + ">"
     + (m.entrada ? "+" : "−") + dinero(m.monto) + "</div>"
     // Anular: nunca borra, deja el movimiento tachado con quién y por qué. Los
     // que captura la ejecutiva se anulan en SU app; este botón es para los que
@@ -1919,11 +1965,11 @@ async function cargarMovs() {
   // Los netos (entradas − salidas), no los brutos: al lado de "Salidas −$100" un
   // "efectivo" que SUMABA esos $100 se leía como si el gasto no se hubiera
   // restado. Se dice "neto en efectivo" para que no quede duda de qué es.
-  + '<div class="movtot">Entradas <b style="color:#0B7247">+' + dinero(d.entradas || 0)
+  + '<div class="movtot">Entradas <b style="color:#059669">+' + dinero(d.entradas || 0)
   + '</b> · Salidas <b>−' + dinero(d.salidas || 0) + "</b> · neto en efectivo <b>"
   + dinero(d.netoEfectivo != null ? d.netoEfectivo : d.totalEfectivo) + "</b> · transf. <b>"
   + dinero(d.netoTransf != null ? d.netoTransf : d.totalTransf) + "</b>"
-  + (d.totalCheques > 0 ? ' · cheques <b style="color:#8A5A00">' + dinero(d.totalCheques) + "</b>" : "") + "</div>";
+  + (d.totalCheques > 0 ? ' · cheques <b style="color:#B45309">' + dinero(d.totalCheques) + "</b>" : "") + "</div>";
 }
 
 // ---------- FASE 2 · cartera, mora y semáforo ----------
@@ -1989,7 +2035,7 @@ async function cargarCartera() {
     + '<div class="ct-tit"><div class="ct-pct ' + tono + '">' + cum + "%</div>"
     + '<div class="ct-pct-l">de lo que ya debía entrar<br>'
     + "<b>" + dinero(d.cobradoSemana) + "</b> de " + dinero(espFecha) + "</div></div>"
-    + '<div class="ct-barra"><i style="width:' + pct + '%;background:#0B7247"></i><i style="width:' + (100 - pct) + '%;background:#E9C3C8"></i></div>'
+    + '<div class="ct-barra"><i style="width:' + pct + '%;background:#059669"></i><i style="width:' + (100 - pct) + '%;background:#FECACA"></i></div>'
     + '<div class="ct-grp">La semana</div><div class="ct-vs">'
     + '<div><div class="ct-n ok">' + dinero(d.cobradoSemana) + '</div><div class="ct-l">cobrado</div></div>'
     + '<div><div class="ct-n">' + dinero(espFecha) + '</div><div class="ct-l">ya debía entrar</div></div>'
@@ -2004,19 +2050,19 @@ async function cargarCartera() {
     + ". El cumplimiento se mide contra lo que <b>ya debía entrar</b> a la fecha, no contra la semana completa. "
     + "<b>Mora</b> = amortización vencida sin cubrirse. <b>Pendiente de cobro</b> = su día aún no llega: no es morosidad.</div>"
     + '<div class="ct-sem">'
-    + chip("Al corriente", S.alCorriente || 0, "#0B7247", "#EAF7EF", "alCorriente")
-    + chip("Pago parcial", S.parcial || 0, "#8A5A00", "#FFF6E9", "parcial")
-    + chip("Aún no le toca", S.pendiente || 0, "#324AB6", "#E5EAFB", "pendiente")
-    + chip("En mora · no pagó nada", S.enMora || 0, "#B00020", "#FDECEC", "enMora")
-    + chip("Vencidas", S.vencida || 0, "#7A1020", "#F7E3E6", "vencida")
-    + chip("Liquidadas", S.liquidada || 0, "#5A6478", "#F1F3F7", "liquidada")
-    + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F3ECF8", "cuotaVariable") : "")
+    + chip("Al corriente", S.alCorriente || 0, "#059669", "#ECFDF5", "alCorriente")
+    + chip("Pago parcial", S.parcial || 0, "#B45309", "#FFFBEB", "parcial")
+    + chip("Aún no le toca", S.pendiente || 0, "#2563EB", "#EFF6FF", "pendiente")
+    + chip("En mora · no pagó nada", S.enMora || 0, "#B91C1C", "#FEF2F2", "enMora")
+    + chip("Vencidas", S.vencida || 0, "#B91C1C", "#FEF2F2", "vencida")
+    + chip("Liquidadas", S.liquidada || 0, "#71717A", "#F1F1F3", "liquidada")
+    + (S.cuotaVariable ? chip("Cuota variable", S.cuotaVariable, "#7A3EA8", "#F5F3FF", "cuotaVariable") : "")
     + "</div></div>";
   // Cartera — el riesgo va junto al total, que es como se leen: cuánto hay y
   // cuánto de eso está en peligro.
   h += '<div class="sub" style="margin-top:12px">'
     + '<div class="mini"><div class="eti">Cartera total</div><div class="v">' + dinero(d.cartera) + "</div></div>"
-    + '<div class="mini"><div class="eti">Cartera en riesgo</div><div class="v" style="color:#B00020">' + dinero(d.carteraEnRiesgo || 0)
+    + '<div class="mini"><div class="eti">Cartera en riesgo</div><div class="v" style="color:#B91C1C">' + dinero(d.carteraEnRiesgo || 0)
     + ' <span style="font-size:12px;font-weight:700">· ' + (d.riesgoPorcentaje || 0) + "%</span></div>"
     + '<div style="font-size:11px;color:var(--gris);margin-top:2px">saldo vivo de vencidas y en mora</div></div>'
     + "</div>"
@@ -2056,13 +2102,13 @@ async function cargarCartera() {
   // se lee en el teléfono. La PEOR va arriba — es a quien hay que atender.
   h += '<div class="arq-card" style="margin-top:12px"><div class="arq-h">Por ejecutiva · la que necesita atención va primero</div>'
     + (d.porEjec || []).slice().sort((x, y) => (x.cumplimiento || 0) - (y.cumplimiento || 0)).map((e) => {
-        const col = e.cumplimiento >= 90 ? "#0B7247" : e.cumplimiento >= 50 ? "#8A5A00" : "#B00020";
+        const col = e.cumplimiento >= 90 ? "#059669" : e.cumplimiento >= 50 ? "#B45309" : "#B91C1C";
         const w = Math.max(0, Math.min(100, e.cumplimiento || 0));
         return '<div class="ej-card"><div class="ej-top"><span class="ej-nom">' + hesc(e.nombre)
           + '</span><span class="ej-pct" style="color:' + col + '">' + (e.cumplimiento || 0) + "%</span></div>"
           + '<div class="ej-bar"><i style="width:' + w + '%;background:' + col + '"></i></div>'
           + '<div class="ej-det">cobró <b>' + dinero(e.cobrado) + "</b> de <b>" + dinero(e.esperadoALaFecha || e.esperado)
-          + "</b> que ya debían entrar · mora vencida <b style=\"color:#B00020\">" + dinero(e.moraSemana || 0) + "</b>"
+          + "</b> que ya debían entrar · mora vencida <b style=\"color:#B91C1C\">" + dinero(e.moraSemana || 0) + "</b>"
           + "<br>cartera <b>" + dinero(e.cartera) + "</b> en " + e.creditos + " créditos · recuperación "
           + dinero(e.recuperacion || 0) + "</div></div>";
       }).join("")
@@ -2075,7 +2121,7 @@ async function cargarCartera() {
       + dinero(d.carteraEnRiesgo || 0) + " de saldo en riesgo</div>"
       + (d.vencidas.slice(0, 15).map((v) =>
           '<div class="arq-ejec"><span>' + hesc(v.nombre) + '<br><span style="font-size:11px">' + hesc(v.centro || "") + " · " + hesc(v.ejecutivo || "") + "</span></span>"
-          + '<b style="color:#B00020">saldo ' + dinero(v.saldoActual) + '<br><span style="font-weight:600;color:var(--gris)">' + (v.cuotasSinPagar || 0) + " cuotas sin pagar</span></b></div>").join(""))
+          + '<b style="color:#B91C1C">saldo ' + dinero(v.saldoActual) + '<br><span style="font-weight:600;color:var(--gris)">' + (v.cuotasSinPagar || 0) + " cuotas sin pagar</span></b></div>").join(""))
       + "</div>";
   }
   // Plazos mal capturados (dato para Monse)
@@ -2192,7 +2238,7 @@ async function cargarCartera() {
       // El ATRASO va primero y solo: es el dato por el que se ordena la lista.
       // Antes iba al final del renglón y se partía en dos líneas.
       d.atrasados.map((x) => '<b>' + hesc(x.nombre) + "</b>"
-        + '<span class="av-monto" style="float:right;font-weight:800;color:#8A4A12">'
+        + '<span class="av-monto" style="float:right;font-weight:800;color:#B45309">'
         + x.atraso + " pagos tarde</span>"
         + '<br><span class="sub">' + hesc(x.ejecutivo || "—") + " · " + hesc(x.producto)
         + " · debe " + dinero(x.saldo) + " · lleva " + x.hechos + " de " + x.plazo
@@ -2242,26 +2288,26 @@ async function verSemaforo(estado, titulo, forzar) {
   if (d.error) { caja.innerHTML = '<div class="permeta" style="margin-top:8px">' + hesc(d.error) + "</div>"; return; }
   // El dato de la derecha es el que DECIDE en cada color.
   const lado = (x) => estado === "parcial"
-      ? 'pagó <b style="color:#8A5A00">' + dinero(x.pagoSemana) + "</b> de " + dinero(x.cuota)
-        + ' · le falta <b style="color:#B00020">' + dinero(x.faltante) + "</b>"
+      ? 'pagó <b style="color:#B45309">' + dinero(x.pagoSemana) + "</b> de " + dinero(x.cuota)
+        + ' · le falta <b style="color:#B91C1C">' + dinero(x.faltante) + "</b>"
     : estado === "enMora"
-      ? 'le falta <b style="color:#B00020">' + dinero(x.faltante) + "</b> de " + dinero(x.cuota)
+      ? 'le falta <b style="color:#B91C1C">' + dinero(x.faltante) + "</b> de " + dinero(x.cuota)
     : estado === "vencida"
-      ? 'saldo <b style="color:#B00020">' + dinero(x.saldoActual) + "</b>" + (x.cuotasSinPagar ? " · " + x.cuotasSinPagar + " cuotas sin pagar" : "")
+      ? 'saldo <b style="color:#B91C1C">' + dinero(x.saldoActual) + "</b>" + (x.cuotasSinPagar ? " · " + x.cuotasSinPagar + " cuotas sin pagar" : "")
     : estado === "liquidada" ? "<b>pagó todo</b>"
     : estado === "pendiente" ? "su día: <b>" + hesc(x.diaPago || "sin día") + "</b> · cuota " + dinero(x.cuota)
     : estado === "cuotaVariable" ? "saldo " + dinero(x.saldoActual)
     : "cubrió su cuota de <b>" + dinero(x.cuota) + "</b>";
-  const fila = (x) => '<div class="renrow"><span><b>' + hesc(x.nombre) + '</b> <span style="color:#6B6480">'
+  const fila = (x) => '<div class="renrow"><span><b>' + hesc(x.nombre) + '</b> <span style="color:#71717A">'
     + hesc(x.centro || "") + " · " + hesc(x.ejecutivo || "—") + '</span></span><span class="rq">' + lado(x) + "</span></div>";
   const TOPE = 100;
   const visibles = (d.filas || []).slice(0, TOPE);
   caja.innerHTML = '<div class="rensec" style="display:flex;justify-content:space-between;align-items:center">'
     + "<span>" + hesc(titulo) + " · " + d.total + " clientas</span>"
-    + '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="verSemaforo(\'' + estado + '\', \'\')">cerrar</span></div>'
+    + '<span role="button" style="cursor:pointer;color:#2563EB;font-weight:800" onclick="verSemaforo(\'' + estado + '\', \'\')">cerrar</span></div>'
     + visibles.map(fila).join("")
     + ((d.filas || []).length > TOPE
-        ? '<div class="renrow" role="button" style="cursor:pointer;justify-content:center;color:#324AB6;font-weight:800" '
+        ? '<div class="renrow" role="button" style="cursor:pointer;justify-content:center;color:#2563EB;font-weight:800" '
           + 'onclick="this.outerHTML = ' + "window.__semResto" + '">Ver las ' + ((d.filas || []).length - TOPE) + " restantes</div>" : "");
   window.__semResto = (d.filas || []).slice(TOPE).map(fila).join("");
 }
@@ -2297,26 +2343,26 @@ async function pintarMoraBloque() {
     ? '<div><div class="ct-n rec">' + dinero(window.__recupSemana) + '</div><div class="ct-l">recuperación</div></div>' : "";
   caja.innerHTML = '<div class="ct-grp" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
     + "<span>Mora y pendiente · semana del " + hesc(d.lunes) + " al " + hesc(d.domingo) + "</span>"
-    + '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="moverSemanaMora(-7)">‹ anterior</span>'
-    + (esHoy ? "" : '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="moverSemanaMora(7)">siguiente ›</span>'
-        + '<span role="button" style="cursor:pointer;color:#6B6480;font-weight:800" onclick="semanaMoraHoy()">volver a esta semana</span>')
+    + '<span role="button" style="cursor:pointer;color:#2563EB;font-weight:800" onclick="moverSemanaMora(-7)">‹ anterior</span>'
+    + (esHoy ? "" : '<span role="button" style="cursor:pointer;color:#2563EB;font-weight:800" onclick="moverSemanaMora(7)">siguiente ›</span>'
+        + '<span role="button" style="cursor:pointer;color:#71717A;font-weight:800" onclick="semanaMoraHoy()">volver a esta semana</span>')
     + "</div><div class=\"ct-vs\">"
     + '<div role="button" style="cursor:pointer" onclick="verMorosos()"><div class="ct-n mora">'
     + dinero(d.totalVencido == null ? d.total : d.totalVencido)
-    + '</div><div class="ct-l">mora · ya venció <span style="color:#324AB6;font-weight:800">· ver quiénes</span></div></div>'
+    + '</div><div class="ct-l">mora · ya venció <span style="color:#2563EB;font-weight:800">· ver quiénes</span></div></div>'
     + '<div><div class="ct-n">' + dinero(d.totalPorVencer || 0) + '</div><div class="ct-l">pendiente de cobro · aún no vence</div></div>'
     + rec + '</div>'
     // VENCIDAS POR PLAZO CUMPLIDO (25-ago): terminaron su calendario y siguen
     // debiendo. No van en la mora semanal (regla Monse: eso es recuperación)
     // pero tampoco se esconden — es la observación de la cartera de Neri.
     + ((d.vencidasPlazo || []).length
-      ? '<div style="margin-top:8px;padding:8px 10px;border:1px solid rgba(176,0,32,.3);border-radius:9px;background:rgba(176,0,32,.04)">'
-        + '<div style="font-weight:800;color:#B00020;font-size:12.5px">VENCIDAS — terminaron su plazo y siguen debiendo ('
+      ? '<div style="margin-top:8px;padding:8px 10px;border:1px solid rgba(185,28,28,.3);border-radius:9px;background:rgba(185,28,28,.04)">'
+        + '<div style="font-weight:800;color:#B91C1C;font-size:12.5px">VENCIDAS — terminaron su plazo y siguen debiendo ('
         + d.vencidasPlazo.length + ") · van en recuperación, no en la mora semanal</div>"
         + d.vencidasPlazo.map((x) => '<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid rgba(0,0,0,.06);font-size:12.5px">'
             + "<span><b>" + hesc(x.clienta) + "</b> <span style=\"opacity:.65;font-size:11px\">" + hesc(x.producto)
             + " · " + hesc(x.ejecutivo) + " · terminó el " + hesc(fechaBonita(x.fin)) + "</span></span>"
-            + '<b style="color:#B00020;white-space:nowrap">debe ' + dinero(x.saldo) + "</b></div>").join("")
+            + '<b style="color:#B91C1C;white-space:nowrap">debe ' + dinero(x.saldo) + "</b></div>").join("")
         + "</div>" : "")
     + '<div id="semLista"></div>';
 }
@@ -2374,17 +2420,17 @@ async function verMorosos() {
     .flatMap((g) => (g.filas || []).map((x) => ({ ...x, dia: g.dia })))
     .sort((a2, b2) => b2.faltante - a2.faltante);
   const total = filas.reduce((a2, x) => a2 + (x.faltante || 0), 0);
-  const fila = (x) => '<div class="renrow"><span><b>' + hesc(x.clienta) + '</b> <span style="color:#6B6480">'
+  const fila = (x) => '<div class="renrow"><span><b>' + hesc(x.clienta) + '</b> <span style="color:#71717A">'
     + hesc(x.centro || "") + " · " + hesc(x.ejecutivo || "—") + " · " + hesc(x.dia || "") + '</span></span>'
-    + '<span class="rq">le falta <b style="color:#B00020">' + dinero(x.faltante) + "</b> de " + dinero(x.cuota) + "</span></div>";
+    + '<span class="rq">le falta <b style="color:#B91C1C">' + dinero(x.faltante) + "</b> de " + dinero(x.cuota) + "</span></div>";
   const TOPE = 100;
   caja.innerHTML = '<div class="rensec" style="display:flex;justify-content:space-between;align-items:center">'
     + "<span>Mora vencida · semana del " + hesc(d.lunes) + " · " + filas.length + " créditos · " + dinero(total) + "</span>"
-    + '<span role="button" style="cursor:pointer;color:#324AB6;font-weight:800" onclick="verMorosos()">cerrar</span></div>'
+    + '<span role="button" style="cursor:pointer;color:#2563EB;font-weight:800" onclick="verMorosos()">cerrar</span></div>'
     + '<button class="rescopy" style="margin:6px 0 2px" onclick="descargar(\'/api/mora/excel\' + moraQS())">Descargar los morosos (Excel)</button>'
     + filas.slice(0, TOPE).map(fila).join("")
     + (filas.length > TOPE
-        ? '<div class="renrow" role="button" style="cursor:pointer;justify-content:center;color:#324AB6;font-weight:800" '
+        ? '<div class="renrow" role="button" style="cursor:pointer;justify-content:center;color:#2563EB;font-weight:800" '
           + 'onclick="this.outerHTML = window.__semResto">Ver los ' + (filas.length - TOPE) + " restantes</div>" : "");
   window.__semResto = filas.slice(TOPE).map(fila).join("");
 }
@@ -2430,11 +2476,11 @@ async function cargarTendencias() {
     const cx = ML + ancho * i, w = Math.max(4, ancho * 0.54), bx = cx + (ancho - w) / 2;
     if (x.esperado != null && x.esperado > 0) {
       const yy = y(x.esperado);
-      barras += '<rect x="' + bx.toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + (H - MB - yy).toFixed(1) + '" rx="3" fill="#E9C3C8"/>';
+      barras += '<rect x="' + bx.toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + (H - MB - yy).toFixed(1) + '" rx="3" fill="#FECACA"/>';
     }
     const yc = y(x.cobrado || 0);
-    barras += '<rect x="' + bx.toFixed(1) + '" y="' + yc.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(0, H - MB - yc).toFixed(1) + '" rx="3" fill="#0B7247"/>';
-    etiquetas += '<text x="' + (cx + ancho / 2).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="#6B7280">' + dd(x.semana) + "</text>";
+    barras += '<rect x="' + bx.toFixed(1) + '" y="' + yc.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + Math.max(0, H - MB - yc).toFixed(1) + '" rx="3" fill="#059669"/>';
+    etiquetas += '<text x="' + (cx + ancho / 2).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="10" fill="#71717A">' + dd(x.semana) + "</text>";
     if (x.cartera != null) puntos.push([cx + ancho / 2, x.cartera]);
   });
   // línea de cartera, en su propia escala
@@ -2457,17 +2503,17 @@ async function cargarTendencias() {
   box.innerHTML = '<div class="tn-card"><div class="tn-h">Tendencia · cobranza y cartera por semana</div>'
     + '<div class="tn-sub">' + hesc(resumen) + "</div>"
     + '<svg class="tn-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Evolución semanal de cobranza y cartera">'
-    + '<line x1="' + ML + '" y1="' + (H - MB) + '" x2="' + (W - MR) + '" y2="' + (H - MB) + '" stroke="#E7E1EE" stroke-width="1"/>'
+    + '<line x1="' + ML + '" y1="' + (H - MB) + '" x2="' + (W - MR) + '" y2="' + (H - MB) + '" stroke="#DDD6FE" stroke-width="1"/>'
     + barras + linea + etiquetas + "</svg>"
-    + '<div class="tn-leg"><span><i style="background:#0B7247"></i>Cobrado</span>'
-    + '<span><i style="background:#E9C3C8"></i>Esperado (el hueco es la mora)</span>'
+    + '<div class="tn-leg"><span><i style="background:#059669"></i>Cobrado</span>'
+    + '<span><i style="background:#FECACA"></i>Esperado (el hueco es la mora)</span>'
     + '<span><i style="background:#7A3EA8"></i>Cartera</span></div>'
     + '<table class="ct-tab"><thead><tr><th>Semana</th><th>Cobrado</th><th>Mora</th><th>Recuper.</th><th>Cartera</th><th>Cumpl.</th></tr></thead><tbody>'
     + S.slice().reverse().map((x) =>
         "<tr><td>" + dd(x.semana) + "</td><td>" + dinero(x.cobrado) + "</td><td>"
         + (x.mora == null ? "—" : dinero(x.mora)) + "</td><td>" + dinero(x.recuperacion) + "</td><td>"
         + (x.cartera == null ? "—" : dinero(x.cartera)) + '</td><td style="font-weight:800;color:'
-        + (x.cumplimiento == null ? "var(--gris)" : x.cumplimiento >= 90 ? "#0B7247" : x.cumplimiento >= 50 ? "#8A5A00" : "#B00020") + '">'
+        + (x.cumplimiento == null ? "var(--gris)" : x.cumplimiento >= 90 ? "#059669" : x.cumplimiento >= 50 ? "#B45309" : "#B91C1C") + '">'
         + (x.cumplimiento == null ? "—" : x.cumplimiento + "%") + "</td></tr>").join("")
     + "</tbody></table></div>";
 }
@@ -2491,7 +2537,7 @@ async function cargarArqueo() {
       // "Otros movimientos" de cada ejecutivo: lo que registró aparte de la
       // cobranza (recuperaciones que entran, gastos que salen).
       let otros = "";
-      if (e.movEntradas > 0) otros += ' · <span style="color:#0B7247">otros +' + dinero(e.movEntradas) + "</span>";
+      if (e.movEntradas > 0) otros += ' · <span style="color:#059669">otros +' + dinero(e.movEntradas) + "</span>";
       if (e.movSalidas > 0) otros += ' · <span style="color:var(--mora)">otros −' + dinero(e.movSalidas) + "</span>";
       // Cuadre de SU caja: lo que contó de billetes vs lo que debe entregar.
       // El veredicto lo calcula el SERVIDOR (cuadreDe), para que la pantalla,
@@ -2500,7 +2546,7 @@ async function cargarArqueo() {
       // los centavos del monto no existen en monedas (Magnus y compañía).
       const cuadra = e.cuadra !== undefined ? !!e.cuadra : Math.abs(e.dif || 0) < 0.01;
       const difTxt = e.difRedondeo
-        ? "cuadra ✓ <span style=\"font-weight:600;color:#6B6480\">· " + dinero(Math.abs(e.dif))
+        ? "cuadra ✓ <span style=\"font-weight:600;color:#71717A\">· " + dinero(Math.abs(e.dif))
           + " de redondeo</span>"
         : (e.dif > 0 ? "sobra " + dinero(e.dif) : e.dif < 0 ? "falta " + dinero(-e.dif) : "cuadra ✓");
       const cuadre = (e.contado > 0 || e.aEntregar > 0)
@@ -2509,12 +2555,12 @@ async function cargarArqueo() {
           // Lo que sobra coincide con un gasto suyo: se dice con nombre en vez
           // de dejarla adivinando de dónde salió la diferencia.
           + (e.difRedondeo
-            ? '<div class="arq-cuadre" style="font-size:12px;color:#6B6480">'
+            ? '<div class="arq-cuadre" style="font-size:12px;color:#71717A">'
               + "<span>el monto a entregar cae en centavos y la moneda más chica es $0.50: "
               + "entregó lo más cercano que existe</span></div>"
             : "")
           + (e.difPorGasto && !e.difRedondeo
-            ? '<div class="arq-cuadre" style="font-size:12px;color:#8A5A00">'
+            ? '<div class="arq-cuadre" style="font-size:12px;color:#B45309">'
               + "<span>es justo el gasto de <b>" + hesc(e.difPorGasto)
               + "</b>: ¿ya salió ese dinero de la caja?</span></div>"
             : "")
@@ -2535,7 +2581,7 @@ async function cargarArqueo() {
     // negativo salía "−$-1,370". Ahora el renglón se adapta al signo.
     (d.egresosEfectivo >= 0
       ? fila("− Gastos y retiros en efectivo", "−" + dinero(d.egresosEfectivo))
-      : '<div class="arq-fila"><span style="color:#0B7247">+ Entradas de caja (recuperaciones, etc.)</span><b style="color:#0B7247">+' + dinero(-d.egresosEfectivo) + "</b></div>") +
+      : '<div class="arq-fila"><span style="color:#059669">+ Entradas de caja (recuperaciones, etc.)</span><b style="color:#059669">+' + dinero(-d.egresosEfectivo) + "</b></div>") +
     '<div class="arq-entregar"><span>Efectivo a entregar</span><b>' + dinero(d.efectivoAEntregar) + "</b></div>" +
     // Las transferencias del renglón son la COBRANZA por transferencia MÁS los
     // otros movimientos que se capturaron por transferencia (una recuperación
@@ -2566,11 +2612,11 @@ async function cargarArqueo() {
             + '</span><span style="font-size:12px">' + dinero(t[k]) + "</span></div>").join("")
         // Una ejecutiva que gastó más de lo que cobró entrega en negativo: eso
         // se revisa el mismo día, no a fin de mes.
-        + (g.sobregiro || []).map((s) => '<div class="arq-fila" style="color:#B00020"><span style="font-size:12px">⚠ '
+        + (g.sobregiro || []).map((s) => '<div class="arq-fila" style="color:#B91C1C"><span style="font-size:12px">⚠ '
             + hesc(s.ejecutivo) + " gastó " + dinero(s.gastos) + " y solo cobró " + dinero(s.cobro)
             + '</span><span style="font-size:12px">' + dinero(s.aEntregar) + "</span></div>").join("")
         // El mismo gasto capturado por la ejecutiva Y por Dirección se resta dos veces.
-        + (g.posiblesDobles || []).map((x) => '<div class="arq-fila" style="color:#B00020"><span style="font-size:12px">⚠ '
+        + (g.posiblesDobles || []).map((x) => '<div class="arq-fila" style="color:#B91C1C"><span style="font-size:12px">⚠ '
             + dinero(x.monto) + " está capturado dos veces (campo y dirección): " + hesc(x.concepto)
             + '</span><span style="font-size:12px">revisar</span></div>').join("");
     })() +
@@ -2743,20 +2789,20 @@ async function cargarMora() {
   if (v && !v.value) v.value = d.lunes;
   const fc = d.fueraDeCuenta || {};
   const fuera = (fc.cuotaVariable || 0) + (fc.sinCuota || 0) + (fc.sinDia || 0) + (fc.sinDesembolsar || 0) + (fc.vencidos || 0);
-  box.innerHTML = "Semana del <b>" + hesc(d.lunes) + "</b>: mora vencida a hoy <b style=\"color:#8E0019\">"
+  box.innerHTML = "Semana del <b>" + hesc(d.lunes) + "</b>: mora vencida a hoy <b style=\"color:#B91C1C\">"
     + dinero(d.totalVencido == null ? d.total : d.totalVencido) + "</b>"
     + (d.totalPorVencer > 0 ? " · por vencer en la semana " + dinero(d.totalPorVencer) : "") + "."
     + " De <b>" + (d.creditos || 0) + "</b> créditos que tocaban, <b>" + (d.alCorrienteSuDia || 0)
     + "</b> pagaron completo EL DÍA que les tocaba y <b>" + ((d.alCorriente || 0) - (d.alCorrienteSuDia || 0))
     + "</b> completaron después, entre semana."
     + (d.dias || []).map((g) => "<br><b>" + hesc(g.dia) + "</b> " + hesc(g.fecha)
-        + (g.vencido === false ? ' <span style="color:#6B6480">(aún no vence)</span>' : "")
+        + (g.vencido === false ? ' <span style="color:#71717A">(aún no vence)</span>' : "")
         + " · <b>" + g.alCorrienteSuDia + " de " + g.creditos + "</b> pagaron ese día"
         + (g.alCorriente > g.alCorrienteSuDia ? " (+" + (g.alCorriente - g.alCorrienteSuDia) + " después)" : "")
-        + " · deben <b style=\"color:#8E0019\">" + dinero(g.total) + "</b>"
+        + " · deben <b style=\"color:#B91C1C\">" + dinero(g.total) + "</b>"
         + " · cobrado ese día " + dinero(g.cobradoSuDia)
         + (g.cobrado > g.cobradoSuDia ? " (en la semana " + dinero(g.cobrado) + ")" : "")).join("")
-    + (fuera ? '<br><span style="color:#8E0019">Fuera de la cuenta: ' + fuera + " créditos ("
+    + (fuera ? '<br><span style="color:#B91C1C">Fuera de la cuenta: ' + fuera + " créditos ("
         + (fc.cuotaVariable || 0) + " de cuota variable, " + (fc.sinCuota || 0) + " sin cuota, "
         + (fc.sinDia || 0) + " sin día"
         + ((fc.sinDesembolsar || 0) ? ", " + fc.sinDesembolsar + " sin desembolsar todavía" : "")
@@ -2782,7 +2828,7 @@ async function cargarSimulador() {
   const ap = d.autoprueba || {};
   if (ap.ok === false) {
     const r = document.getElementById("simResumen");
-    if (r) r.innerHTML = '<b style="color:#8E0019">OJO: el motor no está reproduciendo los '
+    if (r) r.innerHTML = '<b style="color:#B91C1C">OJO: el motor no está reproduciendo los '
       + "ejemplos validados por la contadora. No cotices con él hasta revisarlo.</b>";
   }
   // LA CONSISTENCIA catálogo↔padrón se grita AQUÍ, donde alguien está a punto
@@ -2791,10 +2837,10 @@ async function cargarSimulador() {
   if (cons.ok === false || (cons.avisos || []).length) {
     const r2 = document.getElementById("simResumen");
     if (r2) r2.innerHTML = ((cons.fallas || []).length
-        ? '<b style="color:#8E0019">Catálogo y padrón DESACTUALIZADOS entre sí:</b><br>'
+        ? '<b style="color:#B91C1C">Catálogo y padrón DESACTUALIZADOS entre sí:</b><br>'
           + (cons.fallas || []).map(hesc).join("<br>") + "<br>"
         : "")
-      + (cons.avisos || []).map((a2) => '<span style="color:#D68910">' + hesc(a2) + "</span>").join("<br>")
+      + (cons.avisos || []).map((a2) => '<span style="color:#B45309">' + hesc(a2) + "</span>").join("<br>")
       + (r2.textContent && cons.ok !== false ? "<br>" + r2.innerHTML : "");
   }
 }
@@ -2843,12 +2889,12 @@ async function simular() {
   try { d = await (await fetch("/api/reglas/simular" + qs, { credentials: "include" })).json(); }
   catch { res.textContent = "Sin conexión con el servidor."; return; }
   if (!d || !d.ok) {
-    res.innerHTML = '<span style="color:#8E0019">' + hesc(String((d && d.motivo) || "No se pudo calcular.")) + "</span>";
+    res.innerHTML = '<span style="color:#B91C1C">' + hesc(String((d && d.motivo) || "No se pudo calcular.")) + "</span>";
     tab.innerHTML = ""; return;
   }
   const t = d.totales || {};
   res.innerHTML = '<div class="renstats">'
-    + '<div class="renstat"><div class="rn" style="color:#0B7247">' + dinero(d.cuota || (d.pagos[0] || {}).cuota || 0)
+    + '<div class="renstat"><div class="rn" style="color:#059669">' + dinero(d.cuota || (d.pagos[0] || {}).cuota || 0)
     + '</div><div class="rl">cuota</div><div class="rm">' + (d.pagos || []).length + " pagos</div></div>"
     + '<div class="renstat"><div class="rn">' + dinero(t.aPagar || 0) + '</div><div class="rl">total a pagar</div>'
     + '<div class="rm">sobre ' + dinero(t.capital || 0) + " prestados</div></div>"
@@ -2862,12 +2908,12 @@ async function simular() {
   // Karina 23-ago). Números tabulares y a la derecha, como en un estado de
   // cuenta; la columna de días solo aparece cuando el producto la usa (MAGNUS).
   const conDias = (d.pagos || []).some((x) => x.dias);
-  const th = (t2, der) => '<th style="padding:7px 6px;font-size:10.5px;color:#6B6480;'
+  const th = (t2, der) => '<th style="padding:7px 6px;font-size:10.5px;color:#71717A;'
     + 'text-transform:uppercase;letter-spacing:.4px;text-align:' + (der ? "right" : "left")
     + ';border-bottom:2px solid var(--linea)">' + t2 + "</th>";
   const td = (v2, opts) => '<td style="padding:7px 6px;white-space:nowrap;text-align:'
     + ((opts && opts.izq) ? "left" : "right") + ';border-bottom:1px solid var(--linea)'
-    + ((opts && opts.gris) ? ";color:#6B6480" : "") + ((opts && opts.b) ? ";font-weight:800" : "")
+    + ((opts && opts.gris) ? ";color:#71717A" : "") + ((opts && opts.b) ? ";font-weight:800" : "")
     + '">' + v2 + "</td>";
   const filas = (d.pagos || []).map((x) =>
     "<tr>" + td("<b>" + x.n + "</b>", { izq: 1 })
@@ -2915,7 +2961,7 @@ async function cargarRenovaciones() {
   // clienta es la foto de ese día. Se dice con todas sus letras en vez de
   // enseñar ceros, que se leen como "nadie" y son mentira.
   const aviso = mm.antesDelCorte
-    ? '<div class="permeta" style="color:#8E0019;margin-top:8px">De ' + hesc(mm.mes || "")
+    ? '<div class="permeta" style="color:#B91C1C;margin-top:8px">De ' + hesc(mm.mes || "")
       + " solo se ven las renovaciones que quedaron registradas: los saldos del sistema arrancan el <b>"
       + hesc(mm.corte || "") + "</b>, así que quién terminó de pagar antes de esa fecha no se puede saber. "
       + "Por eso no se calcula la tasa de ese mes.</div>"
@@ -2930,13 +2976,13 @@ async function cargarRenovaciones() {
     + (color ? ' style="color:' + color + '"' : "") + ">" + n + '</div><div class="rl">' + l + "</div>"
     + (m2 ? '<div class="rm">' + m2 + "</div>" : "") + "</div>";
   const stats = '<div class="renstats">'
-    + tile(mm.renovaron || 0, "renovaron en " + hesc(mm.mes || ""), dinero(mm.montoRenovado || 0) + " colocados", "#0B7247")
+    + tile(mm.renovaron || 0, "renovaron en " + hesc(mm.mes || ""), dinero(mm.montoRenovado || 0) + " colocados", "#059669")
     + tile(mm.tasa == null ? "—" : mm.tasa + "%", "tasa de renovación",
         mm.cerraronCiclo == null ? "no se puede medir" : "de " + mm.cerraronCiclo + " que cerraron ciclo",
-        mm.tasa == null ? "#6B6480" : (mm.tasa < 50 ? "#8E0019" : "#0B7247"))
+        mm.tasa == null ? "#71717A" : (mm.tasa < 50 ? "#B91C1C" : "#059669"))
     + tile(mm.terminaronSinRenovar == null ? "—" : mm.terminaronSinRenovar, "cerraron y no volvieron",
         mm.montoTerminaronSinRenovar ? dinero(mm.montoTerminaronSinRenovar) + " que se enfriaron" : "",
-        mm.terminaronSinRenovar ? "#8E0019" : null)
+        mm.terminaronSinRenovar ? "#B91C1C" : null)
     + tile(mm.terminanEnElMes == null ? "—" : mm.terminanEnElMes, "terminan este mes",
         mm.montoTerminanEnElMes ? "les falta " + dinero(mm.montoTerminanEnElMes) + " por pagar" : "")
     + "</div>";
@@ -2951,8 +2997,8 @@ async function cargarRenovaciones() {
   const desglose = T.porTerminar
     ? '<div style="border-top:1px solid var(--linea);margin-top:8px;padding:10px 2px 2px;line-height:1.7">'
       + 'De las <b>' + T.porTerminar + ' por terminar</b>: '
-      + '<b style="color:#0B7247">' + (T.porTerminarRenovacion || 0) + ' renovación real</b>'
-      + ' · <b style="color:#8E0019">' + (T.porTerminarSoloRecuperacion || 0) + ' solo recuperación</b>'
+      + '<b style="color:#059669">' + (T.porTerminarRenovacion || 0) + ' renovación real</b>'
+      + ' · <b style="color:#B91C1C">' + (T.porTerminarSoloRecuperacion || 0) + ' solo recuperación</b>'
       + (T.porTerminarNoQuiso ? ' · ' + T.porTerminarNoQuiso + ' no quiso' : "")
       + (T.porTerminarSinMarcar ? ' · <b>' + T.porTerminarSinMarcar + ' sin marcar</b>' : "")
       + "</div>"
@@ -2960,7 +3006,7 @@ async function cargarRenovaciones() {
 
   const ejec = (d.porEjecutivo || []).filter((g) => g.renovaron || g.terminaronEnElMes)
     .map((g) => "<b>" + hesc(g.ejecutivo) + "</b> renovó " + g.renovaron + ", no volvieron " + g.terminaronEnElMes
-      + (g.tasa == null ? "" : ' (<b style="color:' + (g.tasa < 50 ? "#8E0019" : "#0B7247") + '">' + g.tasa + "%</b>)"))
+      + (g.tasa == null ? "" : ' (<b style="color:' + (g.tasa < 50 ? "#B91C1C" : "#059669") + '">' + g.tasa + "%</b>)"))
     .join(" · ");
 
   // SEGUIMIENTO POR EJECUTIVA. Lo pidió Dirección: no cuántas tiene cada una,
@@ -2973,28 +3019,28 @@ async function cargarRenovaciones() {
     .map((g) => '<div style="padding:9px 2px;border-bottom:1px solid var(--linea);line-height:1.65">'
       + '<b>' + hesc(g.ejecutivo) + "</b> · " + g.porTerminar + " por terminar"
       + (g.avanceGestion == null ? "" : ' — <b style="color:'
-          + (g.avanceGestion < 50 ? "#8E0019" : "#0B7247") + '">' + g.avanceGestion + "% trabajado</b>")
-      + '<br><span style="color:#6B6480">'
-      + (g.sinMarcar ? '<b style="color:#8E0019">' + g.sinMarcar + " sin marcar</b> · " : "")
+          + (g.avanceGestion < 50 ? "#B91C1C" : "#059669") + '">' + g.avanceGestion + "% trabajado</b>")
+      + '<br><span style="color:#71717A">'
+      + (g.sinMarcar ? '<b style="color:#B91C1C">' + g.sinMarcar + " sin marcar</b> · " : "")
       + g.renovacionReal + " renovación"
       + (g.soloRecuperacion ? " · " + g.soloRecuperacion + " recuperación" : "")
       + "</span></div>").join("");
 
   // Las listas son renglones de acción: nombre a la izquierda, el dato que
   // decide a la derecha. Arriba va la que más urge; el resto vive en el Excel.
-  const quien = (x) => "<b>" + hesc(x.clienta) + "</b> <span style=\"color:#6B6480\">"
+  const quien = (x) => "<b>" + hesc(x.clienta) + "</b> <span style=\"color:#71717A\">"
     + hesc(x.centro || "") + " · " + hesc(x.ejecutivo || "—") + "</span>";
   const l1 = (d.sinRenovar || []).slice(0, 8).map((x) => '<div class="renrow"><span>' + quien(x)
-    + (x.eraVencido ? ' <span style=\"color:#8E0019\">(era vencido: fue recuperación)</span>' : "")
+    + (x.eraVencido ? ' <span style=\"color:#B91C1C\">(era vencido: fue recuperación)</span>' : "")
     + '</span><span class="rq">' + (x.dias == null ? "" : '<b style=\"color:'
-      + (x.dias >= 30 ? "#8E0019" : "#3A3350") + '\">' + x.dias + " días</b> · ")
+      + (x.dias >= 30 ? "#B91C1C" : "#18181B") + '\">' + x.dias + " días</b> · ")
     + "terminó " + dinero(x.monto) + "</span></div>").join("");
   // El estado va junto al nombre: sin él, la lista no dice si alguien ya la
   // trabajó. Gris cuando nadie la ha tocado, rojo cuando ya no va a renovar.
   const etq = (x) => {
     const e = x.estado || "Pendiente";
-    if (e === "Pendiente") return ' <span style="color:#6B6480;font-size:11px">sin marcar</span>';
-    const col = x.esRenovacion === false ? "#8E0019" : "#0B7247";
+    if (e === "Pendiente") return ' <span style="color:#71717A;font-size:11px">sin marcar</span>';
+    const col = x.esRenovacion === false ? "#B91C1C" : "#059669";
     return ' <span style="color:' + col + ';font-size:11px;font-weight:700">' + hesc(e) + "</span>";
   };
   const l2 = (d.porTerminar || []).slice(0, 8).map((x) => '<div class="renrow"><span>' + quien(x) + etq(x)
@@ -3006,17 +3052,17 @@ async function cargarRenovaciones() {
   box.innerHTML = stats
     + (ejec ? '<div class="renejec">' + ejec + "</div>" : "")
     + aviso
-    + '<div class="rensec">Ya terminaron y no han renovado — <span style="color:#8E0019">' + (t.sinRenovar || 0)
+    + '<div class="rensec">Ya terminaron y no han renovado — <span style="color:#B91C1C">' + (t.sinRenovar || 0)
     + "</span> clientas de todos los meses · " + dinero(t.montoSinRenovar || 0) + " que no volvieron a salir</div>"
     + (l1 || '<div class="permeta">Ninguna: todas renovaron.</div>')
-    + '<div class="rensec">Por terminar (' + (d.semanasAviso || 3) + " cuotas o menos) — <span style=\"color:#324AB6\">"
+    + '<div class="rensec">Por terminar (' + (d.semanasAviso || 3) + " cuotas o menos) — <span style=\"color:#2563EB\">"
     + (t.porTerminar || 0) + "</span> clientas · ofrecerles la renovación antes de que cierren</div>"
     + (l2 || '<div class="permeta">Ninguna por ahora.</div>')
     + desglose
     + (seg ? '<div class="rensec">Seguimiento por ejecutiva — quién ya trabajó su lista</div>' + seg : "")
     + ((t.sinRenovar || 0) + (t.porTerminar || 0) > 16
         ? '<div class="permeta">Arriba van las que más urgen. La lista completa, con socio y día de cobro, está en el Excel.</div>' : "")
-    + '<div class="permeta" style="color:#8E0019">Fuera de esta cuenta: ' + (f.vencidos || 0)
+    + '<div class="permeta" style="color:#B91C1C">Fuera de esta cuenta: ' + (f.vencidos || 0)
     + " vencidos (van en recuperación), " + (f.cuotaVariable || 0) + " de cuota variable y "
     + (f.sinCuota || 0) + " sin cuota capturada.</div>";
 }
@@ -3046,7 +3092,7 @@ async function cargarPeriodo() {
     + "entró <b>" + dinero(entra) + "</b> (cobranza " + dinero(t.pago)
     + " · garantías " + dinero(t.garantia)
     + (t.entradas ? " · otras entradas " + dinero(t.entradas) : "") + ")"
-    + " · salió <b style=\"color:#8E0019\">" + dinero(t.salidas) + "</b>"
+    + " · salió <b style=\"color:#B91C1C\">" + dinero(t.salidas) + "</b>"
     + " · quedan <b>" + dinero(entra - t.salidas) + "</b>"
     + "<br>" + d.cobranza.length + (d.cobranza.length === 1 ? " cobro" : " cobros")
     + " en " + d.porDia.length + (d.porDia.length === 1 ? " día" : " días")
@@ -3271,7 +3317,7 @@ async function registrarCentro() {
 
 // ---------- pestañas del tablero ----------
 function tbShow(name) {
-  document.querySelectorAll(".tbt").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
+  document.querySelectorAll(".tbt,.lit").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
   ["hoy", "caja", "cartera", "clientas", "mas"].forEach((t) => {
     const el = document.getElementById("tb-" + t);
     if (el) el.style.display = (t === name) ? "" : "none";
