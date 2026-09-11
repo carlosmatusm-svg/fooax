@@ -89,7 +89,15 @@ function usuarioDe(req) {
   if (!ses) return null;
   if (Date.now() - (ses.creada || 0) > SESION_MAX_MS) { store.borrarSesion(sid); return null; }
   if ((ses.creada || 0) < SESIONES_VALIDAS_DESDE) { store.borrarSesion(sid); return null; }
-  return { id: ses.usuario, ...USUARIOS[ses.usuario] };
+  // Última actividad de la gente de Dirección (freno de 10 min para no
+  // escribir a cada request): es lo que Anel ve en su resumen del día.
+  const uSes = USUARIOS[ses.usuario];
+  if (uSes && (uSes.rol === "direccion" || uSes.rol === "admin")
+      && Date.now() - (ses.ultimaVez || ses.creada || 0) > 10 * 60 * 1000) {
+    ses.ultimaVez = Date.now();
+    store.guardarSesion(sid, ses);
+  }
+  return { id: ses.usuario, ...uSes };
 }
 function requiere(...roles) {
   return (req, res, next) => {
@@ -800,6 +808,12 @@ catch { DIAS_COBRO = {}; }
 const DIAS_SEMANA = { LUNES: 1, MARTES: 2, MIERCOLES: 3, "MIÉRCOLES": 3, JUEVES: 4, VIERNES: 5, SABADO: 6, "SÁBADO": 6, DOMINGO: 7 };
 // Lunes = 1 … domingo = 7, para poder comparar "ya pasó su día" con un número.
 function idxDia(d) { return DIAS_SEMANA[String(d || "").trim().toUpperCase()] || 0; }
+// El día SIEMPRE en su forma canónica (mayúsculas, sin acento): unas altas
+// guardaron "MIÉRCOLES" con acento y la mora semanal mostraba DOS miércoles
+// (Karina, 10-sep: "cómo podemos dejar en un miércoles los dos").
+function diaCanon(d) {
+  return String(d || "").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 function idxHoy() { const n = new Date(hoyMX() + "T12:00:00").getDay(); return n === 0 ? 7 : n; }
 function refrescarPadron() {
   PADRON = store.padron();
@@ -1892,7 +1906,7 @@ function moraDeLaSemana(usuario, lunesOpt) {
     // POSTERIOR a la semana que se está midiendo, el crédito no existía. Sin
     // esto se les cobraba mora a clientas que aún no reciben su préstamo — hay
     // 3 en el padrón con fecha de desembolso adelantada.
-    const dia = String(c.diaPago || "").trim().toUpperCase();
+    const dia = diaCanon(c.diaPago);
     if (!idxDia(dia)) { fueraDeCuenta.sinDia++; continue; }
     const suFecha = fechaDelDia(dia);
     const desem = String(c.desembolso || "").slice(0, 10);
@@ -3474,7 +3488,7 @@ app.post("/api/centros", requiere("direccion", "admin"), (req, res) => {
       && !purgadosNum.has(norm(cb.centro))))
     return res.status(400).json({ error: "Ese número de centro ya está usado." });
   store.agregarCambioPadron({ tipo: "centro", numero, centro: nombre, ejecutivo,
-    dia: String(b.dia || "").trim(), fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
+    dia: diaCanon(b.dia), fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
   res.json({ ok: true, centro: nombre, numero });
 });
 
@@ -3564,7 +3578,7 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
     return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
   // DÍA DE PAGO: el que digan, o el del centro. Sin día la clienta queda fuera
   // de la mora semanal (invisible) — es justo lo que no debe pasar.
-  const diaPagoAlta = String(b.diaPago || "").trim().toUpperCase();
+  const diaPagoAlta = diaCanon(b.diaPago);
   if (diaPagoAlta && !idxDia(diaPagoAlta))
     return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
   const clienta = {
@@ -4729,7 +4743,7 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
   // DÍA DE PAGO: sin él la clienta es invisible para la mora, así que también
   // se puede corregir aquí.
   if (b.diaPago != null && b.diaPago !== "") {
-    const dp = String(b.diaPago).trim().toUpperCase();
+    const dp = diaCanon(b.diaPago);
     if (!idxDia(dp)) return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
     campos.diaPago = dp;
   }
@@ -4772,7 +4786,7 @@ app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => 
     campos.desembolso = des;
   }
   if (b.diaPago != null && b.diaPago !== "") {
-    const dp = String(b.diaPago).trim().toUpperCase();
+    const dp = diaCanon(b.diaPago);
     if (!idxDia(dp)) return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
     campos.diaPago = dp;
   }
@@ -7036,6 +7050,35 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   if (garantias > 0) items.push({ sev: "info", txt: `Garantías: ${pesos(garantias)}` });
   if (faltantes > 0) items.push({ sev: "alto", txt: `Mora del día: ${pesos(faltantes)} en ${clientasFaltan} clientas` });
   for (const a of alertasReestructuras(req.usuario)) items.push({ sev: "alto", txt: a });
+  // "Ponle a Anel solamente a qué horas sincroniza Monse" (Karina, 10-sep):
+  // SOLO Anel ve la actividad de Monse del día elegido — cuándo entró, su
+  // última actividad y qué movió (capturas, anulaciones, ajustes).
+  if (req.usuario.id === "anel") {
+    const tzF = (ts) => new Date(ts).toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+    const hhmm = (ts) => new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" });
+    const deMonse = (t) => /mons/i.test(String(t || ""));
+    const sesionesM = Object.values(store.sesiones()).filter((x) => x.usuario === "monse");
+    const entradasHoy = sesionesM.filter((x) => x.creada && tzF(x.creada) === fecha)
+      .map((x) => x.creada).sort((a, b) => a - b);
+    const ultimaVez = Math.max(0, ...sesionesM.map((x) => x.ultimaVez || 0).filter((ts) => ts && tzF(ts) === fecha));
+    const capsM = movs.filter((m) => String(m.usuario || "").toLowerCase() === "monse");
+    const anulM = movsDeFecha(fecha, req.usuario, true)
+      .filter((m) => m.anulado && deMonse(m.anuladoPor) && m.anuladoTs && tzF(m.anuladoTs) === fecha);
+    const ajusM = (store.todosCambios ? store.todosCambios() : [])
+      .filter((cb) => cb.tipo === "ajuste" && cb.fecha === fecha && deMonse(cb.por));
+    if (entradasHoy.length)
+      items.push({ sev: "info", txt: `Monse entró a las ${hhmm(entradasHoy[0])}` + (ultimaVez ? ` · última actividad ${hhmm(ultimaVez)}` : "") });
+    else if (ultimaVez || capsM.length || anulM.length || ajusM.length)
+      items.push({ sev: "info", txt: "Monse trabajó con su sesión ya abierta" + (ultimaVez ? ` · última actividad ${hhmm(ultimaVez)}` : "") });
+    else if (fecha === hoyMX())
+      items.push({ sev: "warn", txt: "Monse no ha entrado hoy" });
+    if (capsM.length) {
+      const tss = capsM.map((m) => m.ts).filter(Boolean).sort((a, b) => a - b);
+      items.push({ sev: "info", txt: `Monse capturó ${capsM.length} movimiento(s)` + (tss.length ? ` (${hhmm(tss[0])}–${hhmm(tss[tss.length - 1])})` : "") });
+    }
+    if (anulM.length) items.push({ sev: "info", txt: `Monse anuló ${anulM.length} captura(s), con motivo` });
+    if (ajusM.length) items.push({ sev: "info", txt: `Monse hizo ${ajusM.length} ajuste(s) de dirección` });
+  }
   for (const e of conSync) items.push({ sev: "ok", txt: `${e.nombre} sincronizó a las ${e.hora}` });
   for (const n of sinSync) items.push({ sev: "warn", txt: `${n} aún no sincroniza hoy` });
   if (movs.length) items.push({ sev: "info", txt: `${movs.length} movimiento(s) de caja: ${pesos(movs.reduce((a, m) => a + m.monto, 0))}` });
