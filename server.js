@@ -3373,7 +3373,9 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
   if (req.usuario.rol === "ejecutivo") base = PADRON.filter(c => norm(c.ejecutivo) === norm(req.usuario.nombre));
   const cv = carteraViva(req.usuario); // cartera viva (pago + liquidación)
   const res1 = base.filter(c => {
-    const heno = norm(c.nombre) + " " + c.id;
+    // También encuentra por GRUPO: nombre del centro o su número ("GHANIMA",
+    // "C-18") traen a todas las clientas del grupo (Karina, 10-sep).
+    const heno = norm(c.nombre) + " " + c.id + " " + norm(c.centro || "") + " " + norm(c.noCentro || "");
     return terminos.every(t => heno.includes(t));
   }).slice(0, 40).map(c => {
     // `carteraViva` solo calcula los créditos ACTIVOS, y la llave es
