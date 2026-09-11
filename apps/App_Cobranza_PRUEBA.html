@@ -473,6 +473,11 @@ function restaurar(){
     // Si lo guardado es de un DÍA ANTERIOR, no lo cargamos como si fuera de hoy:
     // avisamos y limpiamos, para que no se junte la cobranza de ayer con la de hoy.
     if(d.fecha && d.fecha!==hoy){
+      // Si ESA fecha ya se envió, esto es un residuo de un guardado tardío:
+      // se tira y la app abre limpia en HOY, sin bloquear con el arqueo de
+      // un día ya entregado.
+      let _env=null;try{_env=localStorage.getItem('fooax_enviado_'+STORE_KEY);}catch(e){}
+      if(_env===d.fecha){try{localStorage.removeItem(STORE_KEY);}catch(e){}document.getElementById('inpFecha').value=hoy;return;}
       const tieneAlgo=(d.reg&&Object.keys(d.reg).length)||(d.regI&&Object.keys(d.regI).length)||(d.movs&&d.movs.length);
       if(tieneAlgo){
         // BLOQUEO TOTAL (regla Karina 23-jul): un día anterior sin enviar su
@@ -523,7 +528,8 @@ function textoArqueoApp(){
     window._arqueo.forEach(a=>{if(a.q>0)L.push('  '+a.l+': '+a.q+' = '+fmt(a.sub));});
     L.push('Total contado: '+fmt(window._arqueoTotal));
     const dif=window._arqueoTotal-(window._arqueoEsperado||0);
-    L.push('Diferencia: '+(Math.abs(dif)<0.01?'$0 ✓':(dif<0?'−'+fmt(Math.abs(dif)):fmt(dif))));
+    const _txtD=Math.abs(dif)<0.01?'$0 ✓':((dif<0?'−'+fmt(Math.abs(dif)):fmt(dif))+(Math.abs(dif)<0.495?' ✓ (centavos, cuadrado)':''));
+    L.push('Diferencia: '+_txtD);
   }
   return L.join('\n');
 }
@@ -570,6 +576,10 @@ function __despuesDeEnviar(){
   // recuerda que HOY ya se envio el arqueo: si vuelve a entrar, la app pregunta
   // si va a AGREGAR algo o a CAPTURAR TODO de nuevo (evita el dia doblado 24-jul)
   try{localStorage.setItem('fooax_cerrado_'+STORE_KEY,(document.getElementById('inpFecha')||{}).value||hoyISO());}catch(e){}
+  // También la ÚLTIMA FECHA ENVIADA: si un guardado tardío deja un residuo
+  // del día, al abrir mañana se descarta en vez de volver a pedir el arqueo
+  // de un día ya entregado (Christopher, 10-sep: "3 días con esa pantalla").
+  try{localStorage.setItem('fooax_enviado_'+STORE_KEY,(document.getElementById('inpFecha')||{}).value||hoyISO());}catch(e){}
   try{localStorage.removeItem(STORE_KEY);}catch(e){}
   reg={};regI={};movs=[];folioSeq=0;
   arqueo={};document.querySelectorAll('[data-den]').forEach(function(i){i.value='';});
@@ -1345,7 +1355,12 @@ function calcArqueo(){let t=0;
   const am=document.getElementById('arqMovs'); if(am)am.textContent=(movsEfe<0?'-'+fmt(Math.abs(movsEfe)):fmt(movsEfe));
   const ae=document.getElementById('arqEsperado'); if(ae)ae.textContent=fmt(esperado);
   const dif=t-esperado;const de=document.getElementById('arqueoDif');
-  de.textContent=(Math.abs(dif)<0.01?'$0 ✓':fmt(dif));de.style.color=Math.abs(dif)<0.01?'var(--ok)':'var(--mora)';
+  // Los pagos traen centavos (cuotas de $446.46) pero la moneda más chica es
+  // de $0.50: cuadrar al centavo es imposible. Hasta ±49¢ se da por CUADRADO
+  // y se dice el pico — mismo criterio que ya usa el tablero (Neri, 10-sep).
+  const _cuadC=Math.abs(dif)<0.495;
+  de.textContent=(Math.abs(dif)<0.01?'$0 ✓':(_cuadC?fmt(dif)+' ✓ centavos':fmt(dif)));
+  de.style.color=_cuadC?'var(--ok)':'var(--mora)';
   window._arqueo=DENOM.map((d,i)=>{const inp=document.querySelector('[data-den="'+i+'"]');return {l:d.l,q:+(inp.value||0),sub:d.v*(+(inp.value||0))};});
   window._arqueoTotal=t; window._arqueoEsperado=esperado; window._arqueoMovsEfe=movsEfe;
   // Se suman por VALOR (el billete de $20 y la moneda de $20 caen en "20"):
