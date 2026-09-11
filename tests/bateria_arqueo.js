@@ -5811,6 +5811,21 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       !(r104c.items || []).some((x) => /ROSA DE PRUEBA 104/.test(x.txt || "")), "sigue acusando");
   }
 
+  console.log("\n— 105. SOLO ANEL VE LA ACTIVIDAD DE MONSE (Karina, 10-sep) —");
+  {
+    const rA = await j(await fetch(U + "/api/resumen", { headers: H(ca) }));
+    const deMonse105 = (rA.items || []).filter((x) => /^Monse /.test(x.txt || ""));
+    ok("a Anel le aparece la actividad de Monse (entró/capturó)",
+      deMonse105.some((x) => /Monse (entró a las|capturó|trabajó)/.test(x.txt)),
+      JSON.stringify(deMonse105).slice(0, 100));
+    const rM = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("a Monse NO le aparece su propio espejo (es solo para Anel)",
+      !(rM.items || []).some((x) => /^Monse (entró|capturó|trabajó|anuló|hizo|no ha)/.test(x.txt || "")), "le salió");
+    const rD = await j(await fetch(U + "/api/resumen", { headers: H(cd) }));
+    ok("a la dirección de PRUEBA tampoco (burbuja aparte)",
+      !(rD.items || []).some((x) => /^Monse /.test(x.txt || "")), "le salió");
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
