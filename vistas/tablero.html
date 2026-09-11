@@ -830,7 +830,7 @@
       <label>Plazo</label><input id="simPlazo" type="number" inputmode="numeric" style="width:80px">
       <span id="simCicloBox" style="display:none"><label>Ciclo</label>
         <select id="simCiclo" onchange="simular()"><option value="">—</option></select></span>
-      <span id="simDiasBox" style="display:none"><label>Días</label>
+      <span id="simDiasBox" style="display:none"><label id="simDiasLbl">Días</label>
         <input id="simDias" type="number" inputmode="numeric" style="width:80px" oninput="simular()"></span>
       <button class="dlbtn" onclick="simular()"><span>Calcular</span></button>
     </div>
@@ -2955,7 +2955,12 @@ function simCambioProducto() {
     sc.innerHTML = '<option value="">—</option>' + vars.map((v, i) =>
       '<option value="' + i + '">' + hesc(v.nombre || ("opción " + (i + 1))) + "</option>").join("");
   } else cb.style.display = "none";
-  db.style.display = p.metodo === "A_DIAS" ? "" : "none";
+  // Pago Único pide los días al vencimiento; MAGNUS los días al PRIMER pago
+  // (el primer periodo se prorratea; los demás meses van plenos).
+  db.style.display = (p.metodo === "A_DIAS" || p.metodo === "B") ? "" : "none";
+  const dl = document.getElementById("simDiasLbl");
+  if (dl) dl.textContent = p.metodo === "B" ? "Días al 1er pago" : "Días";
+  if (p.metodo === "B" && !$("simDias").value) $("simDias").value = 30;
   // El plazo y el monto del catálogo se proponen: casi siempre son esos.
   if (p.plazos && p.plazos.length === 1) $("simPlazo").value = p.plazos[0];
   if (p.montoMin && !$("simMonto").value) $("simMonto").value = p.montoMin;

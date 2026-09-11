@@ -1,366 +1,366 @@
 {
-  "_lea_esto_antes_de_editar": [
-    "ESTE ARCHIVO ES EL MOTOR DE REGLAS. Lo edita Dirección, NO se programa.",
-    "El sistema NO trae ninguna tasa ni plazo escrito en su código: todo sale de aquí.",
-    "Cambiar una tasa, un tope o un plazo es editar este archivo — no hace falta un programador.",
-    "Cada producto dice su FUENTE: de qué documento y qué renglón salió el dato.",
-    "Lo que trae 'pendiente': true NO se calcula: el sistema se niega y dice qué falta,",
-    "en vez de inventar un número. Un interés inventado se le cobra de verdad a una señora."
-  ],
-  "version": "2026-08-23b",
-  "vigenteDesde": "2026-08-19",
-  "fuentePrincipal": "Formulas Calculo Karina.pdf — Lic. Anel Aydee Díaz Silva, 25-jul-2026. Fórmulas validadas por la contadora (CLIP) con ejemplos reales. Catálogo de 16 productos validado por Ing. Monse, mayo 2026 (pág. 7).",
+ "_lea_esto_antes_de_editar": [
+  "ESTE ARCHIVO ES EL MOTOR DE REGLAS. Lo edita Dirección, NO se programa.",
+  "El sistema NO trae ninguna tasa ni plazo escrito en su código: todo sale de aquí.",
+  "Cambiar una tasa, un tope o un plazo es editar este archivo — no hace falta un programador.",
+  "Cada producto dice su FUENTE: de qué documento y qué renglón salió el dato.",
+  "Lo que trae 'pendiente': true NO se calcula: el sistema se niega y dice qué falta,",
+  "en vez de inventar un número. Un interés inventado se le cobra de verdad a una señora."
+ ],
+ "version": "2026-08-23b",
+ "vigenteDesde": "2026-08-19",
+ "fuentePrincipal": "Formulas Calculo Karina.pdf — Lic. Anel Aydee Díaz Silva, 25-jul-2026. Fórmulas validadas por la contadora (CLIP) con ejemplos reales. Catálogo de 16 productos validado por Ing. Monse, mayo 2026 (pág. 7).",
+ "iva": 0.16,
+ "_ADVERTENCIA_DEL_PROPIO_DOCUMENTO": {
+  "texto": "El PDF dice, textual, en la página del catálogo: «Confirmar con la contadora si cada % es mensual (se divide entre 4) o total del crédito, antes de fijar el parámetro por producto».",
+  "porQueImporta": "Si 5.67% es MENSUAL, el Grupal Básico 18 sem cuesta 25.5% del monto. Si es TOTAL del crédito, cuesta 5.67%. Son cuatro veces y media de diferencia en lo que se le cobra a la clienta.",
+  "estadoHoy": "CERRADO el 19-ago-2026. La Lic. Anel confirma: «SÍ, LAS TASAS SON MENSUALES. Se cobra la cuarta parte cada semana, como interés fijo sobre el monto original más IVA del 16%». Lo verificó contra lo realmente cobrado en la hoja de cobranza y coincide en los siete productos grupales. El motor ya estaba en 'mensual': no cambia ningún número, ahora tiene firma.",
+  "interpretacion": "mensual",
+  "contaduria19ago": "«CONSIDERO QUE TODOS LAS TASAS SON MENSUALES, SÓLO QUE ESTE DATO SERÍA CHECARLO DIRECTAMENTE CON LA LIC. ANEL O EN SU CASO CON MONSERRAT.» — Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
+  "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+  "faltaPara": null,
+  "equivalenciaSemanal": {
+   "Básico 18 sem": "5.67% ÷ 4 = 1.42% semanal",
+   "Básico 24 sem": "6.32% ÷ 4 = 1.58%",
+   "Micro 32 sem": "4.62% ÷ 4 = 1.16%",
+   "Micro 48 sem": "3.85% ÷ 4 = 0.96%",
+   "Micro 52 sem": "5.25% ÷ 4 = 1.31%",
+   "Adicional 13 sem": "7.95% ÷ 4 = 1.99%",
+   "Microcrédito 32 sem": "5.86% ÷ 4 = 1.465%"
+  }
+ },
+ "redondeo": {
+  "_nota": "Los ejemplos de la contadora SOLO cuadran calculando con decimales completos y redondeando AL FINAL. Si se redondea paso por paso, el total sale 1 centavo arriba.",
+  "decimales": 2,
+  "momento": "final",
+  "ajusteDeCentavos": "ultima",
+  "_ajusteDeCentavos": "El PDF dice «Ajustar centavos para cerrar exactamente en cero» pero no dice dónde. 'ultima' = la última cuota absorbe la diferencia. 'reparte' = se distribuye.",
+  "confirmadoPor": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
+  "_confirmacion": "19-ago, Contaduría: «SIN DETALLE PUEDEN DEJARLO COMO YA LO TIENEN PROGRAMADO EN LA ÚLTIMA CUOTA. Y ESTÁ CORRECTO SOLO DEJARLO EN UNA CUOTA.» Queda cerrado: 'ultima'.",
+  "cuotaAlPeso": "Los productos semanales traen redondeoCuota='peso': la cuota se cobra redonda, como en campo (Karina, 23-ago: «el pago que cobramos es 588, la app dice 587.94»). El desglose capital/interés/IVA queda exacto y la diferencia viaja aparte como 'redondeo'. COMADRE, MAGNUS y Pago Único NO redondean: sus ejemplos validados por Contaduría son al centavo."
+ },
+ "metodos": {
+  "A": {
+   "nombre": "Interés fijo sobre monto original — cuota PAREJA",
+   "formula": "capital = monto / nPagos ; interes = monto * (tasaMensual / 4) ; iva = interes * 0.16 ; cuota = capital + interes + iva",
+   "fuente": "PDF pág. 3 — ejemplo validado COMADRE $10,000 / 12 sem / 20% = $1,413.33"
+  },
+  "A_DIAS": {
+   "nombre": "Pago Único — interés por días reales",
+   "formula": "dias = vencimiento - otorgamiento ; interesDiario = (monto * tasaMensual) / 30 ; interes = interesDiario * dias ; total = monto + interes + iva",
+   "fuente": "PDF pág. 4 — ejemplo validado $50,000 / 37 días / 10% = $57,153.33. «El conteo empieza el día siguiente al otorgamiento»."
+  },
+  "B": {
+   "nombre": "Saldos insolutos — cuota DECRECIENTE",
+   "formula": "capital = monto / nPagos (fijo) ; interes = saldoInsoluto * tasaMensual / 30 * diasDelPeriodo ; iva = interes * 0.16",
+   "fuente": "PDF pág. 5 — «Validado por la contadora con tres clientas reales». El primer pago varía porque los días al primer corte no son 30."
+  }
+ },
+ "diaInicial": 1,
+ "_diaInicial": "1 = el interés empieza a contar el día SIGUIENTE al otorgamiento (nota de la contadora, PDF pág. 4). 0 = cuenta también el día del otorgamiento.",
+ "moratorio": {
+  "tasaMoratoriaMensual": 0.1,
+  "unicaParaTodos": true,
+  "base": "capitalAmortizacion",
+  "diasGracia": 0,
   "iva": 0.16,
-  "_ADVERTENCIA_DEL_PROPIO_DOCUMENTO": {
-    "texto": "El PDF dice, textual, en la página del catálogo: «Confirmar con la contadora si cada % es mensual (se divide entre 4) o total del crédito, antes de fijar el parámetro por producto».",
-    "porQueImporta": "Si 5.67% es MENSUAL, el Grupal Básico 18 sem cuesta 25.5% del monto. Si es TOTAL del crédito, cuesta 5.67%. Son cuatro veces y media de diferencia en lo que se le cobra a la clienta.",
-    "estadoHoy": "CERRADO el 19-ago-2026. La Lic. Anel confirma: «SÍ, LAS TASAS SON MENSUALES. Se cobra la cuarta parte cada semana, como interés fijo sobre el monto original más IVA del 16%». Lo verificó contra lo realmente cobrado en la hoja de cobranza y coincide en los siete productos grupales. El motor ya estaba en 'mensual': no cambia ningún número, ahora tiene firma.",
-    "interpretacion": "mensual",
-    "contaduria19ago": "«CONSIDERO QUE TODOS LAS TASAS SON MENSUALES, SÓLO QUE ESTE DATO SERÍA CHECARLO DIRECTAMENTE CON LA LIC. ANEL O EN SU CASO CON MONSERRAT.» — Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-    "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
-    "faltaPara": null,
-    "equivalenciaSemanal": {
-      "Básico 18 sem": "5.67% ÷ 4 = 1.42% semanal",
-      "Básico 24 sem": "6.32% ÷ 4 = 1.58%",
-      "Micro 32 sem": "4.62% ÷ 4 = 1.16%",
-      "Micro 48 sem": "3.85% ÷ 4 = 0.96%",
-      "Micro 52 sem": "5.25% ÷ 4 = 1.31%",
-      "Adicional 13 sem": "7.95% ÷ 4 = 1.99%",
-      "Microcrédito 32 sem": "5.86% ÷ 4 = 1.465%"
+  "pendiente": false,
+  "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+  "_confirmacion": "«TASA MORATORIA: 10% MENSUAL. Una sola tasa para todos los productos, sobre el CAPITAL de la amortización vencida y no pagada — no la cuota completa, no el saldo global. Más IVA del 16% sobre el interés moratorio. Y se quitan los OCHO DÍAS DE GRACIA: la mora corre desde el día siguiente al vencimiento. Prográmalo con los días de gracia en CERO, pero déjalo como parámetro configurable.» — Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+  "formula": "moraDelPago = capitalDeLaAmortizacion * 0.10 ; moraDiaria = moraDelPago / 30 ; mora = moraDiaria * (diasDeAtraso - diasGracia) ; + IVA 16%",
+  "_base": "'capitalAmortizacion' = solo el capital de esa amortización. 'cuota' = la cuota completa (capital + interés + IVA). Lo decidido es capitalAmortizacion.",
+  "_diasGracia": "0 por decisión del 19-ago. Se deja como parámetro: si Dirección los reinstala, se cambia aquí y no en el programa.",
+  "_OJO_EJEMPLO_DEL_PDF": "El ejemplo validado del PDF (Comadre, cuota $1,413.33, pago #6 con 22 días → mora $103.64) está calculado SOBRE LA CUOTA, no sobre el capital. Con la regla del 19-ago ese mismo caso da $61.11 + IVA $9.78. No es un error del motor: es que la regla cambió de base. Se deja anotado para que nadie 'corrija' el motor hacia el ejemplo viejo."
+ },
+ "productos": [
+  {
+   "clave": "GRUPAL_BASICO_18",
+   "nombre": "Grupal Básico 18 semanas",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.0567,
+   "plazos": [
+    18
+   ],
+   "montoMin": 3000,
+   "montoMax": 15000,
+   "fuente": "PDF pág. 7, catálogo oficial · renglón 1",
+   "redondeoCuota": "peso"
+  },
+  {
+   "clave": "GRUPAL_BASICO_24",
+   "nombre": "Grupal Básico 24 semanas",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.0632,
+   "plazos": [
+    24
+   ],
+   "montoMin": 3000,
+   "montoMax": 15000,
+   "fuente": "PDF pág. 7, catálogo oficial · renglón 2",
+   "redondeoCuota": "peso"
+  },
+  {
+   "clave": "GRUPAL_MICRO_32",
+   "nombre": "Grupal Micro 32 semanas",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.0462,
+   "plazos": [
+    32
+   ],
+   "montoMin": 8000,
+   "montoMax": 20000,
+   "fuente": "PDF pág. 7, catálogo oficial · renglón 3",
+   "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000. Diferencia de $30,000 sin resolver.",
+   "redondeoCuota": "peso"
+  },
+  {
+   "clave": "GRUPAL_MICRO_48",
+   "nombre": "Grupal Micro 48 semanas",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.0385,
+   "plazos": [
+    48
+   ],
+   "montoMin": 8000,
+   "montoMax": 20000,
+   "fuente": "PDF pág. 7, catálogo oficial · renglón 4",
+   "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000.",
+   "redondeoCuota": "peso"
+  },
+  {
+   "clave": "GRUPAL_MICRO_52",
+   "nombre": "Grupal Micro 52 semanas",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.0525,
+   "plazos": [
+    52
+   ],
+   "montoMax": 50000,
+   "fuente": "PDF pág. 7, catálogo oficial · renglón 5 («hasta $50K», sin mínimo declarado)",
+   "redondeoCuota": "peso"
+  },
+  {
+   "clave": "GRUPAL_ADICIONAL",
+   "nombre": "Grupal Adicional 13 semanas",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.0795,
+   "plazos": [
+    13
+   ],
+   "montoMin": 1000,
+   "montoMax": 4000,
+   "fuente": "PDF pág. 7, catálogo oficial · renglón 6",
+   "redondeoCuota": "peso"
+  },
+  {
+   "clave": "GRUPAL_MICROCREDITO",
+   "nombre": "Grupal Microcrédito 32 semanas",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.0586,
+   "plazos": [
+    32
+   ],
+   "montoMin": 20000,
+   "montoMax": 50000,
+   "fuente": "PDF pág. 7, catálogo oficial · renglón 7",
+   "iva": 0.16,
+   "_iva": "En el catálogo la celda de IVA de este producto aparece VACÍA. Es un error de captura: la Ing. Monse confirmó que SÍ cobra el 16%, igual que los demás (Anel, 19-ago). Se deja escrito para que nadie lo 'corrija' a cero viendo la imagen del catálogo.",
+   "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+   "redondeoCuota": "peso"
+  },
+  {
+   "clave": "MAGNUS",
+   "nombre": "Magnus (CCF03)",
+   "metodo": "B",
+   "periodicidad": "mensual",
+   "tasaMensual": 0.0295,
+   "plazos": [
+    24
+   ],
+   "montoMin": 20000,
+   "montoMax": 300000,
+   "fuente": "TABLAS SIMULADOR.xlsx (10-sep-2026): tablas reales de los créditos de Soledad Fabiola Mendoza, Javier Vázquez Sánchez y Ángeles Becsahida Avendaño — 2.95% mensual sobre saldo insoluto, IVA 16%, primer periodo prorrateado por días. Sustituye el 3.04% sin IVA del catálogo PDF (19-ago). Topes sin cambio.",
+   "iva": 0.16,
+   "_iva": "MAGNUS SÍ lleva IVA del 16% sobre el interés (TABLAS SIMULADOR 10-sep-2026: las tablas reales de los tres créditos vivos lo cobran, columna IVA = interés × 0.16). Sustituye al 'sin IVA' del 19-ago.",
+   "confirmadoPor": "Corrección recibida por Karina Matus el 10-sep-2026 (TABLAS SIMULADOR.xlsx, tres créditos MAGNUS operando). Antes: Lic. Anel 19-ago (3.04% sin IVA) — queda sustituido."
+  },
+  {
+   "clave": "COMADRE",
+   "nombre": "Comadre",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "tasaMensual": 0.2,
+   "fuente": "PDF pág. 3 — ejemplo validado ($10,000 / 12 sem / 20% = $1,413.33)",
+   "advertencia": "NO está en el catálogo oficial de 16: no tiene plazo ni rango de monto propios. La tasa 20% sale únicamente del ejemplo."
+  },
+  {
+   "clave": "PAGO_UNICO",
+   "nombre": "Pago Único",
+   "metodo": "A_DIAS",
+   "periodicidad": "unico",
+   "tasaMensual": 0.1,
+   "fuente": "PDF pág. 4 — ejemplo validado ($50,000 / 37 días / 10% = $57,153.33)",
+   "advertencia": "NO está en el catálogo oficial de 16 y es una TERCERA mecánica de cálculo. La tasa 10% sale únicamente del ejemplo.",
+   "sinPadron": true,
+   "_sinPadron": "No existe como producto del padrón: se usa solo en el simulador y en cotizaciones. La auditoría de consistencia no lo reporta como hueco por esta marca."
+  },
+  {
+   "nombre": "FOXI",
+   "clave": "FOXI",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "iva": 0.16,
+   "plazos": [
+    16
+   ],
+   "montoMin": 5000,
+   "montoMax": 15000,
+   "_como": "FOXI es por CICLO y por MONTO a la vez: cada ciclo tiene un monto único asignado y ese monto trae su tasa (Anel, 19-ago). Todos a 16 semanas, con IVA del 16%.",
+   "faltaVariante": "FOXI necesita saber de qué CICLO es",
+   "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+   "variantes": [
+    {
+     "ciclo": 1,
+     "monto": 5000,
+     "tasaMensual": 0.0913,
+     "plazo": 16,
+     "nombre": "FOXI · 1er ciclo"
+    },
+    {
+     "ciclo": 2,
+     "monto": 7000,
+     "tasaMensual": 0.0707,
+     "plazo": 16,
+     "nombre": "FOXI · 2do ciclo"
+    },
+    {
+     "ciclo": 3,
+     "monto": 10000,
+     "tasaMensual": 0.0845,
+     "plazo": 16,
+     "nombre": "FOXI · 3er ciclo"
+    },
+    {
+     "ciclo": 4,
+     "monto": 12000,
+     "tasaMensual": 0.0707,
+     "plazo": 16,
+     "nombre": "FOXI · 4to ciclo"
+    },
+    {
+     "ciclo": 5,
+     "monto": 15000,
+     "tasaMensual": 0.0569,
+     "plazo": 16,
+     "nombre": "FOXI · 5to ciclo"
     }
+   ],
+   "redondeoCuota": "peso"
   },
-  "redondeo": {
-    "_nota": "Los ejemplos de la contadora SOLO cuadran calculando con decimales completos y redondeando AL FINAL. Si se redondea paso por paso, el total sale 1 centavo arriba.",
-    "decimales": 2,
-    "momento": "final",
-    "ajusteDeCentavos": "ultima",
-    "_ajusteDeCentavos": "El PDF dice «Ajustar centavos para cerrar exactamente en cero» pero no dice dónde. 'ultima' = la última cuota absorbe la diferencia. 'reparte' = se distribuye.",
-    "confirmadoPor": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-    "_confirmacion": "19-ago, Contaduría: «SIN DETALLE PUEDEN DEJARLO COMO YA LO TIENEN PROGRAMADO EN LA ÚLTIMA CUOTA. Y ESTÁ CORRECTO SOLO DEJARLO EN UNA CUOTA.» Queda cerrado: 'ultima'.",
-    "cuotaAlPeso": "Los productos semanales traen redondeoCuota='peso': la cuota se cobra redonda, como en campo (Karina, 23-ago: «el pago que cobramos es 588, la app dice 587.94»). El desglose capital/interés/IVA queda exacto y la diferencia viaja aparte como 'redondeo'. COMADRE, MAGNUS y Pago Único NO redondean: sus ejemplos validados por Contaduría son al centavo."
-  },
-  "metodos": {
-    "A": {
-      "nombre": "Interés fijo sobre monto original — cuota PAREJA",
-      "formula": "capital = monto / nPagos ; interes = monto * (tasaMensual / 4) ; iva = interes * 0.16 ; cuota = capital + interes + iva",
-      "fuente": "PDF pág. 3 — ejemplo validado COMADRE $10,000 / 12 sem / 20% = $1,413.33"
+  {
+   "nombre": "FOXI+",
+   "clave": "FOXI_PLUS",
+   "metodo": "A",
+   "periodicidad": "semanal",
+   "iva": 0.16,
+   "montoMin": 15000,
+   "montoMax": 50000,
+   "_como": "FOXI+ es para quien va en 5to ciclo con buen ahorro, de $15,000 a $50,000. La tasa depende del subproducto y del plazo (Anel, 19-ago).",
+   "_tope": "El tope queda en $50,000. Con esto se resuelve la discrepancia contra el Anexo E v5, que decía $150,000.",
+   "faltaVariante": "FOXI+ necesita saber el PLAZO (32, 24 o 16 semanas)",
+   "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+   "variantes": [
+    {
+     "plazo": 32,
+     "tasaMensual": 0.05,
+     "nombre": "FOXI PLUS 1 · 32 sem"
     },
-    "A_DIAS": {
-      "nombre": "Pago Único — interés por días reales",
-      "formula": "dias = vencimiento - otorgamiento ; interesDiario = (monto * tasaMensual) / 30 ; interes = interesDiario * dias ; total = monto + interes + iva",
-      "fuente": "PDF pág. 4 — ejemplo validado $50,000 / 37 días / 10% = $57,153.33. «El conteo empieza el día siguiente al otorgamiento»."
+    {
+     "plazo": 24,
+     "tasaMensual": 0.0388,
+     "nombre": "FOXI PLUS 2 · 24 sem"
     },
-    "B": {
-      "nombre": "Saldos insolutos — cuota DECRECIENTE",
-      "formula": "capital = monto / nPagos (fijo) ; interes = saldoInsoluto * tasaMensual / 30 * diasDelPeriodo ; iva = interes * 0.16",
-      "fuente": "PDF pág. 5 — «Validado por la contadora con tres clientas reales». El primer pago varía porque los días al primer corte no son 30."
+    {
+     "plazo": 16,
+     "tasaMensual": 0.0574,
+     "nombre": "FOXI PLUS 2 · 16 sem"
     }
+   ],
+   "redondeoCuota": "peso"
+  }
+ ],
+ "_como_agregar_un_producto": "Copia un bloque, cámbiale clave, nombre, método, tasaMensual, plazos y topes, y escribe su fuente. El sistema lo toma sin tocar código.",
+ "_iva": "16% SIEMPRE sobre el interés del periodo — nunca sobre el capital y nunca como importe fijo. Confirmado el 19-ago por Contaduría: «SÍ, ES CORRECTO, ASÍ DEBE DE SER». Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
+ "ivaConfirmadoPor": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
+ "_respuestasContaduria19ago": {
+  "fuente": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
+  "1_tasasMensualesOTotales": "CERRADA · mensuales, confirmado por Anel el 19-ago",
+  "2_tasaMoratoria": "CERRADA · 10% mensual, única, sobre el capital de la amortización, 0 días de gracia (Anel, 19-ago)",
+  "3_centavosDelAjuste": "CERRADA · en la última cuota, tal como estaba programado",
+  "4_tablaFOXI": "CERRADA · 5 ciclos de FOXI y 3 variantes de FOXI+ (Anel, 19-ago)",
+  "5_ivaSobreInteres": "CERRADA · correcto, 16% siempre sobre el interés"
+ },
+ "comisionApertura": {
+  "_fuente": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
+  "_nota": "Las comisiones ya están definidas para los 16 productos en el catálogo oficial. Se cargan las que Dirección transcribió el 19-ago.",
+  "GRUPAL_BASICO_18": {
+   "tipo": "porPersona",
+   "monto": 160
   },
-  "diaInicial": 1,
-  "_diaInicial": "1 = el interés empieza a contar el día SIGUIENTE al otorgamiento (nota de la contadora, PDF pág. 4). 0 = cuenta también el día del otorgamiento.",
-  "moratorio": {
-    "tasaMoratoriaMensual": 0.1,
-    "unicaParaTodos": true,
-    "base": "capitalAmortizacion",
-    "diasGracia": 0,
-    "iva": 0.16,
-    "pendiente": false,
-    "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
-    "_confirmacion": "«TASA MORATORIA: 10% MENSUAL. Una sola tasa para todos los productos, sobre el CAPITAL de la amortización vencida y no pagada — no la cuota completa, no el saldo global. Más IVA del 16% sobre el interés moratorio. Y se quitan los OCHO DÍAS DE GRACIA: la mora corre desde el día siguiente al vencimiento. Prográmalo con los días de gracia en CERO, pero déjalo como parámetro configurable.» — Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
-    "formula": "moraDelPago = capitalDeLaAmortizacion * 0.10 ; moraDiaria = moraDelPago / 30 ; mora = moraDiaria * (diasDeAtraso - diasGracia) ; + IVA 16%",
-    "_base": "'capitalAmortizacion' = solo el capital de esa amortización. 'cuota' = la cuota completa (capital + interés + IVA). Lo decidido es capitalAmortizacion.",
-    "_diasGracia": "0 por decisión del 19-ago. Se deja como parámetro: si Dirección los reinstala, se cambia aquí y no en el programa.",
-    "_OJO_EJEMPLO_DEL_PDF": "El ejemplo validado del PDF (Comadre, cuota $1,413.33, pago #6 con 22 días → mora $103.64) está calculado SOBRE LA CUOTA, no sobre el capital. Con la regla del 19-ago ese mismo caso da $61.11 + IVA $9.78. No es un error del motor: es que la regla cambió de base. Se deja anotado para que nadie 'corrija' el motor hacia el ejemplo viejo."
+  "GRUPAL_BASICO_24": {
+   "tipo": "porPersona",
+   "monto": 160
   },
-  "productos": [
-    {
-      "clave": "GRUPAL_BASICO_18",
-      "nombre": "Grupal Básico 18 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0567,
-      "plazos": [
-        18
-      ],
-      "montoMin": 3000,
-      "montoMax": 15000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 1",
-      "redondeoCuota": "peso"
-    },
-    {
-      "clave": "GRUPAL_BASICO_24",
-      "nombre": "Grupal Básico 24 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0632,
-      "plazos": [
-        24
-      ],
-      "montoMin": 3000,
-      "montoMax": 15000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 2",
-      "redondeoCuota": "peso"
-    },
-    {
-      "clave": "GRUPAL_MICRO_32",
-      "nombre": "Grupal Micro 32 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0462,
-      "plazos": [
-        32
-      ],
-      "montoMin": 8000,
-      "montoMax": 20000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 3",
-      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000. Diferencia de $30,000 sin resolver.",
-      "redondeoCuota": "peso"
-    },
-    {
-      "clave": "GRUPAL_MICRO_48",
-      "nombre": "Grupal Micro 48 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0385,
-      "plazos": [
-        48
-      ],
-      "montoMin": 8000,
-      "montoMax": 20000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 4",
-      "advertencia": "El Anexo E v5 (28-jul) sube el techo a $50,000. El PDF dice $20,000.",
-      "redondeoCuota": "peso"
-    },
-    {
-      "clave": "GRUPAL_MICRO_52",
-      "nombre": "Grupal Micro 52 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0525,
-      "plazos": [
-        52
-      ],
-      "montoMax": 50000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 5 («hasta $50K», sin mínimo declarado)",
-      "redondeoCuota": "peso"
-    },
-    {
-      "clave": "GRUPAL_ADICIONAL",
-      "nombre": "Grupal Adicional 13 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0795,
-      "plazos": [
-        13
-      ],
-      "montoMin": 1000,
-      "montoMax": 4000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 6",
-      "redondeoCuota": "peso"
-    },
-    {
-      "clave": "GRUPAL_MICROCREDITO",
-      "nombre": "Grupal Microcrédito 32 semanas",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.0586,
-      "plazos": [
-        32
-      ],
-      "montoMin": 20000,
-      "montoMax": 50000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 7",
-      "iva": 0.16,
-      "_iva": "En el catálogo la celda de IVA de este producto aparece VACÍA. Es un error de captura: la Ing. Monse confirmó que SÍ cobra el 16%, igual que los demás (Anel, 19-ago). Se deja escrito para que nadie lo 'corrija' a cero viendo la imagen del catálogo.",
-      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
-      "redondeoCuota": "peso"
-    },
-    {
-      "clave": "MAGNUS",
-      "nombre": "Magnus (CCF03)",
-      "metodo": "B",
-      "periodicidad": "mensual",
-      "tasaMensual": 0.0304,
-      "plazos": [
-        24
-      ],
-      "montoMin": 20000,
-      "montoMax": 300000,
-      "fuente": "PDF pág. 7, catálogo oficial · renglón 16 («3.04%/m», el único que el propio catálogo marca como mensual). Topes confirmados: coinciden PDF y Anexo E v5.",
-      "iva": 0,
-      "_iva": "MAGNUS NO lleva IVA (Anel, 19-ago: «el único distinto es MAGNUS: 3.04% mensual sobre saldo insoluto, SIN IVA»). Los demás llevan el 16%.",
-      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza."
-    },
-    {
-      "clave": "COMADRE",
-      "nombre": "Comadre",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "tasaMensual": 0.2,
-      "fuente": "PDF pág. 3 — ejemplo validado ($10,000 / 12 sem / 20% = $1,413.33)",
-      "advertencia": "NO está en el catálogo oficial de 16: no tiene plazo ni rango de monto propios. La tasa 20% sale únicamente del ejemplo."
-    },
-    {
-      "clave": "PAGO_UNICO",
-      "nombre": "Pago Único",
-      "metodo": "A_DIAS",
-      "periodicidad": "unico",
-      "tasaMensual": 0.1,
-      "fuente": "PDF pág. 4 — ejemplo validado ($50,000 / 37 días / 10% = $57,153.33)",
-      "advertencia": "NO está en el catálogo oficial de 16 y es una TERCERA mecánica de cálculo. La tasa 10% sale únicamente del ejemplo.",
-      "sinPadron": true,
-      "_sinPadron": "No existe como producto del padrón: se usa solo en el simulador y en cotizaciones. La auditoría de consistencia no lo reporta como hueco por esta marca."
-    },
-    {
-      "nombre": "FOXI",
-      "clave": "FOXI",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "iva": 0.16,
-      "plazos": [
-        16
-      ],
-      "montoMin": 5000,
-      "montoMax": 15000,
-      "_como": "FOXI es por CICLO y por MONTO a la vez: cada ciclo tiene un monto único asignado y ese monto trae su tasa (Anel, 19-ago). Todos a 16 semanas, con IVA del 16%.",
-      "faltaVariante": "FOXI necesita saber de qué CICLO es",
-      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
-      "variantes": [
-        {
-          "ciclo": 1,
-          "monto": 5000,
-          "tasaMensual": 0.0913,
-          "plazo": 16,
-          "nombre": "FOXI · 1er ciclo"
-        },
-        {
-          "ciclo": 2,
-          "monto": 7000,
-          "tasaMensual": 0.0707,
-          "plazo": 16,
-          "nombre": "FOXI · 2do ciclo"
-        },
-        {
-          "ciclo": 3,
-          "monto": 10000,
-          "tasaMensual": 0.0845,
-          "plazo": 16,
-          "nombre": "FOXI · 3er ciclo"
-        },
-        {
-          "ciclo": 4,
-          "monto": 12000,
-          "tasaMensual": 0.0707,
-          "plazo": 16,
-          "nombre": "FOXI · 4to ciclo"
-        },
-        {
-          "ciclo": 5,
-          "monto": 15000,
-          "tasaMensual": 0.0569,
-          "plazo": 16,
-          "nombre": "FOXI · 5to ciclo"
-        }
-      ],
-      "redondeoCuota": "peso"
-    },
-    {
-      "nombre": "FOXI+",
-      "clave": "FOXI_PLUS",
-      "metodo": "A",
-      "periodicidad": "semanal",
-      "iva": 0.16,
-      "montoMin": 15000,
-      "montoMax": 50000,
-      "_como": "FOXI+ es para quien va en 5to ciclo con buen ahorro, de $15,000 a $50,000. La tasa depende del subproducto y del plazo (Anel, 19-ago).",
-      "_tope": "El tope queda en $50,000. Con esto se resuelve la discrepancia contra el Anexo E v5, que decía $150,000.",
-      "faltaVariante": "FOXI+ necesita saber el PLAZO (32, 24 o 16 semanas)",
-      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
-      "variantes": [
-        {
-          "plazo": 32,
-          "tasaMensual": 0.05,
-          "nombre": "FOXI PLUS 1 · 32 sem"
-        },
-        {
-          "plazo": 24,
-          "tasaMensual": 0.0388,
-          "nombre": "FOXI PLUS 2 · 24 sem"
-        },
-        {
-          "plazo": 16,
-          "tasaMensual": 0.0574,
-          "nombre": "FOXI PLUS 2 · 16 sem"
-        }
-      ],
-      "redondeoCuota": "peso"
-    }
-  ],
-  "_como_agregar_un_producto": "Copia un bloque, cámbiale clave, nombre, método, tasaMensual, plazos y topes, y escribe su fuente. El sistema lo toma sin tocar código.",
-  "_iva": "16% SIEMPRE sobre el interés del periodo — nunca sobre el capital y nunca como importe fijo. Confirmado el 19-ago por Contaduría: «SÍ, ES CORRECTO, ASÍ DEBE DE SER». Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-  "ivaConfirmadoPor": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-  "_respuestasContaduria19ago": {
-    "fuente": "Lic. Consuelo (Contaduría), respuesta escrita del 19-ago-2026 al cuestionario de 5 puntos.",
-    "1_tasasMensualesOTotales": "CERRADA · mensuales, confirmado por Anel el 19-ago",
-    "2_tasaMoratoria": "CERRADA · 10% mensual, única, sobre el capital de la amortización, 0 días de gracia (Anel, 19-ago)",
-    "3_centavosDelAjuste": "CERRADA · en la última cuota, tal como estaba programado",
-    "4_tablaFOXI": "CERRADA · 5 ciclos de FOXI y 3 variantes de FOXI+ (Anel, 19-ago)",
-    "5_ivaSobreInteres": "CERRADA · correcto, 16% siempre sobre el interés"
+  "GRUPAL_MICRO_32": {
+   "tipo": "fija",
+   "monto": 300
   },
-  "comisionApertura": {
-    "_fuente": "Lic. Anel Aydee Díaz Silva, 19-ago-2026, sobre el CATÁLOGO OFICIAL DE PRODUCTOS validado por la Ing. Monse en mayo 2026. Verificado por Anel contra lo realmente cobrado en la hoja de cobranza.",
-    "_nota": "Las comisiones ya están definidas para los 16 productos en el catálogo oficial. Se cargan las que Dirección transcribió el 19-ago.",
-    "GRUPAL_BASICO_18": {
-      "tipo": "porPersona",
-      "monto": 160
-    },
-    "GRUPAL_BASICO_24": {
-      "tipo": "porPersona",
-      "monto": 160
-    },
-    "GRUPAL_MICRO_32": {
-      "tipo": "fija",
-      "monto": 300
-    },
-    "GRUPAL_MICRO_48": {
-      "tipo": "fija",
-      "monto": 300
-    },
-    "GRUPAL_MICRO_52": {
-      "tipo": "fija",
-      "monto": 300
-    },
-    "GRUPAL_MICROCREDITO": {
-      "tipo": "fija",
-      "monto": 300
-    },
-    "GRUPAL_ADICIONAL": {
-      "tipo": "porMillar",
-      "monto": 50,
-      "_nota": "$50 por cada $1,000 del crédito."
-    },
-    "FOXI": {
-      "tipo": "porCiclo",
-      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 23-ago-2026, sobre la tabla de la Ing. Monse: «Con eso ya no queda ningún dato del catálogo abierto».",
-      "porCiclo": {
-        "1": 250,
-        "2": 350,
-        "3": 350,
-        "4": 400,
-        "5": 400
-      },
-      "_nota": "Por ciclo/monto: $5,000→$250 · $7,000→$350 · $10,000→$350 · $12,000→$400 · $15,000→$400."
-    },
-    "FOXI_PLUS": {
-      "tipo": "fija",
-      "monto": 500,
-      "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 23-ago-2026, sobre la tabla de la Ing. Monse: «Con eso ya no queda ningún dato del catálogo abierto».",
-      "_nota": "$500 en las tres variantes."
-    },
-    "MAGNUS": {
-      "tipo": "fija",
-      "monto": 500
-    }
+  "GRUPAL_MICRO_48": {
+   "tipo": "fija",
+   "monto": 300
   },
-  "_motorCerrado": "23-ago-2026: los cinco puntos resueltos Y la comisión de FOXI ciclo por ciclo confirmada por Dirección. No queda ningún dato del catálogo abierto."
+  "GRUPAL_MICRO_52": {
+   "tipo": "fija",
+   "monto": 300
+  },
+  "GRUPAL_MICROCREDITO": {
+   "tipo": "fija",
+   "monto": 300
+  },
+  "GRUPAL_ADICIONAL": {
+   "tipo": "porMillar",
+   "monto": 50,
+   "_nota": "$50 por cada $1,000 del crédito."
+  },
+  "FOXI": {
+   "tipo": "porCiclo",
+   "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 23-ago-2026, sobre la tabla de la Ing. Monse: «Con eso ya no queda ningún dato del catálogo abierto».",
+   "porCiclo": {
+    "1": 250,
+    "2": 350,
+    "3": 350,
+    "4": 400,
+    "5": 400
+   },
+   "_nota": "Por ciclo/monto: $5,000→$250 · $7,000→$350 · $10,000→$350 · $12,000→$400 · $15,000→$400."
+  },
+  "FOXI_PLUS": {
+   "tipo": "fija",
+   "monto": 500,
+   "confirmadoPor": "Lic. Anel Aydee Díaz Silva, 23-ago-2026, sobre la tabla de la Ing. Monse: «Con eso ya no queda ningún dato del catálogo abierto».",
+   "_nota": "$500 en las tres variantes."
+  },
+  "MAGNUS": {
+   "tipo": "fija",
+   "monto": 500
+  }
+ },
+ "_motorCerrado": "23-ago-2026: los cinco puntos resueltos Y la comisión de FOXI ciclo por ciclo confirmada por Dirección. No queda ningún dato del catálogo abierto."
 }

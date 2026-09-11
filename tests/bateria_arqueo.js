@@ -2999,13 +2999,16 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("Pago Único $50,000 / 37 días / 10% da $57,153.33",
     pu.status === 200 && Math.abs(pu.d.totales.aPagar - 57153.33) < 0.01,
     JSON.stringify((pu.d.totales || {}).aPagar));
-  // MAGNUS: el prorrateo por DÍAS REALES es el hallazgo 18 del Anexo E — con
-  // mes plano daría $3,040 y con 45 días reales da $4,560.
-  const mg = await sim("producto=MAGNUS&monto=100000&plazo=24&diasPorPeriodo="
-    + [45].concat(Array(23).fill(30)).join(","));
-  ok("MAGNUS prorratea por DÍAS reales: primer corte a 45 días = $4,560 de interés",
-    mg.status === 200 && Math.abs(mg.d.pagos[0].interes - 4560) < 0.01,
+  // MAGNUS con las TABLAS SIMULADOR del 10-sep (2.95% + IVA): SOLO el primer
+  // periodo se prorratea por días — 45 días dan $4,425 de interés (el mes
+  // plano daría $2,950); del segundo pago en adelante el mes va pleno.
+  const mg = await sim("producto=MAGNUS&monto=100000&plazo=24&dias=45");
+  ok("MAGNUS prorratea el PRIMER periodo por días: 45 días = $4,425 de interés",
+    mg.status === 200 && Math.abs(mg.d.pagos[0].interes - 4425) < 0.01,
     JSON.stringify((mg.d.pagos || [])[0]));
+  ok("y del segundo pago en adelante el mes va PLENO (saldo insoluto × 2.95%)",
+    mg.status === 200 && Math.abs(mg.d.pagos[1].interes - 2827.08) < 0.01,
+    JSON.stringify((mg.d.pagos || [])[1]));
   ok("y su cuota BAJA cada periodo (saldos insolutos)",
     mg.status === 200 && mg.d.pagos[1].cuota > mg.d.pagos[2].cuota,
     JSON.stringify((mg.d.pagos || []).slice(1, 3).map((x) => x.cuota)));
@@ -4601,9 +4604,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
      ["GRUPAL_MICROCREDITO", 0.0586]]
       .every(([k, t]) => (REG90.productos.find((x) => x.clave === k) || {}).tasaMensual === t));
 
-  // --- MAGNUS sin IVA; Microcrédito CON IVA pese a la celda vacía ---
+  // --- MAGNUS SÍ cobra IVA (TABLAS SIMULADOR 10-sep, sustituye al 19-ago) ---
   const mg90 = MOT90.tablaAmortizacion({ producto: "MAGNUS", monto: 100000, plazo: 24 });
-  ok("MAGNUS no cobra IVA", mg90.ok && c90(mg90.totales.iva) === 0, String(mg90.ok && mg90.totales.iva));
+  ok("MAGNUS SÍ cobra IVA del 16% sobre el interés (tablas oficiales 10-sep)",
+    mg90.ok && mg90.totales.iva > 0
+    && Math.abs(mg90.totales.iva - mg90.totales.interes * 0.16) < 0.5,
+    String(mg90.ok && mg90.totales.iva));
   const mc90 = MOT90.tablaAmortizacion({ producto: "GRUPAL_MICROCREDITO", monto: 30000, plazo: 32 });
   ok("el Microcrédito SÍ cobra IVA (la celda vacía del catálogo era error de captura)",
     mc90.ok && mc90.totales.iva > 0, String(mc90.ok && mc90.totales.iva));
