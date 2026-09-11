@@ -587,6 +587,13 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   }
 
   // ---- las tres grupales: una fila por CENTRO (y por producto) ----
+  // A qué centro pertenece cada crédito (padrón completo, incluidos los ya
+  // liquidados): para colgar en su centro las liquidaciones/recuperaciones/
+  // adelantos capturados como movimiento ("cuando dice COBRADO REAL, también
+  // agarrar liquidaciones" — Karina 10-sep, con el go).
+  const centroDeCredito = {};
+  for (const c of ctx.PADRON)
+    centroDeCredito[String(c.id).split("|")[0] + "|" + ctx.norm(c.producto || "")] = ctx.norm(c.centro || "");
   for (const grupo of ["BASICO", "MICROEMPRESAS", "ADICIONALES"]) {
     const conRedondeo = grupo === "MICROEMPRESAS";
     // Lo que cada socia pagó EN LA SEMANA dentro de esta familia de producto:
@@ -597,13 +604,24 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const capSemFam = {};
     for (const r of captura) if (grupoDe(r.producto) === grupo)
       capSemFam[r.socio] = r2((capSemFam[r.socio] || 0) + r.pago);
+    // Lo que bajó saldo por OFICINA (liquidación/recuperación/adelanto con
+    // clienta y producto): entra al COBRADO REAL con la misma vara que la
+    // mora. Comisiones/gastos NO — eso vive en OTROS MOVIMIENTOS.
+    const movsCobroSem = [];
+    for (const fe of fechas) for (const m of ctx.movsDeFecha(fe, usuario)) {
+      if (!m.entrada || !m.socio || !m.producto) continue;
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(String(ctx.tipoDeMov(m) || "").trim())) continue;
+      if (grupoDe(m.producto) !== grupo) continue;
+      movsCobroSem.push({ fecha: fe, socio: String(m.socio).split("|")[0],
+        producto: m.producto, monto: Number(m.monto) || 0 });
+    }
     const conCuotaSaldo = grupo === "BASICO";
     // columnas: FECHA CENTRO NOMBRE PRESTAMO ABONO INTERES IVA + variables
     const encs = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA"];
     if (conRedondeo) encs.push("REDONDEO", "TOTAL");
     else if (conCuotaSaldo) encs.push("TOTAL", "TOTAL", "SALDO");
     else encs.push("TOTAL");
-    encs.push("COBRADO REAL (app)", "MORA");
+    encs.push("COBRADO REAL (app + oficina)", "MORA");
     const nCols = encs.length;
     const colCobrado = nCols - 1, colMora = nCols;
     const ws = wb.addWorksheet(grupo);
@@ -663,9 +681,14 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
           } else dinero(ws, f, 8, teorico);
           // lo realmente capturado ese día para ese centro y producto
           const prods = g ? new Set(g.creditos.map((c) => ctx.norm(c.producto))) : null;
-          const cobrado = captura.filter((r) => r.dia === dia && ctx.norm(r.centro) === k
+          const fichas = captura.filter((r) => r.dia === dia && ctx.norm(r.centro) === k
             && grupoDe(r.producto) === grupo && (!prods || prods.has(ctx.norm(r.producto))))
             .reduce((x, r) => x + r.pago, 0);
+          const oficina = movsCobroSem.filter((mv) => mv.fecha === fechas[di]
+            && centroDeCredito[mv.socio + "|" + ctx.norm(mv.producto)] === k
+            && (!prods || prods.has(ctx.norm(mv.producto))))
+            .reduce((x, mv) => x + mv.monto, 0);
+          const cobrado = r2(fichas + oficina);
           if (g || cobrado > 0.009) dinero(ws, f, colCobrado, cobrado);
           // Cobrado sin teoría = pago a un crédito que ya terminó (liquidó y
           // sigue abonando su cierre) o que cobra otro día — se dice en la
