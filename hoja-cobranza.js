@@ -13,6 +13,12 @@
 
 const LEMA = "Creciendo juntas, avanzando siempre";
 const DIAS = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
+// El padrón guarda los días SIN acento ("MIERCOLES") y este módulo los tenía
+// CON acento: el miércoles y el sábado se caían de todos los cruces (Karina
+// 10-sep: "el miércoles no hay nada, pero en el Excel sí tengo"). Todas las
+// claves internas van sin acento; los encabezados se muestran bonitos.
+const sinAcento = (s) => String(s || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+const DIAS_KEY = DIAS.map(sinAcento);
 const MONEDA = '"$"#,##0.00';
 const PCT = "0.0%";
 // La paleta ES la de la plantilla de Dirección ("el diseño se tiene que ver
@@ -140,7 +146,7 @@ function capturasDeLaSemana(ctx, usuario, fechas) {
           const pago = Number(r.pago) || 0, gar = Number(r.garantia) || 0, sol = Number(r.solidario) || 0;
           if (pago <= 0 && gar <= 0 && sol <= 0) continue;
           const partes = String(clave).split("|");
-          rows.push({ fecha, dia: DIAS[fechas.indexOf(fecha)], ejecId: id,
+          rows.push({ fecha, dia: DIAS_KEY[fechas.indexOf(fecha)], ejecId: id,
             ejec: ctx.USUARIOS[id] ? ctx.USUARIOS[id].nombre : id,
             noCentro: pc.num, centro: nombreCentro, clienta: partes[2] || partes[0],
             socio: partes[0], producto: partes[1] || "",
@@ -213,7 +219,7 @@ function carteraMaestra(ctx, usuario, lunes) {
       crecimiento: proxima ? r2(sugerido - importe) : 0,
       plazo: Number(c.plazo) || null, semanaActual: np && np.pago != null ? np.pago : null,
       otorgamiento: String(c.desembolso || "").slice(0, 10) || "",
-      cuota: Number(c.cuota) || 0, diaPago: String(c.diaPago || "").toUpperCase(),
+      cuota: Number(c.cuota) || 0, diaPago: sinAcento(c.diaPago),
       grupo: grupoDe(c.producto) });
   }
   filas.sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo), "es")
@@ -328,7 +334,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   const moraPorEjecDia = {}, moraPorEjec = {};
   for (const g of (mora.dias || []))
     for (const x of (g.filas || [])) {
-      moraPorEjecDia[x.ejecutivo + "|" + g.dia] = r2((moraPorEjecDia[x.ejecutivo + "|" + g.dia] || 0) + (x.faltante || 0));
+      moraPorEjecDia[x.ejecutivo + "|" + sinAcento(g.dia)] = r2((moraPorEjecDia[x.ejecutivo + "|" + sinAcento(g.dia)] || 0) + (x.faltante || 0));
       moraPorEjec[x.ejecutivo] = r2((moraPorEjec[x.ejecutivo] || 0) + (x.faltante || 0));
     }
 
@@ -539,7 +545,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     let f = 6;
     const tot = { prestamo: 0, abono: 0, interes: 0, iva: 0, teorico: 0, cuota: 0, cobrado: 0 };
     for (let di = 0; di < 6; di++) {
-      const delDia = cartera.filter((c) => c.grupo === grupo && c.diaPago === DIAS[di])
+      const delDia = cartera.filter((c) => c.grupo === grupo && c.diaPago === DIAS_KEY[di])
         .sort((a, b) => String(a.noCentro).localeCompare(String(b.noCentro), "es", { numeric: true })
           || String(a.clienta).localeCompare(String(b.clienta), "es"));
       if (!delDia.length) continue;
@@ -597,7 +603,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     let f = 6;
     const tot = { prestamo: 0, abono: 0, interes: 0, iva: 0, teorico: 0, cuota: 0, cobrado: 0 };
     for (let di = 0; di < 6; di++) {
-      const dia = DIAS[di];
+      const dia = DIAS_KEY[di];
       // TODOS los centros del día (de cualquier producto), como la plantilla.
       const centrosDia = new Map();
       for (const c of cartera) {
@@ -691,7 +697,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const totG = { B: 0, M: 0, A: 0, I: 0, T: 0 };
     let totIvaCob = 0;
     for (let di = 0; di < 6; di++) {
-      const dia = DIAS[di];
+      const dia = DIAS_KEY[di];
       const delDia = cartera.filter((c) => c.diaPago === dia);
       if (!delDia.length) continue;
       const f0 = f;
@@ -772,13 +778,13 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       const row = ws.getRow(f);
       row.getCell(2).value = e.nombre;
       let suma = 0;
-      DIAS.forEach((dia, i) => { const v = capPorEjecDia[e.nombre + "|" + dia] || 0; dinero(ws, f, 3 + i, v); suma += v; });
+      DIAS_KEY.forEach((dia, i) => { const v = capPorEjecDia[e.nombre + "|" + dia] || 0; dinero(ws, f, 3 + i, v); suma += v; });
       formula(ws, f, 9, "SUM(C" + f + ":H" + f + ")", suma);
       f++;
     }
     const row = ws.getRow(f);
     row.getCell(2).value = "TOTAL DÍA"; row.getCell(2).font = { bold: true };
-    DIAS.forEach((dia, i) => {
+    DIAS_KEY.forEach((dia, i) => {
       const L = colLetra(3 + i);
       const val = ejecutivas.reduce((t, e) => t + (capPorEjecDia[e.nombre + "|" + dia] || 0), 0);
       formula(ws, f, 3 + i, "SUM(" + L + "5:" + L + (f - 1) + ")", val);
@@ -853,7 +859,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     }
     let tE = 0, tC = 0, tG2 = 0, tS2 = 0;
     for (let di = 0; di < 6; di++) {
-      const dia = DIAS[di];
+      const dia = DIAS_KEY[di];
       const delDia = captura.filter((r) => r.dia === dia);
       const claves = new Set();
       for (const r of delDia) claves.add(ctx.norm(r.centro) + "|" + dia + "|" + grupoDe(r.producto) + "§" + r.centro);
@@ -896,7 +902,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     let f = 4;
     const dinerito = (v) => "$" + Math.round(v).toLocaleString("es-MX");
     for (let di = 0; di < 6; di++) {
-      const dia = DIAS[di];
+      const dia = DIAS_KEY[di];
       const total = ejecutivas.reduce((t, e) => t + (capPorEjecDia[e.nombre + "|" + dia] || 0), 0);
       if (total <= 0 && fechas[di] > hoy) continue;
       const bloque = ["🌸 *FOOAX · CIERRE DEL DÍA*", "📅 " + dia + " " + fechas[di] + " · Semana " + semanaTxt,
@@ -923,12 +929,12 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     for (const e of ejecutivas) {
       ws.getRow(f).getCell(2).value = e.nombre;
       let suma = 0;
-      DIAS.forEach((dia, i) => { const v = moraPorEjecDia[e.nombre + "|" + dia] || 0; dinero(ws, f, 3 + i, v); suma += v; });
+      DIAS_KEY.forEach((dia, i) => { const v = moraPorEjecDia[e.nombre + "|" + dia] || 0; dinero(ws, f, 3 + i, v); suma += v; });
       formula(ws, f, 9, "SUM(C" + f + ":H" + f + ")", suma);
       f++;
     }
     ws.getRow(f).getCell(2).value = "TOTAL DÍA"; ws.getRow(f).getCell(2).font = { bold: true };
-    DIAS.forEach((dia, i) => {
+    DIAS_KEY.forEach((dia, i) => {
       const L = colLetra(3 + i);
       formula(ws, f, 3 + i, "SUM(" + L + "6:" + L + (f - 1) + ")", ejecutivas.reduce((t, e) => t + (moraPorEjecDia[e.nombre + "|" + dia] || 0), 0));
     });
@@ -1026,7 +1032,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       const c = ws2.getRow(f).getCell(3); c.value = pc; c.numFmt = "0%";
       dinero(ws2, f, 4, crecimiento * pc);
       formula(ws2, f, 5, "$D$4+D" + f, carteraHoy + crecimiento * pc);
-      const p = ws2.getRow(f).getCell(6); p.value = carteraHoy > 0 ? r2(crecimiento * pc / carteraHoy) : 0; p.numFmt = PCT;
+      const p = ws2.getRow(f).getCell(6); p.value = carteraHoy > 0 ? crecimiento * pc / carteraHoy : 0; p.numFmt = PCT;
     });
     sub(ws2, 12, "Planea con el realista (75%). Requieren análisis de capacidad de pago: " + analisis + ".", 6);
     // CU-031 · M3: la SEMANA ENTRANTE — cobranza programada del calendario,
@@ -1632,7 +1638,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     for (const g of ["BASICO", "MICROEMPRESAS", "ADICIONALES", "INDIVIDUALES"]) {
       const t = totalesGrupo[g];
       if (t) check("La ficha " + g + " trae TODOS sus créditos (préstamo vs cartera)", t.prestamo,
-        cartera.filter((c2) => c2.grupo === g && DIAS.includes(String(c2.diaPago)))
+        cartera.filter((c2) => c2.grupo === g && DIAS_KEY.includes(String(c2.diaPago)))
           .reduce((x, c2) => x + c2.importe, 0));
     }
     f++;
