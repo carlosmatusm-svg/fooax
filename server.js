@@ -1414,7 +1414,10 @@ function carteraVivaCalcular(usuario) {
       // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo.
       fechasLiq: liquidado > 0 ? Object.keys(fechasLiq[soc] || {}) : [] });
   }
-  return { porCredito, pagos, garantias };
+  // cobrosGarMov y entregasGar se exponen para el candado de Garantía Líquida
+  // (CU-006): un crédito de BAJA no entra a porCredito, pero su guardado por
+  // clave sí vive aquí y es lo que se le devuelve a la clienta que se va.
+  return { porCredito, pagos, garantias, cobrosGarMov, entregasGar };
 }
 // CONCILIACIÓN: ¿todo lo que se cobró bajó de algún saldo?
 // Es el control que sustituye al "pedirle el Excel a Monse para comparar". Si

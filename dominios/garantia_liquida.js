@@ -83,11 +83,32 @@ module.exports = function crearDominioGarantiaLiquida({
   // 0: nunca se asume garantía disponible que no se pudo comprobar.
   function garantiaLiquidaDisponible(usuario, socio, producto) {
     const padron = obtenerPadron();
-    const cred = padron.find((c) => String(c.id).split("|")[0] === String(socio)
+    let cred = padron.find((c) => String(c.id).split("|")[0] === String(socio)
       && norm(c.producto) === norm(producto) && c.activa !== false && c.estatus !== "BAJA");
+    // LA GARANTÍA SE DEVUELVE AUNQUE EL CRÉDITO YA TERMINÓ (Monse 8-sep, caso
+    // ALBA): el guardado no se esfuma cuando la clienta liquida o se da de
+    // baja — es justo entonces cuando se le entrega. Mismo criterio que el
+    // linkeo del tablero: su crédito más reciente aunque esté de baja. Sin
+    // esto, el candado del CU-006 les regresaba "$0.00 guardado" a las
+    // clientas de baja y nadie podía liberarles su garantía.
+    if (!cred) {
+      cred = padron.filter((c) => String(c.id).split("|")[0] === String(socio)
+          && norm(c.producto) === norm(producto))
+        .sort((c1, c2) => String(c2.alta_fecha || "").localeCompare(String(c1.alta_fecha || "")))[0] || null;
+    }
     if (!cred) return { disponible: 0, credito: null };
-    const info = infoCredito(carteraViva(usuario), cred);
-    return { disponible: Math.max(0, Math.round((info.garantia || 0) * 100) / 100), credito: cred };
+    const cv = carteraViva(usuario);
+    const clave = claveCredito(cred.id, cred.producto);
+    let guardado;
+    if (cv.porCredito.has(clave)) {
+      guardado = infoCredito(cv, cred).garantia || 0;
+    } else {
+      // El crédito ya no está en la cartera viva (liquidó ciclos atrás o es
+      // de BAJA): mismo neteo del motor, con sus acumulados por clave.
+      guardado = Math.max(0, ((cv.garantias || {})[clave] || 0)
+        + ((cv.cobrosGarMov || {})[clave] || 0) - ((cv.entregasGar || {})[clave] || 0));
+    }
+    return { disponible: Math.max(0, Math.round(guardado * 100) / 100), credito: cred };
   }
 
   // El folio de la última SALIDA (entregada o aplicada) de Garantía Líquida de
