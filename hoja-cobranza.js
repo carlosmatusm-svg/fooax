@@ -452,22 +452,22 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const acento = ACENTO_FICHA[grupo];
     const ws = wb.addWorksheet(grupo);
     ws.columns = [{ width: 11 }, { width: 8 }, { width: 30 }, { width: 11 }, { width: 11 },
-      { width: 11 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 12 }];
+      { width: 11 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 22 }];
     // Las tres bandas de la plantilla, con el logo a la izquierda sobre blanco.
-    ws.mergeCells(1, 1, 1, 10);
+    ws.mergeCells(1, 1, 1, 11);
     const b1 = ws.getRow(1).getCell(1);
     b1.value = LEMA;
     b1.font = { italic: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
     b1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
     b1.alignment = { horizontal: "right", vertical: "middle" };
-    ws.mergeCells(2, 3, 2, 10);
+    ws.mergeCells(2, 3, 2, 11);
     const b2 = ws.getRow(2).getCell(3);
     b2.value = "HOJA DE COBRANZA · " + grupo;
     b2.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" }, name: "Arial" };
     b2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
     b2.alignment = { horizontal: "center", vertical: "middle" };
     ws.getRow(2).height = 20;
-    ws.mergeCells(3, 3, 3, 10);
+    ws.mergeCells(3, 3, 3, 11);
     const b3 = ws.getRow(3).getCell(3);
     b3.value = "Semana " + semanaTxt;
     b3.font = { bold: true, size: 10, color: { argb: RIO }, name: "Century Gothic" };
@@ -475,7 +475,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     b3.alignment = { horizontal: "center", vertical: "middle" };
     if (logoFicha != null) ws.addImage(logoFicha, { tl: { col: 0.15, row: 1.05 }, ext: { width: 62, height: 62 } });
     // Encabezado (fila 5), con el acento de cada ficha.
-    const ENCF = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL", "TOTAL", "SALDO"];
+    const ENCF = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL", "TOTAL", "SALDO", "MORA"];
     ENCF.forEach((t2, i) => {
       const c = ws.getRow(5).getCell(i + 1);
       c.value = t2;
@@ -492,6 +492,13 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
           || String(a.centro).localeCompare(String(b.centro), "es")
           || String(a.clienta).localeCompare(String(b.clienta), "es"));
       if (!delDia.length) continue;
+      // "Si un grupo cae en mora hay que decirle que una parte cayó, como una
+      // etiqueta" (Karina, 10-sep): centros de este día con alguna clienta
+      // en mora esta semana.
+      const centrosConMora = new Set();
+      for (const c of delDia) if (c.mora > 0.009 && c.centro && c.centro !== "INDIVIDUAL")
+        centrosConMora.add(ctx.norm(c.centro));
+      let enMoraDia = 0;
       const f0 = f;
       for (const c of delDia) {
         const t = teoriaDe(ctx, c);
@@ -507,14 +514,28 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         dinero(ws, f, 8, t.teorico); dinero(ws, f, 9, t.cuotaReal);
         const sd = ws.getRow(f).getCell(10);
         sd.value = r2(t.teorico - t.cuotaReal); sd.numFmt = MONEDA_ROJA;
+        const et = ws.getRow(f).getCell(11);
+        if (c.mora > 0.009) {
+          enMoraDia++;
+          et.value = "EN MORA · " + "$" + r2(c.mora).toLocaleString("en-US", { minimumFractionDigits: 2 });
+          et.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
+          et.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDECEC" } };
+        } else if (c.centro && centrosConMora.has(ctx.norm(c.centro))) {
+          et.value = "su grupo trae mora";
+          et.font = { italic: true, size: 8.5, color: { argb: "FFB45309" }, name: "Century Gothic" };
+        }
         tot.prestamo += c.importe; tot.abono += t.abono; tot.interes += t.interes;
         tot.iva += t.iva; tot.teorico += t.teorico; tot.cuota += t.cuotaReal;
         f++;
       }
       // SUBTOTAL del día: la fila dorada de la plantilla.
       const st = ws.getRow(f);
-      for (let col = 1; col <= 10; col++)
+      for (let col = 1; col <= 11; col++)
         st.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+      if (enMoraDia > 0) {
+        st.getCell(11).value = enMoraDia + " en mora";
+        st.getCell(11).font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
+      }
       st.getCell(3).value = "SUBTOTAL";
       st.getCell(3).font = { bold: true, size: 9.5, color: { argb: TINTA }, name: "Century Gothic" };
       st.getCell(3).alignment = { horizontal: "right" };
@@ -533,7 +554,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     }
     // TOTAL final: la fila rosa con letra blanca.
     const tr = ws.getRow(f);
-    for (let col = 1; col <= 10; col++)
+    for (let col = 1; col <= 11; col++)
       tr.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
     tr.getCell(3).value = "TOTAL";
     tr.getCell(3).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
