@@ -5765,10 +5765,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     await wbH.xlsx.load(bufH);
     const nombresH = wbH.worksheets.map((w) => w.name);
     const transfH = nombresH.filter((n) => n.startsWith("TRANSF")).length;
-    ok("trae sus 29 pestañas + TRANSFERENCIAS por ejecutiva (informe 'a nombre de')",
-      transfH >= 1 && nombresH.length === 29 + transfH
+    ok("trae sus 30 pestañas (con OTROS MOVIMIENTOS) + TRANSFERENCIAS por ejecutiva",
+      transfH >= 1 && nombresH.length === 30 + transfH
       && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
-        "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA", "CORRECCIONES"]
+        "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA", "CORRECCIONES", "OTROS MOVIMIENTOS"]
         .every((m) => nombresH.includes(m)), nombresH.length + " (" + transfH + " transf): " + nombresH.slice(0, 8).join(","));
     const rP = await fetch(U + "/api/hoja-cobranza/excel?semana=pasada", { headers: H(cm) });
     ok("y también baja la de la SEMANA PASADA (?semana=pasada)", rP.status === 200
