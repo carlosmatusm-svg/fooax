@@ -499,6 +499,9 @@ module.exports = {
     return mem.movimientos.filter((m) => m.fecha === fecha).map(conEntrada);
   },
   todosMovimientos() { return mem.movimientos.map(conEntrada); },
+  // La capa de cambios del padrón (altas/bajas/ajustes), para reportes que
+  // listan correcciones (CU-11). Copia: nadie muta la capa desde fuera.
+  todosCambios() { return mem.cambios.slice(); },
   // Marca la hora en que la ejecutiva CERRÓ su día (botón "Enviar arqueo y
   // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
   // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.

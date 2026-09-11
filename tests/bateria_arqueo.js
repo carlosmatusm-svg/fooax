@@ -5655,6 +5655,63 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     body: JSON.stringify({ nombre: "CENTRO RENACIDO", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) }));
   ok("y su número queda LIBRE para un centro de verdad", cen99b.ok === true, JSON.stringify(cen99b).slice(0, 70));
 
+  console.log("\n— 62b. LA HOJA DE COBRANZA AUTOMÁTICA (10-sep: el libro de 25 pestañas, generado) —");
+  {
+    const rH = await fetch(U + "/api/hoja-cobranza/excel", { headers: H(cm) });
+    ok("el libro de la Hoja de Cobranza baja como Excel", rH.status === 200
+      && /spreadsheet/.test(rH.headers.get("content-type") || ""), "status " + rH.status);
+    const bufH = Buffer.from(await rH.arrayBuffer());
+    ok("y pesa como un libro de verdad (25 pestañas adentro)", bufH.length > 30000, bufH.length + " bytes");
+    const wbH = new (require("exceljs")).Workbook();
+    await wbH.xlsx.load(bufH);
+    const nombresH = wbH.worksheets.map((w) => w.name);
+    ok("trae sus 29 pestañas: el v4 completo, los módulos de los CU y CORRECCIONES (CU-11)",
+      nombresH.length === 29 && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
+        "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA", "CORRECCIONES"]
+        .every((m) => nombresH.includes(m)), nombresH.length + ": " + nombresH.slice(0, 8).join(","));
+    const rP = await fetch(U + "/api/hoja-cobranza/excel?semana=pasada", { headers: H(cm) });
+    ok("y también baja la de la SEMANA PASADA (?semana=pasada)", rP.status === 200
+      && /spreadsheet/.test(rP.headers.get("content-type") || ""), "status " + rP.status);
+  }
+
+  console.log("\n— 104. CU-06: LA REESTRUCTURA QUE PAGA POR DEBAJO SE AVISA SOLA (Casos de Uso Cobranza, 10-sep) —");
+  // Rosa Elia pagaba $500 contra una cuota reestructurada de $1,305 y nadie
+  // había prendido el foco. Ahora el resumen del día lo prende solo.
+  {
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO REESTRUCTURA", numero: "71", dia: "MARTES", ejecutivo: "Neri" }) });
+    const hace21 = new Date(Date.now() - 21 * 864e5).toISOString().slice(0, 10);
+    const a104 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", nombre: "ROSA DE PRUEBA 104", producto: "Grupal-Basico",
+        centro: "CENTRO REESTRUCTURA", ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 10,
+        diaPago: "MARTES", desembolso: hace21 }) }));
+    ok("la utilería de la reestructura nace bien (desembolsada hace 3 semanas)", a104.ok === true,
+      JSON.stringify(a104).slice(0, 70));
+    const e104 = await j(await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", producto: "Grupal-Basico", etiqueta: "Reestructura" }) }));
+    ok("y queda etiquetada Reestructura", e104.ok === true, JSON.stringify(e104).slice(0, 70));
+    const r104 = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    const alertas104 = (r104.items || []).filter((x) => /Reestructura pagando por debajo/.test(x.txt || ""));
+    ok("el resumen del día prende el foco: pagó por debajo dos semanas seguidas",
+      alertas104.some((x) => /ROSA DE PRUEBA 104/.test(x.txt) && x.sev === "alto"),
+      JSON.stringify(alertas104).slice(0, 120));
+    const a104b = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000031", nombre: "NUEVA DE PRUEBA 104", producto: "Grupal-Basico",
+        centro: "CENTRO REESTRUCTURA", ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 10,
+        diaPago: "MARTES", desembolso: HOY }) }));
+    void a104b;
+    await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000031", producto: "Grupal-Basico", etiqueta: "Reestructura" }) });
+    const r104b = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("una reestructura recién desembolsada NO se acusa (esas semanas no debía nada)",
+      !(r104b.items || []).some((x) => /NUEVA DE PRUEBA 104/.test(x.txt || "")), "la acusó");
+    await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", producto: "Grupal-Basico", etiqueta: "" }) });
+    const r104c = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("al quitar la etiqueta el foco se apaga: es vigilancia de reestructuras, no mora nueva",
+      !(r104c.items || []).some((x) => /ROSA DE PRUEBA 104/.test(x.txt || "")), "sigue acusando");
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -2595,6 +2595,39 @@ app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, r
   res.end(Buffer.from(buf));
 });
 
+// ---------- LA HOJA DE COBRANZA AUTOMÁTICA ----------
+// El libro completo (29 pestañas) que Dirección armaba a mano cada semana
+// (HOJA COBRANZA v4), generado desde los datos vivos: capturas de las apps,
+// cartera, mora, motor de intereses, renovaciones y correcciones. Contrato de
+// la Hoja de Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su
+// contexto. A producción con OK de Karina, 10-sep-2026.
+const hojaCobranza = require("./hoja-cobranza");
+app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, res) => {
+  try {
+    // "Intentemos con el de la semana pasada y de este" (Karina, 10-sep):
+    // ?semana=pasada baja el libro de la semana anterior; ?lunes=YYYY-MM-DD
+    // baja cualquier semana exacta; sin nada, la semana en curso.
+    let lunesQ = req.query.lunes;
+    if (req.query.semana === "pasada") {
+      const d = new Date(lunesDeLaSemana(hoyMX()) + "T12:00:00");
+      d.setDate(d.getDate() - 7);
+      lunesQ = d.toISOString().slice(0, 10);
+    }
+    const ctx = { PADRON, USUARIOS, idsEjecutivos, carteraViva, infoCredito, moraDeLaSemana,
+      movsDeFecha, tipoDeMov, motor, corteSaldos, hoyMX, lunesDeLaSemana, norm,
+      numeroDePago, vencidaPorPlazo, esVencido, esCuotaVariable, store };
+    const { wb, semanaTxt } = await hojaCobranza.generar(ctx, ExcelJS, req.usuario, lunesQ);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition",
+      "attachment; filename=\"HOJA COBRANZA FOOAX " + semanaTxt.replace(/[^0-9a-zA-Záéíóúñ ]/gi, "") + ".xlsx\"");
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (e) {
+    console.error("[hoja-cobranza]", e.message);
+    res.status(500).json({ error: "No se pudo generar la hoja: " + e.message });
+  }
+});
+
 app.get("/api/sin-desembolso/excel", requiere("direccion", "admin"), async (req, res) => {
   const d = sinFechaDesembolso(req.usuario);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
@@ -6904,6 +6937,51 @@ function pesos(n) {
   return "$" + v.toLocaleString("es-MX", { minimumFractionDigits: (v % 1) ? 2 : 0, maximumFractionDigits: 2 });
 }
 
+
+// CU-06 (Casos de Uso Cobranza, 10-sep-2026): "una reestructura que no se
+// cumple es una segunda mora en cámara lenta". Si un crédito etiquetado
+// Reestructura (o con estatus irregular) pagó menos de su cuota las DOS
+// últimas semanas completas, se avisa solo en el resumen del día — Rosa Elia
+// (ARENITA) pagaba $500 contra $1,305, debía $45,420, y nadie había prendido
+// el foco. Dirección decide qué hacer; la app solo enciende la luz a tiempo.
+function alertasReestructuras(usuario) {
+  const cv = carteraViva(usuario);
+  const menosDias = (ymd, n) => { const d = new Date(ymd + "T12:00:00"); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const lunesHoy = lunesDeLaSemana(hoyMX());
+  // Las dos últimas semanas COMPLETAS (la actual va a medias y no acusa a nadie).
+  const semanas = [
+    { lunes: menosDias(lunesHoy, 14), domingo: menosDias(lunesHoy, 8) },
+    { lunes: menosDias(lunesHoy, 7), domingo: menosDias(lunesHoy, 1) },
+  ];
+  const pagosSem = semanas.map((sem) => {
+    const { porFecha } = pagosDeLaSemana(usuario, sem.lunes, sem.domingo);
+    const suma = {};
+    for (const clave in porFecha)
+      for (const f in porFecha[clave])
+        if (f >= sem.lunes && f <= sem.domingo) suma[clave] = (suma[clave] || 0) + (porFecha[clave][f].p || 0);
+    return suma;
+  });
+  const avisos = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!/reestructura|irregular/i.test(String(c.etiqueta || "") + " " + String(c.estatus || ""))) continue;
+    const cuota = Number(c.cuota) || 0;
+    if (!cuota || esCuotaVariable(c.producto)) continue;
+    // Un crédito recién desembolsado no debía nada esas semanas.
+    if (String(c.desembolso || "").slice(0, 10) > semanas[0].lunes) continue;
+    const info = infoCredito(cv, c);
+    if (info.saldoActual <= 0.009) continue;
+    const clave = claveCredito(c.id, c.producto);
+    const p1 = Math.round((pagosSem[0][clave] || 0) * 100) / 100;
+    const p2 = Math.round((pagosSem[1][clave] || 0) * 100) / 100;
+    if (p1 < cuota - 0.009 && p2 < cuota - 0.009)
+      avisos.push("Reestructura pagando por debajo: " + c.nombre + " (" + (c.centro || "Individual")
+        + ", " + (c.ejecutivo || "—") + ") — cuota " + pesos(cuota) + ", pagó " + pesos(p1) + " y "
+        + pesos(p2) + " las últimas dos semanas · debe " + pesos(info.saldoActual));
+  }
+  return avisos;
+}
+
 app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const snaps = store.snapshotsDeFecha(fecha);
@@ -6957,6 +7035,7 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   items.push({ sev: "ok", txt: `Efectivo a entregar: ${pesos(efectivoAEntregar)}` });
   if (garantias > 0) items.push({ sev: "info", txt: `Garantías: ${pesos(garantias)}` });
   if (faltantes > 0) items.push({ sev: "alto", txt: `Mora del día: ${pesos(faltantes)} en ${clientasFaltan} clientas` });
+  for (const a of alertasReestructuras(req.usuario)) items.push({ sev: "alto", txt: a });
   for (const e of conSync) items.push({ sev: "ok", txt: `${e.nombre} sincronizó a las ${e.hora}` });
   for (const n of sinSync) items.push({ sev: "warn", txt: `${n} aún no sincroniza hoy` });
   if (movs.length) items.push({ sev: "info", txt: `${movs.length} movimiento(s) de caja: ${pesos(movs.reduce((a, m) => a + m.monto, 0))}` });
