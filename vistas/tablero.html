@@ -389,6 +389,14 @@
   .dlhint{font-size:11.5px;color:var(--gris);margin:8px 16px 0}
   .reccard{background:#fff;border:1px solid var(--lav);border-radius:16px;padding:14px 16px;margin:0 16px}
   .rechint{font-size:12px;color:var(--gris);line-height:1.45;margin-bottom:10px}
+  /* Tarjetas "pendiente de definir" (pantalla de Garantías MVP, 10-sep-2026):
+     lo que el mockup pide y todavía no se puede construir se muestra así, en
+     vez de ocultarlo o inventar el dato. */
+  .garpend{background:#FFF8E6;border:1px solid #F0D98A;border-left:4px solid #C9971F;
+    border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12.5px}
+  .garpend b{color:#7A5A0A}
+  .garpendmot{color:var(--gris);margin-top:2px;line-height:1.4}
+  .garpendresp{color:#7A5A0A;font-weight:700;margin-top:3px;font-size:11.5px}
   .recbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .recinput{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--lav);border-radius:10px;color:var(--tinta)}
   .recbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--rio);border:none;
@@ -473,6 +481,7 @@
     <button class="tbt" data-tb="caja" onclick="tbShow('caja')">Caja</button>
     <button class="tbt" data-tb="cartera" onclick="tbShow('cartera')">Cartera</button>
     <button class="tbt" data-tb="clientas" onclick="tbShow('clientas')">Clientas</button>
+    <button class="tbt" data-tb="garantias" onclick="tbShow('garantias')">Garantías</button>
     <button class="tbt" data-tb="mas" onclick="tbShow('mas')">Más</button>
   </div>
 
@@ -661,6 +670,39 @@
   <h3>Arqueo del día · efectivo</h3>
   <div id="arqueoBox" class="arqueo"></div>
 
+  </div>
+
+  <!-- PANTALLA MÍNIMA DE GARANTÍAS (MVP, 10-sep-2026, CU-006). Carlos: "que
+       Dirección vea la opción de garantías en la aplicación junto con lo que
+       se puede implementar, y mande mensaje solamente de que algo no está
+       definido o falta". No es la entrega 2E completa del lienzo de mockups
+       (esa sigue "CONSTRUYE: por acordar" en la cotización) — es solo lo que
+       ya calcula el motor de Garantía Líquida construido antes de hoy
+       (/api/garantias, /api/garantias/ficha), con tarjetas explícitas de
+       "pendiente de definir" para lo que el mockup pide y que todavía
+       depende de una respuesta de Dirección (no se inventa ni se oculta). -->
+  <div class="tbtab" id="tb-garantias" style="display:none">
+    <h3 style="margin-top:6px">Garantías · resumen</h3>
+    <div class="reccard">
+      <div class="rechint">Pasivo total de Garantía Líquida (10% retenido al desembolso, Anexo F §7-8) y cuántas socias lo tienen guardado ahora mismo. Se calcula en vivo con los mismos números que ya usa la búsqueda de créditos — no es un dato capturado a mano.</div>
+      <div id="garResumen"><div class="arq-vacio">Cargando garantías…</div></div>
+    </div>
+
+    <h3>Ficha de una clienta</h3>
+    <div class="reccard">
+      <div class="buscador">
+        <svg class="lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="garSocio" type="search" placeholder="Número de socio…" autocomplete="off" enterkeyhint="search" onkeydown="if(event.key==='Enter')buscarFichaGarantia()">
+      </div>
+      <button class="recbtn" style="margin-top:8px" onclick="buscarFichaGarantia()">Ver estado de cuenta</button>
+      <div id="garFicha" style="margin-top:10px"></div>
+    </div>
+
+    <h3>Lo que todavía falta definir</h3>
+    <div class="reccard">
+      <div class="rechint">Esta pantalla es un primer paso (MVP): muestra lo que el motor de Garantía Líquida ya calcula. El reporte general por fecha de corte, la conciliación contra la cuenta bancaria de garantías, y el control de bienes en garantía (hipotecaria) todavía dependen de que Dirección resuelva varios pendientes — se listan abajo tal como están en <code>PENDIENTES_POR_CONFIRMAR.md</code>, sección 3, para no fingir que ya existen.</div>
+      <div id="garPendGlobal"></div>
+    </div>
   </div>
 
   <div class="tbtab" id="tb-mas" style="display:none">
@@ -3337,13 +3379,70 @@ async function registrarCentro() {
 // ---------- pestañas del tablero ----------
 function tbShow(name) {
   document.querySelectorAll(".tbt").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
-  ["hoy", "caja", "cartera", "clientas", "mas"].forEach((t) => {
+  ["hoy", "caja", "cartera", "clientas", "garantias", "mas"].forEach((t) => {
     const el = document.getElementById("tb-" + t);
     if (el) el.style.display = (t === name) ? "" : "none";
   });
   try { localStorage.setItem("fooax_tb_tab", name); } catch (e) {}
+  if (name === "garantias" && !_garCargada) { _garCargada = true; cargarGarantias(); }
 }
 try { const t0 = localStorage.getItem("fooax_tb_tab"); if (t0 && t0 !== "hoy") tbShow(t0); } catch (e) {}
+
+// ---------- GARANTÍAS (pantalla mínima, MVP 10-sep-2026, CU-006) ----------
+// Consume /api/garantias y /api/garantias/ficha (server.js). Cada uno de los
+// dos endpoints trae su propio arreglo "pendientes" — lo que el mockup pide y
+// aún no se puede calcular — y esta pantalla lo pinta tal cual, con el mismo
+// texto que manda el servidor, en vez de inventar una explicación distinta
+// aquí. Así el mensaje de "falta definir" vive en un solo lugar (el backend).
+let _garCargada = false;
+function pintarPendientesGarantia(contId, pendientes) {
+  const cont = $(contId);
+  if (!cont) return;
+  if (!pendientes || !pendientes.length) { cont.innerHTML = ""; return; }
+  cont.innerHTML = pendientes.map((p) =>
+    '<div class="garpend"><b>⚠ ' + hesc(p.tema) + '</b>'
+    + '<div class="garpendmot">' + hesc(p.motivo) + '</div>'
+    + '<div class="garpendresp">Le toca a: ' + hesc(p.responsable) + '</div></div>'
+  ).join("");
+}
+async function cargarGarantias() {
+  const box = $("garResumen");
+  try {
+    const r = await fetch("/api/garantias", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const filasCentro = (d.porCentro || []).map((x) =>
+      '<tr><td>' + hesc(x.centro) + '</td><td>' + dinero(x.monto) + '</td></tr>').join("");
+    box.innerHTML =
+      '<div class="renrow"><span>Pasivo total de Garantía Líquida</span><b>' + dinero(d.pasivoTotal) + '</b></div>'
+      + '<div class="renrow"><span>Socias con garantía viva</span><b>' + d.sociasConGarantia + '</b></div>'
+      + (filasCentro ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Centro</th><th>Garantía</th></tr></thead><tbody>' + filasCentro + '</tbody></table>' : '');
+    pintarPendientesGarantia("garPendGlobal", d.pendientes);
+  } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+async function buscarFichaGarantia() {
+  const socio = ($("garSocio").value || "").trim();
+  const cont = $("garFicha");
+  if (!socio) { cont.innerHTML = '<div class="arq-vacio">Escribe un número de socio.</div>'; return; }
+  cont.innerHTML = '<div class="arq-vacio">Buscando…</div>';
+  try {
+    const r = await fetch("/api/garantias/ficha?id=" + encodeURIComponent(socio), { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo buscar.") + '</div>'; return; }
+    const filas = (d.historial || []).map((m) =>
+      '<tr><td>' + hesc(m.fecha) + '</td><td>' + hesc(m.tipo) + '</td><td>' + (m.entrada ? '+' : '−') + dinero(m.monto)
+      + '</td><td>' + dinero(m.saldoDespues) + '</td><td>' + hesc(m.capturadoPor || "—") + '</td></tr>').join("");
+    cont.innerHTML =
+      '<div class="permeta"><b>' + hesc(d.nombre) + '</b> · ' + hesc(d.socio) + ' · ' + hesc(d.centro || "—") + ' · ' + hesc(d.producto || "—") + '</div>'
+      + '<div class="renrow"><span>Saldo de garantía guardado hoy</span><b>' + dinero(d.saldoActual) + '</b></div>'
+      + (d.creditosVivos > 1 ? '<div class="rechint">Tiene ' + d.creditosVivos + ' créditos vivos — este estado de cuenta es del crédito \"' + hesc(d.producto) + '\".</div>' : '')
+      + (filas
+          ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Monto</th><th>Saldo</th><th>Capturó</th></tr></thead><tbody>' + filas + '</tbody></table>'
+          : '<div class="rechint">Sin movimientos de Garantía Líquida en este crédito.</div>')
+      + '<div id="garFichaPend" style="margin-top:8px"></div>';
+    pintarPendientesGarantia("garFichaPend", d.pendientes);
+  } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
 
 async function salir() {
   await fetch("/api/logout", { method: "POST", credentials: "include" });
