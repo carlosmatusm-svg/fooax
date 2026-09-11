@@ -151,7 +151,9 @@ function capturasDeLaSemana(ctx, usuario, fechas) {
             noCentro: pc.num, centro: nombreCentro, clienta: partes[2] || partes[0],
             socio: partes[0], producto: partes[1] || "",
             destino: nombreCentro,
-            pago, gar, sol, forma: String(r.forma || "E").toUpperCase() });
+            pago, gar, sol, forma: String(r.forma || "E").toUpperCase(),
+            mixEfe: Number(r.mixEfe) || 0, mixTr: Number(r.mixTr) || 0,
+            aNombre: String(r.aNombre || "").trim() });
         }
       };
       meter(data && data.regI, null);
@@ -272,7 +274,7 @@ const TAB_COLOR = {
 };
 function vestirLibro(wb) {
   for (const ws of wb.worksheets) {
-    ws.properties.tabColor = { argb: TAB_COLOR[ws.name] || CIELO };
+    ws.properties.tabColor = { argb: TAB_COLOR[ws.name] || (ws.name.startsWith("TRANSF") ? NARANJA : CIELO) };
     // Las dos pestañas de texto no llevan cebra (no son tablas).
     const sinCebra = ws.name === "PORTADA" || ws.name === "INSTRUCCIONES MONSE";
     // La fila del encabezado azul (si la pestaña tiene tabla).
@@ -1541,6 +1543,54 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   }
 
   // ===== CONTROL (cuadres) =====
+  // ===== TRANSFERENCIAS · una pestaña por ejecutiva ("nos falta un informe
+  // por ejecutivo y transferencia, donde dice a qué nombre lo pusieron" —
+  // Karina 10-sep, con su TRANSFERENCIA POR EJECUTIVOS.xlsx de referencia).
+  // Antes este informe se armaba A MANO cazando fichas; aquí sale solo:
+  // todo pago que llegó por transferencia, depósito o mixto, con la columna
+  // A NOMBRE DE que la app ya pregunta al capturar (llega vacía en las
+  // capturas viejas o cuando la ejecutiva no la llenó).
+  for (const e of ejecutivas) {
+    const propios = captura.filter((r) => r.ejec === e.nombre
+      && (r.forma === "T" || r.forma === "D" || (r.forma === "M" && r.mixTr > 0.009)));
+    const ws = wb.addWorksheet(("TRANSF · " + e.nombre.split(" ")[0]).toUpperCase().slice(0, 31));
+    ws.columns = [{ width: 11 }, { width: 9 }, { width: 20 }, { width: 30 }, { width: 14 },
+      { width: 26 }, { width: 24 }, { width: 12 }, { width: 13 }];
+    cabeceraFicha(ws, "TRANSFERENCIAS · " + e.nombre.toUpperCase(), 9);
+    encFicha(ws, ["FECHA", "No.CENTRO", "CENTRO", "CLIENTA", "No.SOCIO", "FORMA", "A NOMBRE DE", "TOTAL", "TRANSFERIDO"], RIO);
+    let f = 6;
+    let totT = 0, totTr = 0;
+    for (let di = 0; di < 6; di++) {
+      const delDia = propios.filter((r) => r.dia === DIAS_KEY[di])
+        .sort((a, b) => String(a.noCentro).localeCompare(String(b.noCentro), "es", { numeric: true })
+          || String(a.clienta).localeCompare(String(b.clienta), "es"));
+      if (!delDia.length) continue;
+      const f0 = f;
+      for (const r of delDia) {
+        const tot = r2(r.pago + r.gar + r.sol);
+        const transferido = r.forma === "M" ? r2(r.mixTr) : tot;
+        const row = ws.getRow(f);
+        filaFecha(ws, f, r.fecha);
+        row.getCell(2).value = r.noCentro || ""; row.getCell(2).alignment = { horizontal: "center" };
+        row.getCell(3).value = r.centro;
+        row.getCell(4).value = r.clienta;
+        row.getCell(5).value = r.socio;
+        row.getCell(6).value = r.forma === "T" ? "TRANSFERENCIA" : r.forma === "D" ? "DEPÓSITO"
+          : "MIXTO (Efe $" + r2(r.mixEfe) + " / Transf $" + r2(r.mixTr) + ")";
+        row.getCell(7).value = r.aNombre || "";
+        dinero(ws, f, 8, tot); dinero(ws, f, 9, transferido);
+        totT += tot; totTr += transferido;
+        f++;
+      }
+      pintaSubtotal(ws, f, 9, [8, 9], f0);
+      f++;
+    }
+    pintaTotal(ws, f, 9, [8, 9], { 8: totT, 9: totTr });
+    if (!propios.length)
+      ws.getRow(7).getCell(2).value = "Sin transferencias capturadas esta semana.";
+    ws.views = [{ state: "frozen", ySplit: 5 }];
+  }
+
   // ===== CORRECCIONES DE LA SEMANA (CU-11/CU-09, Casos de Uso Cobranza
   // 10-sep-2026: "el reporte semanal lista las correcciones — cuántas, de
   // quién y por qué; muchas correcciones sobre el mismo ejecutivo también
