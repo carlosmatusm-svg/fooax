@@ -267,6 +267,7 @@ const TAB_COLOR = {
   "POR EJECUTIVO": NARANJA, "COBRANZA DETALLE": NARANJA,
   "COBRANZA EJEC-CENTRO": NARANJA, "HISTÓRICO EJECUTIVO": NARANJA,
   "CONCENTRADO DEL DÍA": NARANJA, "COBRANZA CRUZADA": NARANJA,
+  "OTROS MOVIMIENTOS": NARANJA,
   "TABLERO SEMANAL": ROJO, "SEMÁFORO": ROJO, "SEMÁFORO POR CENTRO": ROJO,
   "MORA POR EJECUTIVO": ROJO,
   "CRECIMIENTO": VERDE, "ALTAS DE CLIENTAS": VERDE,
@@ -1589,6 +1590,124 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     if (!propios.length)
       ws.getRow(7).getCell(2).value = "Sin transferencias capturadas esta semana.";
     ws.views = [{ state: "frozen", ySplit: 5 }];
+  }
+
+  // ===== OTROS MOVIMIENTOS · lo que cada quien registró aparte de las
+  // fichas ("también deberíamos poner otros movimientos: cuánto registró
+  // cada ejecutivo — comisiones, liquidaciones... eso también entra dentro
+  // de la cobranza" — Karina, 10-sep). Resumen por persona arriba, detalle
+  // movimiento por movimiento abajo. Lo que registró Dirección va en su
+  // propia sección para que ningún peso se quede sin dueña.
+  {
+    const ws = wb.addWorksheet("OTROS MOVIMIENTOS");
+    ws.columns = [{ width: 24 }, { width: 14 }, { width: 15 }, { width: 13 }, { width: 15 },
+      { width: 15 }, { width: 14 }, { width: 13 }, { width: 34 }];
+    cabeceraFicha(ws, "OTROS MOVIMIENTOS", 9);
+    const nombreEj = new Map(ejecutivas.map((e) => [e.id, e.nombre]));
+    const OFICINA = "DIRECCIÓN / OFICINA";
+    const duena = (m) => {
+      const ej = String(m.ejecutivo || "").trim();
+      if (ej) { const hit = ejecutivas.find((e2) => ctx.norm(e2.nombre) === ctx.norm(ej)); if (hit) return hit.nombre; }
+      const uid = String(m.usuario || "").toLowerCase();
+      if (nombreEj.has(uid)) return nombreEj.get(uid);
+      return OFICINA;
+    };
+    const balde = (m) => {
+      const t = String(ctx.tipoDeMov(m) || m.concepto || "");
+      if (/liquidaci/i.test(t)) return "liq";
+      if (/recuperaci/i.test(t)) return "rec";
+      if (/comisi/i.test(t)) return "com";
+      return m.entrada ? "otrasE" : "sal";
+    };
+    const movsSem = [];
+    for (const fe of fechas) for (const m of ctx.movsDeFecha(fe, usuario)) movsSem.push({ ...m, _fecha: fe });
+    // ---- resumen por persona ----
+    ws.getRow(5).getCell(1).value = "LO QUE CADA QUIEN REGISTRÓ APARTE DE LAS FICHAS · semana " + semanaTxt;
+    ws.getRow(5).getCell(1).font = { bold: true, size: 10, color: { argb: RIO }, name: "Century Gothic" };
+    ["EJECUTIVA", "LIQUIDACIONES", "RECUPERACIONES", "COMISIONES", "OTRAS ENTRADAS", "GASTOS / SALIDAS", "NETO"].forEach((t2, i) => {
+      const c = ws.getRow(6).getCell(i + 1);
+      c.value = t2;
+      c.font = { bold: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Arial" };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      c.border = { top: { style: "thin" }, bottom: { style: "medium" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+    let f = 7;
+    const porDuena = {};
+    for (const m of movsSem) {
+      const d = duena(m), b2 = balde(m);
+      const acc = porDuena[d] || (porDuena[d] = { liq: 0, rec: 0, com: 0, otrasE: 0, sal: 0 });
+      acc[b2] = r2(acc[b2] + (Number(m.monto) || 0));
+    }
+    const orden = [...ejecutivas.map((e) => e.nombre), OFICINA].filter((d, i, a) => a.indexOf(d) === i);
+    const totR = { liq: 0, rec: 0, com: 0, otrasE: 0, sal: 0 };
+    for (const d of orden) {
+      const acc = porDuena[d] || { liq: 0, rec: 0, com: 0, otrasE: 0, sal: 0 };
+      const row = ws.getRow(f);
+      row.getCell(1).value = d;
+      row.getCell(1).font = { bold: true, size: 9.5, color: { argb: RIO }, name: "Century Gothic" };
+      dinero(ws, f, 2, acc.liq); dinero(ws, f, 3, acc.rec); dinero(ws, f, 4, acc.com);
+      dinero(ws, f, 5, acc.otrasE); dinero(ws, f, 6, acc.sal);
+      const neto = r2(acc.liq + acc.rec + acc.com + acc.otrasE - acc.sal);
+      formula(ws, f, 7, "B" + f + "+C" + f + "+D" + f + "+E" + f + "-F" + f, neto);
+      for (const k of ["liq", "rec", "com", "otrasE", "sal"]) totR[k] = r2(totR[k] + acc[k]);
+      f++;
+    }
+    { // total del resumen, en rosa
+      const tr = ws.getRow(f);
+      for (let col = 1; col <= 7; col++)
+        tr.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+      tr.getCell(1).value = "TOTAL";
+      tr.getCell(1).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+      const tt = { 2: totR.liq, 3: totR.rec, 4: totR.com, 5: totR.otrasE, 6: totR.sal,
+        7: r2(totR.liq + totR.rec + totR.com + totR.otrasE - totR.sal) };
+      for (const col of [2, 3, 4, 5, 6, 7]) {
+        const L = colLetra(col);
+        const c = tr.getCell(col);
+        c.value = { formula: "SUM(" + L + "7:" + L + (f - 1) + ")", result: tt[col] };
+        c.numFmt = MONEDA;
+        c.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+      }
+      f += 2;
+    }
+    // ---- detalle por persona ----
+    ws.getRow(f).getCell(1).value = "EL DETALLE, MOVIMIENTO POR MOVIMIENTO";
+    ws.getRow(f).getCell(1).font = { bold: true, size: 10, color: { argb: RIO }, name: "Century Gothic" };
+    f++;
+    ["FECHA", "FOLIO", "TIPO", "CLIENTA / No.SOCIO", "ENTRADA", "SALIDA", "MÉTODO", "", "NOTA"].forEach((t2, i) => {
+      if (!t2) return;
+      const c = ws.getRow(f).getCell(i + 1);
+      c.value = t2;
+      c.font = { bold: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Arial" };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      c.border = { top: { style: "thin" }, bottom: { style: "medium" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+    f++;
+    for (const d of orden) {
+      const propios = movsSem.filter((m) => duena(m) === d)
+        .sort((a, b2) => a._fecha.localeCompare(b2._fecha) || (a.ts || 0) - (b2.ts || 0));
+      if (!propios.length) continue;
+      ws.getRow(f).getCell(1).value = d;
+      ws.getRow(f).getCell(1).font = { bold: true, size: 9.5, color: { argb: RIO }, name: "Century Gothic" };
+      f++;
+      const f0 = f;
+      for (const m of propios) {
+        const row = ws.getRow(f);
+        filaFecha(ws, f, m._fecha);
+        row.getCell(2).value = m.folio || "";
+        row.getCell(3).value = ctx.tipoDeMov(m) || m.concepto || "";
+        row.getCell(4).value = m.socio ? String(m.socio) + (m.clienta ? " · " + m.clienta : "") : (m.clienta || "—");
+        if (m.entrada) dinero(ws, f, 5, m.monto); else dinero(ws, f, 6, m.monto);
+        row.getCell(7).value = (m.metodo || "efectivo").toUpperCase();
+        row.getCell(9).value = String(m.nota || m.concepto || "").slice(0, 90);
+        f++;
+      }
+      pintaSubtotal(ws, f, 9, [5, 6], f0);
+      f++;
+    }
+    if (!movsSem.length) ws.getRow(f).getCell(1).value = "Semana sin otros movimientos.";
+    ws.views = [{ state: "frozen", ySplit: 6 }];
   }
 
   // ===== CORRECCIONES DE LA SEMANA (CU-11/CU-09, Casos de Uso Cobranza
