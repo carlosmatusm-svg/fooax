@@ -5764,10 +5764,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const wbH = new (require("exceljs")).Workbook();
     await wbH.xlsx.load(bufH);
     const nombresH = wbH.worksheets.map((w) => w.name);
-    ok("trae sus 29 pestañas: el v4 completo, los módulos de los CU y CORRECCIONES (CU-11)",
-      nombresH.length === 29 && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
+    const transfH = nombresH.filter((n) => n.startsWith("TRANSF")).length;
+    ok("trae sus 29 pestañas + TRANSFERENCIAS por ejecutiva (informe 'a nombre de')",
+      transfH >= 1 && nombresH.length === 29 + transfH
+      && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
         "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA", "CORRECCIONES"]
-        .every((m) => nombresH.includes(m)), nombresH.length + ": " + nombresH.slice(0, 8).join(","));
+        .every((m) => nombresH.includes(m)), nombresH.length + " (" + transfH + " transf): " + nombresH.slice(0, 8).join(","));
     const rP = await fetch(U + "/api/hoja-cobranza/excel?semana=pasada", { headers: H(cm) });
     ok("y también baja la de la SEMANA PASADA (?semana=pasada)", rP.status === 200
       && /spreadsheet/.test(rP.headers.get("content-type") || ""), "status " + rP.status);
