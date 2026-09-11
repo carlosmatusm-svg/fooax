@@ -1444,28 +1444,51 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   // ===== CONTROL DESEMBOLSOS =====
   {
     const ws = wb.addWorksheet("CONTROL DESEMBOLSOS");
-    ws.columns = [{ width: 4 }, { width: 14 }, { width: 11 }, { width: 22 }, { width: 30 }, { width: 14 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 12 }];
-    tit(ws, 1, "FOOAX · CONTROL DE DESEMBOLSOS DE LA SEMANA (créditos entregados)", 10);
-    sub(ws, 2, "De los movimientos de tesorería (Autorización de préstamo / Desembolso) · semana " + semanaTxt, 10);
-    enc(ws, 4, ["", "FOLIO", "FECHA", "CENTRO", "CLIENTA", "No.SOCIO", "EJECUTIVO", "MONTO ENTREGADO", "MÉTODO SALIDA", "No.CHEQUE"]);
+    ws.columns = [{ width: 4 }, { width: 14 }, { width: 11 }, { width: 10 }, { width: 20 }, { width: 30 }, { width: 14 }, { width: 13 }, { width: 15 }, { width: 15 }, { width: 12 }];
+    tit(ws, 1, "FOOAX · CONTROL DE DESEMBOLSOS DE LA SEMANA (créditos entregados)", 11);
+    sub(ws, 2, "De los movimientos de tesorería (Autorización de préstamo / Desembolso) · semana " + semanaTxt, 11);
+    enc(ws, 4, ["", "FOLIO", "FECHA", "No.CENTRO", "CENTRO", "CLIENTA", "No.SOCIO", "EJECUTIVO", "MONTO ENTREGADO", "MÉTODO SALIDA", "No.CHEQUE"]);
+    // Los movimientos de tesorería solo traen el socio: el centro, la clienta
+    // y la ejecutiva se resuelven contra el padrón (su crédito más reciente) —
+    // "en el control desembolsos falta el número de centro, clienta y
+    // ejecutivo" (Karina, 10-sep).
+    const numCentroCD = {};
+    for (const c of ctx.PADRON) if (c.noCentro && c.centro) {
+      const k = ctx.norm(c.centro);
+      if (!numCentroCD[k]) numCentroCD[k] = String(c.noCentro).replace(/^C-?/i, "");
+    }
+    const fichaSocio = {};
+    for (const c of ctx.PADRON) {
+      const soc = String(c.id).split("|")[0];
+      const prev = fichaSocio[soc];
+      if (!prev || String(c.alta_fecha || "") >= String(prev.alta || ""))
+        fichaSocio[soc] = { alta: c.alta_fecha || "", clienta: c.nombre || "",
+          centro: c.centro || "", ejecutivo: c.ejecutivo || "",
+          noCentro: String(c.noCentro || "").replace(/^C-?/i, "") || numCentroCD[ctx.norm(c.centro || "")] || "" };
+    }
+    const deSocio = (soc) => fichaSocio[String(soc || "").split("|")[0]] || {};
     let f = 5; let tot = 0;
     for (const fe of fechas) {
       for (const m of ctx.movsDeFecha(fe, usuario)) {
         if (m.anulado || m.entrada) continue;
         const t = ctx.tipoDeMov(m) || "";
         if (!/autorizaci|desembols/i.test(t)) continue;
+        const fs = deSocio(m.socio);
         const row = ws.getRow(f);
         row.getCell(2).value = m.folio || ""; row.getCell(3).value = fe;
-        row.getCell(4).value = m.centro || ""; row.getCell(5).value = m.clienta || m.aNombre || "";
-        row.getCell(6).value = m.socio || ""; row.getCell(7).value = m.ejecutivo || "";
-        dinero(ws, f, 8, m.monto); tot += Number(m.monto) || 0;
-        row.getCell(9).value = (m.metodo || "efectivo").toUpperCase();
-        row.getCell(10).value = m.cheque || "";
+        row.getCell(4).value = fs.noCentro || "";
+        row.getCell(4).alignment = { horizontal: "center" };
+        row.getCell(5).value = m.centro || fs.centro || "";
+        row.getCell(6).value = m.clienta || m.aNombre || fs.clienta || "";
+        row.getCell(7).value = m.socio || ""; row.getCell(8).value = m.ejecutivo || fs.ejecutivo || "";
+        dinero(ws, f, 9, m.monto); tot += Number(m.monto) || 0;
+        row.getCell(10).value = (m.metodo || "efectivo").toUpperCase();
+        row.getCell(11).value = m.cheque || "";
         f++;
       }
     }
-    ws.getRow(f).getCell(5).value = "TOTAL"; ws.getRow(f).getCell(5).font = { bold: true };
-    formula(ws, f, 8, f > 5 ? "SUM(H5:H" + (f - 1) + ")" : "0", tot);
+    ws.getRow(f).getCell(6).value = "TOTAL"; ws.getRow(f).getCell(6).font = { bold: true };
+    formula(ws, f, 9, f > 5 ? "SUM(I5:I" + (f - 1) + ")" : "0", tot);
     // CU-034 · M6: autorizado vs entregado, por centro, con sus alertas. El
     // sistema ya captura los DOS conceptos (Autorización de préstamo y
     // Desembolso), así que el cruce sale solo; los sobres y la custodia del
@@ -1483,7 +1506,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         const t2 = ctx.tipoDeMov(m) || "";
         const esAut = /autorizaci/i.test(t2), esDes = /desembols/i.test(t2);
         if (!esAut && !esDes) continue;
-        const k = m.centro || "(sin centro)";
+        const k = m.centro || deSocio(m.socio).centro || "(sin centro)";
         const b = porCentroM6[k] || (porCentroM6[k] = { aut: 0, ent: 0 });
         if (esAut) b.aut += Number(m.monto) || 0; else b.ent += Number(m.monto) || 0;
       }
