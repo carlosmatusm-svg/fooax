@@ -1403,6 +1403,20 @@ function pedirAjuste(btn, i) {
     + '<input class="credin" id="ajPlazo" inputmode="numeric" placeholder="plazo · n° de pagos'
     + (c.plazo ? ' (hoy ' + c.plazo + ')' : ' — LE FALTA') + '"'
     + (c.plazo ? '' : ' style="border-color:#B45309;background:#FFFBEB"') + '>'
+    // DÍA DE PAGO Y DESEMBOLSO (Observaciones 11-sep): el endpoint ya los
+    // aceptaba pero el formulario no los pedía — y un crédito SIN DÍA es
+    // invisible para las fichas (Apolonia, María Oliva, Alma Rosa). Si le
+    // falta el día, el campo sale en ámbar, igual que el plazo faltante.
+    + '<span class="credlbl">Día de pago:</span>'
+    + '<select class="credin" id="ajDia"'
+    + (c.diaPago ? '' : ' style="border-color:#B45309;background:#FFFBEB"') + '>'
+    + ["", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"].map(function (d) {
+        return '<option value="' + d + '"' + (String(c.diaPago || "").toUpperCase() === d && d ? " selected" : "")
+          + ">" + (d || (c.diaPago ? "— el que traía —" : "— LE FALTA —")) + "</option>";
+      }).join("")
+    + "</select>"
+    + '<span class="credlbl">Fecha de desembolso:</span>'
+    + '<input class="credin" id="ajDesem" type="date" value="' + hesc(String(c.desembolso || "").slice(0, 10)) + '">'
     + '<input class="credin ancho" id="ajMotivo" placeholder="motivo (ej. condonación, error de captura)">'
     + '<button class="credok" onclick="hacerAjuste(this,' + i + ')">Guardar</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1412,7 +1426,9 @@ function pedirAjuste(btn, i) {
 async function hacerAjuste(btn, i) {
   const c = credRow(i), err = $("ajErr"); btn.disabled = true;
   const body = { id: c.id, producto: c.producto, saldo: $("ajSaldo").value, cuota: $("ajCuota").value,
-    plazo: $("ajPlazo") ? $("ajPlazo").value : "", motivo: $("ajMotivo").value };
+    plazo: $("ajPlazo") ? $("ajPlazo").value : "", motivo: $("ajMotivo").value,
+    diaPago: $("ajDia") ? $("ajDia").value : "",
+    desembolso: $("ajDesem") ? $("ajDesem").value : "" };
   try {
     const r = await fetch("/api/creditos/ajuste", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
