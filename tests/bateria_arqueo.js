@@ -5692,6 +5692,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const e104 = await j(await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
       body: JSON.stringify({ id: "71000000030", producto: "Grupal-Basico", etiqueta: "Reestructura" }) }));
     ok("y queda etiquetada Reestructura", e104.ok === true, JSON.stringify(e104).slice(0, 70));
+    // El buscador de Clientas también encuentra por GRUPO (Karina, 10-sep):
+    const bg104 = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("CENTRO REESTRUCTURA"), { headers: H(cm) }));
+    ok("el buscador de clientas encuentra por el nombre del grupo",
+      (bg104.resultados || []).some((x) => /ROSA DE PRUEBA 104/.test(x.nombre || "")),
+      JSON.stringify((bg104.resultados || []).map((x) => x.nombre)).slice(0, 90));
     const r104 = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
     const alertas104 = (r104.items || []).filter((x) => /Reestructura pagando por debajo/.test(x.txt || ""));
     ok("el resumen del día prende el foco: pagó por debajo dos semanas seguidas",
