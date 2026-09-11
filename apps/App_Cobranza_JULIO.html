@@ -927,7 +927,7 @@ function cliRow(centro,cl){
       +'</div>'
       +mixAviso(r,tot)
       +'</div>'):'')
-    +((r.forma==='T'||r.forma==='D')?('<div class="anombrebox">'
+    +((r.forma==='T'||r.forma==='D'||r.forma==='M')?('<div class="anombrebox">'
       +'<label class="anombrelbl">¿A nombre de quién llegó? <span>(solo si NO es la clienta: familiar, tienda, etc.)</span></label>'
       +'<input type="text" placeholder="Ej. su esposo Pedro López, u Oxxo" value="'+(r.aNombre||'').replace(/"/g,'&quot;')+'" onchange="setANombre(\''+(centro||'')+'\',\''+key+'\',this.value)">'
       +'</div>'):'')
