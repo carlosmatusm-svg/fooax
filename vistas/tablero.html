@@ -485,6 +485,10 @@
   <button class="lit" data-tb="cartera" onclick="tbShow('cartera')"><span class="cod">CT</span>Cartera</button>
   <button class="lit" data-tb="clientas" onclick="tbShow('clientas')"><span class="cod">CL</span>Clientas</button>
   <button class="lit" data-tb="mas" onclick="tbShow('mas')"><span class="cod">MS</span>Más</button>
+  <!-- El grupo de abajo, como el lienzo (pedido Karina 10-sep). Sin data-tb:
+       no es una sección del tablero, es la descarga del libro de la semana. -->
+  <div class="lat-eti">Hoja de cobranza</div>
+  <button class="lit" onclick="descargar('/api/hoja-cobranza/excel')"><span class="cod">HC</span>Hoja de la semana</button>
   <div class="lat-pie">RFC FOO2411271T3<br>UMA vigente · $117.31<br>Anel Aydee Díaz Silva<br>Rep. legal</div>
 </aside>
 <div class="marco">
