@@ -2599,17 +2599,27 @@ app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, r
 });
 
 // ---------- LA HOJA DE COBRANZA AUTOMÁTICA ----------
-// El libro completo de 25 pestañas que Dirección armaba a mano cada semana
+// El libro completo (29 pestañas) que Dirección armaba a mano cada semana
 // (HOJA COBRANZA v4), generado desde los datos vivos: capturas de las apps,
-// cartera, mora, motor de intereses y renovaciones. Contrato de la Hoja de
-// Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su contexto.
+// cartera, mora, motor de intereses, renovaciones y correcciones. Contrato de
+// la Hoja de Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su
+// contexto. A producción con OK de Karina, 10-sep-2026.
 const hojaCobranza = require("./hoja-cobranza");
 app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, res) => {
   try {
+    // "Intentemos con el de la semana pasada y de este" (Karina, 10-sep):
+    // ?semana=pasada baja el libro de la semana anterior; ?lunes=YYYY-MM-DD
+    // baja cualquier semana exacta; sin nada, la semana en curso.
+    let lunesQ = req.query.lunes;
+    if (req.query.semana === "pasada") {
+      const d = new Date(lunesDeLaSemana(hoyMX()) + "T12:00:00");
+      d.setDate(d.getDate() - 7);
+      lunesQ = d.toISOString().slice(0, 10);
+    }
     const ctx = { PADRON, USUARIOS, idsEjecutivos, carteraViva, infoCredito, moraDeLaSemana,
       movsDeFecha, tipoDeMov, motor, corteSaldos, hoyMX, lunesDeLaSemana, norm,
       numeroDePago, vencidaPorPlazo, esVencido, esCuotaVariable, store };
-    const { wb, semanaTxt } = await hojaCobranza.generar(ctx, ExcelJS, req.usuario, req.query.lunes);
+    const { wb, semanaTxt } = await hojaCobranza.generar(ctx, ExcelJS, req.usuario, lunesQ);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition",
       "attachment; filename=\"HOJA COBRANZA FOOAX " + semanaTxt.replace(/[^0-9a-zA-Záéíóúñ ]/gi, "") + ".xlsx\"");
