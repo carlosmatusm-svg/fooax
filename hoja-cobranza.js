@@ -552,16 +552,29 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         .sort((a, b) => String(a.noCentro).localeCompare(String(b.noCentro), "es", { numeric: true })
           || String(a.clienta).localeCompare(String(b.clienta), "es"));
       if (!delDia.length) continue;
-      let enMoraDia = 0;
+      let enMoraDia = 0, vencDia = 0, vencMonto = 0;
       const f0 = f;
       for (const c of delDia) {
-        const t = teoriaDe(ctx, c);
         const row = ws.getRow(f);
         filaFecha(ws, f, fechas[di]);
         row.getCell(2).value = String(c.noCentro || "").replace(/^C-?/i, "");
         row.getCell(2).alignment = { horizontal: "center" };
         row.getCell(3).value = c.clienta;
         const pr = row.getCell(4); pr.value = r2(c.importe); pr.numFmt = FMT_ENTERO;
+        // Un VENCIDO no proyecta cuota: su dinero es recuperación, "irregular
+        // y poco probable de llegar ese día" (Observaciones de Dirección,
+        // 11-sep). Se dice en su fila y ya no infla el esperado del día.
+        if (c.estatus === "VENCIDO") {
+          vencDia++; vencMonto = r2(vencMonto + c.saldo);
+          for (const col of [5, 6, 7, 8, 9, 10]) dinero(ws, f, col, 0);
+          const et = row.getCell(11);
+          et.value = "VENCIDO · debe " + "$" + r2(c.saldo).toLocaleString("en-US", { minimumFractionDigits: 2 }) + " (recuperación)";
+          et.font = { bold: true, size: 9, color: { argb: "FF7A3EA8" }, name: "Century Gothic" };
+          tot.prestamo += c.importe;
+          f++;
+          continue;
+        }
+        const t = teoriaDe(ctx, c);
         dinero(ws, f, 5, t.abono); dinero(ws, f, 6, t.interes); dinero(ws, f, 7, t.iva);
         dinero(ws, f, 8, t.teorico); dinero(ws, f, 9, t.cuotaReal);
         const sd = row.getCell(10);
@@ -572,7 +585,12 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         f++;
       }
       pintaSubtotal(ws, f, 11, [4, 5, 6, 7, 8, 9, 10], f0, { 4: FMT_ENTERO, 10: MONEDA_ROJA });
-      if (enMoraDia > 0) {
+      if (vencDia > 0) {
+        const sv = ws.getRow(f).getCell(11);
+        sv.value = (enMoraDia > 0 ? enMoraDia + " en mora · " : "")
+          + vencDia + " vencido(s): $" + vencMonto.toLocaleString("en-US", { minimumFractionDigits: 2 }) + " en recuperación";
+        sv.font = { bold: true, size: 9, color: { argb: "FF7A3EA8" }, name: "Century Gothic" };
+      } else if (enMoraDia > 0) {
         const c11 = ws.getRow(f).getCell(11);
         c11.value = enMoraDia + " en mora";
         c11.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
@@ -662,8 +680,16 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
           filaFecha(ws, f, fechas[di]);
           row.getCell(2).value = info.num; row.getCell(2).alignment = { horizontal: "center" };
           row.getCell(3).value = info.nombre;
-          let prestamo = 0, abono = 0, interes = 0, iva = 0, teorico = 0, cuota = 0, moraC = 0, nMora = 0, nSinEmpatar = 0;
+          let prestamo = 0, abono = 0, interes = 0, iva = 0, teorico = 0, cuota = 0, moraC = 0, nMora = 0, nSinEmpatar = 0, nVenc = 0, vencMonto = 0;
           if (g) for (const c of g.creditos) {
+            // El VENCIDO del centro no proyecta cuota: se cuenta y se dice
+            // como recuperación (caso Silvia Lilia en MALAHIDAEL —
+            // Observaciones de Dirección, 11-sep).
+            if (c.estatus === "VENCIDO") {
+              nVenc++; vencMonto = r2(vencMonto + c.saldo);
+              prestamo += c.importe;
+              continue;
+            }
             const t = teoriaDe(ctx, c);
             prestamo += c.importe; abono += t.abono; interes += t.interes;
             iva += t.iva; teorico += t.teorico; cuota += t.cuotaReal;
@@ -698,10 +724,19 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
             row.getCell(3).value = info.nombre + " · pago de un crédito ya terminado o de otro día";
             row.getCell(3).font = { italic: true, size: 9, color: { argb: "FF6B6880" }, name: "Century Gothic" };
           }
-          if (moraC > 0.009) {
+          if (moraC > 0.009 || nVenc > 0) {
             enMoraDia += nMora;
-            marcaMora(row.getCell(colMora), moraC, "una parte cayó en mora (" + nMora + ")"
-              + (nSinEmpatar > 0 ? " · ⚠ " + nSinEmpatar + " SÍ pagó: la captura no empató con su crédito, corregirla" : ""));
+            const partes = [];
+            if (nVenc > 0) partes.push(nVenc + " vencido(s): $" + vencMonto.toLocaleString("en-US", { minimumFractionDigits: 2 }) + " en recuperación");
+            if (moraC > 0.009) {
+              marcaMora(row.getCell(colMora), moraC, "una parte cayó en mora (" + nMora + ")"
+                + (nSinEmpatar > 0 ? " · ⚠ " + nSinEmpatar + " SÍ pagó: la captura no empató con su crédito, corregirla" : ""));
+              if (partes.length) row.getCell(colMora).value += " · " + partes.join(" · ");
+            } else {
+              const ev = row.getCell(colMora);
+              ev.value = partes.join(" · ");
+              ev.font = { bold: true, size: 9, color: { argb: "FF7A3EA8" }, name: "Century Gothic" };
+            }
           } else if (g && fechas[di] < hoy && cobrado + 0.009 < cuota) {
             // Cobró menos de la cuota SU día pero no hay mora semanal: completó
             // otro día de la semana o trae adelanto que la cubre. Se dice para
