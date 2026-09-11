@@ -3967,13 +3967,15 @@ const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUI
 
 // Dominio Garantía Líquida extraído a dominios/garantia_liquida.js (10-sep-2026,
 // ver "Reducir dependencia del monolito server.js" en CLAUDE.md). server.js
-// solo inyecta lo que el dominio necesita y usa las 4 funciones que regresa —
+// solo inyecta lo que el dominio necesita y usa las funciones que regresa —
 // la lógica de negocio en sí ya no vive aquí.
 const {
   registrarGarantiaLiquidaAlDesembolsar,
   garantiaLiquidaDisponible,
   ultimaSalidaGarantiaLiquida,
   ticketGarantiaLiquidaH14,
+  resumenGarantias,
+  estadoDeCuentaGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -6001,90 +6003,24 @@ app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, 
 // funcionalidad". No es la entrega 2E completa del lienzo (esa sigue
 // "CONSTRUYE: por acordar" en la cotización) — es SOLO lo que hoy ya se puede
 // calcular con datos reales (el motor de Garantía Líquida construido antes de
-// hoy), expuesto en dos endpoints de lectura. Todo lo que el mockup pide y que
-// SÍ depende de una respuesta de Dirección (reporte por corte histórico,
-// conciliación bancaria, bienes en garantía hipotecaria/prendaria) NO se
-// inventa aquí: el frontend lo muestra como "pendiente de definir" citando la
-// fila exacta de PENDIENTES_POR_CONFIRMAR.md, en vez de ocultarlo o fingir que
-// ya existe.
+// hoy). Todo lo que el mockup pide y que SÍ depende de una respuesta de
+// Dirección (reporte por corte histórico, conciliación bancaria, bienes en
+// garantía hipotecaria/prendaria) NO se inventa aquí: el frontend lo muestra
+// como "pendiente de definir" citando la fila exacta de
+// PENDIENTES_POR_CONFIRMAR.md, en vez de ocultarlo o fingir que ya existe.
 //
-// RESUMEN (página 7 del lienzo, "GA · Garantías"): pasivo total de Garantía
-// Líquida y cuántas socias lo tienen, desglosado por centro. Reutiliza
-// exactamente el mismo cálculo que ya usa /api/creditos (infoCredito) — no se
-// inventa una fórmula nueva de garantía, solo se suma lo que cada crédito ya
-// trae.
+// resumenGarantias/estadoDeCuentaGarantia viven en
+// dominios/garantia_liquida.js — estas dos rutas son solo el pegamento HTTP:
+// piden los datos, y traducen el resultado a la respuesta. Ninguna regla de
+// negocio se escribe aquí (mismo criterio que el resto del dominio).
 app.get("/api/garantias", requiere("direccion", "admin"), (req, res) => {
-  const cv = carteraViva(req.usuario);
-  const vivos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
-  const conGarantia = vivos
-    .map((c) => ({ c, garantia: Math.round((infoCredito(cv, c).garantia || 0) * 100) / 100 }))
-    .filter((x) => x.garantia > 0.009);
-  const pasivoTotal = Math.round(conGarantia.reduce((a, x) => a + x.garantia, 0) * 100) / 100;
-  const porCentro = {};
-  for (const { c, garantia } of conGarantia) {
-    const centro = c.centro || "—";
-    porCentro[centro] = Math.round(((porCentro[centro] || 0) + garantia) * 100) / 100;
-  }
-  res.json({
-    pasivoTotal,
-    sociasConGarantia: conGarantia.length,
-    porCentro: Object.keys(porCentro).sort().map((centro) => ({ centro, monto: porCentro[centro] })),
-    socias: conGarantia
-      .sort((a, b) => b.garantia - a.garantia)
-      .slice(0, 200)
-      .map(({ c, garantia }) => ({ id: c.id, nombre: c.nombre, centro: c.centro, producto: c.producto, garantia })),
-    // Lo que el mockup (página 7) pide y AÚN no se puede calcular — no se
-    // inventa el dato, se dice exactamente qué falta y de quién depende.
-    pendientes: [
-      { tema: "Bienes en garantía (hipotecaria)", motivo: "Sin modelo de datos de documento/vencimiento — Dirección aún no define el control documental (Regla 8.1).", responsable: "Dirección" },
-      { tema: "Filtro 'solo por vencer' (2 semanas para entregar)", motivo: "Falta definir la consecuencia de exceder el plazo — PENDIENTES sección 3.", responsable: "Dirección" },
-      { tema: "Ajuste de garantía por salida de una integrante del grupo", motivo: "No existe la regla de reparto entre las que quedan.", responsable: "Dirección" },
-    ],
-  });
+  res.json(resumenGarantias(req.usuario));
 });
 
-// FICHA POR CLIENTA (página 8, "GA · Ficha"): el estado de cuenta
-// movimiento-a-movimiento con saldo corrido, usando los mismos movimientos y
-// el mismo ticket H.14 que ya arma registrarGarantiaLiquidaAlDesembolsar/
-// /api/garantia-liquida/aplicar — aquí solo se listan en orden, no se
-// recalcula nada distinto.
 app.get("/api/garantias/ficha", requiere("direccion", "admin"), (req, res) => {
-  const socio = String(req.query.id || "").replace(/[\s\-.]/g, "").trim();
-  if (!socio) return res.status(400).json({ error: "Falta el número de socio." });
-  const cv = carteraViva(req.usuario);
-  const cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
-  if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
-  let producto = String(req.query.producto || "").trim();
-  if (!producto && cred.length === 1) producto = cred[0].producto;
-  const exacto = producto ? cred.find((c) => norm(c.producto) === norm(producto)) : null;
-  if (producto && !exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto + "\" activo." });
-  const credito = exacto || cred[0];
-  const clave = claveCredito(socio, credito.producto);
-  const movs = store.todosMovimientos()
-    .filter((m) => !m.anulado && /^garant[íi]a l[íi]quida( entregada| aplicada)?$/i.test((tipoDeMov(m) || "").trim()))
-    .filter((m) => socioDeMov(m) === socio && claveCredito(socioDeMov(m), productoDeMov(m) || credito.producto) === clave)
-    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
-  let saldo = 0;
-  const historial = movs.map((m) => {
-    saldo = Math.round((saldo + (m.entrada ? m.monto : -m.monto)) * 100) / 100;
-    return {
-      fecha: m.fecha, folio: m.folio, tipo: m.tipo || m.concepto, monto: m.monto,
-      entrada: !!m.entrada, saldoDespues: saldo,
-      capturadoPor: m.registradoPor || null, nota: m.nota || null,
-    };
-  });
-  const disponible = garantiaLiquidaDisponible(req.usuario, socio, credito.producto);
-  res.json({
-    socio, nombre: credito.nombre, centro: credito.centro, producto: credito.producto,
-    saldoActual: disponible.disponible,
-    creditosVivos: cred.length,
-    historial,
-    // Lo que el mockup (página 8) pide y aún no existe (no se inventa).
-    pendientes: [
-      { tema: "Exportar PDF (para la socia) / Excel (para conciliar)", motivo: "No hay generación de documentos para esta ficha todavía.", responsable: "Carlos / Karina" },
-      { tema: "Botón 'Ajuste manual' con autorización de Dirección", motivo: "No existe un tipo de movimiento ni candado dedicado a esto.", responsable: "Dirección" },
-    ],
-  });
+  const resultado = estadoDeCuentaGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
