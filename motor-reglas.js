@@ -152,9 +152,9 @@ function metodoADias(p, monto, dias, iva) {
 }
 
 // ---------- La tabla completa, que es lo que se cobra ----------
-// `desde` y `diasPorPeriodo` solo importan en MAGNUS (método B), donde el
-// interés depende de los días REALES entre cortes y el primer periodo casi
-// nunca son 30.
+// `dias` solo importa en MAGNUS (método B) y Pago Único: en MAGNUS son los
+// días REALES del otorgamiento al PRIMER pago (casi nunca 30); los demás
+// meses van plenos.
 function tablaAmortizacion(opciones) {
   const R = reglas();
   const { producto, monto, plazo } = opciones;
@@ -193,12 +193,20 @@ function tablaAmortizacion(opciones) {
   let saldo = m;
 
   if (p.metodo === "B") {
-    // ---- MAGNUS · saldos insolutos, con prorrateo por DÍAS REALES ----
-    const dias = opciones.diasPorPeriodo;
+    // ---- MAGNUS · saldos insolutos ----
+    // Corrección de las TABLAS SIMULADOR (10-sep-2026, tres créditos reales):
+    // SOLO el PRIMER periodo se prorratea por días — del otorgamiento al
+    // primer pago, a razón de tasa/30 por día (31, 36 o 39 días en las tablas
+    // de referencia). Del segundo pago en adelante el interés es el mes PLENO
+    // sobre el saldo insoluto, tenga el mes 28 o 31 días. Antes el motor
+    // prorrateaba todos los periodos.
+    const diasArr = opciones.diasPorPeriodo;
+    const d1 = Number(opciones.dias)
+      || (Array.isArray(diasArr) && diasArr[0] != null ? Number(diasArr[0]) : 30);
     const capital = m / n;
     for (let i = 1; i <= n; i++) {
-      const d = Array.isArray(dias) && dias[i - 1] != null ? Number(dias[i - 1]) : 30;
-      const interes = (saldo * p.tasaMensual / 30) * d;
+      const d = i === 1 ? d1 : 30;
+      const interes = i === 1 ? (saldo * p.tasaMensual / 30) * d : saldo * p.tasaMensual;
       const ivaMonto = interes * iva;
       pagos.push({ n: i, dias: d, capital, interes, iva: ivaMonto, cuota: capital + interes + ivaMonto, saldo: saldo - capital });
       saldo -= capital;
@@ -373,11 +381,12 @@ function autoprueba() {
   const c2 = tablaAmortizacion({ producto: "PAGO_UNICO", monto: 50000, dias: 37 });
   casos.push({ caso: "Pago Único $50,000 / 37 días / 10%", espera: 57153.33,
     obtuvo: c2.ok ? c2.totales.aPagar : null, ok: c2.ok && Math.abs(c2.totales.aPagar - 57153.33) < 0.01 });
-  // MAGNUS: el primer corte a 45 días debe dar $4,560 de interés, no $3,040.
+  // MAGNUS: el primer corte a 45 días debe dar $4,425 de interés (2.95%
+  // según las TABLAS SIMULADOR del 10-sep), no el mes plano de $2,950.
   const c3 = tablaAmortizacion({ producto: "MAGNUS", monto: 100000, plazo: 24,
     diasPorPeriodo: [45].concat(Array(23).fill(30)) });
-  casos.push({ caso: "MAGNUS $100,000 · primer corte a 45 días", espera: 4560,
-    obtuvo: c3.ok ? c3.pagos[0].interes : null, ok: c3.ok && Math.abs(c3.pagos[0].interes - 4560) < 0.01 });
+  casos.push({ caso: "MAGNUS $100,000 · primer corte a 45 días", espera: 4425,
+    obtuvo: c3.ok ? c3.pagos[0].interes : null, ok: c3.ok && Math.abs(c3.pagos[0].interes - 4425) < 0.01 });
   // Y que el capital cierre EXACTO en cero.
   casos.push({ caso: "COMADRE cierra en $0.00 exacto", espera: 0,
     obtuvo: c1.ok ? c1.pagos[c1.pagos.length - 1].saldo : null,
