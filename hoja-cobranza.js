@@ -15,7 +15,12 @@ const LEMA = "Creciendo juntas, avanzando siempre";
 const DIAS = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
 const MONEDA = '"$"#,##0.00';
 const PCT = "0.0%";
-const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF0B7247", GRIS = "FFEDEFF7", ROJO = "FFB00020", AMBAR = "FFF2BB06";
+// La paleta ES la de la plantilla de Dirección ("el diseño se tiene que ver
+// así", Karina 10-sep, HOJA COBRANZA 31-04 SEPTIEMBRE COMPLETA): bandas
+// rosa/azul/cielo, encabezados azules, cuerpo Century Gothic con cebra
+// celeste, totales en amarillo suave y pestañas coloreadas por familia.
+const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF13A463", GRIS = "FFFEF7D9", ROJO = "FFF44C5D", AMBAR = "FFF2BB06";
+const CIELO = "FFADE6ED", ZEBRA = "FFEEFAFB", TINTA = "FF404040", NARANJA = "FFFD6E29", MORADO = "FF6B5BD2";
 
 function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
@@ -24,23 +29,27 @@ function tit(ws, fila, texto, cols, color) {
   ws.mergeCells(fila, 1, fila, cols);
   const c = ws.getRow(fila).getCell(1);
   c.value = texto;
-  c.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  c.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" }, name: "Arial Black" };
   c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color || AURORA } };
   c.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(fila).height = 24;
+  ws.getRow(fila).height = 26;
 }
 function sub(ws, fila, texto, cols) {
   ws.mergeCells(fila, 1, fila, cols);
   const c = ws.getRow(fila).getCell(1);
   c.value = texto;
-  c.font = { italic: true, size: 9, color: { argb: "FF6B6480" } };
+  c.font = { bold: true, size: 9.5, color: { argb: RIO }, name: "Century Gothic" };
+  c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CIELO } };
+  c.alignment = { horizontal: "center", vertical: "middle" };
 }
 function enc(ws, fila, textos) {
   textos.forEach((t, i) => {
     const c = ws.getRow(fila).getCell(i + 1);
     c.value = t;
-    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.font = { bold: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Arial" };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    c.border = { top: { style: "thin" }, bottom: { style: "medium" }, left: { style: "thin" }, right: { style: "thin" } };
   });
 }
 function dinero(ws, fila, col, v, negrita) {
@@ -54,7 +63,7 @@ function formula(ws, fila, col, f, resultado, fmt) {
   const c = ws.getRow(fila).getCell(col);
   c.value = { formula: f, result: r2(resultado) };
   c.numFmt = fmt || MONEDA;
-  c.font = { bold: true };
+  c.font = { bold: true, color: { argb: RIO }, name: "Century Gothic" };
   c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: GRIS } };
   return c;
 }
@@ -217,6 +226,66 @@ function teoriaDe(ctx, fila) {
 }
 
 // ---------- el libro ----------
+
+// ---------- el vestidor (el look de la plantilla de Dirección) ----------
+// Recorre el libro terminado y le pone lo que la plantilla trae en cada
+// pestaña: cuerpo en Century Gothic gris tinta, cebra celeste en las tablas
+// (solo filas sin color propio, para no pisar totales ni semáforos) y el
+// color de pestaña por familia. Se corre al final para no repetirlo en cada
+// una de las 29 pestañas.
+const TAB_COLOR = {
+  "PORTADA": AURORA, "INSTRUCCIONES MONSE": AURORA, "REPORTE DÍA": AURORA,
+  "RENOVACIONES": AURORA, "PEGAR CAPTURA": AURORA,
+  "CARTERA MAESTRA": RIO, "PROYECCIÓN": RIO, "CONTROL": RIO,
+  "RESUMEN CENTRO": RIO, "CARTERA POR PRODUCTO": RIO,
+  "POR EJECUTIVO": NARANJA, "COBRANZA DETALLE": NARANJA,
+  "COBRANZA EJEC-CENTRO": NARANJA, "HISTÓRICO EJECUTIVO": NARANJA,
+  "CONCENTRADO DEL DÍA": NARANJA, "COBRANZA CRUZADA": NARANJA,
+  "TABLERO SEMANAL": ROJO, "SEMÁFORO": ROJO, "SEMÁFORO POR CENTRO": ROJO,
+  "MORA POR EJECUTIVO": ROJO,
+  "CRECIMIENTO": VERDE, "ALTAS DE CLIENTAS": VERDE,
+  "CONTROL DESEMBOLSOS": MORADO, "CORRECCIONES": MORADO,
+};
+function vestirLibro(wb) {
+  for (const ws of wb.worksheets) {
+    ws.properties.tabColor = { argb: TAB_COLOR[ws.name] || CIELO };
+    // Las dos pestañas de texto no llevan cebra (no son tablas).
+    const sinCebra = ws.name === "PORTADA" || ws.name === "INSTRUCCIONES MONSE";
+    // La fila del encabezado azul (si la pestaña tiene tabla).
+    let encFila = 0, encCols = 0;
+    for (let r = 1; r <= 8; r++) {
+      const row = ws.getRow(r);
+      let azules = 0;
+      const tope = Math.max(row.actualCellCount || 0, 20);
+      for (let c = 1; c <= tope; c++) {
+        const f = row.getCell(c).fill;
+        if (f && f.fgColor && f.fgColor.argb === RIO) azules++;
+      }
+      if (azules >= 3) { encFila = r; encCols = azules; break; }
+    }
+    ws.eachRow((row, rn) => {
+      // Cuerpo: Century Gothic tinta donde nadie definió fuente con nombre.
+      row.eachCell((c) => {
+        const f = c.font || {};
+        if (!f.name) c.font = Object.assign({}, f, { name: "Century Gothic", size: f.size || 9.5,
+          color: f.color || { argb: TINTA } });
+      });
+      // Cebra celeste: solo filas de datos sin ningún relleno propio.
+      if (!sinCebra && encFila && rn > encFila && (rn - encFila) % 2 === 0) {
+        let conFill = false, conValor = false;
+        for (let c = 1; c <= encCols; c++) {
+          const cel = row.getCell(c);
+          if (cel.fill && cel.fill.fgColor && cel.fill.fgColor.argb) conFill = true;
+          if (cel.value !== null && cel.value !== undefined && cel.value !== "") conValor = true;
+        }
+        if (conValor && !conFill)
+          for (let c = 1; c <= encCols; c++)
+            row.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
+      }
+    });
+  }
+}
+
 async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   const lunes = /^\d{4}-\d{2}-\d{2}$/.test(String(lunesOpt || "")) ? lunesOpt : ctx.lunesDeLaSemana(ctx.hoyMX());
   const fechas = fechasDeLaSemana(lunes);
@@ -1341,6 +1410,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: malos === 0 ? "FFE7F4EC" : "FFFDECEC" } };
   }
 
+  vestirLibro(wb);
   return { wb, semanaTxt, lunes };
 }
 
