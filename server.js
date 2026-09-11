@@ -3996,13 +3996,15 @@ const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUI
 
 // Dominio Garantía Líquida extraído a dominios/garantia_liquida.js (10-sep-2026,
 // ver "Reducir dependencia del monolito server.js" en CLAUDE.md). server.js
-// solo inyecta lo que el dominio necesita y usa las 4 funciones que regresa —
+// solo inyecta lo que el dominio necesita y usa las funciones que regresa —
 // la lógica de negocio en sí ya no vive aquí.
 const {
   registrarGarantiaLiquidaAlDesembolsar,
   garantiaLiquidaDisponible,
   ultimaSalidaGarantiaLiquida,
   ticketGarantiaLiquidaH14,
+  resumenGarantias,
+  estadoDeCuentaGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -6021,6 +6023,33 @@ app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, 
   store.agregarMovimiento(movRecuperacion);
   const ticket = ticketGarantiaLiquidaH14(movGarantia, g.disponible, Math.max(0, g.disponible - monto));
   res.json({ ok: true, movimientoGarantia: movGarantia, movimientoRecuperacion: movRecuperacion, ticket });
+});
+
+// ---------- PANTALLA MÍNIMA DE GARANTÍAS (MVP, 10-sep-2026) ----------
+// CU-006 — Carlos: "que Dirección vea la opción de garantías en la
+// aplicación junto con lo que se puede implementar, y mande mensaje solamente
+// de que algo no está definido o falta, para luego implementar esa
+// funcionalidad". No es la entrega 2E completa del lienzo (esa sigue
+// "CONSTRUYE: por acordar" en la cotización) — es SOLO lo que hoy ya se puede
+// calcular con datos reales (el motor de Garantía Líquida construido antes de
+// hoy). Todo lo que el mockup pide y que SÍ depende de una respuesta de
+// Dirección (reporte por corte histórico, conciliación bancaria, bienes en
+// garantía hipotecaria/prendaria) NO se inventa aquí: el frontend lo muestra
+// como "pendiente de definir" citando la fila exacta de
+// PENDIENTES_POR_CONFIRMAR.md, en vez de ocultarlo o fingir que ya existe.
+//
+// resumenGarantias/estadoDeCuentaGarantia viven en
+// dominios/garantia_liquida.js — estas dos rutas son solo el pegamento HTTP:
+// piden los datos, y traducen el resultado a la respuesta. Ninguna regla de
+// negocio se escribe aquí (mismo criterio que el resto del dominio).
+app.get("/api/garantias", requiere("direccion", "admin"), (req, res) => {
+  res.json(resumenGarantias(req.usuario));
+});
+
+app.get("/api/garantias/ficha", requiere("direccion", "admin"), (req, res) => {
+  const resultado = estadoDeCuentaGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
