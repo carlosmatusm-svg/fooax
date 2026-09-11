@@ -123,7 +123,17 @@ function capturasDeLaSemana(ctx, usuario, fechas) {
       if (!rec) continue;
       let data = rec.snapshot;
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
+      // El nombre del centro en las fichas viene compuesto ("C-24 · OSHER");
+      // se parte en número y nombre desde aquí para que No.CENTRO/CENTRO
+      // salgan en su columna y los cruces contra la cartera (nombres pelones)
+      // no fallen (Karina, 10-sep: "el No.CENTRO están vacíos").
+      const partirCentro = (s) => {
+        const m = /^\s*(C-?\d+)\s*·\s*(.+?)\s*$/.exec(String(s || ""));
+        return m ? { num: m[1], nombre: m[2] } : { num: "", nombre: String(s || "") };
+      };
       const meter = (nodo, centro) => {
+        const pc = partirCentro(centro);
+        const nombreCentro = centro ? (pc.nombre || centro) : "INDIVIDUAL";
         for (const clave in (nodo || {})) {
           const r = nodo[clave];
           if (!r || typeof r !== "object") continue;
@@ -132,9 +142,9 @@ function capturasDeLaSemana(ctx, usuario, fechas) {
           const partes = String(clave).split("|");
           rows.push({ fecha, dia: DIAS[fechas.indexOf(fecha)], ejecId: id,
             ejec: ctx.USUARIOS[id] ? ctx.USUARIOS[id].nombre : id,
-            centro: centro || "INDIVIDUAL", clienta: partes[2] || partes[0],
+            noCentro: pc.num, centro: nombreCentro, clienta: partes[2] || partes[0],
             socio: partes[0], producto: partes[1] || "",
-            destino: centro ? centro : "INDIVIDUAL",
+            destino: nombreCentro,
             pago, gar, sol, forma: String(r.forma || "E").toUpperCase() });
         }
       };
@@ -156,6 +166,14 @@ function carteraMaestra(ctx, usuario, lunes) {
       faltaPor[String(x.socio) + "|" + ctx.norm(x.producto || "")] =
         (faltaPor[String(x.socio) + "|" + ctx.norm(x.producto || "")] || 0) + (x.faltante || 0);
   const mios = new Set(ctx.idsEjecutivos(usuario, lunes).map((id) => ctx.norm(ctx.USUARIOS[id].nombre)));
+  // No todos los créditos del padrón traen su No.CENTRO capturado: se toma
+  // prestado de cualquier crédito del mismo centro que sí lo tenga
+  // (Karina, 10-sep: "de aquí también los centros no está relleno").
+  const numeroDeCentro = {};
+  for (const c of ctx.PADRON) if (c.noCentro && c.centro) {
+    const k = ctx.norm(c.centro);
+    if (!numeroDeCentro[k]) numeroDeCentro[k] = c.noCentro;
+  }
   const filas = [];
   for (const c of ctx.PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
@@ -187,7 +205,7 @@ function carteraMaestra(ctx, usuario, lunes) {
     const reqAnalisis = sugerido != null && ((sugerido - importe) >= 3000 || importe >= 10000);
     const proxima = !conMora && avance >= 0.7 && sugerido != null && sugerido > importe;
     const np = ctx.numeroDePago(c, info.saldoActual);
-    filas.push({ noCentro: c.noCentro || "", centro: c.centro || "INDIVIDUAL",
+    filas.push({ noCentro: c.noCentro || numeroDeCentro[ctx.norm(c.centro || "")] || "", centro: c.centro || "INDIVIDUAL",
       ejecutivo: c.ejecutivo || "", clienta: c.nombre, socio: String(c.id),
       producto: c.producto || "", importe, saldo: r2(info.saldoActual),
       mora: moraSem, estatus: vencida ? "VENCIDO" : (c.estatus || "VIGENTE"),
@@ -369,7 +387,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     for (const r of captura) {
       const row = ws.getRow(f);
       row.getCell(2).value = r.fecha; row.getCell(3).value = r.dia;
-      row.getCell(4).value = numCentro[ctx.norm(r.centro)] || "";
+      row.getCell(4).value = r.noCentro || numCentro[ctx.norm(r.centro)] || "";
       row.getCell(5).value = r.centro; row.getCell(6).value = r.clienta;
       row.getCell(7).value = r.socio; row.getCell(8).value = r.ejec;
       row.getCell(9).value = r.producto; row.getCell(10).value = r.destino;
