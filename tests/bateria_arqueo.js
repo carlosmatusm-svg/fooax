@@ -5764,10 +5764,48 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const wbH = new (require("exceljs")).Workbook();
     await wbH.xlsx.load(bufH);
     const nombresH = wbH.worksheets.map((w) => w.name);
-    ok("trae sus 28 pestañas: el v4 completo más los módulos M2/M4/M5 de los CU",
-      nombresH.length === 28 && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
-        "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA"]
+    ok("trae sus 29 pestañas: el v4 completo, los módulos de los CU y CORRECCIONES (CU-11)",
+      nombresH.length === 29 && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
+        "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA", "CORRECCIONES"]
         .every((m) => nombresH.includes(m)), nombresH.length + ": " + nombresH.slice(0, 8).join(","));
+  }
+
+  console.log("\n— 104. CU-06: LA REESTRUCTURA QUE PAGA POR DEBAJO SE AVISA SOLA (Casos de Uso Cobranza, 10-sep) —");
+  // Rosa Elia pagaba $500 contra una cuota reestructurada de $1,305 y nadie
+  // había prendido el foco. Ahora el resumen del día lo prende solo.
+  {
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO REESTRUCTURA", numero: "71", dia: "MARTES", ejecutivo: "Neri" }) });
+    const hace21 = new Date(Date.now() - 21 * 864e5).toISOString().slice(0, 10);
+    const a104 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", nombre: "ROSA DE PRUEBA 104", producto: "Grupal-Basico",
+        centro: "CENTRO REESTRUCTURA", ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 10,
+        diaPago: "MARTES", desembolso: hace21 }) }));
+    ok("la utilería de la reestructura nace bien (desembolsada hace 3 semanas)", a104.ok === true,
+      JSON.stringify(a104).slice(0, 70));
+    const e104 = await j(await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", producto: "Grupal-Basico", etiqueta: "Reestructura" }) }));
+    ok("y queda etiquetada Reestructura", e104.ok === true, JSON.stringify(e104).slice(0, 70));
+    const r104 = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    const alertas104 = (r104.items || []).filter((x) => /Reestructura pagando por debajo/.test(x.txt || ""));
+    ok("el resumen del día prende el foco: pagó por debajo dos semanas seguidas",
+      alertas104.some((x) => /ROSA DE PRUEBA 104/.test(x.txt) && x.sev === "alto"),
+      JSON.stringify(alertas104).slice(0, 120));
+    const a104b = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000031", nombre: "NUEVA DE PRUEBA 104", producto: "Grupal-Basico",
+        centro: "CENTRO REESTRUCTURA", ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 10,
+        diaPago: "MARTES", desembolso: HOY }) }));
+    void a104b;
+    await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000031", producto: "Grupal-Basico", etiqueta: "Reestructura" }) });
+    const r104b = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("una reestructura recién desembolsada NO se acusa (esas semanas no debía nada)",
+      !(r104b.items || []).some((x) => /NUEVA DE PRUEBA 104/.test(x.txt || "")), "la acusó");
+    await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", producto: "Grupal-Basico", etiqueta: "" }) });
+    const r104c = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("al quitar la etiqueta el foco se apaga: es vigilancia de reestructuras, no mora nueva",
+      !(r104c.items || []).some((x) => /ROSA DE PRUEBA 104/.test(x.txt || "")), "sigue acusando");
   }
 
   console.log("\n══════════════════════════════════");

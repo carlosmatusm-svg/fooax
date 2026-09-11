@@ -1234,6 +1234,66 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   }
 
   // ===== CONTROL (cuadres) =====
+  // ===== CORRECCIONES DE LA SEMANA (CU-11/CU-09, Casos de Uso Cobranza
+  // 10-sep-2026: "el reporte semanal lista las correcciones — cuántas, de
+  // quién y por qué; muchas correcciones sobre el mismo ejecutivo también
+  // son un dato") =====
+  {
+    const ws = wb.addWorksheet("CORRECCIONES");
+    ws.columns = [{ width: 4 }, { width: 11 }, { width: 28 }, { width: 13 }, { width: 24 }, { width: 14 }, { width: 12 }, { width: 38 }];
+    tit(ws, 1, "FOOAX · CORRECCIONES DE LA SEMANA", 8);
+    sub(ws, 2, "Nada se borra: se anula o se ajusta con motivo y firma. Semana " + semanaTxt, 8);
+    let f = 4;
+    ws.getRow(f).getCell(2).value = "ANULACIONES (contra-asientos)"; ws.getRow(f).getCell(2).font = { bold: true }; f++;
+    enc(ws, f, ["", "FECHA", "FOLIO · TIPO", "MONTO", "CLIENTA/SOCIO", "ANULÓ", "CUÁNDO", "MOTIVO"]); f++;
+    let nAnu = 0, totAnu = 0;
+    for (const dia of fechas) {
+      for (const m of ctx.movsDeFecha(dia, usuario, true)) {
+        if (!m.anulado) continue;
+        nAnu++; totAnu = r2(totAnu + (Number(m.monto) || 0));
+        const row = ws.getRow(f);
+        row.getCell(2).value = m.fecha;
+        row.getCell(3).value = (m.folio || "") + " · " + (ctx.tipoDeMov(m) || m.concepto || "");
+        dinero(ws, f, 4, Number(m.monto) || 0);
+        row.getCell(5).value = m.socio ? String(m.socio) : "—";
+        row.getCell(6).value = m.anuladoPor || "—";
+        row.getCell(7).value = m.anuladoTs ? new Date(m.anuladoTs).toISOString().slice(0, 10) : "—";
+        row.getCell(8).value = m.anuladoMotivo || "";
+        f++;
+      }
+    }
+    const rta = ws.getRow(f);
+    rta.getCell(2).value = "TOTAL ANULADO"; rta.getCell(2).font = { bold: true };
+    dinero(ws, f, 4, totAnu, true);
+    rta.getCell(5).value = nAnu + " anulación(es)";
+    f += 2;
+    ws.getRow(f).getCell(2).value = "AJUSTES DE DIRECCIÓN (saldo, cuota, forma de pago, etiquetas)"; ws.getRow(f).getCell(2).font = { bold: true }; f++;
+    enc(ws, f, ["", "FECHA", "CLIENTA/SOCIO · PRODUCTO", "", "QUÉ SE AJUSTÓ", "", "QUIÉN", "MOTIVO"]); f++;
+    // La burbuja de pruebas no cruza: solo ajustes de clientas de ejecutivas visibles.
+    const visiblesCor = new Set(ejecutivas.map((e) => ctx.norm(e.nombre)));
+    const ejDeSocio = {};
+    for (const c of ctx.PADRON) ejDeSocio[String(c.id).split("|")[0]] = ctx.norm(c.ejecutivo || "");
+    let nAju = 0;
+    for (const cb of (ctx.store.todosCambios ? ctx.store.todosCambios() : [])) {
+      if (cb.tipo !== "ajuste") continue;
+      const fCb = String(cb.fecha || "").slice(0, 10);
+      if (fCb < fechas[0] || fCb > fechas[fechas.length - 1]) continue;
+      const ej = ejDeSocio[String(cb.id || "").split("|")[0]];
+      if (ej === undefined || !visiblesCor.has(ej)) continue;
+      nAju++;
+      const row = ws.getRow(f);
+      row.getCell(2).value = fCb;
+      row.getCell(3).value = String(cb.id) + (cb.producto ? " · " + cb.producto : "");
+      row.getCell(5).value = Object.keys(cb.campos || {}).join(", ") || "—";
+      row.getCell(7).value = cb.por || "—";
+      row.getCell(8).value = cb.motivo || "";
+      f++;
+    }
+    ws.getRow(f).getCell(2).value = "TOTAL"; ws.getRow(f).getCell(2).font = { bold: true };
+    ws.getRow(f).getCell(3).value = nAju + " ajuste(s) de dirección";
+    if (nAnu + nAju === 0) ws.getRow(f + 2).getCell(2).value = "Semana sin correcciones — también eso es un dato.";
+  }
+
   {
     const ws = wb.addWorksheet("CONTROL");
     ws.columns = [{ width: 4 }, { width: 5 }, { width: 52 }, { width: 15 }, { width: 15 }, { width: 12 }, { width: 15 }];
