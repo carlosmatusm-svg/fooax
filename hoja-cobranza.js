@@ -610,7 +610,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       // TODOS los centros del día (de cualquier producto), como la plantilla.
       const centrosDia = new Map();
       for (const c of cartera) {
-        if (c.diaPago !== dia || !c.centro || c.centro === "INDIVIDUAL") continue;
+        if (c.diaPago !== dia || !c.centro || c.centro === "INDIVIDUAL" || /^C-?0$/i.test(String(c.centro).trim())) continue;
         const k = ctx.norm(c.centro);
         if (!centrosDia.has(k)) centrosDia.set(k, { num: String(c.noCentro || "").replace(/^C-?/i, ""), nombre: c.centro });
       }
@@ -618,7 +618,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       // créditos del grupo agrupados por centro × producto
       const porCentroProd = new Map();
       for (const c of cartera) {
-        if (c.diaPago !== dia || c.grupo !== grupo || !c.centro || c.centro === "INDIVIDUAL") continue;
+        if (c.diaPago !== dia || c.grupo !== grupo || !c.centro || c.centro === "INDIVIDUAL" || /^C-?0$/i.test(String(c.centro).trim())) continue;
         const k = ctx.norm(c.centro) + "|" + ctx.norm(c.producto);
         if (!porCentroProd.has(k)) porCentroProd.set(k, { centro: c.centro, ncentro: ctx.norm(c.centro), creditos: [] });
         porCentroProd.get(k).creditos.push(c);
@@ -656,6 +656,14 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
             && grupoDe(r.producto) === grupo && (!prods || prods.has(ctx.norm(r.producto))))
             .reduce((x, r) => x + r.pago, 0);
           if (g || cobrado > 0.009) dinero(ws, f, colCobrado, cobrado);
+          // Cobrado sin teoría = pago a un crédito que ya terminó (liquidó y
+          // sigue abonando su cierre) o que cobra otro día — se dice en la
+          // fila para que nadie crea que falta o sobra dinero (caso ADNACHIEL
+          // $600, Karina 10-sep).
+          if (!g && cobrado > 0.009) {
+            row.getCell(3).value = info.nombre + " · pago de un crédito ya terminado o de otro día";
+            row.getCell(3).font = { italic: true, size: 9, color: { argb: "FF6B6880" }, name: "Century Gothic" };
+          }
           if (moraC > 0.009) {
             enMoraDia += nMora;
             marcaMora(row.getCell(colMora), moraC, "una parte cayó en mora (" + nMora + ")");
@@ -726,7 +734,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       // Los centros del día, por número.
       const centrosDia = new Map();
       for (const c of delDia) {
-        if (!c.centro || c.centro === "INDIVIDUAL") continue;
+        if (!c.centro || c.centro === "INDIVIDUAL" || /^C-?0$/i.test(String(c.centro).trim())) continue;
         const k = ctx.norm(c.centro);
         if (!centrosDia.has(k)) centrosDia.set(k, { num: String(c.noCentro || "").replace(/^C-?/i, ""), nombre: c.centro });
       }
