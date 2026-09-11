@@ -3722,14 +3722,23 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // LA GARANTÍA: obligada y linkeada (Karina, 24-ago). El TOPE se quitó ese
   // mismo día: las clientas traen garantía de ANTES del sistema, así que la
   // entrega mayor a lo registrado PASA (anotada) — se prueba al final del ciclo.
+  //
+  // CORRECCIÓN 10-sep-2026 (CU-006, Anexo F §7-8): el alta de esta clienta
+  // (arriba, importe 4000) ahora retiene SOLA $400 de Garantía Líquida al
+  // desembolsar — antes ese 10% se calculaba (sobreDispersion.garantia) pero
+  // NUNCA se registraba en ningún lado; el guardado solo veía lo que Neri
+  // capturaba a mano (los $850 del sync). Los números de abajo suben
+  // exactamente esos $400 respecto a lo que este archivo esperaba antes de
+  // hoy — no es un error de la prueba ni del candado, es la retención
+  // automática haciendo lo que tenía que hacer desde CU-013/CU-014.
   const gSinX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 100, concepto: "sin clienta" });
   ok("la garantía entregada SIN clienta se rechaza (obliga a elegir a quién)",
     gSinX2.status === 400, "status " + gSinX2.status);
   const dgX2 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
   ok("el desglose del crédito dice la garantía guardada (ya neteada con la entrega)",
-    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 0,
-    "guardada=" + dgX2.garantiaGuardada + " (junto 850, se le entregaron 850)");
+    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 400,
+    "guardada=" + dgX2.garantiaGuardada + " (junto 850 capturados + 400 retenidos solos al desembolso, se le entregaron 850)");
   // LA GARANTÍA COBRADA: obligada y linkeada (Karina, 24-ago: «mismo caso»).
   const gcSin = await mov102({ tipo: "Garantía", monto: 300, concepto: "garantía sin clienta" });
   ok("la GARANTÍA cobrada sin clienta se rechaza (mismo caso que la liquidación)",
@@ -3739,8 +3748,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("con clienta entra y se linkea a su crédito", !gcOk.error, JSON.stringify(gcOk).slice(0, 70));
   const dgTras = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
-  ok("y le SUMA a su garantía guardada (estaba en 0, ahora $300)",
-    dgTras.ok && dgTras.garantiaGuardada === 300, "guardada=" + dgTras.garantiaGuardada);
+  ok("y le SUMA a su garantía guardada (estaba en 400 —la retención automática—, ahora $700)",
+    dgTras.ok && dgTras.garantiaGuardada === 700, "guardada=" + dgTras.garantiaGuardada);
   const gEnt2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 300,
     concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico" }));
   ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",

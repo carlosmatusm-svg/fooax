@@ -3555,6 +3555,9 @@ function procesarAltaPadron(b, usuario) {
   // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
   // muta la de entrada — por eso se reasigna aquí.
   clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
+  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
+  registrarGarantiaLiquidaAlDesembolsar(clienta, usuario);
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
     fecha: hoyMX(), por: usuario.nombre, ts: Date.now(),
@@ -3612,21 +3615,21 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
 // que escribe al padrón real, y ninguna cuenta de prueba toca el padrón real
 // (mismo candado que ya tiene /api/clientes/alta).
 
-function folioSolicitud() {
-  return "SOL-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomBytes(3).toString("hex").toUpperCase();
-}
-function solicitudPorFolio(folio) {
-  return store.solicitudes().find((s) => s.folio === String(folio || ""));
-}
-function escaleraAutorizacion() {
-  const cfg = store.configuracion() || {};
-  return Array.isArray(cfg.escaleraAutorizacion) ? cfg.escaleraAutorizacion : [];
-}
-function puedeAutorizar(usuario) {
-  const escalera = escaleraAutorizacion();
-  if (escalera.length) return escalera.includes(usuario.id);
-  return usuario.rol === "direccion" || usuario.rol === "admin";
-}
+// folioSolicitud, solicitudPorFolio, escaleraAutorizacion, puedeAutorizar y
+// los 5 validarX (Regla K.2) viven en dominios/sobres_segregacion.js desde
+// el 10-sep-2026 — las rutas de abajo (solicitar/autorizar/rechazar/
+// dispersar/entregar/custodiar) siguen aquí, son el "pegamento" HTTP.
+const {
+  folioSolicitud,
+  solicitudPorFolio,
+  escaleraAutorizacion,
+  puedeAutorizar,
+  validarAutorizar,
+  validarRechazar,
+  validarDispersar,
+  validarEntregar,
+  validarCustodiar,
+} = require("./dominios/sobres_segregacion")({ store });
 
 // SOLICITAR (paso 1): cualquier ejecutivo/dirección/admin puede levantar la
 // solicitud — es la captura de la información, todavía no compromete dinero.
@@ -3675,9 +3678,8 @@ app.get("/api/solicitudes/:folio", requiere("ejecutivo", "direccion", "admin"), 
 // AUTORIZA (paso 2, escalera K.2).
 app.post("/api/solicitudes/:folio/autorizar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
   const s = solicitudPorFolio(req.params.folio);
-  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
-  if (s.estado !== "solicitada") return res.status(400).json({ error: "Esa solicitud ya no está pendiente de autorizar (estado: " + s.estado + ")." });
-  if (!puedeAutorizar(req.usuario)) return res.status(403).json({ error: "No estás en la escalera de autorización." });
+  const v = validarAutorizar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
   const actualizada = store.actualizarSolicitud(s.folio, {
     estado: "autorizada",
     autorizadaPor: req.usuario.nombre, autorizadaPorId: req.usuario.id, autorizadaTs: Date.now(),
@@ -3690,10 +3692,9 @@ app.post("/api/solicitudes/:folio/autorizar", requiere("ejecutivo", "direccion",
 // como baja, igual que cualquier otro crédito activo).
 app.post("/api/solicitudes/:folio/rechazar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
   const s = solicitudPorFolio(req.params.folio);
-  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
-  if (!["solicitada", "autorizada"].includes(s.estado)) return res.status(400).json({ error: "Esa solicitud ya no se puede rechazar (estado: " + s.estado + ")." });
   const motivo = ((req.body && req.body.motivo) || "").trim();
-  if (!motivo) return res.status(400).json({ error: "Escribe el motivo del rechazo." });
+  const v = validarRechazar(s, req.usuario, motivo);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
   const actualizada = store.actualizarSolicitud(s.folio, {
     estado: "rechazada", rechazadaPor: req.usuario.nombre, rechazadaPorId: req.usuario.id,
     rechazadaTs: Date.now(), motivoRechazo: motivo,
@@ -3707,10 +3708,8 @@ app.post("/api/solicitudes/:folio/rechazar", requiere("ejecutivo", "direccion", 
 // sin importar por cuál puerta entró el crédito.
 app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (req, res) => {
   const s = solicitudPorFolio(req.params.folio);
-  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
-  if (s.estado !== "autorizada") return res.status(400).json({ error: `Esa solicitud todavía no está autorizada (estado: ${s.estado}).` });
-  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dispersar en el padrón real." });
-  if (req.usuario.id === s.autorizadaPorId) return res.status(403).json({ error: `Regla K.2: quien autorizó (${s.autorizadaPor}) no puede dispersar el mismo crédito.` });
+  const v = validarDispersar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
 
   // El paso que de verdad mueve dinero: si algo truena aquí (motor de
   // reglas, store), se responde 500 en vez de tumbar el proceso completo —
@@ -3739,9 +3738,8 @@ app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (r
 // (pagaré + tabla + ticket) se entrega a la clienta (paso 3 del mockup "3B").
 app.post("/api/solicitudes/:folio/entregar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
   const s = solicitudPorFolio(req.params.folio);
-  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
-  if (s.estado !== "dispersada") return res.status(400).json({ error: "Esa solicitud todavía no está dispersada (estado: " + s.estado + ")." });
-  if (req.usuario.id === s.dispersadaPorId) return res.status(403).json({ error: "Regla K.2: quien dispersó (" + s.dispersadaPor + ") no puede entregar el mismo sobre." });
+  const v = validarEntregar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
   const actualizada = store.actualizarSolicitud(s.folio, {
     estado: "entregada", entregadaPor: req.usuario.nombre, entregadaPorId: req.usuario.id, entregadaTs: Date.now(),
   });
@@ -3752,9 +3750,8 @@ app.post("/api/solicitudes/:folio/entregar", requiere("ejecutivo", "direccion", 
 // el ciclo: el pagaré firmado regresa a resguardo (CU-014, paso 7 del mockup).
 app.post("/api/solicitudes/:folio/custodiar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
   const s = solicitudPorFolio(req.params.folio);
-  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
-  if (s.estado !== "entregada") return res.status(400).json({ error: "Esa solicitud todavía no está entregada (estado: " + s.estado + ")." });
-  if (req.usuario.id === s.entregadaPorId) return res.status(403).json({ error: "Regla K.2: quien entregó (" + s.entregadaPor + ") no puede custodiar el mismo pagaré." });
+  const v = validarCustodiar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
   const actualizada = store.actualizarSolicitud(s.folio, {
     estado: "en_custodia", custodiadaPor: req.usuario.nombre, custodiadaPorId: req.usuario.id, custodiadaTs: Date.now(),
   });
@@ -3968,126 +3965,41 @@ function diaDelCentro(centro) {
 // mismo patrón que COMPROBANTE_DOMICILIO_MESES_MAX (DOC-01).
 const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUIDA) || 10;
 
-// EL SOBRE DE DISPERSIÓN. `comision` y `seguro` son datos manuales
-// opcionales (0 si no se capturan) — igual que la cuota, no hay catálogo de
-// comisiones ni de seguros todavía (CU-014 §10.1). La garantía SÍ tiene
-// regla validada (Anexo F): 10% del importe prestado, redondeado a
-// centavos. Regla 3.1 del Anexo F: el IVA nunca aplica sobre la garantía ni
-// sobre capital — por eso este sobre no calcula IVA.
-function generarSobreDispersion(importe, comisionCapturada, seguroCapturado) {
-  const monto = Number(importe) ?? 0;
-  const comision = Math.max(0, Number(comisionCapturada ?? 0));
-  const seguro = Math.max(0, Number(seguroCapturado ?? 0));
-  const garantia = Math.round(monto * (PORCENTAJE_GARANTIA_LIQUIDA / 100) * 100) / 100;
-  const neto = Math.round((monto - comision - seguro - garantia) * 100) / 100;
-  return { monto, comision, seguro, garantia, porcentajeGarantia: PORCENTAJE_GARANTIA_LIQUIDA, neto };
-}
+// Dominio Garantía Líquida extraído a dominios/garantia_liquida.js (10-sep-2026,
+// ver "Reducir dependencia del monolito server.js" en CLAUDE.md). server.js
+// solo inyecta lo que el dominio necesita y usa las 4 funciones que regresa —
+// la lógica de negocio en sí ya no vive aquí.
+const {
+  registrarGarantiaLiquidaAlDesembolsar,
+  garantiaLiquidaDisponible,
+  ultimaSalidaGarantiaLiquida,
+  ticketGarantiaLiquidaH14,
+} = require("./dominios/garantia_liquida")({
+  store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
+  infoCredito, carteraViva,
+  obtenerPadron: () => PADRON,
+  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+});
 
-// EL PAGARÉ — registro simple (folio + datos), NO el documento legal. Emitir
-// el PDF real depende del catálogo de productos formal y de la validación
-// legal del Lic. César Cáceres (CU-014 §2/§10, sigue pendiente); aquí solo
-// se genera el registro para que exista UN lugar ligado al crédito, sin
-// recapturar nada en otro módulo.
-function generarPagare(id, producto, importe, plazo, fechaISO) {
-  const fecha = fechaISO ?? hoyMX();
-  const claveProducto = nprod(producto).slice(0, 12);
-  const sufijoFecha = String(fecha).replace(/-/g, "");
-  return {
-    folio: `PAG-${id}-${claveProducto}-${sufijoFecha}`,
-    monto: Number(importe) ?? 0,
-    plazo: Number(plazo) ?? 0,
-    producto,
-    fecha,
-  };
-}
+// Dominio Sincronización al Desembolso (CU-013/CU-014) extraído a
+// dominios/sincronizacion_desembolso.js (10-sep-2026, ver "Reducir
+// dependencia del monolito server.js" en CLAUDE.md) — sobre de dispersión,
+// pagaré (registro) y plan de pagos, generados juntos al desembolsar.
+const {
+  generarSobreDispersion,
+  generarPagare,
+  generarPlanPagos,
+  sincronizarAlDesembolsar,
+} = require("./dominios/sincronizacion_desembolso")({
+  nprod, hoyMX, idxDia, diaSiguiente, motor,
+  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+});
 
-// EL PLAN DE PAGOS — una fecha programada por cuota, ligada al día de
-// cobranza del crédito. Las FECHAS siempre salen del mismo método que
-// vencimientosEntre (misma cuenta que ya es confiable para la mora) — eso no
-// cambia nunca. Lo que sí cambia es de dónde sale el MONTO/desglose de cada
-// fecha:
-//
-// CORRECCIÓN 09-sep-2026: la primera versión de esta función (09-sep-2026,
-// misma tarde) asumía que no existía ningún motor de amortización en el
-// sistema — así lo documentaba CU-014 §10 en ese momento — y por eso solo
-// repetía la cuota manual en cada fecha, sin desglose. Resulta que
-// motor-reglas.js (mergeado a develop ANTES de hoy, commits 196611b..0978c25,
-// nadie lo había conectado aquí) sí calcula una tabla de amortización real
-// —capital, interés e IVA por pago, contra el catálogo de
-// data/reglas-productos.json— y ya se usa para "ver el desglose de un
-// crédito vivo" (desgloseDeCredito, más abajo). Ahora el plan de pagos
-// intenta ESA tabla real primero, con el mismo criterio de "no se inventa,
-// se dice qué falta" que ya sigue el motor: si el producto no resuelve
-// contra el catálogo (motor.resolverCredito o motor.tablaAmortizacion se
-// niegan — falta equivalencia, falta plazo, monto fuera de rango, etc.), cae
-// al respaldo de siempre: la cuota manual repetida en cada fecha, sin
-// desglose. Cada pago del plan trae `fuente: "motor"` o `fuente: "manual"`
-// para que nunca se confunda un desglose real con uno de respaldo.
-function generarPlanPagos(credito, desembolsoISO, diaPagoStr, cuotaManual) {
-  const diaIdx = idxDia(diaPagoStr);
-  const des = String(desembolsoISO ?? "").slice(0, 10);
-  const n = Number(credito?.plazo) || 0;
-  if (!diaIdx || !/^\d{4}-\d{2}-\d{2}$/.test(des) || n <= 0) return [];
-
-  const fechas = [];
-  {
-    let cursor = diaSiguiente(des), numero = 0, guardas = 0;   // tope: ~10 años
-    while (numero < n && guardas < 3660) {
-      const d = new Date(`${cursor}T12:00:00`);
-      const g = d.getDay();
-      if ((g === 0 ? 7 : g) === diaIdx) { numero++; fechas.push(cursor); }
-      cursor = diaSiguiente(cursor);
-      guardas++;
-    }
-  }
-
-  // Intento 1 — motor de reglas real, si el producto resuelve contra el
-  // catálogo. Se usa el IMPORTE (el capital prestado), no el saldo con
-  // interés ya cargado, para elegir variante y calcular la tabla — mismo
-  // criterio que desgloseDeCredito.
-  const monto = Number(credito?.importe) || 0;
-  if (monto > 0) {
-    try {
-      const r = motor.resolverCredito({ ...credito, saldo: monto });
-      if (r?.ok) {
-        const t = motor.tablaAmortizacion({ producto: r.clave, monto, plazo: n, ciclo: r.ciclo });
-        if (t?.ok && t.pagos.length === fechas.length) {
-          return t.pagos.map((p, i) => ({
-            numero: p.n, fecha_programada: fechas[i], monto: p.cuota,
-            capital: p.capital, interes: p.interes, iva: p.iva, saldo: p.saldo,
-            fuente: "motor", producto: r.clave,
-          }));
-        }
-      }
-    } catch (error) {
-      // El motor no debe tumbar el alta/recrédito: si falla, cae al
-      // respaldo de cuota manual — se documenta el porqué, no se oculta.
-      console.error(`[generarPlanPagos] motor.resolverCredito/tablaAmortizacion falló, usando respaldo manual: ${error.message}`);
-    }
-  }
-
-  // Intento 2 (respaldo) — cuota manual repetida, sin desglose. La cuota es
-  // la que ya capturó quien dio de alta; no se recalcula ni se inventa.
-  return fechas.map((fecha, i) => ({
-    numero: i + 1, fecha_programada: fecha, monto: Number(cuotaManual) ?? 0,
-    fuente: "manual",
-  }));
-}
-
-// Junta las tres piezas y las cuelga en el crédito, en el mismo acto de alta
-// o recrédito. Si falta desembolso, día de pago o plazo, el plan de pagos
-// sale vacío (igual que calendarioDelCredito ya devuelve null cuando "no hay
-// calendario confiable") — no bloquea el alta, solo no se puede generar
-// todavía.
-function sincronizarAlDesembolsar(clienta, comisionCapturada, seguroCapturado) {
-  const { id, producto, importe, plazo, desembolso, diaPago, cuota } = clienta;
-  const pagare = generarPagare(id, producto, importe, plazo, desembolso);
-  const planPagos = generarPlanPagos(clienta, desembolso, diaPago, cuota);
-  const sobreDispersion = generarSobreDispersion(importe, comisionCapturada, seguroCapturado);
-  // Inmutable: regresa una clienta nueva en vez de mutar el argumento — quien
-  // llama debe reasignar su variable con el resultado.
-  return { ...clienta, pagare, planPagos, sobreDispersion };
-}
+// (generarSobreDispersion, generarPagare, generarPlanPagos y
+// sincronizarAlDesembolsar viven en dominios/sincronizacion_desembolso.js
+// desde el 10-sep-2026; registrarGarantiaLiquidaAlDesembolsar vive en
+// dominios/garantia_liquida.js — ambos comentarios junto a
+// PORCENTAJE_GARANTIA_LIQUIDA)
 
 function aunNoDesembolsa(c) {
   const d = String(c.desembolso || "").slice(0, 10);
@@ -5152,25 +5064,12 @@ app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => 
 // NUNCA hardcodeado en la lógica de negocio.
 const COMPROBANTE_DOMICILIO_MESES_MAX = Number(process.env.COMPROBANTE_DOMICILIO_MESES_MAX) || 3;
 
-// DOC-01: vigencia de los documentos de renovación por su PROPIA fecha (no
-// la de captura, que es lo único que existía hasta ahora). SOLO informa —
-// no decide si un documento vencido bloquea la renovación (CU-007 §10.6,
-// todavía sin definir). null = no se capturó la fecha propia del documento,
-// así que no se puede saber si venció (no es lo mismo que "vigente").
-function vigenciaDocumentosRenovacion(c) {
-  const dr = c && c.documentosRenovacion;
-  if (!dr) return null;
-  const hoy = new Date(hoyMX() + "T12:00");
-  let ine = null;
-  if (dr.ineFechaVencimiento) ine = new Date(dr.ineFechaVencimiento + "T12:00") < hoy;
-  let comprobanteDomicilio = null;
-  if (dr.comprobanteFechaEmision) {
-    const limite = new Date(dr.comprobanteFechaEmision + "T12:00");
-    limite.setMonth(limite.getMonth() + COMPROBANTE_DOMICILIO_MESES_MAX);
-    comprobanteDomicilio = limite < hoy;
-  }
-  return { ine, comprobanteDomicilio };
-}
+// vigenciaDocumentosRenovacion vive en dominios/renovacion_documentos.js
+// desde el 10-sep-2026 (ver "Reducir dependencia del monolito server.js" en
+// CLAUDE.md) — las rutas que la usan siguen aquí, son el pegamento HTTP.
+const { vigenciaDocumentosRenovacion } = require("./dominios/renovacion_documentos")({
+  hoyMX, comprobanteDomicilioMesesMax: COMPROBANTE_DOMICILIO_MESES_MAX,
+});
 
 // Documentos de renovación (CU-007 §3, precisión de Karina 24-ago sobre qué
 // cuenta como "actualizado" al renovar): INE y comprobante de domicilio son
@@ -5391,6 +5290,9 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
   // muta la de entrada — por eso se reasigna aquí.
   clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
+  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
+  registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
   // nuevo y dejarlo dado de baja el mismo día que se abrió.
@@ -5551,6 +5453,13 @@ const CONCEPTOS_DIR = {
   "Desembolso":                  { entrada: false, categoria: "Desembolso", clienta: "obliga", tesoreria: true },
   "Garantía líquida entregada":  { entrada: false, categoria: "Garantía líquida entregada", clienta: "obliga", tesoreria: true },
   "Garantía A entregada":        { entrada: false, categoria: "Garantía A entregada", clienta: "obliga", tesoreria: true },
+  // GARANTÍA LÍQUIDA APLICADA (10-sep-2026, CU-006/CU-022): aplicar la garantía
+  // guardada de la clienta contra su propio crédito vencido — no es efectivo
+  // que entra ni sale de caja, es una transferencia interna (baja el pasivo de
+  // garantía, sube el "Recuperación" ligado a ESE crédito). Solo se crea desde
+  // /api/garantia-liquida/aplicar, nunca suelta desde /api/movimiento: siempre
+  // va emparejada con su "Recuperación" (doble registro, ver esa función).
+  "Garantía líquida aplicada":   { entrada: false, categoria: "Garantía líquida aplicada", clienta: "obliga", tesoreria: true },
   // "Autorización / préstamo" queda FUERA (Karina, 19-ago). Con ese concepto se
   // registraban las ENTREGAS DE CRÉDITO: el 13-ago salieron $86,000 en un día
   // —$31,000 a una sola clienta— por una caja que es CHICA, para gastos de
@@ -5680,6 +5589,18 @@ function gastosDelDia(movs, porEjec) {
   return { porTipo, total: Math.round(gastos.reduce((a, m) => a + Number(m.monto || 0), 0) * 100) / 100,
     posiblesDobles: dobles, sobregiro };
 }
+// GARANTÍA LÍQUIDA: MOTOR DE RECEPCIÓN/APLICACIÓN/DEVOLUCIÓN (10-sep-2026,
+// CU-006, CU-022, Anexo F §7-8, Anexo G, Anexo H.14). El guardado neteado por
+// clienta ya lo calculaba infoCredito()/pagosDeLaSemana() desde el 24-ago —
+// aquí solo se usa ese mismo cálculo (nunca se reinventa) para dos cosas que
+// faltaban: 1) decir cuánto hay DISPONIBLE ahora mismo para una entrega o
+// aplicación puntual, y 2) el candado antiduplicado que exige CU-022 ("la
+// segunda devolución se rechaza con el ticket de la primera").
+//
+// (garantiaLiquidaDisponible, ultimaSalidaGarantiaLiquida y
+// ticketGarantiaLiquidaH14 viven en dominios/garantia_liquida.js desde el
+// 10-sep-2026 — ver comentario junto a PORCENTAJE_GARANTIA_LIQUIDA)
+
 // Cuánto de los "otros movimientos" son GARANTÍAS. Normalmente la garantía viene
 // dentro de la ficha que captura la ejecutiva, pero si una clienta la paga en la
 // oficina, Dirección la registra suelta. Antes ese dinero sumaba al efectivo a
@@ -5944,15 +5865,31 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     producto = null;                   // sin clienta no hay crédito que ligar
   }
 
-  // GARANTÍA LÍQUIDA ENTREGADA: no se puede entregar más de lo que la clienta
-  // tiene GUARDADO (su garantía cobrada, ya neteada con entregas anteriores).
-  // El mensaje trae el disponible, para no dejar a nadie adivinando.
-  // LAS ENTREGAS DE GARANTÍA VAN LIBRES (Karina, 25-ago): el registro de lo
-  // que cada clienta tiene guardado pertenece a un módulo que FOOAX aún no
-  // paga, así que el sistema no valida NI anota contra ese guardado — la
-  // entrega pasa como cualquier salida. El linkeo a la clienta sigue siendo
-  // obligatorio (eso es la captura básica, no el módulo). El neteo interno
-  // del guardado queda dormido, con piso en 0, listo para cuando se contrate.
+  // GARANTÍA LÍQUIDA ENTREGADA — CANDADO ANTIDUPLICADO (10-sep-2026, CU-006,
+  // CU-022 Regla H.14 / sección 5: "el candado antiduplicado rechaza la
+  // segunda devolución y muestra el ticket con el que salió"). El neteo
+  // (recepciones automáticas al desembolso + cobradas a mano − entregadas) ya
+  // lo calcula garantiaLiquidaDisponible() reusando infoCredito(); antes solo
+  // se anotaba (Karina, 25-ago: "el módulo aún no paga FOOAX"). Carlos confirma
+  // 10-sep-2026 que ese módulo YA está contratado, así que el candado se activa:
+  // ya no se puede entregar/aplicar más de lo disponible ni repetir una entrega
+  // que ya dejó el guardado en cero.
+  let disponibleAntes = null;
+  if (tipoNombre === "Garantía líquida entregada" && socio && producto) {
+    const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
+    disponibleAntes = g.disponible;
+    if (monto > g.disponible + 0.009) {
+      const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+      return res.status(400).json({
+        error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
+          + (g.disponible <= 0.009 && previa
+              ? " — ya se devolvió/aplicó por completo con el ticket " + previa.folio + " (" + previa.fecha + ")."
+              : ". No se puede entregar más de lo que tiene guardado."),
+        disponible: g.disponible,
+        ticketAnterior: previa ? { folio: previa.folio, fecha: previa.fecha, monto: previa.monto } : null,
+      });
+    }
+  }
 
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
@@ -5970,7 +5907,91 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);
-  res.json({ ok: true, movimiento: mov });
+  // TICKET H.14 (Anexo H.14, CU-022): en los tres movimientos de garantía
+  // —recepción, aplicación, devolución— se manda junto con el movimiento para
+  // que el tablero lo pueda imprimir o mostrar. Solo se calcula el "después"
+  // cuando ya sabíamos el "antes" (entregada); para el resto no aplica todavía.
+  const ticket = (tipoNombre === "Garantía líquida entregada" && disponibleAntes != null)
+    ? ticketGarantiaLiquidaH14(mov, disponibleAntes, Math.max(0, disponibleAntes - monto))
+    : null;
+  res.json({ ok: true, movimiento: mov, ticket });
+});
+
+// APLICAR GARANTÍA LÍQUIDA A MORA/CRÉDITO (10-sep-2026, CU-006, CU-022 sección
+// 5: "el sistema propone aplicar la garantía al vencido... aplicar requiere
+// autorización y ticket de aplicación"). No es efectivo que se mueve: es una
+// transferencia interna, DOBLE REGISTRO (Regla G.2/CU-022: "o entran los dos,
+// o no entra ninguno"):
+//   1) "Garantía líquida aplicada" — baja el guardado de garantía del crédito.
+//   2) "Recuperación" — abona ESE MISMO monto al crédito, igual que si la
+//      clienta hubiera pagado en efectivo (liquidacionesLigadas() ya lee
+//      "Recuperación" para bajar el saldo — mismo camino que un abono real).
+// Los dos movimientos comparten `aplicacionId` para poder rastrearlos como par
+// y llevan metodo "retencion" (no cuenta como efectivo ni como transferencia
+// real, igual que la recepción automática — ver registrarGarantiaLiquidaAlDesembolsar).
+//
+// Alcance a propósito acotado: solo aplica la garantía guardada de un crédito
+// contra SU PROPIO saldo/mora (el caso ya resuelto y con Anexo detrás). Aplicarla
+// contra OTRO crédito de la misma clienta (CU-022 lo menciona de pasada, "al
+// vencido") queda pendiente de que Dirección confirme la regla exacta —
+// ver PENDIENTES_POR_CONFIRMAR.md.
+app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim();
+  const monto = Math.round((Number(b.monto) || 0) * 100) / 100;
+  const motivo = (b.motivo || "").trim();
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(b.fecha || "") ? b.fecha : hoyMX();
+  if (!socio) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
+  if (!motivo) return res.status(400).json({ error: "Escribe el motivo de la aplicación (queda en el rastro)." });
+  const cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+  if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
+  let producto = String(b.producto || "").trim();
+  if (!producto && cred.length === 1) producto = cred[0].producto;
+  if (!producto)
+    return res.status(400).json({ error: "Elige CUÁL de sus créditos: " + cred.map((c) => c.producto).join(", ") + "." });
+  const exacto = cred.find((c) => norm(c.producto) === norm(producto));
+  if (!exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto + "\" activo." });
+  producto = exacto.producto;
+  const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
+  if (monto > g.disponible + 0.009) {
+    const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+    return res.status(400).json({
+      error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
+        + (g.disponible <= 0.009 && previa
+            ? " — ya se devolvió/aplicó por completo con el ticket " + previa.folio + " (" + previa.fecha + ")."
+            : ". No se puede aplicar más de lo que tiene guardado."),
+      disponible: g.disponible,
+      ticketAnterior: previa ? { folio: previa.folio, fecha: previa.fecha, monto: previa.monto } : null,
+    });
+  }
+  const delDia = store.movimientosDeFecha(fecha).length;
+  const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
+  const aplicacionId = "APG-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
+  const ts = Date.now();
+  const movGarantia = {
+    folio: aplicacionId + "-G", fecha, monto, concepto: "Garantía líquida aplicada",
+    categoria: "Garantía líquida aplicada", metodo: "retencion",
+    ejecutivo: null, socio, producto, tipo: "Garantía líquida aplicada", entrada: false,
+    aplicacionId, nota: motivo,
+    registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts,
+  };
+  const movRecuperacion = {
+    folio: aplicacionId + "-R", fecha, monto, concepto: "Recuperación (garantía líquida aplicada)",
+    categoria: "Otro", metodo: "retencion",
+    ejecutivo: null, socio, producto, tipo: "Recuperación", entrada: true,
+    aplicacionId, nota: "Aplicación de Garantía Líquida al crédito, folio " + movGarantia.folio + ". " + motivo,
+    registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: ts + 1,
+  };
+  // O entran los dos, o no entra ninguno (Regla G.2/CU-022): agregarMovimiento
+  // no falla por validación de negocio a estas alturas (ya se validó arriba),
+  // así que insertar en secuencia es seguro; si algo truena a media inserción,
+  // el candado antiduplicado de la próxima corrida detecta el hueco (guardado
+  // bajó pero el crédito no) porque los folios comparten aplicacionId.
+  store.agregarMovimiento(movGarantia);
+  store.agregarMovimiento(movRecuperacion);
+  const ticket = ticketGarantiaLiquidaH14(movGarantia, g.disponible, Math.max(0, g.disponible - monto));
+  res.json({ ok: true, movimientoGarantia: movGarantia, movimientoRecuperacion: movRecuperacion, ticket });
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
