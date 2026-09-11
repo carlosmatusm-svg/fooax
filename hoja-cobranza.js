@@ -436,47 +436,44 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   }
 
   // ===== hojas por producto (INDIVIDUALES / BASICO / MICROEMPRESAS / ADICIONALES) =====
-  // "El tab INDIVIDUAL tiene que verse así" (Karina, 10-sep): el formato ES el
-  // de su plantilla — una fila POR CLIENTA con fecha real, número de centro y
-  // teoría individual; SUBTOTAL dorado por día, TOTAL final en rosa con letra
-  // blanca, y el encabezado rosa en INDIVIDUALES / azul en las demás.
+  // El formato ES el de la plantilla de Karina (10-sep, "el que te mandé es un
+  // ejemplo"): INDIVIDUALES lleva una fila POR CLIENTA; las tres grupales
+  // llevan una fila POR CENTRO (y por producto, cuando el centro trae dos),
+  // listando también los centros del día en cero — así se ve de un golpe qué
+  // centro no trae nada de ese producto. BASICO además trae cuota, saldo y
+  // COBRADO REAL; MICROEMPRESAS su columna REDONDEO (cuota − teoría);
+  // ADICIONALES teoría y cobrado. Todas: SUBTOTAL dorado por día, TOTAL rosa
+  // y la etiqueta de MORA ("si un grupo cae en mora hay que decirle que una
+  // parte cayó").
   const totalesGrupo = {};
-  const ACENTO_FICHA = { INDIVIDUALES: AURORA, BASICO: RIO, MICROEMPRESAS: RIO, ADICIONALES: RIO };
   const MONEDA_ROJA = '"$"#,##0.00;[Red]-"$"#,##0.00';
-  // El logotipo ES el de la plantilla de Karina (extraído de su propio
-  // archivo): cuadrado, isotipo arriba y "Fooax" abajo, fondo blanco. El del
-  // sistema (logo-fooax.jpg) es un cuadrito degradado y estirado se veía feo.
+  const pesosTxt = (n) => "$" + r2(n).toLocaleString("en-US", { minimumFractionDigits: 2 });
   let logoFicha = null;
   try { logoFicha = wb.addImage({ filename: __dirname + "/public/img/logo-fooax-hoja.png", extension: "png" }); } catch { logoFicha = null; }
-  for (const grupo of ["INDIVIDUALES", "BASICO", "MICROEMPRESAS", "ADICIONALES"]) {
-    const acento = ACENTO_FICHA[grupo];
-    const ws = wb.addWorksheet(grupo);
-    ws.columns = [{ width: 11 }, { width: 8 }, { width: 30 }, { width: 11 }, { width: 11 },
-      { width: 11 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 22 }];
-    // Las tres bandas de la plantilla, con el logo a la izquierda sobre blanco.
-    ws.mergeCells(1, 1, 1, 11);
+  const cabeceraFicha = (ws, grupo, nCols) => {
+    ws.mergeCells(1, 1, 1, nCols);
     const b1 = ws.getRow(1).getCell(1);
     b1.value = LEMA;
     b1.font = { italic: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
     b1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
     b1.alignment = { horizontal: "right", vertical: "middle" };
-    ws.mergeCells(2, 3, 2, 11);
+    ws.mergeCells(2, 3, 2, nCols);
     const b2 = ws.getRow(2).getCell(3);
     b2.value = "HOJA DE COBRANZA · " + grupo;
     b2.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" }, name: "Arial" };
     b2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
     b2.alignment = { horizontal: "center", vertical: "middle" };
     ws.getRow(2).height = 20;
-    ws.mergeCells(3, 3, 3, 11);
+    ws.mergeCells(3, 3, 3, nCols);
     const b3 = ws.getRow(3).getCell(3);
     b3.value = "Semana " + semanaTxt;
     b3.font = { bold: true, size: 10, color: { argb: RIO }, name: "Century Gothic" };
     b3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CIELO } };
     b3.alignment = { horizontal: "center", vertical: "middle" };
     if (logoFicha != null) ws.addImage(logoFicha, { tl: { col: 0.15, row: 1.05 }, ext: { width: 62, height: 62 } });
-    // Encabezado (fila 5), con el acento de cada ficha.
-    const ENCF = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL", "TOTAL", "SALDO", "MORA"];
-    ENCF.forEach((t2, i) => {
+  };
+  const encFicha = (ws, textos, acento) => {
+    textos.forEach((t2, i) => {
       const c = ws.getRow(5).getCell(i + 1);
       c.value = t2;
       c.font = { bold: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Arial" };
@@ -484,142 +481,282 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       c.border = { top: { style: "thin" }, bottom: { style: "medium" }, left: { style: "thin" }, right: { style: "thin" } };
     });
+  };
+  const filaFecha = (ws, f, fecha) => {
+    const fc = ws.getRow(f).getCell(1);
+    fc.value = new Date(fecha + "T12:00:00");
+    fc.numFmt = "m/d/yyyy"; fc.alignment = { horizontal: "center" };
+  };
+  const marcaMora = (cel, monto, texto) => {
+    cel.value = texto + " · " + pesosTxt(monto);
+    cel.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
+    cel.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDECEC" } };
+  };
+  const pintaSubtotal = (ws, f, nCols, colsDinero, f0, especialFmt) => {
+    const st = ws.getRow(f);
+    for (let col = 1; col <= nCols; col++)
+      st.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+    st.getCell(3).value = "SUBTOTAL";
+    st.getCell(3).font = { bold: true, size: 9.5, color: { argb: TINTA }, name: "Century Gothic" };
+    st.getCell(3).alignment = { horizontal: "right" };
+    for (const col of colsDinero) {
+      const L = colLetra(col);
+      const val = Array.from({ length: f - f0 }, (_, k) => {
+        const v = ws.getRow(f0 + k).getCell(col).value;
+        return Number(v && v.result != null ? v.result : v) || 0;
+      }).reduce((a, b2) => a + b2, 0);
+      const c = st.getCell(col);
+      c.value = { formula: "SUM(" + L + f0 + ":" + L + (f - 1) + ")", result: r2(val) };
+      c.numFmt = (especialFmt && especialFmt[col]) || MONEDA;
+      c.font = { bold: true, size: 9.5, color: { argb: TINTA }, name: "Century Gothic" };
+    }
+  };
+  const pintaTotal = (ws, f, nCols, colsDinero, totPorCol, especialFmt) => {
+    const tr = ws.getRow(f);
+    for (let col = 1; col <= nCols; col++)
+      tr.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    tr.getCell(3).value = "TOTAL";
+    tr.getCell(3).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+    tr.getCell(3).alignment = { horizontal: "right" };
+    for (const col of colsDinero) {
+      const L = colLetra(col);
+      const c = tr.getCell(col);
+      c.value = { formula: 'SUMIF(C6:C' + (f - 1) + ',"SUBTOTAL",' + L + "6:" + L + (f - 1) + ")", result: r2(totPorCol[col] || 0) };
+      c.numFmt = (especialFmt && especialFmt[col]) || MONEDA;
+      c.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+    }
+  };
+  const FMT_ENTERO = '"$"#,##0';
+
+  // ---- INDIVIDUALES: una fila por clienta ----
+  {
+    const grupo = "INDIVIDUALES";
+    const ws = wb.addWorksheet(grupo);
+    ws.columns = [{ width: 11 }, { width: 8 }, { width: 30 }, { width: 11 }, { width: 11 },
+      { width: 11 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 22 }];
+    cabeceraFicha(ws, grupo, 11);
+    encFicha(ws, ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL", "TOTAL", "SALDO", "MORA"], AURORA);
     let f = 6;
     const tot = { prestamo: 0, abono: 0, interes: 0, iva: 0, teorico: 0, cuota: 0, cobrado: 0 };
     for (let di = 0; di < 6; di++) {
       const delDia = cartera.filter((c) => c.grupo === grupo && c.diaPago === DIAS[di])
         .sort((a, b) => String(a.noCentro).localeCompare(String(b.noCentro), "es", { numeric: true })
-          || String(a.centro).localeCompare(String(b.centro), "es")
           || String(a.clienta).localeCompare(String(b.clienta), "es"));
       if (!delDia.length) continue;
-      // "Si un grupo cae en mora hay que decirle que una parte cayó, como una
-      // etiqueta" (Karina, 10-sep): centros de este día con alguna clienta
-      // en mora esta semana.
-      const centrosConMora = new Set();
-      for (const c of delDia) if (c.mora > 0.009 && c.centro && c.centro !== "INDIVIDUAL")
-        centrosConMora.add(ctx.norm(c.centro));
       let enMoraDia = 0;
       const f0 = f;
       for (const c of delDia) {
         const t = teoriaDe(ctx, c);
         const row = ws.getRow(f);
-        const fc = row.getCell(1);
-        fc.value = new Date(fechas[di] + "T12:00:00");
-        fc.numFmt = "m/d/yyyy"; fc.alignment = { horizontal: "center" };
+        filaFecha(ws, f, fechas[di]);
         row.getCell(2).value = String(c.noCentro || "").replace(/^C-?/i, "");
         row.getCell(2).alignment = { horizontal: "center" };
         row.getCell(3).value = c.clienta;
-        const pr = row.getCell(4); pr.value = r2(c.importe); pr.numFmt = '"$"#,##0';
+        const pr = row.getCell(4); pr.value = r2(c.importe); pr.numFmt = FMT_ENTERO;
         dinero(ws, f, 5, t.abono); dinero(ws, f, 6, t.interes); dinero(ws, f, 7, t.iva);
         dinero(ws, f, 8, t.teorico); dinero(ws, f, 9, t.cuotaReal);
-        const sd = ws.getRow(f).getCell(10);
+        const sd = row.getCell(10);
         sd.value = r2(t.teorico - t.cuotaReal); sd.numFmt = MONEDA_ROJA;
-        const et = ws.getRow(f).getCell(11);
-        if (c.mora > 0.009) {
-          enMoraDia++;
-          et.value = "EN MORA · " + "$" + r2(c.mora).toLocaleString("en-US", { minimumFractionDigits: 2 });
-          et.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
-          et.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFDECEC" } };
-        } else if (c.centro && centrosConMora.has(ctx.norm(c.centro))) {
-          et.value = "su grupo trae mora";
-          et.font = { italic: true, size: 8.5, color: { argb: "FFB45309" }, name: "Century Gothic" };
-        }
+        if (c.mora > 0.009) { enMoraDia++; marcaMora(row.getCell(11), c.mora, "EN MORA"); }
         tot.prestamo += c.importe; tot.abono += t.abono; tot.interes += t.interes;
         tot.iva += t.iva; tot.teorico += t.teorico; tot.cuota += t.cuotaReal;
         f++;
       }
-      // SUBTOTAL del día: la fila dorada de la plantilla.
-      const st = ws.getRow(f);
-      for (let col = 1; col <= 11; col++)
-        st.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+      pintaSubtotal(ws, f, 11, [4, 5, 6, 7, 8, 9, 10], f0, { 4: FMT_ENTERO, 10: MONEDA_ROJA });
       if (enMoraDia > 0) {
-        st.getCell(11).value = enMoraDia + " en mora";
-        st.getCell(11).font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
-      }
-      st.getCell(3).value = "SUBTOTAL";
-      st.getCell(3).font = { bold: true, size: 9.5, color: { argb: TINTA }, name: "Century Gothic" };
-      st.getCell(3).alignment = { horizontal: "right" };
-      for (const col of [4, 5, 6, 7, 8, 9, 10]) {
-        const L = colLetra(col);
-        const val = Array.from({ length: f - f0 }, (_, k) => {
-          const v = ws.getRow(f0 + k).getCell(col).value;
-          return Number(v && v.result != null ? v.result : v) || 0;
-        }).reduce((a, b2) => a + b2, 0);
-        const c = st.getCell(col);
-        c.value = { formula: "SUM(" + L + f0 + ":" + L + (f - 1) + ")", result: r2(val) };
-        c.numFmt = col === 4 ? '"$"#,##0' : (col === 10 ? MONEDA_ROJA : MONEDA);
-        c.font = { bold: true, size: 9.5, color: { argb: TINTA }, name: "Century Gothic" };
+        const c11 = ws.getRow(f).getCell(11);
+        c11.value = enMoraDia + " en mora";
+        c11.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
       }
       f++;
     }
-    // TOTAL final: la fila rosa con letra blanca.
-    const tr = ws.getRow(f);
-    for (let col = 1; col <= 11; col++)
-      tr.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
-    tr.getCell(3).value = "TOTAL";
-    tr.getCell(3).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
-    tr.getCell(3).alignment = { horizontal: "right" };
-    const totCol = { 4: tot.prestamo, 5: tot.abono, 6: tot.interes, 7: tot.iva, 8: tot.teorico, 9: tot.cuota, 10: tot.teorico - tot.cuota };
-    for (const col of [4, 5, 6, 7, 8, 9, 10]) {
-      const L = colLetra(col);
-      const c = tr.getCell(col);
-      c.value = { formula: 'SUMIF(C6:C' + (f - 1) + ',"SUBTOTAL",' + L + "6:" + L + (f - 1) + ")", result: r2(totCol[col]) };
-      c.numFmt = col === 4 ? '"$"#,##0' : MONEDA;
-      c.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
-    }
+    pintaTotal(ws, f, 11, [4, 5, 6, 7, 8, 9, 10],
+      { 4: tot.prestamo, 5: tot.abono, 6: tot.interes, 7: tot.iva, 8: tot.teorico, 9: tot.cuota, 10: tot.teorico - tot.cuota },
+      { 4: FMT_ENTERO });
     ws.views = [{ state: "frozen", ySplit: 5 }];
     totalesGrupo[grupo] = { ...tot, filaTotal: f };
   }
 
-  // ===== COBRANZA (matriz día × centro por producto, con lo COBRADO real) =====
-  {
-    const ws = wb.addWorksheet("COBRANZA");
-    ws.columns = [{ width: 4 }, { width: 11 }, { width: 9 }, { width: 24 }, { width: 13 }, { width: 15 }, { width: 13 }, { width: 13 }, { width: 13 }, { width: 13 }];
-    tit(ws, 1, "FOOAX · HOJA DE COBRANZA · COBRADO POR CENTRO Y DÍA", 10);
-    sub(ws, 2, "Semana " + semanaTxt + " · lo realmente capturado (pagos), por producto", 10);
-    enc(ws, 4, ["", "DÍA", "No.CENTRO", "CENTRO", "BASICO", "MICROEMPRESAS", "ADICIONAL", "INDIVIDUAL", "GARANTÍAS", "TOTAL"]);
-    let f = 5;
-    const totG = { B: 0, M: 0, A: 0, I: 0, G: 0, T: 0 };
-    const numCentro = {};
-    for (const c of cartera) if (c.noCentro) numCentro[ctx.norm(c.centro)] = c.noCentro;
+  // ---- las tres grupales: una fila por CENTRO (y por producto) ----
+  for (const grupo of ["BASICO", "MICROEMPRESAS", "ADICIONALES"]) {
+    const conRedondeo = grupo === "MICROEMPRESAS";
+    const conCuotaSaldo = grupo === "BASICO";
+    // columnas: FECHA CENTRO NOMBRE PRESTAMO ABONO INTERES IVA + variables
+    const encs = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA"];
+    if (conRedondeo) encs.push("REDONDEO", "TOTAL");
+    else if (conCuotaSaldo) encs.push("TOTAL", "TOTAL", "SALDO");
+    else encs.push("TOTAL");
+    encs.push("COBRADO REAL (app)", "MORA");
+    const nCols = encs.length;
+    const colCobrado = nCols - 1, colMora = nCols;
+    const ws = wb.addWorksheet(grupo);
+    ws.columns = Array.from({ length: nCols }, (_, i) =>
+      ({ width: i === 0 ? 11 : i === 1 ? 8 : i === 2 ? 26 : i === colMora - 1 ? 16 : i === colMora ? 24 : 11 }));
+    cabeceraFicha(ws, grupo, nCols);
+    encFicha(ws, encs, RIO);
+    let f = 6;
+    const tot = { prestamo: 0, abono: 0, interes: 0, iva: 0, teorico: 0, cuota: 0, cobrado: 0 };
     for (let di = 0; di < 6; di++) {
       const dia = DIAS[di];
-      const delDia = captura.filter((r) => r.dia === dia);
-      if (!delDia.length) continue;
-      const centros = [...new Set(delDia.map((r) => r.centro))].sort((a, b) => a.localeCompare(b, "es"));
-      const f0 = f;
-      for (const centro of centros) {
-        const del = delDia.filter((r) => r.centro === centro);
-        const b = del.filter((r) => grupoDe(r.producto) === "BASICO").reduce((t, r) => t + r.pago + r.sol, 0);
-        const m = del.filter((r) => grupoDe(r.producto) === "MICROEMPRESAS").reduce((t, r) => t + r.pago + r.sol, 0);
-        const a = del.filter((r) => grupoDe(r.producto) === "ADICIONALES").reduce((t, r) => t + r.pago + r.sol, 0);
-        const i = del.filter((r) => grupoDe(r.producto) === "INDIVIDUALES").reduce((t, r) => t + r.pago + r.sol, 0);
-        const g = del.reduce((t, r) => t + r.gar, 0);
-        const row = ws.getRow(f);
-        row.getCell(2).value = dia; row.getCell(3).value = numCentro[ctx.norm(centro)] || "";
-        row.getCell(4).value = centro;
-        dinero(ws, f, 5, b); dinero(ws, f, 6, m); dinero(ws, f, 7, a); dinero(ws, f, 8, i); dinero(ws, f, 9, g);
-        formula(ws, f, 10, "SUM(E" + f + ":I" + f + ")", b + m + a + i + g);
-        totG.B += b; totG.M += m; totG.A += a; totG.I += i; totG.G += g; totG.T += b + m + a + i + g;
-        f++;
+      // TODOS los centros del día (de cualquier producto), como la plantilla.
+      const centrosDia = new Map();
+      for (const c of cartera) {
+        if (c.diaPago !== dia || !c.centro || c.centro === "INDIVIDUAL") continue;
+        const k = ctx.norm(c.centro);
+        if (!centrosDia.has(k)) centrosDia.set(k, { num: String(c.noCentro || "").replace(/^C-?/i, ""), nombre: c.centro });
       }
-      const row = ws.getRow(f);
-      row.getCell(4).value = "SUBTOTAL " + dia; row.getCell(4).font = { bold: true };
-      for (const col of [5, 6, 7, 8, 9, 10]) {
-        const L = colLetra(col);
-        const val = Array.from({ length: f - f0 }, (_, k) => Number(ws.getRow(f0 + k).getCell(col).value && ws.getRow(f0 + k).getCell(col).value.result != null ? ws.getRow(f0 + k).getCell(col).value.result : ws.getRow(f0 + k).getCell(col).value) || 0).reduce((x, y) => x + y, 0);
-        formula(ws, f, col, "SUM(" + L + f0 + ":" + L + (f - 1) + ")", val);
+      if (!centrosDia.size) continue;
+      // créditos del grupo agrupados por centro × producto
+      const porCentroProd = new Map();
+      for (const c of cartera) {
+        if (c.diaPago !== dia || c.grupo !== grupo || !c.centro || c.centro === "INDIVIDUAL") continue;
+        const k = ctx.norm(c.centro) + "|" + ctx.norm(c.producto);
+        if (!porCentroProd.has(k)) porCentroProd.set(k, { centro: c.centro, ncentro: ctx.norm(c.centro), creditos: [] });
+        porCentroProd.get(k).creditos.push(c);
+      }
+      let enMoraDia = 0;
+      const f0 = f;
+      const claves = [...centrosDia.keys()].sort((a, b) =>
+        String(centrosDia.get(a).num).localeCompare(String(centrosDia.get(b).num), "es", { numeric: true }));
+      for (const k of claves) {
+        const info = centrosDia.get(k);
+        const grupos = [...porCentroProd.values()].filter((g) => g.ncentro === k);
+        const filasCentro = grupos.length ? grupos : [null];
+        for (const g of filasCentro) {
+          const row = ws.getRow(f);
+          filaFecha(ws, f, fechas[di]);
+          row.getCell(2).value = info.num; row.getCell(2).alignment = { horizontal: "center" };
+          row.getCell(3).value = info.nombre;
+          let prestamo = 0, abono = 0, interes = 0, iva = 0, teorico = 0, cuota = 0, moraC = 0, nMora = 0;
+          if (g) for (const c of g.creditos) {
+            const t = teoriaDe(ctx, c);
+            prestamo += c.importe; abono += t.abono; interes += t.interes;
+            iva += t.iva; teorico += t.teorico; cuota += t.cuotaReal;
+            if (c.mora > 0.009) { moraC += c.mora; nMora++; }
+          }
+          const pr = row.getCell(4); pr.value = r2(prestamo); pr.numFmt = FMT_ENTERO;
+          dinero(ws, f, 5, abono); dinero(ws, f, 6, interes); dinero(ws, f, 7, iva);
+          if (conRedondeo) { dinero(ws, f, 8, cuota - teorico); dinero(ws, f, 9, cuota); }
+          else if (conCuotaSaldo) {
+            dinero(ws, f, 8, teorico); dinero(ws, f, 9, cuota);
+            const sd = row.getCell(10); sd.value = r2(cuota - teorico); sd.numFmt = MONEDA_ROJA;
+          } else dinero(ws, f, 8, teorico);
+          // lo realmente capturado ese día para ese centro y producto
+          const prods = g ? new Set(g.creditos.map((c) => ctx.norm(c.producto))) : null;
+          const cobrado = captura.filter((r) => r.dia === dia && ctx.norm(r.centro) === k
+            && grupoDe(r.producto) === grupo && (!prods || prods.has(ctx.norm(r.producto))))
+            .reduce((x, r) => x + r.pago, 0);
+          if (g || cobrado > 0.009) dinero(ws, f, colCobrado, cobrado);
+          if (moraC > 0.009) {
+            enMoraDia += nMora;
+            marcaMora(row.getCell(colMora), moraC, "una parte cayó en mora (" + nMora + ")");
+          }
+          tot.prestamo += prestamo; tot.abono += abono; tot.interes += interes;
+          tot.iva += iva; tot.teorico += teorico; tot.cuota += cuota; tot.cobrado += cobrado;
+          f++;
+        }
+      }
+      const colsDinero = conRedondeo ? [4, 5, 6, 7, 8, 9, colCobrado]
+        : conCuotaSaldo ? [4, 5, 6, 7, 8, 9, 10, colCobrado] : [4, 5, 6, 7, 8, colCobrado];
+      pintaSubtotal(ws, f, nCols, colsDinero, f0, { 4: FMT_ENTERO, ...(conCuotaSaldo ? { 10: MONEDA_ROJA } : {}) });
+      if (enMoraDia > 0) {
+        const cm = ws.getRow(f).getCell(colMora);
+        cm.value = enMoraDia + " en mora";
+        cm.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
       }
       f++;
     }
-    const row = ws.getRow(f);
-    row.getCell(4).value = "TOTAL SEMANA"; row.getCell(4).font = { bold: true };
-    formula(ws, f, 5, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",E5:E" + (f - 1) + ")", totG.B);
-    formula(ws, f, 6, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",F5:F" + (f - 1) + ")", totG.M);
-    formula(ws, f, 7, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",G5:G" + (f - 1) + ")", totG.A);
-    formula(ws, f, 8, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",H5:H" + (f - 1) + ")", totG.I);
-    formula(ws, f, 9, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",I5:I" + (f - 1) + ")", totG.G);
-    formula(ws, f, 10, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",J5:J" + (f - 1) + ")", totG.T);
+    const totPorCol = { 4: tot.prestamo, 5: tot.abono, 6: tot.interes, 7: tot.iva };
+    if (conRedondeo) { totPorCol[8] = tot.cuota - tot.teorico; totPorCol[9] = tot.cuota; }
+    else if (conCuotaSaldo) { totPorCol[8] = tot.teorico; totPorCol[9] = tot.cuota; totPorCol[10] = tot.cuota - tot.teorico; }
+    else totPorCol[8] = tot.teorico;
+    totPorCol[colCobrado] = tot.cobrado;
+    const colsDineroT = conRedondeo ? [4, 5, 6, 7, 8, 9, colCobrado]
+      : conCuotaSaldo ? [4, 5, 6, 7, 8, 9, 10, colCobrado] : [4, 5, 6, 7, 8, colCobrado];
+    pintaTotal(ws, f, nCols, colsDineroT, totPorCol, { 4: FMT_ENTERO });
+    ws.views = [{ state: "frozen", ySplit: 5 }];
+    totalesGrupo[grupo] = { ...tot, filaTotal: f };
+  }
+
+  // ===== COBRANZA (lo que TOCA cobrar por centro y día, como la plantilla:
+  // fila INDIVIDUALES arriba de cada día, cuotas por producto, IVA teórico y
+  // la anotación de mora — que aquí ya la escribe la app sola) =====
+  {
+    const ws = wb.addWorksheet("COBRANZA");
+    ws.columns = [{ width: 11 }, { width: 8 }, { width: 26 }, { width: 13 }, { width: 15 },
+      { width: 13 }, { width: 13 }, { width: 11 }, { width: 26 }];
+    cabeceraFicha(ws, "POR CENTRO Y DÍA", 9);
+    encFicha(ws, ["FECHA", "CENTRO", "NOMBRE", "BASICO", "MICROEMPRESAS", "ADICIONAL", "TOTAL", "IVA", "MORA"], RIO);
+    let f = 6;
+    const totG = { B: 0, M: 0, A: 0, I: 0, T: 0 };
+    let totIvaCob = 0;
+    for (let di = 0; di < 6; di++) {
+      const dia = DIAS[di];
+      const delDia = cartera.filter((c) => c.diaPago === dia);
+      if (!delDia.length) continue;
+      const f0 = f;
+      let enMoraDia = 0;
+      // Los individuales del día, arriba, como una fila propia.
+      const inds = delDia.filter((c) => c.grupo === "INDIVIDUALES");
+      if (inds.length) {
+        let cuotaI = 0, ivaI = 0, moraI = 0, nMoraI = 0;
+        for (const c of inds) {
+          const t = teoriaDe(ctx, c);
+          cuotaI += t.cuotaReal; ivaI += t.iva;
+          if (c.mora > 0.009) { moraI += c.mora; nMoraI++; }
+        }
+        const row = ws.getRow(f);
+        filaFecha(ws, f, fechas[di]);
+        row.getCell(3).value = "INDIVIDUALES";
+        row.getCell(3).font = { bold: true, size: 9.5, color: { argb: RIO }, name: "Century Gothic" };
+        dinero(ws, f, 7, cuotaI); dinero(ws, f, 8, ivaI); totIvaCob += ivaI;
+        if (moraI > 0.009) { enMoraDia += nMoraI; marcaMora(row.getCell(9), moraI, "una parte cayó en mora (" + nMoraI + ")"); }
+        totG.I += cuotaI; totG.T += cuotaI;
+        f++;
+      }
+      // Los centros del día, por número.
+      const centrosDia = new Map();
+      for (const c of delDia) {
+        if (!c.centro || c.centro === "INDIVIDUAL") continue;
+        const k = ctx.norm(c.centro);
+        if (!centrosDia.has(k)) centrosDia.set(k, { num: String(c.noCentro || "").replace(/^C-?/i, ""), nombre: c.centro });
+      }
+      const claves = [...centrosDia.keys()].sort((a, b) =>
+        String(centrosDia.get(a).num).localeCompare(String(centrosDia.get(b).num), "es", { numeric: true }));
+      for (const k of claves) {
+        const info = centrosDia.get(k);
+        const del = delDia.filter((c) => ctx.norm(c.centro || "") === k);
+        const cuotaDe = (g2) => del.filter((c) => c.grupo === g2)
+          .reduce((x, c) => x + teoriaDe(ctx, c).cuotaReal, 0);
+        const b = r2(cuotaDe("BASICO")), m = r2(cuotaDe("MICROEMPRESAS")), a = r2(cuotaDe("ADICIONALES"));
+        const iva = r2(del.filter((c) => c.grupo !== "INDIVIDUALES")
+          .reduce((x, c) => x + teoriaDe(ctx, c).iva, 0));
+        let moraC = 0, nMora = 0;
+        for (const c of del) if (c.mora > 0.009) { moraC += c.mora; nMora++; }
+        const row = ws.getRow(f);
+        filaFecha(ws, f, fechas[di]);
+        row.getCell(2).value = info.num; row.getCell(2).alignment = { horizontal: "center" };
+        row.getCell(3).value = info.nombre;
+        dinero(ws, f, 4, b); dinero(ws, f, 5, m); dinero(ws, f, 6, a);
+        const tt = row.getCell(7);
+        tt.value = { formula: "SUM(D" + f + ":F" + f + ")", result: r2(b + m + a) };
+        tt.numFmt = MONEDA;
+        dinero(ws, f, 8, iva); totIvaCob += iva;
+        if (moraC > 0.009) { enMoraDia += nMora; marcaMora(row.getCell(9), moraC, "una parte cayó en mora (" + nMora + ")"); }
+        totG.B += b; totG.M += m; totG.A += a; totG.T += b + m + a;
+        f++;
+      }
+      pintaSubtotal(ws, f, 9, [4, 5, 6, 7, 8], f0);
+      if (enMoraDia > 0) {
+        const cm = ws.getRow(f).getCell(9);
+        cm.value = enMoraDia + " en mora";
+        cm.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
+      }
+      f++;
+    }
+    pintaTotal(ws, f, 9, [4, 5, 6, 7, 8],
+      { 4: totG.B, 5: totG.M, 6: totG.A, 7: totG.T, 8: totIvaCob });
+    ws.views = [{ state: "frozen", ySplit: 5 }];
     ctx._cobranzaTotales = totG;
   }
 
@@ -1457,10 +1594,14 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const capTotal = captura.reduce((t, r) => t + r.pago + r.gar + r.sol, 0);
     const capPagos = captura.reduce((t, r) => t + r.pago + r.sol, 0);
     const capGar = captura.reduce((t, r) => t + r.gar, 0);
-    const totG = ctx._cobranzaTotales || { B: 0, M: 0, A: 0, I: 0, G: 0, T: 0 };
-    check("COBRANZA total de la semana: matriz por centro vs captura de las apps", totG.T, capTotal);
-    check("PAGOS por producto (B+M+A+I) vs pagos+solidarios capturados", totG.B + totG.M + totG.A + totG.I, capPagos);
-    check("GARANTÍAS de la matriz vs garantías capturadas", totG.G, capGar);
+    const totG = ctx._cobranzaTotales || { B: 0, M: 0, A: 0, I: 0, T: 0 };
+    // La COBRANZA ahora es lo que TOCA cobrar (formato de la plantilla), así
+    // que se cuadra contra las cuotas de las cuatro fichas — si una pestaña
+    // pierde filas o centros, este check truena.
+    const cuotaFichas = ["BASICO", "MICROEMPRESAS", "ADICIONALES", "INDIVIDUALES"]
+      .reduce((x, g2) => x + ((totalesGrupo[g2] || {}).cuota || 0), 0);
+    check("COBRANZA (lo que toca cobrar) vs cuotas de las cuatro fichas", totG.T, cuotaFichas);
+    void capGar; void capPagos;
     const porEjecSuma = Object.values(capPorEjec).reduce((a, b) => a + b, 0);
     check("POR EJECUTIVO total vs captura de las apps", porEjecSuma, capTotal);
     check("CARTERA POR PRODUCTO: suma de productos vs cartera total (CU-032)",
