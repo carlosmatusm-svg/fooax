@@ -276,8 +276,9 @@ function vestirLibro(wb) {
       let azules = 0;
       const tope = Math.max(row.actualCellCount || 0, 20);
       for (let c = 1; c <= tope; c++) {
-        const f = row.getCell(c).fill;
-        if (f && f.fgColor && f.fgColor.argb === RIO) azules++;
+        const cel = row.getCell(c);
+        const f = cel.fill;
+        if (f && f.fgColor && (f.fgColor.argb === RIO || f.fgColor.argb === AURORA) && !cel.isMerged) azules++;
       }
       if (azules >= 3) { encFila = r; encCols = azules; break; }
     }
@@ -434,86 +435,115 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     ws.views = [{ state: "frozen", ySplit: 4 }];
   }
 
-  // ===== hojas por producto (BASICO / MICROEMPRESAS / ADICIONALES / INDIVIDUALES) =====
+  // ===== hojas por producto (INDIVIDUALES / BASICO / MICROEMPRESAS / ADICIONALES) =====
+  // "El tab INDIVIDUAL tiene que verse así" (Karina, 10-sep): el formato ES el
+  // de su plantilla — una fila POR CLIENTA con fecha real, número de centro y
+  // teoría individual; SUBTOTAL dorado por día, TOTAL final en rosa con letra
+  // blanca, y el encabezado rosa en INDIVIDUALES / azul en las demás.
   const totalesGrupo = {};
+  const ACENTO_FICHA = { INDIVIDUALES: AURORA, BASICO: RIO, MICROEMPRESAS: RIO, ADICIONALES: RIO };
+  const MONEDA_ROJA = '"$"#,##0.00;[Red]-"$"#,##0.00';
+  let logoFicha = null;
+  try { logoFicha = wb.addImage({ filename: __dirname + "/public/img/logo-fooax.jpg", extension: "jpeg" }); } catch { logoFicha = null; }
   for (const grupo of ["INDIVIDUALES", "BASICO", "MICROEMPRESAS", "ADICIONALES"]) {
+    const acento = ACENTO_FICHA[grupo];
     const ws = wb.addWorksheet(grupo);
-    ws.columns = [{ width: 4 }, { width: 11 }, { width: 9 }, { width: 24 }, { width: 13 }, { width: 12 }, { width: 12 }, { width: 11 }, { width: 13 }, { width: 13 }, { width: 13 }, { width: 14 }];
-    tit(ws, 1, "FOOAX · HOJA DE COBRANZA · " + grupo, 12);
-    sub(ws, 2, "Semana " + semanaTxt + " · teoría del MOTOR real de cada producto (abono a capital, interés semanal, IVA) vs la cuota y lo cobrado", 12);
-    enc(ws, 4, ["", "DÍA", "No.CENTRO", "CENTRO", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL TEÓRICO", "CUOTA REAL", "COBRADO (app)", "DIF. COBRADO−CUOTA"]);
-    let f = 5;
+    ws.columns = [{ width: 11 }, { width: 8 }, { width: 30 }, { width: 11 }, { width: 11 },
+      { width: 11 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 12 }];
+    // Las tres bandas de la plantilla, con el logo a la izquierda sobre blanco.
+    ws.mergeCells(1, 1, 1, 10);
+    const b1 = ws.getRow(1).getCell(1);
+    b1.value = LEMA;
+    b1.font = { italic: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+    b1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    b1.alignment = { horizontal: "right", vertical: "middle" };
+    ws.mergeCells(2, 3, 2, 10);
+    const b2 = ws.getRow(2).getCell(3);
+    b2.value = "HOJA DE COBRANZA · " + grupo;
+    b2.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" }, name: "Arial" };
+    b2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    b2.alignment = { horizontal: "center", vertical: "middle" };
+    ws.getRow(2).height = 20;
+    ws.mergeCells(3, 3, 3, 10);
+    const b3 = ws.getRow(3).getCell(3);
+    b3.value = "Semana " + semanaTxt;
+    b3.font = { bold: true, size: 10, color: { argb: RIO }, name: "Century Gothic" };
+    b3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CIELO } };
+    b3.alignment = { horizontal: "center", vertical: "middle" };
+    if (logoFicha != null) ws.addImage(logoFicha, { tl: { col: 0.2, row: 1.1 }, ext: { width: 96, height: 40 } });
+    // Encabezado (fila 5), con el acento de cada ficha.
+    const ENCF = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL", "TOTAL", "SALDO"];
+    ENCF.forEach((t2, i) => {
+      const c = ws.getRow(5).getCell(i + 1);
+      c.value = t2;
+      c.font = { bold: true, size: 9, color: { argb: "FFFFFFFF" }, name: "Arial" };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: acento } };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      c.border = { top: { style: "thin" }, bottom: { style: "medium" }, left: { style: "thin" }, right: { style: "thin" } };
+    });
+    let f = 6;
     const tot = { prestamo: 0, abono: 0, interes: 0, iva: 0, teorico: 0, cuota: 0, cobrado: 0 };
     for (let di = 0; di < 6; di++) {
-      const dia = DIAS[di];
-      // centros con créditos de este grupo que cobran ese día
-      const delDia = cartera.filter((c) => c.grupo === grupo && c.diaPago === dia);
-      const capDia = captura.filter((r) => r.dia === dia && grupoDe(r.producto) === grupo);
-      if (!delDia.length && !capDia.length) continue;
-      const porCentro = {};
-      for (const c of delDia) (porCentro[c.centro] = porCentro[c.centro] || []).push(c);
-      // Cobros FUERA de calendario (pagó en un día que no era el suyo, o el
-      // crédito no trae día): entran con teoría en cero, para que el panel de
-      // control cuadre contra las capturas y ningún peso se caiga del libro.
-      const programados = new Set(Object.keys(porCentro).map((k) => ctx.norm(k)));
-      const fueraDeDia = [...new Set(capDia.filter((r) => !programados.has(ctx.norm(r.centro))).map((r) => r.centro))];
+      const delDia = cartera.filter((c) => c.grupo === grupo && c.diaPago === DIAS[di])
+        .sort((a, b) => String(a.noCentro).localeCompare(String(b.noCentro), "es", { numeric: true })
+          || String(a.centro).localeCompare(String(b.centro), "es")
+          || String(a.clienta).localeCompare(String(b.clienta), "es"));
+      if (!delDia.length) continue;
       const f0 = f;
-      for (const centro of Object.keys(porCentro).sort((a, b) => a.localeCompare(b, "es"))) {
-        const creditos = porCentro[centro];
-        let prestamo = 0, abono = 0, interes = 0, iva = 0, teorico = 0, cuota = 0;
-        for (const c of creditos) {
-          const t = teoriaDe(ctx, c);
-          prestamo += c.importe; abono += t.abono; interes += t.interes;
-          iva += t.iva; teorico += t.teorico; cuota += t.cuotaReal;
-        }
-        const cobrado = captura.filter((r) => r.dia === dia && ctx.norm(r.centro) === ctx.norm(centro)
-          && grupoDe(r.producto) === grupo).reduce((t2, r) => t2 + r.pago, 0);
+      for (const c of delDia) {
+        const t = teoriaDe(ctx, c);
         const row = ws.getRow(f);
-        row.getCell(2).value = dia; row.getCell(3).value = creditos[0].noCentro || "";
-        row.getCell(4).value = centro;
-        dinero(ws, f, 5, prestamo); dinero(ws, f, 6, abono); dinero(ws, f, 7, interes);
-        dinero(ws, f, 8, iva); dinero(ws, f, 9, teorico); dinero(ws, f, 10, cuota);
-        dinero(ws, f, 11, cobrado);
-        const dif = dinero(ws, f, 12, cobrado - cuota);
-        if (cobrado - cuota < -0.009) dif.font = { color: { argb: ROJO } };
-        tot.prestamo += prestamo; tot.abono += abono; tot.interes += interes;
-        tot.iva += iva; tot.teorico += teorico; tot.cuota += cuota; tot.cobrado += cobrado;
+        const fc = row.getCell(1);
+        fc.value = new Date(fechas[di] + "T12:00:00");
+        fc.numFmt = "m/d/yyyy"; fc.alignment = { horizontal: "center" };
+        row.getCell(2).value = String(c.noCentro || "").replace(/^C-?/i, "");
+        row.getCell(2).alignment = { horizontal: "center" };
+        row.getCell(3).value = c.clienta;
+        const pr = row.getCell(4); pr.value = r2(c.importe); pr.numFmt = '"$"#,##0';
+        dinero(ws, f, 5, t.abono); dinero(ws, f, 6, t.interes); dinero(ws, f, 7, t.iva);
+        dinero(ws, f, 8, t.teorico); dinero(ws, f, 9, t.cuotaReal);
+        const sd = ws.getRow(f).getCell(10);
+        sd.value = r2(t.teorico - t.cuotaReal); sd.numFmt = MONEDA_ROJA;
+        tot.prestamo += c.importe; tot.abono += t.abono; tot.interes += t.interes;
+        tot.iva += t.iva; tot.teorico += t.teorico; tot.cuota += t.cuotaReal;
         f++;
       }
-      for (const centro of fueraDeDia) {
-        const cobrado = capDia.filter((r) => ctx.norm(r.centro) === ctx.norm(centro))
-          .reduce((t2, r) => t2 + r.pago, 0);
-        if (cobrado <= 0.009) continue;
-        const row = ws.getRow(f);
-        row.getCell(2).value = dia;
-        row.getCell(4).value = centro + " · fuera de su día";
-        row.getCell(4).font = { italic: true, color: { argb: "FF6B6480" } };
-        dinero(ws, f, 5, 0); dinero(ws, f, 6, 0); dinero(ws, f, 7, 0); dinero(ws, f, 8, 0);
-        dinero(ws, f, 9, 0); dinero(ws, f, 10, 0); dinero(ws, f, 11, cobrado); dinero(ws, f, 12, cobrado);
-        tot.cobrado += cobrado;
-        f++;
-      }
-      // subtotal del día
-      const row = ws.getRow(f);
-      row.getCell(4).value = "SUBTOTAL " + dia; row.getCell(4).font = { bold: true };
-      for (const [col, key] of [[5, "prestamo"], [6, "abono"], [7, "interes"], [8, "iva"], [9, "teorico"], [10, "cuota"], [11, "cobrado"]]) {
+      // SUBTOTAL del día: la fila dorada de la plantilla.
+      const st = ws.getRow(f);
+      for (let col = 1; col <= 10; col++)
+        st.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+      st.getCell(3).value = "SUBTOTAL";
+      st.getCell(3).font = { bold: true, size: 9.5, color: { argb: TINTA }, name: "Century Gothic" };
+      st.getCell(3).alignment = { horizontal: "right" };
+      for (const col of [4, 5, 6, 7, 8, 9, 10]) {
         const L = colLetra(col);
-        const suma = [];
-        for (let rr = f0; rr < f; rr++) suma.push(L + rr);
-        const val = Array.from({ length: f - f0 }, (_, k) => Number(ws.getRow(f0 + k).getCell(col).value) || 0).reduce((a, b) => a + b, 0);
-        formula(ws, f, col, "SUM(" + L + f0 + ":" + L + (f - 1) + ")", val);
+        const val = Array.from({ length: f - f0 }, (_, k) => {
+          const v = ws.getRow(f0 + k).getCell(col).value;
+          return Number(v && v.result != null ? v.result : v) || 0;
+        }).reduce((a, b2) => a + b2, 0);
+        const c = st.getCell(col);
+        c.value = { formula: "SUM(" + L + f0 + ":" + L + (f - 1) + ")", result: r2(val) };
+        c.numFmt = col === 4 ? '"$"#,##0' : (col === 10 ? MONEDA_ROJA : MONEDA);
+        c.font = { bold: true, size: 9.5, color: { argb: TINTA }, name: "Century Gothic" };
       }
       f++;
     }
-    const row = ws.getRow(f);
-    row.getCell(4).value = "TOTAL " + grupo; row.getCell(4).font = { bold: true };
-    formula(ws, f, 5, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",E5:E" + (f - 1) + ")", tot.prestamo);
-    formula(ws, f, 6, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",F5:F" + (f - 1) + ")", tot.abono);
-    formula(ws, f, 7, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",G5:G" + (f - 1) + ")", tot.interes);
-    formula(ws, f, 8, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",H5:H" + (f - 1) + ")", tot.iva);
-    formula(ws, f, 9, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",I5:I" + (f - 1) + ")", tot.teorico);
-    formula(ws, f, 10, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",J5:J" + (f - 1) + ")", tot.cuota);
-    formula(ws, f, 11, "SUMIF(D5:D" + (f - 1) + ",\"SUBTOTAL*\",K5:K" + (f - 1) + ")", tot.cobrado);
+    // TOTAL final: la fila rosa con letra blanca.
+    const tr = ws.getRow(f);
+    for (let col = 1; col <= 10; col++)
+      tr.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    tr.getCell(3).value = "TOTAL";
+    tr.getCell(3).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+    tr.getCell(3).alignment = { horizontal: "right" };
+    const totCol = { 4: tot.prestamo, 5: tot.abono, 6: tot.interes, 7: tot.iva, 8: tot.teorico, 9: tot.cuota, 10: tot.teorico - tot.cuota };
+    for (const col of [4, 5, 6, 7, 8, 9, 10]) {
+      const L = colLetra(col);
+      const c = tr.getCell(col);
+      c.value = { formula: 'SUMIF(C6:C' + (f - 1) + ',"SUBTOTAL",' + L + "6:" + L + (f - 1) + ")", result: r2(totCol[col]) };
+      c.numFmt = col === 4 ? '"$"#,##0' : MONEDA;
+      c.font = { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+    }
+    ws.views = [{ state: "frozen", ySplit: 5 }];
     totalesGrupo[grupo] = { ...tot, filaTotal: f };
   }
 
@@ -1413,8 +1443,9 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       ctx._carteraPorProductoTotal || 0, ctx._carteraTotal || 0);
     for (const g of ["BASICO", "MICROEMPRESAS", "ADICIONALES", "INDIVIDUALES"]) {
       const t = totalesGrupo[g];
-      if (t) check("COBRADO hoja " + g + " vs capturas de ese producto", t.cobrado,
-        captura.filter((r) => grupoDe(r.producto) === g).reduce((x, r) => x + r.pago, 0));
+      if (t) check("La ficha " + g + " trae TODOS sus créditos (préstamo vs cartera)", t.prestamo,
+        cartera.filter((c2) => c2.grupo === g && DIAS.includes(String(c2.diaPago)))
+          .reduce((x, c2) => x + c2.importe, 0));
     }
     f++;
     const row = ws.getRow(f);
