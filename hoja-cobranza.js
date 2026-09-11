@@ -667,6 +667,14 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
           if (moraC > 0.009) {
             enMoraDia += nMora;
             marcaMora(row.getCell(colMora), moraC, "una parte cayó en mora (" + nMora + ")");
+          } else if (g && fechas[di] < hoy && cobrado + 0.009 < cuota) {
+            // Cobró menos de la cuota SU día pero no hay mora semanal: completó
+            // otro día de la semana o trae adelanto que la cubre. Se dice para
+            // que no parezca dinero perdido (caso SAN MIGUEL $300 de $499.89,
+            // Karina 10-sep: "hay que aclarar").
+            const et = row.getCell(colMora);
+            et.value = "quedó corto ese día · lo completó en la semana o trae adelanto";
+            et.font = { italic: true, size: 8.5, color: { argb: "FFB45309" }, name: "Century Gothic" };
           }
           tot.prestamo += prestamo; tot.abono += abono; tot.interes += interes;
           tot.iva += iva; tot.teorico += teorico; tot.cuota += cuota; tot.cobrado += cobrado;
