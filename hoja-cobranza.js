@@ -443,8 +443,11 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   const totalesGrupo = {};
   const ACENTO_FICHA = { INDIVIDUALES: AURORA, BASICO: RIO, MICROEMPRESAS: RIO, ADICIONALES: RIO };
   const MONEDA_ROJA = '"$"#,##0.00;[Red]-"$"#,##0.00';
+  // El logotipo ES el de la plantilla de Karina (extraído de su propio
+  // archivo): cuadrado, isotipo arriba y "Fooax" abajo, fondo blanco. El del
+  // sistema (logo-fooax.jpg) es un cuadrito degradado y estirado se veía feo.
   let logoFicha = null;
-  try { logoFicha = wb.addImage({ filename: __dirname + "/public/img/logo-fooax.jpg", extension: "jpeg" }); } catch { logoFicha = null; }
+  try { logoFicha = wb.addImage({ filename: __dirname + "/public/img/logo-fooax-hoja.png", extension: "png" }); } catch { logoFicha = null; }
   for (const grupo of ["INDIVIDUALES", "BASICO", "MICROEMPRESAS", "ADICIONALES"]) {
     const acento = ACENTO_FICHA[grupo];
     const ws = wb.addWorksheet(grupo);
@@ -470,7 +473,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     b3.font = { bold: true, size: 10, color: { argb: RIO }, name: "Century Gothic" };
     b3.fill = { type: "pattern", pattern: "solid", fgColor: { argb: CIELO } };
     b3.alignment = { horizontal: "center", vertical: "middle" };
-    if (logoFicha != null) ws.addImage(logoFicha, { tl: { col: 0.2, row: 1.1 }, ext: { width: 96, height: 40 } });
+    if (logoFicha != null) ws.addImage(logoFicha, { tl: { col: 0.15, row: 1.05 }, ext: { width: 62, height: 62 } });
     // Encabezado (fila 5), con el acento de cada ficha.
     const ENCF = ["FECHA", "CENTRO", "NOMBRE", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL", "TOTAL", "SALDO"];
     ENCF.forEach((t2, i) => {
