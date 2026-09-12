@@ -3587,6 +3587,10 @@ function procesarAltaPadron(b, usuario) {
   // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
   // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
   registrarGarantiaLiquidaAlDesembolsar(clienta, usuario);
+  // CU-017 (PLD-01/PLD-02): antes de escribir el crédito, suma lo otorgado a
+  // esta clienta en los últimos 6 meses y, si supera 1,605 UMA, la MARCA para
+  // aviso. Nunca bloquea: el alta sigue igual, solo queda `alertaPLD`.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, usuario) };
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
     fecha: hoyMX(), por: usuario.nombre, ts: Date.now(),
@@ -3596,7 +3600,7 @@ function procesarAltaPadron(b, usuario) {
     .filter((x) => String(x.socio) === id);
   const info = infoCredito(carteraViva(usuario), clienta);
   return {
-    ok: true, clienta,
+    ok: true, clienta, alertaPLD: clienta.alertaPLD || null,
     saldoCapturado: clienta.saldo,
     yaLePagaron: Math.round((info.pagado || 0) * 100) / 100,
     saldoQuedaEn: Math.round((info.saldoActual || 0) * 100) / 100,
@@ -5324,6 +5328,9 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
   // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
   registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
+  // CU-017 (PLD-01/PLD-02): la renovación es un desembolso nuevo — misma
+  // vigilancia de acumulación en 6 meses que el alta. Marca, nunca bloquea.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, req.usuario) };
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
   // nuevo y dejarlo dado de baja el mismo día que se abrió.
@@ -5336,7 +5343,7 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
     fecha: hoyMX(), por: req.usuario.nombre, ts: ts + 1 });
   refrescarPadron();
-  res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
+  res.json({ ok: true, clienta, alertaPLD: clienta.alertaPLD || null, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
     ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
 });
@@ -6430,6 +6437,36 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     denominaciones: DENOMS_ARQUEO,
   });
 });
+
+// ---------- PLD · ACUMULACIÓN POR CLIENTA EN 6 MESES (CU-017, R11.3 Anexo F, G.5-G.7 Anexo G) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/pld_acumulacion.js; aquí
+// el pegamento HTTP y los parámetros (umbral 1,605 UMA — PLD-01 — y ventana
+// de 180 días, por entorno; la UMA versionada en data/uma.json). SOLO MARCA,
+// NUNCA BLOQUEA (PLD-02): la marca `alertaPLD` se cuelga del crédito en
+// procesarAltaPadron y /api/creditos/recredito.
+const PLD_UMBRAL_UMA = Number(process.env.PLD_UMBRAL_UMA) || 1605;
+const PLD_VENTANA_DIAS = Number(process.env.PLD_VENTANA_DIAS) || 180;
+const pld = require("./dominios/pld_acumulacion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  umbralUMA: PLD_UMBRAL_UMA, ventanaDias: PLD_VENTANA_DIAS,
+  archivoUMA: path.join(__dirname, "data", "uma.json"),
+});
+const evaluarPLDAlDesembolsar = pld.evaluarAlDesembolsar;
+const rutaPLD = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[pld] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la consulta PLD. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/pld/acumulacion", requiere("direccion", "admin"), rutaPLD(({ query }) => pld.consultarAcumulacion(query)));
+app.get("/api/pld/alertas", requiere("direccion", "admin"), rutaPLD(({ usuario }) => pld.resumenAlertas(usuario)));
+app.get("/api/pld/uma", requiere("direccion", "admin"), rutaPLD(() => pld.resumenUMA()));
 
 // ---------- CIERRE DE CAJA DE LA SEMANA ----------
 // El arqueo diario contesta "¿cuánto entrega cada ejecutiva hoy?". No contesta
