@@ -3749,6 +3749,10 @@ app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (r
   const v = validarDispersar(s, req.usuario);
   if (!v.ok) return res.status(v.status).json({ error: v.error });
 
+  // CU-010: expediente íntegro y validado, y quien validó no dispersa.
+  const cand = expediente.validarDispersion(s, req.usuario, EXPEDIENTE_CANDADO_DISPERSION);
+  if (cand.error) return res.status(cand.status).json({ error: cand.error, expediente: cand.expediente ?? null });
+
   // El paso que de verdad mueve dinero: si algo truena aquí (motor de
   // reglas, store), se responde 500 en vez de tumbar el proceso completo —
   // la solicitud se queda en "autorizada" y se puede reintentar.
@@ -3769,7 +3773,7 @@ app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (r
     planPagos: clienta.planPagos ?? [],
     sobreDispersion: clienta.sobreDispersion ?? null,
   });
-  res.json({ ok: true, solicitud: actualizada, clienta });
+  res.json({ ok: true, solicitud: actualizada, clienta, expediente: cand.estatus, candadoExpediente: EXPEDIENTE_CANDADO_DISPERSION ? "activo" : "aviso" });
 });
 
 // ENTREGA (paso 4, Regla K.2: quien dispersa NO entrega) — el sobre físico
@@ -7917,20 +7921,26 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
     netoEfectivo: neto("efectivo"), netoTransf: neto("transferencia"), netoCheques: neto("cheque") });
 });
 
-// ---------- EXPEDIENTE · alta y captura en campo, sin conexión (CU-009) ----------
+// ---------- EXPEDIENTE · alta y captura en campo (CU-009) + checklist y validación (CU-010) ----------
 // Construido 11-sep-2026 en el repo real. La lógica vive en
 // dominios/expediente.js; aquí el pegamento HTTP y los parámetros. La app de la
 // ejecutiva captura sin señal (public/alta-campo.js) y manda a
 // POST /api/expediente/captura cuando hay red; el folioCaptura hace idempotente
 // el reintento. La clienta nace "en captura": NO se escribe al padrón de
-// cobranza (eso es dispersar, CU-013).
+// cobranza. El candado del desembolso (CU-010) vive en el flujo de sobres:
+// EXPEDIENTE_CANDADO_DISPERSION=0 lo vuelve aviso, solo para transición.
 const TOPE_RESPONSABLE = Number(process.env.TOPE_RESPONSABLE) || 2;
 const TOPE_AVAL = Number(process.env.TOPE_AVAL) || 1;
 const MONTO_REQUIERE_AVAL = Number(process.env.MONTO_REQUIERE_AVAL) || 10000;
+const EXPEDIENTE_CANDADO_DISPERSION = String(process.env.EXPEDIENTE_CANDADO_DISPERSION ?? "1") !== "0";
+// Quién valida el expediente (CU-010 §1: Administración y Finanzas = rol admin).
+// Parámetro por si Dirección decide ampliarlo; nunca la ejecutiva.
+const EXPEDIENTE_ROLES_VALIDAR = String(process.env.EXPEDIENTE_ROLES_VALIDAR ?? "admin").split(",").map((rol) => rol.trim()).filter(Boolean);
 const expediente = require("./dominios/expediente")({
   store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
   obtenerPadron: () => PADRON,
   topeResponsable: TOPE_RESPONSABLE, topeAval: TOPE_AVAL, montoRequiereAval: MONTO_REQUIERE_AVAL,
+  comprobanteDomicilioMesesMax: COMPROBANTE_DOMICILIO_MESES_MAX,
 });
 const rutaExpediente = (operacion) => (req, res) => {
   try {
@@ -7950,6 +7960,8 @@ app.get("/api/expedientes", TODOS_LOS_ROLES, rutaExpediente(({ usuario }) => exp
 app.post("/api/expediente/captura", requiere("ejecutivo"), rutaExpediente(({ body, usuario }) => expediente.registrarCaptura(body, usuario)));
 app.get("/api/expediente/:socio", TODOS_LOS_ROLES, rutaExpediente(({ usuario, params }) => expediente.ficha(usuario, params.socio)));
 app.post("/api/expediente/:socio/documento", TODOS_LOS_ROLES, rutaExpediente(({ params, body, usuario }) => expediente.registrarDocumento(params.socio, body, usuario)));
+// CU-010 · validación de Administración y Finanzas (Ale): solo EXPEDIENTE_ROLES_VALIDAR.
+app.post("/api/expediente/:socio/validar", requiere(...EXPEDIENTE_ROLES_VALIDAR), rutaExpediente(({ params, body, usuario }) => expediente.registrarValidacion(params.socio, body, usuario)));
 
 // ---------- páginas ----------
 app.get("/", (req, res) => {

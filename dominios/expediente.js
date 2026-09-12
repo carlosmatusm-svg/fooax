@@ -1,17 +1,19 @@
 // ===================================================================
-// DOMINIO · EXPEDIENTE DE LA CLIENTA — alta y captura en campo (CU-009)
+// DOMINIO · EXPEDIENTE DE LA CLIENTA (CU-009 alta y captura en campo; CU-010
+// checklist, validación y candado)
 //
 // Reconstruido 11-sep-2026 en el repo real (develop: padrón + registros
 // append-only). Del build del fork (store_expediente.js + Postgres) se toman
 // solo los catálogos ya documentados en CU-009 (PEP, checklist, topes).
 //
 // QUÉ ES EL EXPEDIENTE AQUÍ: un registro append-only `expediente` con EVENTOS
-// por clienta (captura, documento; CU-010 agrega la validación). El expediente
-// vigente se DERIVA de los eventos: la captura más reciente da los datos; el
-// documento más reciente de cada propietario+tipo da el checklist. Nunca se
-// edita ni se borra un evento (CU-009 §8, Requerimiento Maestro §11).
+// por clienta (captura, documento, validacion). El expediente vigente se
+// DERIVA de los eventos: la captura más reciente da los datos; el documento
+// más reciente de cada propietario+tipo da el checklist; la última validación
+// vale solo si es posterior al último cambio. Nunca se edita ni se borra un
+// evento (CU-009 §8, Requerimiento Maestro §11).
 //
-// REGLAS QUE NO SE NEGOCIAN (CU-009 §6):
+// REGLAS QUE NO SE NEGOCIAN (CU-009 §6, CU-010 §6):
 //   1. Dar de alta NO es autorizar: la clienta nace en estado "captura" y NO
 //      se escribe al padrón de cobranza (eso pasa al dispersar, CU-013).
 //   2. Responsable y aval son entidades separadas con tope propio
@@ -20,6 +22,8 @@
 //   4. Las referencias son terceros: su consentimiento se captura aparte.
 //   5. CURP y RFC únicos entre clientas (CU-009 §10.5) — validación de
 //      aplicación, la única posible con archivos/jsonb.
+//   6. Expediente incompleto o sin validar = desembolso cancelado, sin
+//      excepciones; quien valida no dispersa.
 //
 // LO QUE NO HACE: no guarda IMÁGENES (solo metadatos del documento; el cifrado
 // está pendiente, CU-009 §10.2) ni valida biométricamente la Firma 1.
@@ -27,9 +31,10 @@
 "use strict";
 
 const REGISTRO = "expediente";
-const EVENTO = { CAPTURA: "captura", DOCUMENTO: "documento", ESTADO: "estado" };
+const EVENTO = { CAPTURA: "captura", DOCUMENTO: "documento", VALIDACION: "validacion", ESTADO: "estado" };
 const ESTADO_INICIAL = "captura";
 const REFERENCIAS_REQUERIDAS = 2;
+const MOTIVO_MINIMO = 5;
 const INTENTOS_SOCIO = 50;
 const AFIRMATIVOS = new Set(["true", "si", "sí"]);
 
@@ -52,6 +57,15 @@ const CHECKLIST = {
   responsable: ["ine", "comprobante_domicilio"],
   aval: ["ine", "comprobante_domicilio"],
 };
+// Campos que deben estar llenos para que el expediente sea íntegro (LFPIORPI
+// por habitualidad; CU-010 §4.3).
+const CAMPOS_PLD = [
+  ["curp", (datos) => datos.curp], ["rfc", (datos) => datos.rfc], ["identificacion.folio", (datos) => datos.identificacion?.folio],
+  ["domicilio.calle", (datos) => datos.domicilio?.calle], ["domicilio.numero", (datos) => datos.domicilio?.numero],
+  ["domicilio.colonia", (datos) => datos.domicilio?.colonia], ["domicilio.cp", (datos) => datos.domicilio?.cp],
+  ["domicilio.municipio", (datos) => datos.domicilio?.municipio], ["domicilio.estado", (datos) => datos.domicilio?.estado],
+  ["actividadEconomica", (datos) => datos.actividadEconomica], ["origenRecursos", (datos, expediente) => expediente.pld?.origenRecursos],
+];
 const CAMPOS_IDENTIDAD = ["apellidoPaterno", "nombres", "curp", "rfc", "fechaNacimiento", "lugarNacimiento", "nacionalidad", "telefonoMovil"];
 const CAMPOS_DOMICILIO = ["calle", "numero", "colonia", "cp", "municipio", "ciudad", "estado"];
 const CAMPOS_NEGOCIO = ["giro", "antiguedadMeses", "ingresoDeclarado"];
@@ -198,7 +212,7 @@ function normalizarFirma(firmaEnviada, gpsDomicilio) {
 }
 
 module.exports = function crearDominioExpediente({
-  store, hoyMX, obtenerPadron, idsEjecutivos, usuarios, topeResponsable, topeAval, montoRequiereAval,
+  store, hoyMX, obtenerPadron, idsEjecutivos, usuarios, topeResponsable, topeAval, montoRequiereAval, comprobanteDomicilioMesesMax,
 }) {
   const todosLosEventos = () => store.registro(REGISTRO);
   const eventosDe = (socio) => {
@@ -221,6 +235,8 @@ module.exports = function crearDominioExpediente({
         };
       case EVENTO.DOCUMENTO:
         return { ...expediente, documentos: { ...expediente.documentos, [`${evento.propietario}:${evento.tipo}`]: evento }, ultimoCambio: evento.fechaHora };
+      case EVENTO.VALIDACION:
+        return { ...expediente, validacion: { aprobado: Boolean(evento.aprobado), por: evento.por, porId: evento.porId, motivo: evento.motivo ?? null, fecha: evento.fecha, fechaHora: evento.fechaHora } };
       case EVENTO.ESTADO:
         return { ...expediente, estado: evento.estado };
       default:
@@ -233,7 +249,7 @@ module.exports = function crearDominioExpediente({
     if (!eventos.length) return null;
     const inicial = {
       socio: limpiarSocio(socio), estado: ESTADO_INICIAL, test: false, datos: null, responsable: null, aval: null, referencias: [],
-      pld: null, firma1: null, documentos: {}, capturas: 0, creado: null, ultimaCaptura: null, ultimoCambio: null,
+      pld: null, firma1: null, documentos: {}, validacion: null, capturas: 0, creado: null, ultimaCaptura: null, ultimoCambio: null,
       ejecutivo: null, centro: null, historial: eventos,
     };
     return eventos.reduce(aplicarEvento, inicial);
@@ -250,6 +266,116 @@ module.exports = function crearDominioExpediente({
     if (Boolean(expediente.test) !== Boolean(usuario.test)) return null;
     if (usuario.rol === "ejecutivo" && normalizar(expediente.ejecutivo) !== normalizar(usuario.nombre)) return null;
     return expediente;
+  }
+
+  // ---------- CU-010 · checklist, campos PLD, validación y candado ----------
+
+  // Vigencia por la PROPIA fecha del documento (criterio DOC-01): INE por
+  // fechaVencimiento, comprobante por fechaEmision + meses máximos. null = sin
+  // fecha propia, no se sabe.
+  function documentoVencido(documento) {
+    if (!documento) return null;
+    const hoy = new Date(`${hoyMX()}T12:00`);
+    if (documento.tipo === "ine") return documento.fechaVencimiento ? new Date(`${documento.fechaVencimiento}T12:00`) < hoy : null;
+    if (documento.tipo === "comprobante_domicilio") {
+      if (!documento.fechaEmision) return null;
+      const limite = new Date(`${documento.fechaEmision}T12:00`);
+      limite.setMonth(limite.getMonth() + comprobanteDomicilioMesesMax);
+      return limite < hoy;
+    }
+    return false;
+  }
+
+  const documentosRequeridos = (expediente) => PROPIETARIOS
+    .filter((propietario) => propietario === "solicitante" || expediente[propietario])
+    .flatMap((propietario) => CHECKLIST[propietario].map((tipo) => `${propietario}:${tipo}`));
+
+  const semaforoDe = (completo, validacion) => {
+    if (validacion && !validacion.aprobado) return "rechazado";
+    if (validacion?.aprobado && completo) return "validado";
+    return completo ? "completo" : "incompleto";
+  };
+
+  // El semáforo (CU-010 §3): completo / incompleto / validado / rechazado, con
+  // el detalle de qué falta. La validación solo vale si es posterior al último
+  // cambio del expediente: si Control Operativo corrigió algo, Ale revalida.
+  function calcularEstatus(expediente) {
+    if (!expediente) return null;
+    const requeridos = documentosRequeridos(expediente);
+    const presentes = requeridos.filter((llave) => expediente.documentos[llave]);
+    const faltantes = requeridos.filter((llave) => !expediente.documentos[llave]);
+    const vencidos = presentes.filter((llave) => documentoVencido(expediente.documentos[llave]) === true);
+    const sinFecha = presentes.filter((llave) => documentoVencido(expediente.documentos[llave]) === null);
+    const camposFaltantes = CAMPOS_PLD.filter(([, leer]) => estaVacio(leer(expediente.datos ?? {}, expediente))).map(([campo]) => campo);
+    const completo = faltantes.length === 0 && camposFaltantes.length === 0;
+    const validacion = expediente.validacion && expediente.validacion.fechaHora >= (expediente.ultimoCambio ?? "") ? expediente.validacion : null;
+    const aprobado = Boolean(validacion?.aprobado);
+    return {
+      completo, semaforo: semaforoDe(completo, validacion), requeridos, presentes: presentes.length, faltantes, vencidos, sinFecha, camposFaltantes,
+      validacion, validacionObsoleta: Boolean(expediente.validacion) && !validacion,
+      listoParaValidar: completo && !aprobado, bloqueaDesembolso: !(completo && aprobado),
+    };
+  }
+
+  const describirFaltantes = ({ faltantes, camposFaltantes }) => [
+    faltantes.length ? `documentos (${faltantes.join(", ")})` : null,
+    camposFaltantes.length ? `campos PLD (${camposFaltantes.join(", ")})` : null,
+  ].filter(Boolean).join(" y ");
+
+  // Validación de Administración y Finanzas (Ale): aprobar exige el 100%;
+  // rechazar exige motivo (regresa a Control Operativo).
+  function registrarValidacion(socio, cuerpoEnviado, usuario) {
+    const cuerpo = cuerpoEnviado ?? {};
+    const expediente = socioVisible(usuario, socio);
+    if (!expediente) return rechazo(404, "No existe expediente para ese socio (o no es tuyo).");
+    const estatus = calcularEstatus(expediente);
+    const aprobado = esAfirmativo(cuerpo.aprobado);
+    const motivo = texto(cuerpo.motivo);
+    if (aprobado && !estatus.completo) {
+      return rechazo(400, `El expediente NO está al 100%: faltan ${describirFaltantes(estatus)}. No se puede validar — sin excepciones (CU-010 §5).`, { estatus });
+    }
+    if (!aprobado && motivo.length < MOTIVO_MINIMO) return rechazo(400, "Para rechazar, el motivo es obligatorio: es lo que regresa a Control Operativo para corregir.");
+    if (aprobado && estatus.validacion?.aprobado) return rechazo(400, "Ese expediente ya está validado.");
+    const fila = store.agregarRegistro(REGISTRO, {
+      evento: EVENTO.VALIDACION, socio: expediente.socio, test: expediente.test, aprobado, motivo: motivo || null,
+      checklist: { presentes: estatus.presentes, requeridos: estatus.requeridos.length, vencidos: estatus.vencidos },
+      por: usuario.nombre, porId: usuario.id, fecha: hoyMX(), fechaHora: new Date().toISOString(),
+    });
+    const actualizado = expedienteDe(expediente.socio);
+    return { ok: true, validacion: fila, expediente: actualizado, estatus: calcularEstatus(actualizado) };
+  }
+
+  // Candado del desembolso (CU-010 §6). `enPruebas` = burbuja de quien dispersa.
+  function expedienteBloqueaDesembolso(socio, enPruebas) {
+    const expediente = expedienteDe(socio);
+    const sinBloqueo = { bloquea: false, motivo: null, validadoPorId: null, validadoPor: null };
+    if (!expediente || Boolean(expediente.test) !== Boolean(enPruebas)) {
+      return { ...sinBloqueo, bloquea: true, motivo: "La clienta no tiene expediente capturado (CU-009). Sin expediente no hay desembolso.", estatus: null };
+    }
+    const estatus = calcularEstatus(expediente);
+    if (!estatus.completo) return { ...sinBloqueo, bloquea: true, motivo: `Expediente incompleto: faltan ${describirFaltantes(estatus)}.`, estatus };
+    if (!estatus.validacion?.aprobado) {
+      const motivo = estatus.validacion
+        ? `El expediente fue RECHAZADO por ${estatus.validacion.por}: ${estatus.validacion.motivo ?? "sin motivo"}.`
+        : "El expediente está completo pero Administración y Finanzas todavía no lo valida.";
+      return { ...sinBloqueo, bloquea: true, motivo, estatus };
+    }
+    return { ...sinBloqueo, estatus, validadoPorId: estatus.validacion.porId, validadoPor: estatus.validacion.por };
+  }
+
+  // Lo que se revisa al dispersar una solicitud de sobres: candado + segregación
+  // (quien validó no dispersa). `candadoActivo=false` (transición) solo avisa.
+  function validarDispersion(solicitud, usuario, candadoActivo) {
+    const candado = expedienteBloqueaDesembolso(solicitud.id, Boolean(usuario.test));
+    if (candado.bloquea) {
+      if (candadoActivo) return rechazo(400, `No se puede dispersar: ${candado.motivo}`, { expediente: candado.estatus });
+      console.warn(`[dispersar ${solicitud.folio}] candado de expediente APAGADO por entorno: ${candado.motivo}`);
+      return { ok: true, estatus: candado.estatus };
+    }
+    if (candado.validadoPorId === usuario.id) {
+      return rechazo(403, `Quien VALIDÓ el expediente (${candado.validadoPor}) no puede dispersar el mismo crédito (segregación de funciones, CU-010 §6).`);
+    }
+    return { ok: true, estatus: candado.estatus };
   }
 
   // ---------- CU-009 · captura ----------
@@ -347,7 +473,7 @@ module.exports = function crearDominioExpediente({
     // Documentos marcados como fotografiados en la misma captura (paso 5).
     (Array.isArray(cuerpo.documentos) ? cuerpo.documentos : []).forEach((documento) => registrarDocumento(socio, documento, usuario, true));
     const actualizado = expedienteDe(socio);
-    return { ok: true, socio, socioGenerado: generado, recaptura, expediente: actualizado, folio: fila.ts };
+    return { ok: true, socio, socioGenerado: generado, recaptura, expediente: actualizado, estatus: calcularEstatus(actualizado), folio: fila.ts };
   }
 
   // Documento del checklist (metadatos). `interno` = viene dentro de la
@@ -366,11 +492,11 @@ module.exports = function crearDominioExpediente({
       evento: EVENTO.DOCUMENTO, socio: expediente.socio, test: expediente.test, propietario, tipo,
       fechaVencimiento: documento.fechaVencimiento ?? null, fechaEmision: documento.fechaEmision ?? null,
       ubicacionFisica: textoONulo(documento.ubicacionFisica), nota: textoONulo(documento.nota),
-      fotografiado: documento.fotografiado !== false, imagenGuardada: false,   // pendiente CU-009 §10.2
+      fotografiado: documento.fotografiado !== false, imagenGuardada: false,   // pendiente CU-009 §10.2 / CU-010 §10.2
       ...sello(usuario),
     });
     const actualizado = expedienteDe(expediente.socio);
-    return { ok: true, documento: fila, expediente: actualizado };
+    return { ok: true, documento: fila, expediente: actualizado, estatus: calcularEstatus(actualizado) };
   }
 
   // ---------- consultas ----------
@@ -378,14 +504,18 @@ module.exports = function crearDominioExpediente({
   function ficha(usuario, socio) {
     const expediente = socioVisible(usuario, socio);
     if (!expediente) return rechazo(404, "No existe expediente para ese socio (o no es tuyo).");
-    return { expediente, nombre: nombreCompleto(expediente.datos), pendientes: pendientes() };
+    return { expediente, nombre: nombreCompleto(expediente.datos), estatus: calcularEstatus(expediente), pendientes: pendientes() };
   }
 
-  const resumenDe = (expediente) => ({
-    socio: expediente.socio, nombre: nombreCompleto(expediente.datos), centro: expediente.centro, ejecutivo: expediente.ejecutivo, estado: expediente.estado,
-    tipoCredito: expediente.tipoCredito, importeSolicitado: expediente.importeSolicitado, creado: expediente.creado,
-    documentos: Object.keys(expediente.documentos).length, pep: Boolean(expediente.pld?.pep?.es),
-  });
+  const resumenDe = (expediente) => {
+    const estatus = calcularEstatus(expediente);
+    return {
+      socio: expediente.socio, nombre: nombreCompleto(expediente.datos), centro: expediente.centro, ejecutivo: expediente.ejecutivo, estado: expediente.estado,
+      semaforo: estatus.semaforo, completo: estatus.completo, faltantes: estatus.faltantes.length, camposFaltantes: estatus.camposFaltantes.length, vencidos: estatus.vencidos.length,
+      tipoCredito: expediente.tipoCredito, importeSolicitado: expediente.importeSolicitado, creado: expediente.creado,
+      documentos: Object.keys(expediente.documentos).length, pep: Boolean(expediente.pld?.pep?.es),
+    };
+  };
 
   // La ejecutiva ve los suyos; dirección/admin todos los de su burbuja.
   function listar(usuario) {
@@ -408,16 +538,19 @@ module.exports = function crearDominioExpediente({
 
   function pendientes() {
     return [
-      { tema: "Imágenes de documentos", motivo: "Solo se guardan metadatos (tipo, fecha, vigencia). El procedimiento de cifrado y retención de las fotos no está definido (CU-009 §10.2).", responsable: "Sistemas" },
+      { tema: "Imágenes de documentos", motivo: "Solo se guardan metadatos (tipo, fecha, vigencia). El procedimiento de cifrado y retención de las fotos no está definido (CU-009 §10.2, CU-010 §10.2).", responsable: "Sistemas" },
       { tema: "Catálogos PLD provisionales", motivo: "Actividad económica y origen de recursos son catálogos provisionales hasta que Contaduría confirme el oficial (Art. 95 Bis LGOAAC).", responsable: "Contaduría (CLIC)" },
       { tema: "Solicitud de Crédito vigente", motivo: "Sigue en validación con el Lic. César Cáceres; el modelo de datos puede ajustarse (CU-009 §10.1).", responsable: "Lic. César Cáceres" },
+      { tema: "Excepción manual al candado de expediente incompleto", motivo: "Ningún documento la contempla; el candado es absoluto y solo se puede apagar por entorno (EXPEDIENTE_CANDADO_DISPERSION=0) para transición (CU-010 §10.3).", responsable: "Dirección" },
+      { tema: "Qué se revalida en una renovación", motivo: "Hoy el candado revisa presencia y vigencia de todo el checklist en cada desembolso; falta definir si en renovación solo lo que pudo caducar (CU-010 §10.1, conecta con CU-007).", responsable: "Dirección" },
       { tema: "Borrado remoto de capturas sin sincronizar", motivo: "La app guarda la captura en el teléfono hasta tener señal; el borrado remoto existente (captura-agil.js) la limpia, pero el procedimiento formal no está definido (CU-009 §10.2).", responsable: "Sistemas" },
     ];
   }
 
   return {
-    REGISTRO, CHECKLIST, PROPIETARIOS, TIPOS_DOCUMENTO, PEP_TIPOS, PEP_PARENTESCOS, RE_CURP, RE_RFC,
+    REGISTRO, CHECKLIST, PROPIETARIOS, TIPOS_DOCUMENTO, PEP_TIPOS, PEP_PARENTESCOS, RE_CURP, RE_RFC, CAMPOS_PLD,
     eventosDe, expedienteDe, socioVisible, capturasVigentes, socioLibre, validarCaptura, registrarCaptura, registrarDocumento,
     listar, listado, ficha, nombreCompleto, catalogos, pendientes,
+    documentoVencido, calcularEstatus, registrarValidacion, expedienteBloqueaDesembolso, validarDispersion,
   };
 };
