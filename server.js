@@ -3584,9 +3584,17 @@ function procesarAltaPadron(b, usuario) {
   // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
   // muta la de entrada — por eso se reasigna aquí.
   clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): al originar se sincroniza el contador de ciclos
+  // limpios de la clienta (suma los ciclos ya terminados sin evaluar, reinicia
+  // si hay mora viva) y se deja la marca en el crédito. No cambia ninguna tasa.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, usuario) };
   // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
   // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
   registrarGarantiaLiquidaAlDesembolsar(clienta, usuario);
+  // CU-017 (PLD-01/PLD-02): antes de escribir el crédito, suma lo otorgado a
+  // esta clienta en los últimos 6 meses y, si supera 1,605 UMA, la MARCA para
+  // aviso. Nunca bloquea: el alta sigue igual, solo queda `alertaPLD`.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, usuario) };
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
     fecha: hoyMX(), por: usuario.nombre, ts: Date.now(),
@@ -3596,10 +3604,11 @@ function procesarAltaPadron(b, usuario) {
     .filter((x) => String(x.socio) === id);
   const info = infoCredito(carteraViva(usuario), clienta);
   return {
-    ok: true, clienta,
+    ok: true, clienta, alertaPLD: clienta.alertaPLD || null,
     saldoCapturado: clienta.saldo,
     yaLePagaron: Math.round((info.pagado || 0) * 100) / 100,
     saldoQuedaEn: Math.round((info.saldoActual || 0) * 100) / 100,
+    ciclosLimpios: clienta.ciclosLimpios || null,
     cobrosQueSiguenSueltos: yaCobrado.map((x) => ({ producto: x.producto, monto: x.pago })),
   };
 }
@@ -3740,6 +3749,10 @@ app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (r
   const v = validarDispersar(s, req.usuario);
   if (!v.ok) return res.status(v.status).json({ error: v.error });
 
+  // CU-010: expediente íntegro y validado, y quien validó no dispersa.
+  const cand = expediente.validarDispersion(s, req.usuario, EXPEDIENTE_CANDADO_DISPERSION);
+  if (cand.error) return res.status(cand.status).json({ error: cand.error, expediente: cand.expediente ?? null });
+
   // El paso que de verdad mueve dinero: si algo truena aquí (motor de
   // reglas, store), se responde 500 en vez de tumbar el proceso completo —
   // la solicitud se queda en "autorizada" y se puede reintentar.
@@ -3760,7 +3773,7 @@ app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (r
     planPagos: clienta.planPagos ?? [],
     sobreDispersion: clienta.sobreDispersion ?? null,
   });
-  res.json({ ok: true, solicitud: actualizada, clienta });
+  res.json({ ok: true, solicitud: actualizada, clienta, expediente: cand.estatus, candadoExpediente: EXPEDIENTE_CANDADO_DISPERSION ? "activo" : "aviso" });
 });
 
 // ENTREGA (paso 4, Regla K.2: quien dispersa NO entrega) — el sobre físico
@@ -5321,9 +5334,17 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
   // muta la de entrada — por eso se reasigna aquí.
   clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): la renovación es EL momento del contador — el ciclo
+  // que se cierra (`choca`, ya en saldo cero) se evalúa aquí: +1 si no tuvo un
+  // solo día de mora, 0 si lo tuvo. Se corre ANTES de escribir la baja/alta
+  // para que el veredicto salga de los pagos tal como quedaron.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, req.usuario) };
   // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
   // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
   registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
+  // CU-017 (PLD-01/PLD-02): la renovación es un desembolso nuevo — misma
+  // vigilancia de acumulación en 6 meses que el alta. Marca, nunca bloquea.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, req.usuario) };
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
   // nuevo y dejarlo dado de baja el mismo día que se abrió.
@@ -5336,9 +5357,10 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
     fecha: hoyMX(), por: req.usuario.nombre, ts: ts + 1 });
   refrescarPadron();
-  res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
+  res.json({ ok: true, clienta, alertaPLD: clienta.alertaPLD || null, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
-    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
+    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe,
+    ciclosLimpios: clienta.ciclosLimpios || null });
 });
 
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
@@ -6229,6 +6251,36 @@ app.post("/api/movimiento/anular", requiere("direccion", "admin"), (req, res) =>
   res.json({ ok: true, folio, anulado: anular });
 });
 
+// ---------- RIESGO Y PEP · bitácora inmutable (CU-016, Regla R11.4 Anexo F) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/riesgo_bitacora.js; aquí
+// solo el pegamento HTTP. Quién puede cambiar: RIESGO_ROLES_PUEDEN_CAMBIAR
+// (roles separados por coma; default "direccion", CU-016 §10.2 pendiente).
+const RIESGO_ROLES_PUEDEN_CAMBIAR = String(process.env.RIESGO_ROLES_PUEDEN_CAMBIAR ?? "direccion")
+  .split(",").map((rol) => rol.trim()).filter(Boolean);
+const riesgo = require("./dominios/riesgo_bitacora")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  rolesPuedenCambiar: RIESGO_ROLES_PUEDEN_CAMBIAR,
+});
+// Traduce la respuesta del dominio ({ status, error } o el resultado) a HTTP;
+// si el dominio truena, 500 legible en vez de tumbar el proceso.
+const rutaRiesgo = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[riesgo] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación de riesgo. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/riesgo/catalogos", requiere("direccion", "admin"), rutaRiesgo(() => riesgo.catalogos()));
+app.get("/api/riesgo/:socio", requiere("direccion", "admin"), rutaRiesgo((req) => riesgo.fichaRiesgo(req.usuario, req.params.socio)));
+app.post("/api/riesgo/cambiar", requiere("direccion", "admin"), rutaRiesgo(({ body = {}, usuario }) => riesgo.registrarCambioRiesgo(
+  { socio: body.socio ?? body.id, campo: body.campo, valor: body.valor, motivo: body.motivo }, usuario,
+)));
+
 // ---------- ARQUEO consolidado del día ----------
 // Reproduce el FORMATO ARQUEO de FOOAX: desglose de billetes/monedas por
 // ejecutivo, efectivo total, menos egresos (gastos/retiros), efectivo a
@@ -6400,6 +6452,36 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     denominaciones: DENOMS_ARQUEO,
   });
 });
+
+// ---------- PLD · ACUMULACIÓN POR CLIENTA EN 6 MESES (CU-017, R11.3 Anexo F, G.5-G.7 Anexo G) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/pld_acumulacion.js; aquí
+// el pegamento HTTP y los parámetros (umbral 1,605 UMA — PLD-01 — y ventana
+// de 180 días, por entorno; la UMA versionada en data/uma.json). SOLO MARCA,
+// NUNCA BLOQUEA (PLD-02): la marca `alertaPLD` se cuelga del crédito en
+// procesarAltaPadron y /api/creditos/recredito.
+const PLD_UMBRAL_UMA = Number(process.env.PLD_UMBRAL_UMA) || 1605;
+const PLD_VENTANA_DIAS = Number(process.env.PLD_VENTANA_DIAS) || 180;
+const pld = require("./dominios/pld_acumulacion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  umbralUMA: PLD_UMBRAL_UMA, ventanaDias: PLD_VENTANA_DIAS,
+  archivoUMA: path.join(__dirname, "data", "uma.json"),
+});
+const evaluarPLDAlDesembolsar = pld.evaluarAlDesembolsar;
+const rutaPLD = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[pld] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la consulta PLD. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/pld/acumulacion", requiere("direccion", "admin"), rutaPLD(({ query }) => pld.consultarAcumulacion(query)));
+app.get("/api/pld/alertas", requiere("direccion", "admin"), rutaPLD(({ usuario }) => pld.resumenAlertas(usuario)));
+app.get("/api/pld/uma", requiere("direccion", "admin"), rutaPLD(() => pld.resumenUMA()));
 
 // ---------- CIERRE DE CAJA DE LA SEMANA ----------
 // El arqueo diario contesta "¿cuánto entrega cada ejecutiva hoy?". No contesta
@@ -7442,6 +7524,37 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   res.send(Buffer.from(buf));
 });
 
+// ---------- CICLOS LIMPIOS · contador por clienta (CU-019 parcial, R5.2 Anexo E/F, TASA-01) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/ciclos_limpios.js; aquí el
+// pegamento HTTP, el umbral (CICLOS_LIMPIOS_TASA_PREFERENCIAL, default 3 —
+// TASA-01) y las dependencias inyectadas. PARCIAL: marca si aplica la tasa
+// preferencial, NO propone tasa (PENDIENTES §1 y §9).
+const CICLOS_LIMPIOS_TASA_PREFERENCIAL = Number(process.env.CICLOS_LIMPIOS_TASA_PREFERENCIAL) || 3;
+const DIAS_VENTANA_PAGOS_CICLOS = 395;   // misma ventana ancha que /api/creditos/recredito
+const ciclosLimpios = require("./dominios/ciclos_limpios")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  claveCredito, infoCredito, carteraViva, esVencido, atrasoEnPagos, vencidaPorPlazo,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_CICLOS);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  umbralCiclos: CICLOS_LIMPIOS_TASA_PREFERENCIAL,
+});
+const marcaCiclosLimpios = ciclosLimpios.marcaParaCredito;
+
+app.get("/api/ciclos-limpios/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = ciclosLimpios.consultar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[ciclos limpios] ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo calcular el contador de ciclos. Intenta de nuevo o avisa a soporte." });
+  }
+});
+
 // ---------- RESUMEN del día (campanita de alertas para dirección) ----------
 // Con CENTAVOS: las garantías traen medios pesos (57.50, 40.50) y este texto los
 // redondeaba a peso entero, así que la campanita y el resumen de WhatsApp decían
@@ -7611,6 +7724,42 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   res.json({ fecha, items, pendientes });
 });
 
+// ---------- DERECHOS ARCO Y RETENCIÓN PLD (CU-015) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/arco_retencion.js; aquí el pegamento HTTP y los parámetros.
+// Exportar: dirección y admin. Anonimizar: solo ARCO_ROLES_ANONIMIZAR (default
+// "direccion" = Dirección General). Retención: RETENCION_PLD_ANIOS, solo lectura.
+const RETENCION_PLD_ANIOS = Number(process.env.RETENCION_PLD_ANIOS) || 10;
+const ARCO_ROLES_ANONIMIZAR = String(process.env.ARCO_ROLES_ANONIMIZAR ?? "direccion").split(",").map((rol) => rol.trim()).filter(Boolean);
+const DIAS_VENTANA_PAGOS_ARCO = 395;   // misma ventana ancha que /api/creditos/recredito
+const arco = require("./dominios/arco_retencion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_ARCO);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  retencionAnios: RETENCION_PLD_ANIOS, rolesAnonimizar: ARCO_ROLES_ANONIMIZAR,
+});
+const entidadARCO = (req) => String(req.params.entidad ?? "").toLowerCase();
+const rutaARCO = (operacion, { refrescaPadron = false } = {}) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    if (refrescaPadron) refrescarPadron();
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[arco] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la solicitud ARCO. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/arco/:entidad/:id/exportar", requiere("direccion", "admin"), rutaARCO((req) => arco.exportar(req.usuario, entidadARCO(req), req.params.id, req.query.solicitante)));
+app.get("/api/arco/:entidad/:id", requiere("direccion", "admin"), rutaARCO((req) => arco.ficha(req.usuario, entidadARCO(req), req.params.id)));
+app.post("/api/arco/:entidad/:id/anonimizar", requiere("direccion", "admin"), rutaARCO((req) => arco.anonimizar(req.usuario, entidadARCO(req), req.params.id, req.body?.motivo), { refrescaPadron: true }));
+app.get("/api/retencion/pld", requiere("direccion", "admin"), rutaARCO((req) => arco.reporteRetencion(req.usuario, req.query.hoy)));
+
 // ---------- RECUPERAR COBRANZA DE UN DÍA ----------
 // Cada vez que un snapshot se sobrescribe, la versión anterior queda archivada.
 // Aquí Dirección puede VER esas versiones y restaurar la correcta, sin depender
@@ -7771,6 +7920,48 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
     entradas, salidas,
     netoEfectivo: neto("efectivo"), netoTransf: neto("transferencia"), netoCheques: neto("cheque") });
 });
+
+// ---------- EXPEDIENTE · alta y captura en campo (CU-009) + checklist y validación (CU-010) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/expediente.js; aquí el pegamento HTTP y los parámetros. La app de la
+// ejecutiva captura sin señal (public/alta-campo.js) y manda a
+// POST /api/expediente/captura cuando hay red; el folioCaptura hace idempotente
+// el reintento. La clienta nace "en captura": NO se escribe al padrón de
+// cobranza. El candado del desembolso (CU-010) vive en el flujo de sobres:
+// EXPEDIENTE_CANDADO_DISPERSION=0 lo vuelve aviso, solo para transición.
+const TOPE_RESPONSABLE = Number(process.env.TOPE_RESPONSABLE) || 2;
+const TOPE_AVAL = Number(process.env.TOPE_AVAL) || 1;
+const MONTO_REQUIERE_AVAL = Number(process.env.MONTO_REQUIERE_AVAL) || 10000;
+const EXPEDIENTE_CANDADO_DISPERSION = String(process.env.EXPEDIENTE_CANDADO_DISPERSION ?? "1") !== "0";
+// Quién valida el expediente (CU-010 §1: Administración y Finanzas = rol admin).
+// Parámetro por si Dirección decide ampliarlo; nunca la ejecutiva.
+const EXPEDIENTE_ROLES_VALIDAR = String(process.env.EXPEDIENTE_ROLES_VALIDAR ?? "admin").split(",").map((rol) => rol.trim()).filter(Boolean);
+const expediente = require("./dominios/expediente")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  topeResponsable: TOPE_RESPONSABLE, topeAval: TOPE_AVAL, montoRequiereAval: MONTO_REQUIERE_AVAL,
+  comprobanteDomicilioMesesMax: COMPROBANTE_DOMICILIO_MESES_MAX,
+});
+const rutaExpediente = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error, errores: resultado.errores ?? [resultado.error], estatus: resultado.estatus ?? null });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[expediente] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación del expediente. Intenta de nuevo o avisa a soporte." });
+  }
+};
+const TODOS_LOS_ROLES = requiere("ejecutivo", "direccion", "admin");
+
+app.get("/api/expediente/catalogos", TODOS_LOS_ROLES, rutaExpediente(() => expediente.catalogos()));
+app.get("/api/expedientes", TODOS_LOS_ROLES, rutaExpediente(({ usuario }) => expediente.listado(usuario)));
+// La captura de campo es de la EJECUTIVA (CU-009 §1); dirección/admin la leen.
+app.post("/api/expediente/captura", requiere("ejecutivo"), rutaExpediente(({ body, usuario }) => expediente.registrarCaptura(body, usuario)));
+app.get("/api/expediente/:socio", TODOS_LOS_ROLES, rutaExpediente(({ usuario, params }) => expediente.ficha(usuario, params.socio)));
+app.post("/api/expediente/:socio/documento", TODOS_LOS_ROLES, rutaExpediente(({ params, body, usuario }) => expediente.registrarDocumento(params.socio, body, usuario)));
+// CU-010 · validación de Administración y Finanzas (Ale): solo EXPEDIENTE_ROLES_VALIDAR.
+app.post("/api/expediente/:socio/validar", requiere(...EXPEDIENTE_ROLES_VALIDAR), rutaExpediente(({ params, body, usuario }) => expediente.registrarValidacion(params.socio, body, usuario)));
 
 // ---------- páginas ----------
 app.get("/", (req, res) => {
@@ -8102,6 +8293,8 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   // esté al día aunque el teléfono no tenga señal para el primer sondeo.
   const inyecciones =
     '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' +
+    // CU-009: alta y captura de clienta en campo, sin conexión (expediente).
+    '<script src="/alta-campo.js"></script>' +
     "<script>window.__VIVOS0=" + JSON.stringify(paqueteVivo(req.usuario)) + ";</script>" +
     '<script src="/vivos.js"></script>' +
     // AUTO-CURACIÓN DEL TELÉFONO (Karina, 15-ago: «no encontré lo de la mora en

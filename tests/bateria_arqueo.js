@@ -3484,8 +3484,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const sw78 = await (await fetch(U + "/sw.js")).text();
   ok("el service worker ya NO sirve la lógica viva desde el cache",
     /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
+  // v23 = la vigente al escribir esto; cualquier versión POSTERIOR también vale
+  // (cada pieza nueva en la app sube la versión, p. ej. v24 = alta-campo.js, CU-009).
+  const vSW = Number((/fooax-v(\d+)/.exec(sw78) || [])[1] || 0);
   ok("y su versión de cache cambió, para que los teléfonos la tomen",
-    /fooax-v23/.test(sw78), "no se movió la versión del cache");
+    vSW >= 23, "no se movió la versión del cache (v" + vSW + ")");
   const vjs78 = await (await fetch(U + "/vivos.js")).text();
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),

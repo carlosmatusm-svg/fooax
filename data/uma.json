@@ -1,0 +1,15 @@
+{
+  "_lea_esto_antes_de_editar": [
+    "TABLA DE UMA (Unidad de Medida y Actualización) versionada por fecha. La edita Sistemas cada 1 de febrero.",
+    "El sistema NO trae ningún valor de UMA escrito en su código: todo sale de aquí (CU-017 §6).",
+    "Si para una fecha no hay valor cargado, el cálculo de acumulación PLD se NIEGA y avisa — nunca adivina ni usa el valor de hoy hacia atrás (CU-017 §5).",
+    "Umbral de aviso: 1,605 UMA en ventana móvil de 6 meses por clienta (Anexo G, Reglas G.5-G.7; PLD-01, 02-sep-2026). El umbral es parámetro de entorno PLD_UMBRAL_UMA, no vive aquí."
+  ],
+  "valores": [
+    {
+      "vigenteDesde": "2026-02-01",
+      "diaria": 117.31,
+      "fuente": "INEGI, UMA 2026. Cruza exactamente con Anexo G (G.5-G.7, Contadora Consuelo): 1,605 UMA = $188,282.55 → 188,282.55 / 1,605 = 117.31."
+    }
+  ]
+}

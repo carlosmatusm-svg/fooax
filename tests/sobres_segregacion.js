@@ -22,6 +22,7 @@ async function login(u, p) {
   return r.headers.get("set-cookie").split(";")[0];
 }
 const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
+const { capturaValida } = require("./_captura_expediente");
 
 (async () => {
   const cKarina = await login("karina", "karina2026");
@@ -31,6 +32,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const cMonse = await login("monse", "monse2026");
   const cPrueba = await login("prueba", "PruebaFOOAX2026");
   const cPruebaDir = await login("pruebadir", "PruebaFOOAX2026");
+  const cAlejandra = await login("alejandra", "alejandra2026");
   if (!cKarina || !cAnel || !cMonse) { console.log("No pude entrar con las cuentas de prueba locales."); process.exit(1); }
 
   const RUN = String(Math.floor(Date.now() / 1000) % 100000);
@@ -62,12 +64,30 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   d = await j(r);
   ok("quien autorizó NO puede dispersar el mismo crédito", r.status === 403, JSON.stringify(d));
 
+  console.log("\n— 3b. CANDADO DE EXPEDIENTE (CU-010): sin expediente íntegro y validado no hay desembolso —");
+  r = await fetch(U + "/api/solicitudes/" + folio + "/dispersar", { method: "POST", headers: H(cMonse) });
+  d = await j(r);
+  ok("sin expediente capturado: 400", r.status === 400 && /expediente/i.test(d.error), JSON.stringify(d));
+  r = await fetch(U + "/api/expediente/captura", { method: "POST", headers: H(cKarina), body: JSON.stringify(capturaValida(RUN, { socio, centro: "C-0" })) });
+  d = await j(r);
+  ok("Karina captura el expediente completo de la clienta (CU-009)", r.status === 200 && d.ok && d.socio === socio, JSON.stringify(d).slice(0, 200));
+  r = await fetch(U + "/api/solicitudes/" + folio + "/dispersar", { method: "POST", headers: H(cMonse) });
+  d = await j(r);
+  ok("completo pero SIN validar por Administración y Finanzas: 400", r.status === 400 && /no lo valida/.test(d.error), JSON.stringify(d));
+  r = await fetch(U + "/api/expediente/" + socio + "/validar", { method: "POST", headers: H(cAlejandra), body: JSON.stringify({ aprobado: true }) });
+  d = await j(r);
+  ok("Alejandra (Administración y Finanzas) valida el expediente", r.status === 200 && d.ok && d.estatus.semaforo === "validado", JSON.stringify(d).slice(0, 200));
+  r = await fetch(U + "/api/solicitudes/" + folio + "/dispersar", { method: "POST", headers: H(cAlejandra) });
+  d = await j(r);
+  ok("quien VALIDÓ el expediente NO dispersa (segregación CU-010 §6): 403", r.status === 403, JSON.stringify(d));
+
   r = await fetch(U + "/api/solicitudes/" + folio + "/dispersar", { method: "POST", headers: H(cMonse) });
   d = await j(r);
   ok("otro usuario (admin) SÍ puede dispersar", r.status === 200 && d.solicitud.estado === "dispersada", JSON.stringify(d));
   ok("dispersar generó el pagaré (sincronización automática)", d.clienta && d.clienta.pagare, JSON.stringify(d.clienta));
   ok("dispersar generó el plan de pagos (8 cuotas)", d.solicitud.planPagos && d.solicitud.planPagos.length === 8);
   ok("dispersar generó el sobre de dispersión", !!d.solicitud.sobreDispersion);
+  ok("la respuesta trae el semáforo del expediente (validado) y el candado activo", d.expediente && d.expediente.semaforo === "validado" && d.candadoExpediente === "activo");
 
   console.log("\n— 4. EL CRÉDITO YA QUEDÓ EN EL PADRÓN REAL (a diferencia del fork) —");
   r = await fetch(U + "/api/creditos/plan-pagos?id=" + socio + "&producto=" + encodeURIComponent(producto), { headers: H(cMonse) });
@@ -99,6 +119,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   }) });
   d = await j(r);
   const folio2 = d.solicitud.folio;
+  r = await fetch(U + "/api/solicitudes/" + folio2 + "/rechazar", { method: "POST", headers: H(cKarina), body: JSON.stringify({ motivo: "no cumple perfil" }) });
+  ok("una ejecutiva (fuera de la escalera) NO puede rechazar: 403", r.status === 403, JSON.stringify(await j(r)));
   r = await fetch(U + "/api/solicitudes/" + folio2 + "/rechazar", { method: "POST", headers: H(cAnel), body: JSON.stringify({ motivo: "no cumple perfil" }) });
   d = await j(r);
   ok("se puede rechazar antes de autorizar", r.status === 200 && d.solicitud.estado === "rechazada", JSON.stringify(d));

@@ -59,9 +59,13 @@ module.exports = function crearDominioSobresSegregacion({ store }) {
   // RECHAZAR: se puede rechazar mientras no se haya dispersado (después de
   // dispersar ya hay dinero comprometido — eso ya no se "rechaza", se maneja
   // como baja, igual que cualquier otro crédito activo).
+  // Rechazar es una decisión de quien AUTORIZA (misma escalera / dirección-
+  // admin): una ejecutiva puede solicitar, entregar y custodiar, pero no
+  // decidir sobre la solicitud (CU-012/CU-013). Revisión de roles 11-sep-2026.
   function validarRechazar(s, usuario, motivo) {
     if (noEncontrada(s, usuario)) return { ok: false, status: 404, error: "No encuentro esa solicitud." };
     if (!["solicitada", "autorizada"].includes(s.estado)) return { ok: false, status: 400, error: "Esa solicitud ya no se puede rechazar (estado: " + s.estado + ")." };
+    if (!puedeAutorizar(usuario)) return { ok: false, status: 403, error: "Solo quien puede autorizar (escalera de autorización o dirección/admin) puede rechazar una solicitud." };
     if (!motivo) return { ok: false, status: 400, error: "Escribe el motivo del rechazo." };
     return { ok: true };
   }

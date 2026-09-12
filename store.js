@@ -24,7 +24,16 @@ const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambio
   // enviar el arqueo se borraba y había que remarcar todo al día siguiente
   // (lo reportó Nery el 19-ago). Append-only, como los ajustes: cada marca
   // se agrega encima y queda quién la puso y cuándo.
-  renov: [] };
+  renov: [],
+  // REGISTROS APPEND-ONLY GENÉRICOS (11-sep-2026). Cada CU de cumplimiento
+  // (bitácora de riesgo CU-016, alertas PLD CU-017, ciclos limpios CU-019,
+  // solicitudes ARCO CU-015, expediente CU-009/010) necesita su propio rastro
+  // inmutable — mismo principio que padron_cambios: nunca se edita ni se
+  // borra una fila, el estado vigente se DERIVA de la última fila. En vez de
+  // una tabla y un archivo por CU, todos viven aquí: `registros[nombre]` es
+  // un arreglo de filas en orden de llegada. En archivos: data/registro_<nombre>.json;
+  // en Postgres: tabla `registros` (nombre, data, ts).
+  registros: {} };
 
 // ¿ENTRA O SALE ESE DINERO? Desde el 6-ago el movimiento lo trae escrito
 // (`entrada`), porque el concepto se elige de un catálogo. Los ANTERIORES no lo
@@ -142,6 +151,13 @@ function aplicarCambios(base, cambios) {
           cl.etiqueta = k.etiqueta || null;
           cl.etiqueta_por = c.por || null; cl.etiqueta_fecha = c.fecha || null;
         }
+        // ARCO (CU-015): la "cancelación" de datos personales es SUSTITUIR el
+        // nombre por un marcador, nunca quitar el renglón — saldos, historial y
+        // bitácora conservan su integridad. No se guarda el nombre anterior:
+        // eso anularía la anonimización. La fila del alta original sigue en
+        // esta misma bitácora como rastro regulatorio (LFPIORPI).
+        if (k.nombre) cl.nombre = String(k.nombre);
+        if (k.anonimizada) { cl.anonimizada = true; cl.anonimizada_fecha = c.fecha || null; cl.anonimizada_por = c.por || null; }
         cl.ajuste_motivo = c.motivo || null; cl.ajuste_por = c.por || null; cl.ajuste_fecha = c.fecha || null;
       }
     }
@@ -189,6 +205,10 @@ async function init() {
     // Sesiones persistentes: un redespliegue NO desloguea a las ejecutivas a
     // media jornada (antes vivían solo en memoria y cada deploy las mataba).
     await pool.query("CREATE TABLE IF NOT EXISTS sesiones (sid text PRIMARY KEY, usuario text, creada bigint)");
+    // Registros append-only genéricos por CU (ver `mem.registros`).
+    await pool.query("CREATE TABLE IF NOT EXISTS registros (id serial PRIMARY KEY, nombre text, data jsonb, ts bigint)");
+    const rg = await pool.query("SELECT nombre, data FROM registros ORDER BY ts, id").catch(() => ({ rows: [] }));
+    for (const r of rg.rows) (mem.registros[r.nombre] = mem.registros[r.nombre] || []).push(r.data);
     const se = await pool.query("SELECT sid, usuario, creada FROM sesiones").catch(() => ({ rows: [] }));
     for (const r of se.rows) mem.sesiones[r.sid] = { usuario: r.usuario, creada: Number(r.creada) };
 
@@ -248,6 +268,14 @@ async function init() {
     try { mem.solicitudes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "solicitudes.json"), "utf8")); } catch { mem.solicitudes = []; }
     try { mem.config = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "configuracion.json"), "utf8")); } catch { mem.config = {}; }
     try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
+    // Registros append-only genéricos: un archivo por nombre, data/registro_<nombre>.json.
+    try {
+      for (const f of fs.readdirSync(DATA_DIR)) {
+        const m = /^registro_([a-z0-9_]+)\.json$/.exec(f);
+        if (!m) continue;
+        try { mem.registros[m[1]] = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), "utf8")) || []; } catch { mem.registros[m[1]] = []; }
+      }
+    } catch { /* sin carpeta todavía: se crea al primer registro */ }
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
   }
@@ -338,6 +366,12 @@ function persistCambio(c) {
       .catch((e) => console.error("[store] cambio padrón:", e.message));
   } else escribirJSON("padron_cambios.json", mem.cambios);
 }
+function persistRegistro(nombre, fila) {
+  if (usePg) {
+    pool.query("INSERT INTO registros (nombre, data, ts) VALUES ($1,$2,$3)", [nombre, fila, fila.ts || Date.now()])
+      .catch((e) => console.error("[store] registro " + nombre + ":", e.message));
+  } else escribirJSON("registro_" + nombre + ".json", mem.registros[nombre]);
+}
 function persistSesion(sid, s) {
   if (usePg) {
     pool.query("INSERT INTO sesiones (sid, usuario, creada) VALUES ($1,$2,$3) ON CONFLICT (sid) DO NOTHING",
@@ -359,6 +393,9 @@ function toco() { rev++; }
 
 module.exports = {
   revision() { return rev; },
+  // Nombres de los registros append-only cargados (ARCO exporta todos los que
+  // mencionen a la persona, sin tener que conocerlos por nombre).
+  nombresRegistros() { return Object.keys(mem.registros); },
   init,
   // Para que el servidor use EXACTAMENTE la misma regla al guardar un
   // movimiento que la que se usa al leerlo. Tenerla en dos lados fue justo lo
@@ -707,6 +744,20 @@ module.exports = {
     return cambio;
   },
   cambiosPadron() { return mem.cambios; },
+
+  // Registros append-only genéricos (ver `mem.registros`). `registro(nombre)`
+  // devuelve las filas tal cual se agregaron (orden de llegada); nunca hay
+  // editar/borrar: el estado vigente se deriva de la última fila, igual que
+  // el padrón se deriva de padron_cambios.
+  registro(nombre) { return mem.registros[nombre] || []; },
+  agregarRegistro(nombre, fila) {
+    if (!/^[a-z0-9_]+$/.test(String(nombre))) throw new Error("nombre de registro inválido: " + nombre);
+    toco();
+    const f = Object.assign({ ts: Date.now() }, fila);
+    (mem.registros[nombre] = mem.registros[nombre] || []).push(f);
+    persistRegistro(nombre, f);
+    return f;
+  },
 
   // Sesiones persistentes (sobreviven redespliegues).
   sesiones() { return mem.sesiones; },
