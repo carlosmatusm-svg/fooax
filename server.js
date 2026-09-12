@@ -3584,6 +3584,10 @@ function procesarAltaPadron(b, usuario) {
   // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
   // muta la de entrada — por eso se reasigna aquí.
   clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): al originar se sincroniza el contador de ciclos
+  // limpios de la clienta (suma los ciclos ya terminados sin evaluar, reinicia
+  // si hay mora viva) y se deja la marca en el crédito. No cambia ninguna tasa.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, usuario) };
   // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
   // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
   registrarGarantiaLiquidaAlDesembolsar(clienta, usuario);
@@ -3604,6 +3608,7 @@ function procesarAltaPadron(b, usuario) {
     saldoCapturado: clienta.saldo,
     yaLePagaron: Math.round((info.pagado || 0) * 100) / 100,
     saldoQuedaEn: Math.round((info.saldoActual || 0) * 100) / 100,
+    ciclosLimpios: clienta.ciclosLimpios || null,
     cobrosQueSiguenSueltos: yaCobrado.map((x) => ({ producto: x.producto, monto: x.pago })),
   };
 }
@@ -5325,6 +5330,11 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
   // muta la de entrada — por eso se reasigna aquí.
   clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): la renovación es EL momento del contador — el ciclo
+  // que se cierra (`choca`, ya en saldo cero) se evalúa aquí: +1 si no tuvo un
+  // solo día de mora, 0 si lo tuvo. Se corre ANTES de escribir la baja/alta
+  // para que el veredicto salga de los pagos tal como quedaron.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, req.usuario) };
   // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
   // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
   registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
@@ -5345,7 +5355,8 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   refrescarPadron();
   res.json({ ok: true, clienta, alertaPLD: clienta.alertaPLD || null, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
-    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
+    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe,
+    ciclosLimpios: clienta.ciclosLimpios || null });
 });
 
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
@@ -7507,6 +7518,37 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Arqueo FOOAX ${fecha}.xlsx"`);
   res.send(Buffer.from(buf));
+});
+
+// ---------- CICLOS LIMPIOS · contador por clienta (CU-019 parcial, R5.2 Anexo E/F, TASA-01) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/ciclos_limpios.js; aquí el
+// pegamento HTTP, el umbral (CICLOS_LIMPIOS_TASA_PREFERENCIAL, default 3 —
+// TASA-01) y las dependencias inyectadas. PARCIAL: marca si aplica la tasa
+// preferencial, NO propone tasa (PENDIENTES §1 y §9).
+const CICLOS_LIMPIOS_TASA_PREFERENCIAL = Number(process.env.CICLOS_LIMPIOS_TASA_PREFERENCIAL) || 3;
+const DIAS_VENTANA_PAGOS_CICLOS = 395;   // misma ventana ancha que /api/creditos/recredito
+const ciclosLimpios = require("./dominios/ciclos_limpios")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  claveCredito, infoCredito, carteraViva, esVencido, atrasoEnPagos, vencidaPorPlazo,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_CICLOS);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  umbralCiclos: CICLOS_LIMPIOS_TASA_PREFERENCIAL,
+});
+const marcaCiclosLimpios = ciclosLimpios.marcaParaCredito;
+
+app.get("/api/ciclos-limpios/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = ciclosLimpios.consultar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[ciclos limpios] ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo calcular el contador de ciclos. Intenta de nuevo o avisa a soporte." });
+  }
 });
 
 // ---------- RESUMEN del día (campanita de alertas para dirección) ----------
