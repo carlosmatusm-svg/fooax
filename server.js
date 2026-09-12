@@ -8038,6 +8038,28 @@ app.post("/api/expediente/:socio/documento", TODOS_LOS_ROLES, rutaExpediente(({ 
 // CU-010 · validación de Administración y Finanzas (Ale): solo EXPEDIENTE_ROLES_VALIDAR.
 app.post("/api/expediente/:socio/validar", requiere(...EXPEDIENTE_ROLES_VALIDAR), rutaExpediente(({ params, body, usuario }) => expediente.registrarValidacion(params.socio, body, usuario)));
 
+// ---------- CU-018 · Vista 360 del expediente (solo lectura) ----------
+// La lógica vive en dominios/vista_360.js; aquí solo el pegamento HTTP.
+// Compone dominios ya construidos (riesgo, PLD, ciclos limpios, expediente,
+// garantías) — nunca recalcula nada con lógica propia (CU-018 §6).
+const vista360 = require("./dominios/vista_360")({
+  obtenerPadron: () => PADRON,
+  riesgo, pld, ciclosLimpios, expediente, estadoDeCuentaGarantia,
+});
+// Mismos roles que ya ven riesgo/PLD/garantías/ciclos (direccion, admin) —
+// Control Operativo (ejecutivo) queda como pendiente documentado (CU-018 §1,
+// ver dominios/vista_360.js → pendientes()).
+app.get("/api/vista360/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = vista360.consolidar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[vista360] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la Vista 360. Intenta de nuevo o avisa a soporte." });
+  }
+});
+
 // ---------- páginas ----------
 app.get("/", (req, res) => {
   const u = usuarioDe(req);
