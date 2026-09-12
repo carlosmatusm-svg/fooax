@@ -219,6 +219,15 @@
     border:none;border-radius:8px;padding:12px;cursor:pointer}
   .altasubmit:disabled{opacity:.6}
   .hilo{position:fixed;top:0;left:0;right:0;height:3px;background:var(--grad);z-index:80}
+  /* La bendición del tablero (pedido Karina 12-sep): presente al pie de
+     todas las secciones, serena, con los lingotes dibujados (sin emojis). */
+  .bendicion{margin:26px 16px 10px;background:var(--tarjeta);border:1px solid #FDE68A;
+    border-radius:10px;padding:18px 20px 16px;text-align:center}
+  .bendicion svg{width:40px;height:28px;margin-bottom:8px}
+  .bendicion p{font-size:12.5px;line-height:1.7;color:var(--tinta);font-style:italic;margin:0;
+    max-width:520px;margin-left:auto;margin-right:auto}
+  .bendicion .amen{display:block;margin-top:8px;font:700 10px var(--mono);font-style:normal;
+    letter-spacing:.1em;color:#B45309;text-transform:uppercase}
   .tbnav{position:sticky;top:0;z-index:40;display:flex;gap:7px;padding:10px 16px 9px;
     background:var(--fondo);border-bottom:1px solid var(--linea)}
   .tbt{flex:1;font:700 13px var(--fuente);padding:13px 2px;border-radius:99px;cursor:pointer;
@@ -853,6 +862,25 @@
   </div>
 
   </div>
+
+  <!-- Bendición del dinero de FOOAX (Karina, 12-sep). Va al pie, presente en
+       todas las pestañas: es la intención con la que sale cada peso. -->
+  <div class="bendicion">
+    <svg viewBox="0 0 48 30" fill="none" stroke="#B45309" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+      <path d="M15 13h8l2.5 10H12.5Z" fill="#FDE68A"/>
+      <path d="M26.5 13h8L37 23H24.5Z" fill="#FDE68A"/>
+      <path d="M20.5 2h8L31 12H18Z" fill="#FDE68A"/>
+      <path d="M21.8 5.2h3.4M16.8 16.2h3.4M28.4 16.2h3.4" stroke-width="1.2" opacity=".7"/>
+    </svg>
+    <p>Dios bendiga, proteja, conserve y multiplique este dinero. Que cada peso que salga de FOOAX
+    sea semilla de prosperidad para nuestras clientas, haga crecer sus negocios y genere bienestar
+    en sus familias. Que produzca frutos y nos sea pagado con facilidad, alegría y gratitud. Que al
+    regresar a FOOAX vuelva multiplicado en oportunidades para servir nuevamente. Que cada crédito
+    sea una cadena de bien: prosperidad para quien recibe, crecimiento para quien trabaja y
+    abundancia para todos.
+    <span class="amen">Para honra y gloria de Dios · Amén</span></p>
+  </div>
+
 </div>
 <script>
 const $ = id => document.getElementById(id);
