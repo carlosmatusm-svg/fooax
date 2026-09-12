@@ -6229,6 +6229,36 @@ app.post("/api/movimiento/anular", requiere("direccion", "admin"), (req, res) =>
   res.json({ ok: true, folio, anulado: anular });
 });
 
+// ---------- RIESGO Y PEP · bitácora inmutable (CU-016, Regla R11.4 Anexo F) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/riesgo_bitacora.js; aquí
+// solo el pegamento HTTP. Quién puede cambiar: RIESGO_ROLES_PUEDEN_CAMBIAR
+// (roles separados por coma; default "direccion", CU-016 §10.2 pendiente).
+const RIESGO_ROLES_PUEDEN_CAMBIAR = String(process.env.RIESGO_ROLES_PUEDEN_CAMBIAR ?? "direccion")
+  .split(",").map((rol) => rol.trim()).filter(Boolean);
+const riesgo = require("./dominios/riesgo_bitacora")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  rolesPuedenCambiar: RIESGO_ROLES_PUEDEN_CAMBIAR,
+});
+// Traduce la respuesta del dominio ({ status, error } o el resultado) a HTTP;
+// si el dominio truena, 500 legible en vez de tumbar el proceso.
+const rutaRiesgo = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[riesgo] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación de riesgo. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/riesgo/catalogos", requiere("direccion", "admin"), rutaRiesgo(() => riesgo.catalogos()));
+app.get("/api/riesgo/:socio", requiere("direccion", "admin"), rutaRiesgo((req) => riesgo.fichaRiesgo(req.usuario, req.params.socio)));
+app.post("/api/riesgo/cambiar", requiere("direccion", "admin"), rutaRiesgo(({ body = {}, usuario }) => riesgo.registrarCambioRiesgo(
+  { socio: body.socio ?? body.id, campo: body.campo, valor: body.valor, motivo: body.motivo }, usuario,
+)));
+
 // ---------- ARQUEO consolidado del día ----------
 // Reproduce el FORMATO ARQUEO de FOOAX: desglose de billetes/monedas por
 // ejecutivo, efectivo total, menos egresos (gastos/retiros), efectivo a

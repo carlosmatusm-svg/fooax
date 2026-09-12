@@ -45,6 +45,26 @@ por ejecutiva en `apps/`, tablero de dirección en `public/tablero.html`.
    servidor de trabajo y sus datos siguen intactos. Si algún día hay que vaciar
    `data/` de verdad, **respaldar primero** (`archivo.bak-FECHA`).
 
+3) **Pruebas por dominio (`tests/<dominio>.js`)** — cada CU construido en `dominios/`
+   trae su prueba propia contra el servidor local con `DATA_DIR` desechable (misma
+   receta que la batería; ver la cabecera de cada archivo). Con `DATA_DIR_PRUEBA=$D`
+   también verifican el rastro en disco. Desde el 11-sep-2026: `riesgo_bitacora`
+   (CU-016), `pld_acumulacion` (CU-017), `ciclos_limpios` (CU-019),
+   `arco_retencion` (CU-015), `expediente_captura` (CU-009),
+   `expediente_validacion` (CU-010), además de las ya existentes
+   (`garantia_liquida`, `sincronizacion_desembolso`, `sobres_segregacion`).
+   Se corren una por servidor limpio o en secuencia; la batería siempre aparte.
+
+## Registros append-only por CU (11-sep-2026)
+
+`store.registro(nombre)` / `store.agregarRegistro(nombre, fila)`: un solo mecanismo
+para los rastros inmutables que exigen los CU de cumplimiento (bitácora de riesgo,
+alertas PLD, ciclos limpios, solicitudes ARCO, expediente). En archivos viven en
+`data/registro_<nombre>.json` (una carpeta `DATA_DIR` desechable los crea sola); en
+Postgres, tabla `registros`. Nunca se edita ni se borra una fila: el estado vigente
+se DERIVA de la última, igual que el padrón se deriva de `padron_cambios`. Si un CU
+nuevo necesita "guardar y poder cambiar", la respuesta es una fila nueva, no un update.
+
 ## Reducir dependencia del monolito `server.js` (arrancado 10-sep-2026)
 
 `server.js` (8300+ líneas) mezcla en un solo archivo: rutas HTTP, acceso a datos
