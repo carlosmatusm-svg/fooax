@@ -7917,6 +7917,40 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
     netoEfectivo: neto("efectivo"), netoTransf: neto("transferencia"), netoCheques: neto("cheque") });
 });
 
+// ---------- EXPEDIENTE · alta y captura en campo, sin conexión (CU-009) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/expediente.js; aquí el pegamento HTTP y los parámetros. La app de la
+// ejecutiva captura sin señal (public/alta-campo.js) y manda a
+// POST /api/expediente/captura cuando hay red; el folioCaptura hace idempotente
+// el reintento. La clienta nace "en captura": NO se escribe al padrón de
+// cobranza (eso es dispersar, CU-013).
+const TOPE_RESPONSABLE = Number(process.env.TOPE_RESPONSABLE) || 2;
+const TOPE_AVAL = Number(process.env.TOPE_AVAL) || 1;
+const MONTO_REQUIERE_AVAL = Number(process.env.MONTO_REQUIERE_AVAL) || 10000;
+const expediente = require("./dominios/expediente")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  topeResponsable: TOPE_RESPONSABLE, topeAval: TOPE_AVAL, montoRequiereAval: MONTO_REQUIERE_AVAL,
+});
+const rutaExpediente = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error, errores: resultado.errores ?? [resultado.error], estatus: resultado.estatus ?? null });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[expediente] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación del expediente. Intenta de nuevo o avisa a soporte." });
+  }
+};
+const TODOS_LOS_ROLES = requiere("ejecutivo", "direccion", "admin");
+
+app.get("/api/expediente/catalogos", TODOS_LOS_ROLES, rutaExpediente(() => expediente.catalogos()));
+app.get("/api/expedientes", TODOS_LOS_ROLES, rutaExpediente(({ usuario }) => expediente.listado(usuario)));
+// La captura de campo es de la EJECUTIVA (CU-009 §1); dirección/admin la leen.
+app.post("/api/expediente/captura", requiere("ejecutivo"), rutaExpediente(({ body, usuario }) => expediente.registrarCaptura(body, usuario)));
+app.get("/api/expediente/:socio", TODOS_LOS_ROLES, rutaExpediente(({ usuario, params }) => expediente.ficha(usuario, params.socio)));
+app.post("/api/expediente/:socio/documento", TODOS_LOS_ROLES, rutaExpediente(({ params, body, usuario }) => expediente.registrarDocumento(params.socio, body, usuario)));
+
 // ---------- páginas ----------
 app.get("/", (req, res) => {
   const u = usuarioDe(req);
@@ -8247,6 +8281,8 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   // esté al día aunque el teléfono no tenga señal para el primer sondeo.
   const inyecciones =
     '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' +
+    // CU-009: alta y captura de clienta en campo, sin conexión (expediente).
+    '<script src="/alta-campo.js"></script>' +
     "<script>window.__VIVOS0=" + JSON.stringify(paqueteVivo(req.usuario)) + ";</script>" +
     '<script src="/vivos.js"></script>' +
     // AUTO-CURACIÓN DEL TELÉFONO (Karina, 15-ago: «no encontré lo de la mora en
