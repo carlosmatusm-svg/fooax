@@ -151,6 +151,13 @@ function aplicarCambios(base, cambios) {
           cl.etiqueta = k.etiqueta || null;
           cl.etiqueta_por = c.por || null; cl.etiqueta_fecha = c.fecha || null;
         }
+        // ARCO (CU-015): la "cancelación" de datos personales es SUSTITUIR el
+        // nombre por un marcador, nunca quitar el renglón — saldos, historial y
+        // bitácora conservan su integridad. No se guarda el nombre anterior:
+        // eso anularía la anonimización. La fila del alta original sigue en
+        // esta misma bitácora como rastro regulatorio (LFPIORPI).
+        if (k.nombre) cl.nombre = String(k.nombre);
+        if (k.anonimizada) { cl.anonimizada = true; cl.anonimizada_fecha = c.fecha || null; cl.anonimizada_por = c.por || null; }
         cl.ajuste_motivo = c.motivo || null; cl.ajuste_por = c.por || null; cl.ajuste_fecha = c.fecha || null;
       }
     }
@@ -386,6 +393,9 @@ function toco() { rev++; }
 
 module.exports = {
   revision() { return rev; },
+  // Nombres de los registros append-only cargados (ARCO exporta todos los que
+  // mencionen a la persona, sin tener que conocerlos por nombre).
+  nombresRegistros() { return Object.keys(mem.registros); },
   init,
   // Para que el servidor use EXACTAMENTE la misma regla al guardar un
   // movimiento que la que se usa al leerlo. Tenerla en dos lados fue justo lo

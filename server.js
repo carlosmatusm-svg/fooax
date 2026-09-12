@@ -7720,6 +7720,42 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   res.json({ fecha, items, pendientes });
 });
 
+// ---------- DERECHOS ARCO Y RETENCIÓN PLD (CU-015) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/arco_retencion.js; aquí el pegamento HTTP y los parámetros.
+// Exportar: dirección y admin. Anonimizar: solo ARCO_ROLES_ANONIMIZAR (default
+// "direccion" = Dirección General). Retención: RETENCION_PLD_ANIOS, solo lectura.
+const RETENCION_PLD_ANIOS = Number(process.env.RETENCION_PLD_ANIOS) || 10;
+const ARCO_ROLES_ANONIMIZAR = String(process.env.ARCO_ROLES_ANONIMIZAR ?? "direccion").split(",").map((rol) => rol.trim()).filter(Boolean);
+const DIAS_VENTANA_PAGOS_ARCO = 395;   // misma ventana ancha que /api/creditos/recredito
+const arco = require("./dominios/arco_retencion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_ARCO);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  retencionAnios: RETENCION_PLD_ANIOS, rolesAnonimizar: ARCO_ROLES_ANONIMIZAR,
+});
+const entidadARCO = (req) => String(req.params.entidad ?? "").toLowerCase();
+const rutaARCO = (operacion, { refrescaPadron = false } = {}) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    if (refrescaPadron) refrescarPadron();
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[arco] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la solicitud ARCO. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/arco/:entidad/:id/exportar", requiere("direccion", "admin"), rutaARCO((req) => arco.exportar(req.usuario, entidadARCO(req), req.params.id, req.query.solicitante)));
+app.get("/api/arco/:entidad/:id", requiere("direccion", "admin"), rutaARCO((req) => arco.ficha(req.usuario, entidadARCO(req), req.params.id)));
+app.post("/api/arco/:entidad/:id/anonimizar", requiere("direccion", "admin"), rutaARCO((req) => arco.anonimizar(req.usuario, entidadARCO(req), req.params.id, req.body?.motivo), { refrescaPadron: true }));
+app.get("/api/retencion/pld", requiere("direccion", "admin"), rutaARCO((req) => arco.reporteRetencion(req.usuario, req.query.hoy)));
+
 // ---------- RECUPERAR COBRANZA DE UN DÍA ----------
 // Cada vez que un snapshot se sobrescribe, la versión anterior queda archivada.
 // Aquí Dirección puede VER esas versiones y restaurar la correcta, sin depender
