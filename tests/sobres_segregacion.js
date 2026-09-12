@@ -99,6 +99,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   }) });
   d = await j(r);
   const folio2 = d.solicitud.folio;
+  r = await fetch(U + "/api/solicitudes/" + folio2 + "/rechazar", { method: "POST", headers: H(cKarina), body: JSON.stringify({ motivo: "no cumple perfil" }) });
+  ok("una ejecutiva (fuera de la escalera) NO puede rechazar: 403", r.status === 403, JSON.stringify(await j(r)));
   r = await fetch(U + "/api/solicitudes/" + folio2 + "/rechazar", { method: "POST", headers: H(cAnel), body: JSON.stringify({ motivo: "no cumple perfil" }) });
   d = await j(r);
   ok("se puede rechazar antes de autorizar", r.status === 200 && d.solicitud.estado === "rechazada", JSON.stringify(d));
