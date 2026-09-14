@@ -1543,23 +1543,31 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   // ===== MORA POR EJECUTIVO =====
   {
     const ws = wb.addWorksheet("MORA POR EJECUTIVO");
-    ws.columns = [{ width: 4 }, { width: 22 }, { width: 22 }, { width: 24 }, { width: 18 }];
-    tit(ws, 1, "FOOAX · MORA Y RECUPERACIÓN POR EJECUTIVO", 5);
-    sub(ws, 2, "MORA DE LA SEMANA = lo que faltó de cuota en créditos vigentes · RECUPERACIÓN = saldo vivo de créditos VENCIDOS · semana " + semanaTxt, 5);
-    enc(ws, 4, ["", "EJECUTIVO", "MORA SEMANA (vigentes)", "RECUPERACIÓN (vencidos)", "TOTAL POR COBRAR"]);
+    ws.columns = [{ width: 4 }, { width: 22 }, { width: 20 }, { width: 24 }, { width: 22 }, { width: 18 }];
+    tit(ws, 1, "FOOAX · MORA Y RECUPERACIÓN POR EJECUTIVO", 6);
+    sub(ws, 2, "La mora va POR LÍNEA (Dirección, 11-sep): la de una reestructura o individual pertenece al centro pero NO es mora del grupo · RECUPERACIÓN = saldo vivo de vencidos · semana " + semanaTxt, 6);
+    enc(ws, 4, ["", "EJECUTIVO", "MORA LÍNEA GRUPAL", "MORA LÍNEA INDIVIDUAL·REEST.", "RECUPERACIÓN (vencidos)", "TOTAL POR COBRAR"]);
+    // Desglose de la mora semanal por línea de producto.
+    const moraGrupalEj = {}, moraIndEj = {};
+    for (const g of (mora.dias || []))
+      for (const x of (g.filas || [])) {
+        const bolsa = grupoDe(x.producto) === "INDIVIDUALES" ? moraIndEj : moraGrupalEj;
+        bolsa[x.ejecutivo] = r2((bolsa[x.ejecutivo] || 0) + (x.faltante || 0));
+      }
     let f = 5;
     for (const e of ejecutivas) {
       const rec = cartera.filter((c) => c.estatus === "VENCIDO" && ctx.norm(c.ejecutivo) === ctx.norm(e.nombre))
         .reduce((t, c) => t + c.saldo, 0);
-      const m = moraPorEjec[e.nombre] || 0;
       const row = ws.getRow(f);
       row.getCell(2).value = e.nombre;
-      dinero(ws, f, 3, m); dinero(ws, f, 4, rec);
-      formula(ws, f, 5, "C" + f + "+D" + f, m + rec);
+      dinero(ws, f, 3, moraGrupalEj[e.nombre] || 0);
+      dinero(ws, f, 4, moraIndEj[e.nombre] || 0);
+      dinero(ws, f, 5, rec);
+      formula(ws, f, 6, "C" + f + "+D" + f + "+E" + f, r2((moraGrupalEj[e.nombre] || 0) + (moraIndEj[e.nombre] || 0) + rec));
       f++;
     }
     ws.getRow(f).getCell(2).value = "TOTAL FOOAX"; ws.getRow(f).getCell(2).font = { bold: true };
-    for (const col of [3, 4, 5]) {
+    for (const col of [3, 4, 5, 6]) {
       const L = colLetra(col);
       const val = Array.from({ length: f - 5 }, (_, k) => {
         const v = ws.getRow(5 + k).getCell(col).value;

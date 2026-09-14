@@ -2116,7 +2116,12 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
      "DÍA DE COBRO", "FALTANTE DE PAGO", "Cuota", "Pagó ese día", "Pagó en la semana"]
       .forEach((h, i) => { const c = rh.getCell(i + 1); c.value = h;
         c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } }; });
-    for (const x of g.filas) {
+    // LA LÍNEA INDIVIDUAL VA APARTE (Observación de Dirección, 11-sep, casos
+    // Rosa Elia/Odette/Alejandra/Magda): una reestructura o individual
+    // pertenece a un centro, pero su mora NO es mora del grupo. Se listan al
+    // final del día con su letrero y el total sale desglosado.
+    const esIndM = (x) => !/^grupal/i.test(String(x.producto || ""));
+    const pintaFilaM = (x) => {
       const r = s.getRow(f++);
       [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto,
        x.diaDesembolso || "—", x.desembolso || "—", x.diaPago]
@@ -2130,12 +2135,24 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
       const cc = r.getCell(10); cc.value = x.cuota; cc.numFmt = MONEDA;
       const cd = r.getCell(11); cd.value = x.pagadoSuDia; cd.numFmt = MONEDA;
       const cp = r.getCell(12); cp.value = x.pagado; cp.numFmt = MONEDA;
+    };
+    const grupalesM = g.filas.filter((x) => !esIndM(x));
+    const individualesM = g.filas.filter(esIndM);
+    for (const x of grupalesM) pintaFilaM(x);
+    if (individualesM.length) {
+      const ri = s.getRow(f++);
+      ri.getCell(2).value = "LÍNEA INDIVIDUAL · REESTRUCTURAS — pertenecen al centro pero NO son mora del grupo";
+      ri.getCell(2).font = { bold: true, italic: true, color: { argb: "FF7A3EA8" } };
+      for (const x of individualesM) pintaFilaM(x);
     }
+    const tGr = Math.round(grupalesM.reduce((t2, x) => t2 + (x.faltante || 0), 0) * 100) / 100;
+    const tIn = Math.round(individualesM.reduce((t2, x) => t2 + (x.faltante || 0), 0) * 100) / 100;
     const rt = s.getRow(f++);
     rt.getCell(4).value = "TOTAL " + g.dia + "  ·  " + g.alCorrienteSuDia + " de " + g.creditos
       + " pagaron ESE DÍA"
       + (g.alCorriente > g.alCorrienteSuDia ? "  (+" + (g.alCorriente - g.alCorrienteSuDia) + " completaron después)" : "")
-      + "  ·  cobrado ese día " + g.cobradoSuDia.toFixed(2);
+      + "  ·  cobrado ese día " + g.cobradoSuDia.toFixed(2)
+      + (tIn > 0.009 ? "  ·  grupal $" + tGr.toFixed(2) + " · línea individual $" + tIn.toFixed(2) : "");
     rt.getCell(4).font = { bold: true };
     const ct = rt.getCell(9); ct.value = g.total; ct.numFmt = MONEDA;
     ct.font = { bold: true, color: { argb: ROJO } };
