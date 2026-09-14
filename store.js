@@ -128,6 +128,7 @@ function aplicarCambios(base, cambios) {
         // venía: mover cartera deja huella (regla §6.1 del Complemento).
         if (k.ejecutivo) { cl.ejecutivo_anterior = cl.ejecutivo; cl.ejecutivo = k.ejecutivo; }
         if (k.centro) { cl.centro_anterior = cl.centro; cl.centro = k.centro; }
+        if (k.noCentro) cl.noCentro = k.noCentro;
         // FECHA DE DESEMBOLSO y DÍA DE PAGO (Karina, 15-ago). Son los dos datos
         // con los que el sistema decide si un crédito debe y bajo qué día. Sin
         // poder capturarlos DESPUÉS del alta, un crédito que nació sin ellos se

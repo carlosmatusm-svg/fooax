@@ -5040,7 +5040,29 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
       return res.status(400).json({ error: "El plazo es el NÚMERO DE PAGOS del crédito (por ejemplo 18 o 24), entre 1 y 200." });
     campos.plazo = pl;
   }
-  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota, el plazo, el ejecutivo, la fecha de desembolso o el día de pago." });
+  // CENTRO (caso Leticia Morales, 14-sep): la clienta que se cambia de centro
+  // se corrige aquí, sin baja + alta (eso revive el crédito viejo con su fecha
+  // y la regresa al centro anterior). El centro destino debe EXISTIR en el
+  // padrón — protege el catálogo único (CU-13) contra typos — y el número de
+  // centro se hereda del destino para que fichas y mora la agrupen bien.
+  if (b.centro != null && String(b.centro).trim() !== "") {
+    const buscado = norm(String(b.centro));
+    const canon = PADRON.find((x) => norm(x.centro || "") === buscado && x.centro);
+    const registro = store.cambiosPadron().find((cb) => cb.tipo === "centro" && norm(cb.centro || "") === buscado);
+    if (!canon && !registro)
+      return res.status(400).json({ error: "Ese centro no existe en el padrón ni en el catálogo. Escríbelo igual que aparece en el sistema (o da de alta el centro primero)." });
+    const nombreCanon = canon ? canon.centro : String(registro.centro).toUpperCase();
+    if (norm(nombreCanon) !== norm(c.centro || "")) {
+      campos.centro = nombreCanon;
+      // El número del centro destino se hereda de donde exista: una clienta
+      // que lo traiga, o el registro del catálogo (centro recién creado).
+      const conNum = PADRON.find((x) => norm(x.centro || "") === buscado && x.noCentro);
+      const her = (canon && canon.noCentro) || (conNum && conNum.noCentro)
+        || (registro && registro.numero ? "C-" + registro.numero : null);
+      if (her) campos.noCentro = her;
+    }
+  }
+  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota, el plazo, el ejecutivo, la fecha de desembolso, el día de pago o el centro." });
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
     saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),

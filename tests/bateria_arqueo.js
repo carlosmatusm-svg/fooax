@@ -3105,9 +3105,17 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     !!tarde && tarde.faltante > 0, "no aparece");
   ok("pero se marca que ya pagó, y su pendiente queda en cero",
     !!tarde && tarde.pagadoDespues > 0 && tarde.sigueDebiendo === 0, JSON.stringify(tarde));
-  ok("el bloque cierra con el puente: mora del día − recuperado = sigue debiendo",
-    Math.abs((md62b.totalDia - md62b.recuperado) - md62b.pendiente) < 0.01,
-    JSON.stringify({ dia: md62b.totalDia, recuperado: md62b.recuperado, pendiente: md62b.pendiente }));
+  // El "sigue debiendo" de cada fila se CAPEA al saldo vivo (nadie debe más
+  // que su saldo) — regla del server. El puente cierra sumando esos topes:
+  // día − recuperado = pendiente + topes. Sin el tope, la prueba tronaba
+  // según el día de la semana en que corriera (caso TENDENCIA TEST, 14-sep:
+  // faltante $1,000 con saldo vivo de $500).
+  const topes62 = md62b.centros.flatMap((g) => g.filas)
+    .reduce((t, x) => t + Math.max(0,
+      Math.max(0, (x.faltante || 0) - Math.min(x.pagadoDespues || 0, x.faltante || 0)) - (x.sigueDebiendo || 0)), 0);
+  ok("el bloque cierra con el puente: día − recuperado = pendiente + topes de saldo vivo",
+    Math.abs((md62b.totalDia - md62b.recuperado) - md62b.pendiente - topes62) < 0.01,
+    JSON.stringify({ dia: md62b.totalDia, recuperado: md62b.recuperado, pendiente: md62b.pendiente, topes: topes62 }));
   // Y ese "sigue debiendo" es EXACTAMENTE lo que reporta la mora de la semana.
   const sem62 = await j(await fetch(U + "/api/mora?lunes=" + F62, { headers: H(cm) }));
   const lun62 = (sem62.dias || []).find((g) => g.dia === "LUNES") || { total: -1 };
@@ -5840,6 +5848,43 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const rD = await j(await fetch(U + "/api/resumen", { headers: H(cd) }));
     ok("a la dirección de PRUEBA tampoco (burbuja aparte)",
       !(rD.items || []).some((x) => /^Monse /.test(x.txt || "")), "le salió");
+  }
+
+  console.log("\n— 105. CAMBIO DE CENTRO SIN BAJA + ALTA (caso Leticia Morales, 14-sep) —");
+  // La baja + alta revivía el crédito viejo (mismo socio + producto) con su
+  // fecha y su centro de antes. Ahora el cambio de centro es un ajuste normal.
+  {
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO ORIGEN 72", numero: "72", dia: "LUNES", ejecutivo: "Neri" }) });
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO DESTINO 74", numero: "74", dia: "MARTES", ejecutivo: "Neri" }) });
+    await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "72000000040", nombre: "LETICIA DE PRUEBA 105", producto: "Grupal-Basico",
+        centro: "CENTRO ORIGEN 72", ejecutivo: "Neri", saldo: 4000, cuota: 200, plazo: 20,
+        diaPago: "LUNES", desembolso: HOY }) }));
+    await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "74000000041", nombre: "VECINA DEL DESTINO 105", producto: "Grupal-Basico",
+        centro: "CENTRO DESTINO 74", ejecutivo: "Neri", saldo: 2000, cuota: 100, plazo: 20,
+        diaPago: "MARTES", desembolso: HOY }) }));
+    const aj105 = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "72000000040", producto: "Grupal-Basico",
+        centro: "CENTRO DESTINO 74", motivo: "se cambió de centro (prueba 105)" }) }));
+    ok("el ajuste de centro pasa y la clienta queda en el centro destino",
+      aj105.ok === true && aj105.clienta && aj105.clienta.centro === "CENTRO DESTINO 74",
+      JSON.stringify(aj105).slice(0, 120));
+    ok("y hereda el NÚMERO del centro destino (para fichas y mora)",
+      aj105.clienta && /74/.test(String(aj105.clienta.noCentro || "")),
+      "noCentro: " + (aj105.clienta && aj105.clienta.noCentro));
+    const malo105 = await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "72000000040", producto: "Grupal-Basico",
+        centro: "CENTRO QUE NO EXISTE 105", motivo: "typo a propósito" }) });
+    ok("un centro que NO existe se rechaza (nada de centros fantasma por typo)",
+      malo105.status === 400, "status " + malo105.status);
+    const cli105 = await j(await fetch(U + "/api/clientes?q=LETICIA%20DE%20PRUEBA%20105", { headers: H(cm) }));
+    const f105 = (cli105.resultados || []).find((x) => String(x.id) === "72000000040");
+    ok("el buscador ya la enseña en su centro nuevo, con rastro del anterior",
+      !!f105 && f105.centro === "CENTRO DESTINO 74",
+      JSON.stringify(f105 || {}).slice(0, 100));
   }
 
   console.log("\n══════════════════════════════════");

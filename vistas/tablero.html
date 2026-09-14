@@ -1552,6 +1552,11 @@ function pedirAjuste(btn, i) {
     + "</select>"
     + '<span class="credlbl">Fecha de desembolso:</span>'
     + '<input class="credin" id="ajDesem" type="date" value="' + hesc(String(c.desembolso || "").slice(0, 10)) + '">'
+    // CENTRO (caso Leticia Morales, 14-sep): cambio de centro SIN baja + alta.
+    // El servidor valida que el centro exista tal cual — un typo no crea
+    // centros fantasma.
+    + '<span class="credlbl">Centro:</span>'
+    + '<input class="credin" id="ajCentro" placeholder="' + hesc(c.centro || "sin centro") + '" value="">'
     + '<input class="credin ancho" id="ajMotivo" placeholder="motivo (ej. condonación, error de captura)">'
     + '<button class="credok" onclick="hacerAjuste(this,' + i + ')">Guardar</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1563,7 +1568,8 @@ async function hacerAjuste(btn, i) {
   const body = { id: c.id, producto: c.producto, saldo: $("ajSaldo").value, cuota: $("ajCuota").value,
     plazo: $("ajPlazo") ? $("ajPlazo").value : "", motivo: $("ajMotivo").value,
     diaPago: $("ajDia") ? $("ajDia").value : "",
-    desembolso: $("ajDesem") ? $("ajDesem").value : "" };
+    desembolso: $("ajDesem") ? $("ajDesem").value : "",
+    centro: $("ajCentro") ? $("ajCentro").value : "" };
   try {
     const r = await fetch("/api/creditos/ajuste", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
@@ -1637,6 +1643,8 @@ function pedirRecredito(btn, i) {
         '<option value="' + d + '"' + (String(c.diaPago || "").toUpperCase() === d && d ? " selected" : "")
         + ">" + (d || "— el que traía —") + "</option>").join("")
     + "</select>"
+    + '<span class="credlbl">Centro:</span>'
+    + '<input class="credin" id="rcCentro" placeholder="' + hesc(c.centro || "el que traía") + '" value="">'
     + '<span class="credlbl">Lo cobra:</span><select class="credin" id="rcEjec">' + opsEj + "</select>"
     + '<button class="credok" onclick="hacerRecredito(this,' + i + ')">Dar crédito</button>'
     + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
@@ -1645,7 +1653,8 @@ function pedirRecredito(btn, i) {
 }
 async function hacerRecredito(btn, i) {
   const c = credRow(i), err = $("rcErr"); btn.disabled = true;
-  const body = { id: c.id, nombre: c.nombre, centro: c.centro,
+  const body = { id: c.id, nombre: c.nombre,
+    centro: (($("rcCentro") || {}).value || "").trim() || c.centro,
     ejecutivo: ($("rcEjec") && $("rcEjec").value) || c.ejecutivo,
     producto: productoElegido("rcProd", "rcProdNuevo"), saldo: $("rcSaldo").value, cuota: $("rcCuota").value,
     importe: ($("rcPrestamo") || {}).value || "",
