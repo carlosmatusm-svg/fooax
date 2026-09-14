@@ -2638,7 +2638,10 @@ app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, 
     // "Intentemos con el de la semana pasada y de este" (Karina, 10-sep):
     // ?semana=pasada baja el libro de la semana anterior; ?lunes=YYYY-MM-DD
     // baja cualquier semana exacta; sin nada, la semana en curso.
+    // Cualquier fecha vale: se normaliza al LUNES de su semana, para que el
+    // selector del tablero acepte "el miércoles de esa semana" sin pensarlo.
     let lunesQ = req.query.lunes;
+    if (lunesQ && /^\d{4}-\d{2}-\d{2}$/.test(String(lunesQ))) lunesQ = lunesDeLaSemana(String(lunesQ));
     if (req.query.semana === "pasada") {
       const d = new Date(lunesDeLaSemana(hoyMX()) + "T12:00:00");
       d.setDate(d.getDate() - 7);
