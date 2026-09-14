@@ -3599,6 +3599,18 @@ function procesarAltaPadron(b, usuario) {
     tipo: "alta", id, producto: clienta.producto, clienta,
     fecha: hoyMX(), por: usuario.nombre, ts: Date.now(),
   });
+  // NOT-01 #3 "Desembolso realizado" (Dirección General · Gerencia de
+  // Sucursal) y el aviso nuevo a clienta de otorgamiento/renovación (11-sep-2026).
+  avisar("desembolso_realizado", { socio: id, usuario, test: !!usuario.test,
+    detalle: { nombre: clienta.nombre, centro: clienta.centro, producto: clienta.producto, importe: clienta.importe } });
+  avisar("otorgamiento_renovacion_cliente", { socio: id, usuario, test: !!usuario.test,
+    detalle: { nombre: clienta.nombre, producto: clienta.producto, importe: clienta.importe, tipo: clienta.recredito ? "renovacion" : "otorgamiento" } });
+  // NOT-01 #7 "Operación marcada por acumulación PLD" — solo si de verdad se
+  // marcó (PLD-02: el sistema marca, nunca bloquea; el aviso sigue esa misma regla).
+  if (clienta.alertaPLD && clienta.alertaPLD.activa) {
+    avisar("pld_marcada", { socio: id, usuario, test: !!usuario.test,
+      detalle: { nombre: clienta.nombre, acumulado: clienta.alertaPLD.acumulado, umbralPesos: clienta.alertaPLD.umbralPesos } });
+  }
   refrescarPadron();
   const yaCobrado = cobranzaSinCredito(usuario, corteSaldos())
     .filter((x) => String(x.socio) === id);
@@ -3697,6 +3709,8 @@ app.post("/api/solicitudes", requiere("ejecutivo", "direccion", "admin"), (req, 
     solicitadaPor: req.usuario.nombre, solicitadaPorId: req.usuario.id, solicitadaTs: Date.now(),
   };
   store.agregarSolicitud(solicitud);
+  avisar("solicitud_nueva", { socio: solicitud.id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { folio: solicitud.folio, nombre: solicitud.nombre, producto: solicitud.producto, importe: solicitud.importe } });
   res.json({ ok: true, solicitud });
 });
 
@@ -4024,6 +4038,22 @@ const {
   obtenerPadron: () => PADRON,
   porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
 });
+
+// Dominio Notificaciones (NOT-01, CU-020) extraído a
+// dominios/notificaciones.js (12-sep-2026): bandeja interna de avisos,
+// aprobada por Dirección General el 11-sep-2026. Ver la cabecera de ese
+// archivo para el catálogo completo de eventos NOT-01, cuáles ya disparan
+// aviso desde un punto real del código y cuáles quedan pendientes por no
+// existir todavía la funcionalidad de origen.
+const notificaciones = require("./dominios/notificaciones")({ store, hoyMX });
+// Envuelve crearAviso para que un error de un evento no construido, o
+// cualquier otro fallo al notificar, nunca tumbe la operación de negocio que
+// lo dispara (CU-020 §4: "si algo no sale como se espera" — un aviso es
+// siempre secundario a la operación real).
+function avisar(clave, datos) {
+  try { return notificaciones.crearAviso({ clave, ...datos }); }
+  catch (error) { console.error(`[notificaciones] ${clave}: ${error.message}`); return null; }
+}
 
 // Dominio Sincronización al Desembolso (CU-013/CU-014) extraído a
 // dominios/sincronizacion_desembolso.js (10-sep-2026, ver "Reducir
@@ -5378,6 +5408,17 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   }
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
     fecha: hoyMX(), por: req.usuario.nombre, ts: ts + 1 });
+  // NOT-01 #3 "Desembolso realizado" y el aviso a clienta de renovación —
+  // una renovación (recrédito) es un desembolso nuevo (CU-013/CU-014), igual
+  // que el alta.
+  avisar("desembolso_realizado", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { nombre: clienta.nombre, centro: clienta.centro, producto: clienta.producto, importe: clienta.importe, recredito: true } });
+  avisar("otorgamiento_renovacion_cliente", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { nombre: clienta.nombre, producto: clienta.producto, importe: clienta.importe, tipo: "renovacion" } });
+  if (clienta.alertaPLD && clienta.alertaPLD.activa) {
+    avisar("pld_marcada", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { nombre: clienta.nombre, acumulado: clienta.alertaPLD.acumulado, umbralPesos: clienta.alertaPLD.umbralPesos } });
+  }
   refrescarPadron();
   res.json({ ok: true, clienta, alertaPLD: clienta.alertaPLD || null, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
@@ -5955,6 +5996,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     disponibleAntes = g.disponible;
     if (monto > g.disponible + 0.009) {
       const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+      // NOT-01 #11 "Intento bloqueado por un candado" — con nombre, fecha y
+      // qué se intentó, como pide la definición aprobada.
+      avisar("candado_bloqueado", { socio, usuario: req.usuario, test: !!req.usuario.test,
+        detalle: { candado: "antiduplicado_garantia_liquida", accion: "entrega", producto, montoIntentado: monto, disponible: g.disponible } });
       return res.status(400).json({
         error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
           + (g.disponible <= 0.009 && previa
@@ -5982,6 +6027,12 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);
+  // NOT-01 #4 "Garantía devuelta o aplicada" — destinatario corregido por
+  // Dirección (11-sep-2026) a Auxiliar administrativo (no Dirección General).
+  if (tipoNombre === "Garantía líquida entregada" && socio) {
+    avisar("garantia_devuelta_aplicada", { socio, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { accion: "entrega", producto, monto, folio } });
+  }
   // TICKET H.14 (Anexo H.14, CU-022): en los tres movimientos de garantía
   // —recepción, aplicación, devolución— se manda junto con el movimiento para
   // que el tablero lo pueda imprimir o mostrar. Solo se calcula el "después"
@@ -6031,6 +6082,8 @@ app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, 
   const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
   if (monto > g.disponible + 0.009) {
     const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+    avisar("candado_bloqueado", { socio, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { candado: "antiduplicado_garantia_liquida", accion: "aplicacion", producto, montoIntentado: monto, disponible: g.disponible } });
     return res.status(400).json({
       error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
         + (g.disponible <= 0.009 && previa
@@ -6065,6 +6118,10 @@ app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, 
   // bajó pero el crédito no) porque los folios comparten aplicacionId.
   store.agregarMovimiento(movGarantia);
   store.agregarMovimiento(movRecuperacion);
+  // NOT-01 #4 "Garantía devuelta o aplicada" — destinatario corregido por
+  // Dirección (11-sep-2026) a Auxiliar administrativo (no Dirección General).
+  avisar("garantia_devuelta_aplicada", { socio, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { accion: "aplicacion", producto, monto, folio: movGarantia.folio } });
   const ticket = ticketGarantiaLiquidaH14(movGarantia, g.disponible, Math.max(0, g.disponible - monto));
   res.json({ ok: true, movimientoGarantia: movGarantia, movimientoRecuperacion: movRecuperacion, ticket });
 });
@@ -6302,6 +6359,24 @@ app.get("/api/riesgo/:socio", requiere("direccion", "admin"), rutaRiesgo((req) =
 app.post("/api/riesgo/cambiar", requiere("direccion", "admin"), rutaRiesgo(({ body = {}, usuario }) => riesgo.registrarCambioRiesgo(
   { socio: body.socio ?? body.id, campo: body.campo, valor: body.valor, motivo: body.motivo }, usuario,
 )));
+
+// ---------- NOTIFICACIONES · bandeja interna (NOT-01, dentro de CU-020) ----------
+// Construido 12-sep-2026, aprobado por Dirección General (Consuelo Bozas)
+// el 11-sep-2026. La lógica vive en dominios/notificaciones.js; aquí solo el
+// pegamento HTTP (mismo patrón que /api/riesgo).
+const rutaNotificaciones = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado && resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json({ ok: true, ...(Array.isArray(resultado) ? { notificaciones: resultado } : resultado) });
+  } catch (error) {
+    console.error(`[notificaciones] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación de notificaciones. Intenta de nuevo o avisa a soporte." });
+  }
+};
+app.get("/api/notificaciones/catalogo", requiere("direccion", "admin"), rutaNotificaciones(() => ({ catalogo: notificaciones.catalogo(), pendientes: notificaciones.pendientes() })));
+app.get("/api/notificaciones", requiere("direccion", "admin"), rutaNotificaciones((req) => notificaciones.bandeja(req.usuario)));
+app.post("/api/notificaciones/:ts/leida", requiere("direccion", "admin"), rutaNotificaciones((req) => notificaciones.marcarLeida(Number(req.params.ts), req.usuario)));
 
 // ---------- ARQUEO consolidado del día ----------
 // Reproduce el FORMATO ARQUEO de FOOAX: desglose de billetes/monedas por
@@ -7984,6 +8059,29 @@ app.get("/api/expediente/:socio", TODOS_LOS_ROLES, rutaExpediente(({ usuario, pa
 app.post("/api/expediente/:socio/documento", TODOS_LOS_ROLES, rutaExpediente(({ params, body, usuario }) => expediente.registrarDocumento(params.socio, body, usuario)));
 // CU-010 · validación de Administración y Finanzas (Ale): solo EXPEDIENTE_ROLES_VALIDAR.
 app.post("/api/expediente/:socio/validar", requiere(...EXPEDIENTE_ROLES_VALIDAR), rutaExpediente(({ params, body, usuario }) => expediente.registrarValidacion(params.socio, body, usuario)));
+
+// ---------- CU-018 · Vista 360 del expediente (solo lectura) ----------
+// La lógica vive en dominios/vista_360.js; aquí solo el pegamento HTTP.
+// Compone dominios ya construidos (riesgo, PLD, ciclos limpios, expediente,
+// garantías) — nunca recalcula nada con lógica propia (CU-018 §6).
+const vista360 = require("./dominios/vista_360")({
+  obtenerPadron: () => PADRON,
+  riesgo, pld, ciclosLimpios, expediente, estadoDeCuentaGarantia,
+  retencionAnios: RETENCION_PLD_ANIOS,
+});
+// Mismos roles que ya ven riesgo/PLD/garantías/ciclos (direccion, admin) —
+// Control Operativo (ejecutivo) queda como pendiente documentado (CU-018 §1,
+// ver dominios/vista_360.js → pendientes()).
+app.get("/api/vista360/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = vista360.consolidar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[vista360] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la Vista 360. Intenta de nuevo o avisa a soporte." });
+  }
+});
 
 // ---------- páginas ----------
 app.get("/", (req, res) => {

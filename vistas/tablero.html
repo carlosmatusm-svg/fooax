@@ -197,6 +197,32 @@
   .credbtn.reda{border-color:var(--verde,#059669);color:var(--verde,#059669)}
   .credbox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
   .credbox>span{font-size:11.5px;font-weight:700;color:var(--gris);width:100%}
+  /* CU-018 · Vista 360 del expediente (solo lectura) */
+  .v360acc{margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
+  .v360box{margin-top:10px;padding-top:10px;border-top:1px dashed var(--linea);display:flex;flex-direction:column;gap:9px}
+  .v360head{font-size:12.5px;color:var(--gris)}
+  .v360head b{color:var(--tinta);font-size:13.5px}
+  .v360blk{border:1px solid var(--linea);border-radius:8px;padding:9px 11px;background:var(--fondo)}
+  .v360blk.unavailable{background:var(--lav);border-style:dashed}
+  .v360blk h4{font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .v360cu{font-family:var(--mono);font-size:9.5px;color:var(--gris);font-weight:400}
+  .v360kv{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:3px 0;border-bottom:1px dashed var(--linea)}
+  .v360kv:last-child{border-bottom:none}
+  .v360kv b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .v360tabla{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}
+  .v360tabla th{text-align:left;color:var(--gris);font-weight:700;font-size:9px;text-transform:uppercase;padding:2px 4px}
+  .v360tabla td{padding:4px;border-top:1px solid var(--linea)}
+  .v360caption{font-size:10px;color:var(--gris);font-style:italic;margin-top:6px}
+  .v360nota{font-size:11px;color:var(--gris)}
+  .v360resp{font-family:var(--mono);font-size:9.5px;color:var(--gris)}
+  .v360pill{display:inline-flex;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:99px;text-transform:uppercase}
+  .v360-n{background:var(--lav);color:var(--gris)}
+  .v360-o{background:#ECFDF5;color:var(--verde)}
+  .v360-w{background:#FFFBEB;color:var(--riqueza)}
+  .v360-d{background:#FEF2F2;color:var(--llama)}
+  .v360pend{background:var(--lav);border-style:dashed}
+  .v360penditem{font-size:11px;padding:3px 0}
+  .v360aviso{font-size:10.5px;color:var(--riqueza);font-weight:600;text-align:center}
   .credin{font:inherit;font-size:12.5px;border:1px solid var(--linea);border-radius:9px;padding:7px 9px;width:110px;background:var(--tarjeta);color:var(--tinta)}
   .credin.ancho{width:100%}
   .credok{font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--verde,#059669);
@@ -1199,6 +1225,11 @@ async function cargarYo() {
     if (window.__PUEDE_CREDITO) {
       const p = $("credPanel"); if (p) p.style.display = "flex";
     }
+    // CU-018 · Vista 360 del expediente — mismos roles que ya ven riesgo/PLD/
+    // garantías/ciclos por separado (direccion, admin). Control Operativo
+    // (ejecutivo) queda pendiente de decisión de Dirección (ver
+    // dominios/vista_360.js → pendientes()), no se le muestra el botón.
+    window.__PUEDE_VISTA360 = (d.rol === "direccion" || d.rol === "admin");
   } catch {}
 }
 // ---------- corte de saldos (desde cuándo descuentan los abonos) ----------
@@ -1367,7 +1398,130 @@ function tarjetaCredito(c, i) {
     + (c.mora > 0 ? '<span class="rmora">mora ' + dinero(c.mora) + "</span>" : "")
     + "</div>"
     + (esBaja ? "" : '<div class="racc"><button class="rbaja" onclick="pedirBaja(this,\'' + esc(c.id) + "','" + esc(c.producto) + '\')">Dar de baja</button></div>')
-    + acc + "</div>";
+    + acc
+    // CU-018 · Vista 360 del expediente (solo lectura) — independiente de
+    // __PUEDE_CREDITO (que es solo anel/monse) y de si el crédito está de
+    // baja: Dirección/Admin puede consultar el expediente consolidado de
+    // cualquier clienta, tenga o no crédito activo (CU-018 §2).
+    + (window.__PUEDE_VISTA360
+        ? '<div class="v360acc"><button class="credbtn v360btn" onclick="verVista360(this,' + i + ')">Ver expediente 360</button></div>'
+        : "")
+    + "</div>";
+}
+// ---------- CU-018 · Vista 360 del expediente (solo lectura) ----------
+// Mismo patrón toggle que verDesglose/verPagos: un clic abre la ficha
+// consolidada bajo la tarjeta, otro clic la cierra. Pinta EXACTAMENTE lo que
+// regresa /api/vista360/:socio (dominios/vista_360.js) — ningún bloque nuevo
+// aquí, "disponible:false" se muestra tal cual con su motivo, nunca se
+// inventa un dato para rellenar un hueco (CU-018 §5/§6). Botones de acción
+// (reabrir, solicitar baja, exportar) y el acceso de Control Operativo NO se
+// construyen todavía — siguen como decisión pendiente de Dirección (ver
+// PENDIENTES_POR_CONFIRMAR.md §10).
+async function verVista360(btn, i) {
+  const c = credRow(i), card = btn.closest(".rcard"); if (!card) return;
+  const ya = card.querySelector(".v360box");
+  if (ya) { ya.remove(); return; }
+  const box = document.createElement("div");
+  box.className = "v360box";
+  box.innerHTML = '<div class="rvacio">Cargando expediente 360…</div>';
+  card.appendChild(box);
+  let d;
+  try {
+    d = await (await fetch("/api/vista360/" + encodeURIComponent(c.id), { credentials: "include" })).json();
+  } catch { box.innerHTML = '<div class="rvacio">Sin conexión con el servidor.</div>'; return; }
+  if (d.error) { box.innerHTML = '<div class="rvacio">' + hesc(d.error) + "</div>"; return; }
+  box.innerHTML = render360(d);
+}
+function v360kv(k, v) { return '<div class="v360kv"><span>' + hesc(k) + "</span><b>" + v + "</b></div>"; }
+function v360NoDisp(motivo, responsable) {
+  return '<div class="v360nota">No disponible todavía' + (responsable ? ' <span class="v360resp">(' + hesc(responsable) + ")</span>" : "")
+    + ". " + hesc(motivo || "") + "</div>";
+}
+function v360Pill(texto, tono) { return '<span class="v360pill v360-' + (tono || "n") + '">' + hesc(texto) + "</span>"; }
+// Arma la ficha entera, bloque por bloque, en el mismo orden del API.
+function render360(d) {
+  const b = [];
+  b.push('<div class="v360head"><b>' + hesc(d.nombre || "") + "</b> · socio " + hesc(d.socio)
+    + '<div class="rm">' + hesc(d.centro || "—") + " · " + hesc(d.ejecutivo || "—") + "</div></div>");
+
+  const idn = d.identidad || {};
+  b.push('<div class="v360blk"><h4>Identidad <span class="v360cu">Regla 11.1 · Anexo F</span></h4>'
+    + v360kv("CURP", hesc(idn.curp || "—")) + v360kv("RFC", hesc(idn.rfc || "—"))
+    + v360kv("Domicilio", hesc(idn.domicilio || "—")) + v360kv("Actividad económica", hesc(idn.actividadEconomica || "—"))
+    + v360kv("Origen de recursos", hesc(idn.origenRecursos || "—")) + v360kv("Fecha de integración", hesc(idn.fechaIntegracion || "—"))
+    + v360kv("Sucursal", hesc(idn.sucursal || "—")) + "</div>");
+
+  const hc = d.historialCreditos || {};
+  if (hc.disponible) {
+    const filas = (hc.creditos || []).map((cr) => "<tr><td>" + hesc(cr.producto || "—") + "</td><td>" + hesc(cr.centro || "—")
+      + "</td><td>" + dinero(cr.saldo || 0) + "</td><td>" + hesc(cr.estatus || "—") + "</td><td>"
+      + (cr.tasaAplicada == null ? v360Pill("no disponible", "n") : hesc(cr.tasaAplicada) + "%") + "</td></tr>").join("");
+    b.push('<div class="v360blk"><h4>Historial de créditos <span class="v360cu">Regla 2.2 · Anexo F</span></h4>'
+      + '<table class="v360tabla"><tr><th>Producto</th><th>Centro</th><th>Saldo</th><th>Estatus</th><th>Tasa</th></tr>' + filas + "</table>"
+      + '<div class="v360caption">' + hesc(hc.notaTasa || "") + "</div></div>");
+  }
+
+  const ec = d.exposicionCredito || {};
+  if (ec.disponible) {
+    b.push('<div class="v360blk"><h4>Exposición de crédito</h4>'
+      + v360kv("Créditos activos", ec.creditosActivos) + v360kv("Saldo insoluto total", dinero(ec.saldoInsolutoTotal || 0)) + "</div>");
+  }
+
+  const rg = d.riesgo || {};
+  if (rg.disponible) {
+    const uc = rg.ultimoCambio;
+    b.push('<div class="v360blk"><h4>Riesgo y PEP <span class="v360cu">Regla 11.4 · CU-016</span></h4>'
+      + v360kv("Nivel de riesgo", v360Pill(rg.nivelRiesgo || "—", rg.nivelRiesgo === "Alto" ? "d" : rg.nivelRiesgo === "Medio" ? "w" : "n"))
+      + v360kv("PEP", rg.pep ? v360Pill("Sí", "w") : v360Pill("No", "n"))
+      + v360kv("Último cambio", uc ? hesc(uc.fecha) + " · " + hesc(uc.usuario) + " · " + hesc(uc.campo) : "—") + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Riesgo y PEP</h4>' + v360NoDisp(rg.motivo) + "</div>");
+
+  const pl = d.pld || {};
+  if (pl.disponible) {
+    b.push('<div class="v360blk"><h4>Acumulación PLD <span class="v360cu">CU-017</span></h4>'
+      + v360kv("Acumulado (6 meses / 180 días)", dinero(pl.acumulado || 0)) + v360kv("Umbral (1,605 UMA)", dinero(pl.umbralPesos || 0))
+      + v360kv("% del umbral", pl.porcentajeUmbral != null ? pl.porcentajeUmbral + "%" : "—")
+      + v360kv("Supera el umbral", pl.supera ? v360Pill("Sí", "d") : v360Pill("No", "n")) + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Acumulación PLD</h4>' + v360NoDisp(pl.motivo) + "</div>");
+
+  const cl = d.ciclosLimpios || {};
+  if (cl.disponible) {
+    b.push('<div class="v360blk"><h4>Ciclos limpios <span class="v360cu">Regla 5.1 · CU-019</span></h4>'
+      + v360kv("Contador vigente", cl.contador) + v360kv("Aplica tasa preferencial", cl.aplicaTasaPreferencial ? v360Pill("Sí", "o") : v360Pill("No", "n"))
+      + (cl.faltanParaTasaPreferencial != null ? v360kv("Faltan para tasa preferencial", cl.faltanParaTasaPreferencial) : "") + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Ciclos limpios</h4>' + v360NoDisp(cl.motivo) + "</div>");
+
+  const ga = d.garantias || {};
+  if (ga.disponible) {
+    b.push('<div class="v360blk"><h4>Garantías en custodia <span class="v360cu">CU-006/008</span></h4>'
+      + v360kv("Saldo actual", dinero(ga.saldoActual || 0)) + v360kv("Créditos vivos con garantía", ga.creditosVivos) + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Garantías en custodia</h4>' + v360NoDisp(ga.motivo) + "</div>");
+
+  const pp = d.performancePago || {};
+  b.push('<div class="v360blk unavailable"><h4>Performance de pago <span class="v360cu">CU-018 §3, fila 2</span></h4>' + v360NoDisp(pp.motivo, pp.responsable) + "</div>");
+
+  const ex = d.expediente || {};
+  if (ex.disponible) {
+    b.push('<div class="v360blk"><h4>Expediente <span class="v360cu">CU-009/010</span></h4>'
+      + v360kv("Semáforo", v360Pill(ex.semaforo || "—", ex.semaforo === "validado" ? "o" : ex.semaforo === "incompleto" ? "w" : "n"))
+      + v360kv("Completo", ex.completo ? v360Pill("Sí", "o") : v360Pill("No", "w")) + v360kv("PEP", ex.pep ? v360Pill("Sí", "w") : v360Pill("No", "n")) + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Expediente</h4>' + v360NoDisp(ex.motivo) + "</div>");
+
+  const rt = d.retencion || {};
+  if (rt.disponible) {
+    b.push('<div class="v360blk"><h4>Retención y derechos ARCO <span class="v360cu">CU-015</span></h4>'
+      + v360kv("Plazo de retención", rt.anios != null ? rt.anios + " años" : "—")
+      + '<div class="v360caption">Reporte completo (solo lectura): ' + hesc(rt.verReporte || "") + "</div></div>");
+  }
+
+  if ((d.pendientes || []).length) {
+    b.push('<div class="v360blk v360pend"><h4>Pendientes de esta vista</h4>'
+      + d.pendientes.map((p) => '<div class="v360penditem"><b>' + hesc(p.tema) + ":</b> " + hesc(p.motivo)
+        + ' <span class="v360resp">(' + hesc(p.responsable || "") + ")</span></div>").join("") + "</div>");
+  }
+
+  b.push('<div class="v360aviso">Vista de SOLO LECTURA (CU-018 §6) — no se puede editar nada desde aquí.</div>');
+  return b.join("");
 }
 // VER PAGOS: qué pagó la clienta, en qué fecha y si ese pago cuenta contra el
 // saldo de hoy. Pedido por Karina el 5-ago para poder comprobar que el abono sí
