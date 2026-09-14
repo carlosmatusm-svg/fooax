@@ -19,7 +19,7 @@
 // server.js antes de este punto) — este archivo solo los compone, no
 // reimplementa ninguno.
 module.exports = function crearDominioVista360({
-  obtenerPadron, riesgo, pld, ciclosLimpios, expediente, estadoDeCuentaGarantia,
+  obtenerPadron, riesgo, pld, ciclosLimpios, expediente, estadoDeCuentaGarantia, retencionAnios,
 }) {
   const limpiarSocio = (valor) => String(valor ?? "").replace(/[\s\-.]/g, "").trim();
   const redondear = (numero) => Math.round((Number(numero) || 0) * 100) / 100;
@@ -45,6 +45,48 @@ module.exports = function crearDominioVista360({
         producto: credito.producto, centro: credito.centro,
         saldo: redondear(saldoPositivo(credito)), estatus: credito.estatus || "VIGENTE",
       })),
+    };
+  }
+
+  // Bloque 1b: identidad de la clienta (13-sep-2026, retroalimentación de
+  // Dirección sobre la propuesta de diseño). Regla 11.1 (Anexo F) ya exige
+  // que estos datos existan como expediente estructurado y consultable —
+  // este bloque solo los expone, no captura ni valida nada nuevo. "Referida
+  // por" no se incluye: no existe todavía como campo capturado en el alta
+  // (pendiente de cotizar, ver PENDIENTES_POR_CONFIRMAR.md §17).
+  function bloqueIdentidad(fichaExpediente) {
+    const datos = fichaExpediente.expediente?.datos ?? {};
+    const domicilio = datos.domicilio ?? {};
+    return {
+      disponible: true,
+      curp: datos.curp ?? null,
+      rfc: datos.rfc ?? null,
+      domicilio: [domicilio.calle, domicilio.numero, domicilio.colonia, domicilio.municipio, domicilio.estado]
+        .filter(Boolean).join(", ") || null,
+      actividadEconomica: datos.actividadEconomica ?? null,
+      origenRecursos: fichaExpediente.expediente?.pld?.origenRecursos ?? null,
+      fechaIntegracion: fichaExpediente.expediente?.creado ?? null,
+      sucursal: fichaExpediente.expediente?.centro ?? null,
+    };
+  }
+
+  // Bloque 1c: historial de créditos, activos Y liquidados (13-sep-2026,
+  // retroalimentación de Dirección). La Regla 2.2 (Anexo F) exige que cada
+  // crédito guarde su tasa_aplicada sin recalcularla — pero el padrón hoy NO
+  // tiene ese campo (no existe catálogo de tasas por producto todavía, mismo
+  // hueco que bloquea CU-014/CU-019). Se expone el historial completo con
+  // `tasaAplicada: null` explícito en vez de inventar un número — mismo
+  // criterio que "disponible: false" del resto de la vista (CU-018 §5).
+  function bloqueHistorialCreditos(socio) {
+    const todos = obtenerPadron().filter((credito) => String(credito.id).split("|")[0] === socio);
+    return {
+      disponible: true,
+      creditos: todos.map((credito) => ({
+        producto: credito.producto, centro: credito.centro,
+        saldo: redondear(saldoPositivo(credito)), estatus: credito.estatus || null,
+        desembolso: credito.desembolso ?? null, tasaAplicada: null,
+      })),
+      notaTasa: "tasaAplicada no existe en el padrón todavía (Regla 2.2, Anexo F) — falta el catálogo de productos con tasa por crédito, mismo prerrequisito que CU-014/CU-019.",
     };
   }
 
@@ -83,11 +125,21 @@ module.exports = function crearDominioVista360({
   function bloqueRiesgo(usuario, socio) {
     const ficha = riesgo.fichaRiesgo(usuario, socio);
     if (ficha.error) return { disponible: false, motivo: ficha.error };
+    const historial = ficha.historial ?? [];
+    const ultimaFila = historial[historial.length - 1] ?? null;
     return {
       disponible: true,
       nivelRiesgo: ficha.perfil?.nivelRiesgo ?? null,
       pep: ficha.perfil?.pep ?? null,
-      historial: ficha.historial,
+      historial,
+      // Quién/cuándo/por qué (13-sep-2026, Dirección) — ya existía en la
+      // bitácora de CU-016 (Regla 11.4); esto solo lo expone, no es una
+      // regla nueva.
+      ultimoCambio: ultimaFila ? {
+        fecha: ultimaFila.fecha, usuario: ultimaFila.usuario, campo: ultimaFila.campo,
+        valorAnterior: ultimaFila.valorAnterior, valorNuevo: ultimaFila.valorNuevo,
+        justificacion: ultimaFila.justificacion,
+      } : null,
     };
   }
 
@@ -99,7 +151,11 @@ module.exports = function crearDominioVista360({
     if (acumulacion.error) return { disponible: false, motivo: acumulacion.error };
     const alertasPrevias = pld.alertasPLD(usuario).filter((fila) => String(fila.socio) === socio);
     const { acumulado, umbralPesos, supera, faltaUMA } = acumulacion;
-    return { disponible: true, acumulado, umbralPesos, supera, faltaUMA, alertas: alertasPrevias };
+    // % del umbral (13-sep-2026, Dirección): cálculo directo sobre datos que
+    // pld_acumulacion.js ya expone — no es una regla nueva, solo una vista
+    // distinta del mismo número.
+    const porcentajeUmbral = umbralPesos > 0 ? redondear((acumulado / umbralPesos) * 100) : null;
+    return { disponible: true, acumulado, umbralPesos, porcentajeUmbral, supera, faltaUMA, alertas: alertasPrevias };
   }
 
   // Bloque 7: semáforo del expediente (CU-009/CU-010) — permite navegar de la
@@ -117,6 +173,13 @@ module.exports = function crearDominioVista360({
       validado: estatus.semaforo === "validado",
       pep: Boolean(datosExpediente.pld?.pep?.es),
     };
+  }
+
+  // Bloque 8: retención y derechos ARCO (CU-015) — 13-sep-2026, Dirección.
+  // Solo expone el parámetro de retención ya vigente; el reporte completo
+  // (solo lectura) vive en CU-015, este bloque no lo duplica.
+  function bloqueRetencion() {
+    return { disponible: true, anios: retencionAnios ?? null, verReporte: "/api/retencion/pld" };
   }
 
   function pendientes() {
@@ -167,12 +230,15 @@ module.exports = function crearDominioVista360({
       nombre,
       centro,
       ejecutivo,
+      identidad: bloqueIdentidad(fichaExpediente),
       exposicionCredito: bloqueExposicionCredito(socio),
+      historialCreditos: bloqueHistorialCreditos(socio),
       performancePago: bloquePerformancePago(),
       ciclosLimpios: bloqueCiclosLimpios(usuario, socio),
       garantias: bloqueGarantias(usuario, socio),
       riesgo: bloqueRiesgo(usuario, socio),
       pld: bloquePLD(usuario, socio),
+      retencion: bloqueRetencion(),
       expediente: bloqueExpediente(fichaExpediente),
       pendientes: pendientes(),
     };

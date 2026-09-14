@@ -56,6 +56,11 @@ const { capturaValida } = require("./_captura_expediente");
   ok("PLD: disponible con acumulado numérico", d.pld.disponible === true && typeof d.pld.acumulado === "number");
   ok("expediente: NO disponible (esta clienta viene del Excel, sin expediente digital CU-009)", d.expediente.disponible === false && /CU-009\/CU-010/.test(d.expediente.motivo));
   ok("trae los 3 pendientes documentados, incluido Control Operativo", d.pendientes.length === 3 && d.pendientes.some((p) => /Control Operativo/.test(p.tema)));
+  ok("identidad: disponible (13-sep-2026, Regla 11.1)", d.identidad.disponible === true);
+  ok("historial de créditos: disponible, incluye al menos los activos ya contados", d.historialCreditos.disponible === true && d.historialCreditos.creditos.length >= d.exposicionCredito.creditosActivos);
+  ok("historial de créditos: tasaAplicada explícitamente null (no se inventa, falta el catálogo — Regla 2.2)", d.historialCreditos.creditos.every((c) => c.tasaAplicada === null));
+  ok("PLD: trae porcentajeUmbral numérico (13-sep-2026)", typeof d.pld.porcentajeUmbral === "number");
+  ok("retención ARCO: disponible con años configurados (CU-015, 13-sep-2026)", d.retencion.disponible === true && typeof d.retencion.anios === "number");
 
   console.log("\n— 2. EL RIESGO CAMBIA DESDE SU PROPIO ENDPOINT Y LA VISTA LO REFLEJA —");
   r = await post("/api/riesgo/cambiar", { socio, campo: "nivelRiesgo", valor: "Alto", motivo: "Prueba vista 360: actividad atípica" }, cAnel);
@@ -63,6 +68,7 @@ const { capturaValida } = require("./_captura_expediente");
   r = await get("/api/vista360/" + socio, cAlejandra);
   d = await j(r);
   ok("la vista ahora refleja el riesgo Alto, sin recalcularlo ella misma", d.riesgo.disponible === true && d.riesgo.nivelRiesgo === "Alto");
+  ok("riesgo: ultimoCambio trae quién/cuándo/por qué (13-sep-2026, ya existía en la bitácora de CU-016)", d.riesgo.ultimoCambio && d.riesgo.ultimoCambio.campo === "nivelRiesgo" && d.riesgo.ultimoCambio.valorNuevo === "Alto" && /actividad atípica/.test(d.riesgo.ultimoCambio.justificacion || ""));
 
   console.log("\n— 3. CLIENTA TODAVÍA SIN CRÉDITO: solo tiene expediente (CU-009), recién capturada en campo —");
   const RUN = String(Math.floor(Date.now() / 1000) % 100000);
@@ -81,6 +87,8 @@ const { capturaValida } = require("./_captura_expediente");
   ok("ciclos limpios: NO disponible (sin crédito activo no hay ciclos que contar)", d.ciclosLimpios.disponible === false);
   ok("riesgo: NO disponible (nunca se le ha fijado un nivel — no está en el padrón de riesgo todavía)", d.riesgo.disponible === false);
   ok("PLD: SÍ disponible con acumulado 0 (0 créditos en ventana es un hecho, no un invento)", d.pld.disponible === true && d.pld.acumulado === 0);
+  ok("identidad: disponible con datos capturados en campo (CU-009), aunque no tenga crédito todavía", d.identidad.disponible === true && d.identidad.curp);
+  ok("historial de créditos: vacío pero disponible (0 créditos es un hecho, no un invento)", d.historialCreditos.disponible === true && d.historialCreditos.creditos.length === 0);
 
   console.log("\n— 4. CANDADOS DE ACCESO —");
   r = await get("/api/vista360/" + socio, cKarina);

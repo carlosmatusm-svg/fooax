@@ -7970,6 +7970,7 @@ app.post("/api/expediente/:socio/validar", requiere(...EXPEDIENTE_ROLES_VALIDAR)
 const vista360 = require("./dominios/vista_360")({
   obtenerPadron: () => PADRON,
   riesgo, pld, ciclosLimpios, expediente, estadoDeCuentaGarantia,
+  retencionAnios: RETENCION_PLD_ANIOS,
 });
 // Mismos roles que ya ven riesgo/PLD/garantías/ciclos (direccion, admin) —
 // Control Operativo (ejecutivo) queda como pendiente documentado (CU-018 §1,
