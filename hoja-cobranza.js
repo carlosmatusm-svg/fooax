@@ -950,7 +950,10 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         const iva = r2(del.filter((c) => c.grupo !== "INDIVIDUALES")
           .reduce((x, c) => x + teoriaDe(ctx, c).iva, 0));
         let moraC = 0, nMora = 0;
-        for (const c of del) if (c.mora > 0.009) { moraC += c.mora; nMora++; }
+        // Solo la línea grupal: la mora de una individual/reestructura del
+        // centro no pinta al grupo (Monse, 17-sep — su matriz mostraba a
+        // ARENITA en mora por la reestructura de Rosa Elia).
+        for (const c of del) if (c.grupo !== "INDIVIDUALES" && c.mora > 0.009) { moraC += c.mora; nMora++; }
         const row = ws.getRow(f);
         filaFecha(ws, f, fechas[di]);
         row.getCell(2).value = info.num; row.getCell(2).alignment = { horizontal: "center" };
@@ -1408,7 +1411,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     ws.columns = [{ width: 4 }, { width: 24 }, { width: 13 }, { width: 14 }, { width: 14 }, { width: 11 }, { width: 13 },
       ...Array(8).fill({ width: 10 })];
     tit(ws, 1, "FOOAX · SEMÁFORO POR CENTRO (M2) · verde ≥97% · ámbar 85–96% · rojo <85%", 15);
-    sub(ws, 2, "El color no lo pone nadie: esperado (cuotas de la semana) vs cobrado (apps) · umbrales sugeridos, Dirección los fija · los rojos arriba · semana " + semanaTxt, 15);
+    sub(ws, 2, "SOLO LÍNEA GRUPAL — individuales y reestructuras no pintan al grupo · esperado (cuotas de la semana) vs cobrado (apps) · umbrales sugeridos, Dirección los fija · los rojos arriba · semana " + semanaTxt, 15);
     const semanasHist = [];
     {
       let L = lunes;
@@ -1427,6 +1430,11 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const esperadoCentro = {};
     for (const c of cartera) {
       if (c.estatus === "VENCIDO") continue;
+      // El semáforo mide al GRUPO: las individuales y reestructuras del
+      // centro no entran ni al esperado ni al cobrado — Rosa Elia (ARENITA)
+      // pintaba de rojo a su centro sin ser mora del grupo (Monse, 17-sep).
+      if (c.grupo === "INDIVIDUALES") continue;
+      if (!c.centro || c.centro === "INDIVIDUAL" || /^C-?0$/i.test(String(c.centro).trim())) continue;
       const k = ctx.norm(c.centro);
       const b = esperadoCentro[k] || (esperadoCentro[k] = { centro: c.centro, ejec: c.ejecutivo, esperado: 0 });
       b.esperado += c.cuota;
@@ -1435,7 +1443,8 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       : pct >= 0.97 ? ["🟢 VERDE", "FF9FD8B4"] : pct >= 0.85 ? ["🟡 ÁMBAR", "FFF5DC8C"] : ["🔴 ROJO", "FFF2A9B2"];
     const filasC = Object.values(esperadoCentro)
       .map((b) => {
-        const cobrado = captura.filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro)).reduce((t, r) => t + r.pago + r.sol, 0);
+        const cobrado = captura.filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro)
+          && grupoDe(r.producto) !== "INDIVIDUALES").reduce((t, r) => t + r.pago + r.sol, 0);
         const pct = b.esperado > 0 ? cobrado / b.esperado : 0;
         return { ...b, cobrado, pct };
       })
@@ -1450,8 +1459,8 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       const cSem = row.getCell(7); cSem.value = texto;
       cSem.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
       semanasHist.forEach((lw, i) => {
-        const capW = capPorSemana[lw].filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro))
-          .reduce((t, r) => t + r.pago + r.sol, 0);
+        const capW = capPorSemana[lw].filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro)
+          && grupoDe(r.producto) !== "INDIVIDUALES").reduce((t, r) => t + r.pago + r.sol, 0);
         const pctW = b.esperado > 0 ? capW / b.esperado : 0;
         const c2 = row.getCell(8 + i);
         c2.value = r2(pctW); c2.numFmt = "0%";
