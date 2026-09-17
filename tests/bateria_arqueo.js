@@ -5688,6 +5688,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const rP = await fetch(U + "/api/hoja-cobranza/excel?semana=pasada", { headers: H(cm) });
     ok("y también baja la de la SEMANA PASADA (?semana=pasada)", rP.status === 200
       && /spreadsheet/.test(rP.headers.get("content-type") || ""), "status " + rP.status);
+    // EL CONTROL DEBE DECIR ✓: si un cuadre interno truena, esta guardiana lo
+    // caza aquí y no en el escritorio de Monse (pasó el 17-sep: la matriz
+    // sumaba vencidos, las fichas no, y el libro salió con ✗ tres días).
+    let estatusH = "";
+    const rotosH = [];
+    for (const rowH of wbH.getWorksheet("CONTROL").getRows(1, 40) || []) {
+      for (let cH = 1; cH <= 9; cH++) {
+        const vH = String((rowH.getCell(cH) || {}).value || "");
+        if (vH.includes("LISTA PARA ENTREGAR") || vH.includes("REVISAR ANTES")) estatusH = vH;
+      }
+      const nomH = String((rowH.getCell(3) || {}).value || "");
+      const dH = Number((rowH.getCell(4) || {}).value), eH = Number((rowH.getCell(5) || {}).value);
+      if (nomH && Number.isFinite(dH) && Number.isFinite(eH) && Math.abs(dH - eH) >= 0.01)
+        rotosH.push(nomH.slice(0, 40) + ": " + dH + " vs " + eH);
+    }
+    ok("y el CONTROL del libro dice ✓ LISTA PARA ENTREGAR (todos los cuadres internos)",
+      estatusH.includes("LISTA PARA ENTREGAR"),
+      (estatusH || "(sin estatus)") + (rotosH.length ? " · " + rotosH.join(" · ") : ""));
   }
 
   console.log("\n— 104. CU-06: LA REESTRUCTURA QUE PAGA POR DEBAJO SE AVISA SOLA (Casos de Uso Cobranza, 10-sep) —");
