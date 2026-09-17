@@ -2120,7 +2120,10 @@ app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
     // Rosa Elia/Odette/Alejandra/Magda): una reestructura o individual
     // pertenece a un centro, pero su mora NO es mora del grupo. Se listan al
     // final del día con su letrero y el total sale desglosado.
-    const esIndM = (x) => !/^grupal/i.test(String(x.producto || ""));
+    const esIndM = (x) => !/^grupal/i.test(String(x.producto || ""))
+      && !(/reestructura/i.test(String(x.producto || "")) && x.centro
+        && String(x.centro).trim().toUpperCase() !== "INDIVIDUAL"
+        && !/^C-?0$/i.test(String(x.centro).trim()));
     const pintaFilaM = (x) => {
       const r = s.getRow(f++);
       [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto,

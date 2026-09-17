@@ -102,6 +102,14 @@ function grupoDe(producto) {
   if (p.includes("adicional")) return "ADICIONALES";
   return "INDIVIDUALES";   // individuales, foxi, comadre, magnus, pago único, reestructuras
 }
+// Reestructura de clienta CON centro = LÍNEA GRUPAL (decisión de la Ing.
+// Monse, 17-sep, opción 1): el grupo responde por ella — va con su centro en
+// la matriz, el semáforo y la mora, y NO en la ficha INDIVIDUALES. Una
+// reestructura sin centro sigue siendo línea individual.
+function esReesGrupal(c) {
+  return /reestructura/i.test(String(c.producto || ""))
+    && !!c.centro && c.centro !== "INDIVIDUAL" && !/^C-?0$/i.test(String(c.centro).trim());
+}
 // La escalera del SUGERIDO — copiada TAL CUAL de la fórmula M de la CARTERA
 // MAESTRA v4: con mora no hay sugerido; individual/foxi sube por peldaños
 // fijos; grupal sube 20% redondeado a $500.
@@ -452,16 +460,20 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     enc(ws, f, ["", "LÍNEA", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL"]);
     f++;
     const lineasR = [["ADICIONAL", "ADICIONALES"], ["INDIVIDUAL", "INDIVIDUALES"],
-      ["BASICO", "BASICO"], ["MICROEMPRESAS", "MICROEMPRESAS"]];
+      ["BASICO", "BASICO"], ["MICROEMPRESAS", "MICROEMPRESAS"], ["REESTRUCTURA (grupal)", "__REES__"]];
     const f0R = f;
     for (const [nombreR, grupoR] of lineasR) {
       let p = 0, a = 0, iN = 0, v = 0, tt = 0;
       for (const c of cartera) {
-        if (c.grupo !== grupoR) continue;
+        const esDeLinea = grupoR === "__REES__" ? esReesGrupal(c)
+          : (c.grupo === grupoR && !(grupoR === "INDIVIDUALES" && esReesGrupal(c)));
+        if (!esDeLinea) continue;
         p += c.importe;
         if (c.estatus === "VENCIDO") continue;
         const t = teoriaDe(ctx, c);
-        a += t.abono; iN += t.interes; v += t.iva; tt += t.teorico;
+        a += t.abono; iN += t.interes; v += t.iva;
+        // La reestructura no tiene desglose de catálogo: su TOTAL es la cuota.
+        tt += grupoR === "__REES__" ? t.cuotaReal : t.teorico;
       }
       const row = ws.getRow(f);
       row.getCell(2).value = nombreR;
@@ -494,7 +506,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const sociosR = new Set(cartera.map((c) => c.socio));
     const centrosR = new Set(cartera.filter((c) => c.centro && c.centro !== "INDIVIDUAL"
       && !/^C-?0$/i.test(String(c.centro).trim())).map((c) => ctx.norm(c.centro)));
-    const sociosIndR = new Set(cartera.filter((c) => c.grupo === "INDIVIDUALES").map((c) => c.socio));
+    const sociosIndR = new Set(cartera.filter((c) => c.grupo === "INDIVIDUALES" && !esReesGrupal(c)).map((c) => c.socio));
     for (const [eti, val] of [["TOTAL CLIENTES", sociosR.size], ["TOTAL DE CENTROS", centrosR.size],
       ["TOTAL CLIENTES INDIVIDUAL", sociosIndR.size], ["INVERSIÓN", null]]) {
       const row = ws.getRow(f);
@@ -615,7 +627,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     let f = 6;
     const tot = { prestamo: 0, abono: 0, interes: 0, iva: 0, teorico: 0, cuota: 0, cobrado: 0 };
     for (let di = 0; di < 6; di++) {
-      const delDia = cartera.filter((c) => c.grupo === grupo && c.diaPago === DIAS_KEY[di])
+      const delDia = cartera.filter((c) => c.grupo === grupo && !esReesGrupal(c) && c.diaPago === DIAS_KEY[di])
         .sort((a, b) => String(a.noCentro).localeCompare(String(b.noCentro), "es", { numeric: true })
           || String(a.clienta).localeCompare(String(b.clienta), "es"));
       if (!delDia.length) continue;
@@ -902,20 +914,23 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
   {
     const ws = wb.addWorksheet("COBRANZA");
     ws.columns = [{ width: 11 }, { width: 8 }, { width: 26 }, { width: 13 }, { width: 15 },
-      { width: 13 }, { width: 13 }, { width: 11 }, { width: 26 }];
-    cabeceraFicha(ws, "POR CENTRO Y DÍA", 9);
-    encFicha(ws, ["FECHA", "CENTRO", "NOMBRE", "BASICO", "MICROEMPRESAS", "ADICIONAL", "TOTAL", "IVA", "MORA"], RIO);
+      { width: 13 }, { width: 14 }, { width: 13 }, { width: 11 }, { width: 26 }];
+    cabeceraFicha(ws, "POR CENTRO Y DÍA", 10);
+    encFicha(ws, ["FECHA", "CENTRO", "NOMBRE", "BASICO", "MICROEMPRESAS", "ADICIONAL", "REESTRUCTURA", "TOTAL", "IVA", "MORA"], RIO);
     let f = 6;
-    const totG = { B: 0, M: 0, A: 0, I: 0, T: 0 };
+    const totG = { B: 0, M: 0, A: 0, I: 0, R: 0, T: 0 };
     let totIvaCob = 0;
     for (let di = 0; di < 6; di++) {
       const dia = DIAS_KEY[di];
-      const delDia = cartera.filter((c) => c.diaPago === dia);
+      // Sin VENCIDOS: la matriz es "lo que TOCA cobrar" y un vencido ya no
+      // tiene cuota que tocar — es recuperación. Así la matriz cuadra con las
+      // fichas (que los excluyen desde el 11-sep) y el CONTROL vuelve a ✓.
+      const delDia = cartera.filter((c) => c.diaPago === dia && c.estatus !== "VENCIDO");
       if (!delDia.length) continue;
       const f0 = f;
       let enMoraDia = 0;
       // Los individuales del día, arriba, como una fila propia.
-      const inds = delDia.filter((c) => c.grupo === "INDIVIDUALES");
+      const inds = delDia.filter((c) => c.grupo === "INDIVIDUALES" && !esReesGrupal(c));
       if (inds.length) {
         let cuotaI = 0, ivaI = 0, moraI = 0, nMoraI = 0;
         for (const c of inds) {
@@ -927,8 +942,8 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         filaFecha(ws, f, fechas[di]);
         row.getCell(3).value = "INDIVIDUALES";
         row.getCell(3).font = { bold: true, size: 9.5, color: { argb: RIO }, name: "Century Gothic" };
-        dinero(ws, f, 7, cuotaI); dinero(ws, f, 8, ivaI); totIvaCob += ivaI;
-        if (moraI > 0.009) { enMoraDia += nMoraI; marcaMora(row.getCell(9), moraI, "una parte cayó en mora (" + nMoraI + ")"); }
+        dinero(ws, f, 8, cuotaI); dinero(ws, f, 9, ivaI); totIvaCob += ivaI;
+        if (moraI > 0.009) { enMoraDia += nMoraI; marcaMora(row.getCell(10), moraI, "una parte cayó en mora (" + nMoraI + ")"); }
         totG.I += cuotaI; totG.T += cuotaI;
         f++;
       }
@@ -947,36 +962,37 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
         const cuotaDe = (g2) => del.filter((c) => c.grupo === g2)
           .reduce((x, c) => x + teoriaDe(ctx, c).cuotaReal, 0);
         const b = r2(cuotaDe("BASICO")), m = r2(cuotaDe("MICROEMPRESAS")), a = r2(cuotaDe("ADICIONALES"));
-        const iva = r2(del.filter((c) => c.grupo !== "INDIVIDUALES")
+        // La reestructura de clienta con centro cuenta con su grupo (opción 1
+        // de Monse, 17-sep): columna propia y su mora es mora del centro.
+        const re = r2(del.filter((c) => esReesGrupal(c))
+          .reduce((x, c) => x + teoriaDe(ctx, c).cuotaReal, 0));
+        const iva = r2(del.filter((c) => c.grupo !== "INDIVIDUALES" || esReesGrupal(c))
           .reduce((x, c) => x + teoriaDe(ctx, c).iva, 0));
         let moraC = 0, nMora = 0;
-        // Solo la línea grupal: la mora de una individual/reestructura del
-        // centro no pinta al grupo (Monse, 17-sep — su matriz mostraba a
-        // ARENITA en mora por la reestructura de Rosa Elia).
-        for (const c of del) if (c.grupo !== "INDIVIDUALES" && c.mora > 0.009) { moraC += c.mora; nMora++; }
+        for (const c of del) if ((c.grupo !== "INDIVIDUALES" || esReesGrupal(c)) && c.mora > 0.009) { moraC += c.mora; nMora++; }
         const row = ws.getRow(f);
         filaFecha(ws, f, fechas[di]);
         row.getCell(2).value = info.num; row.getCell(2).alignment = { horizontal: "center" };
         row.getCell(3).value = info.nombre;
-        dinero(ws, f, 4, b); dinero(ws, f, 5, m); dinero(ws, f, 6, a);
-        const tt = row.getCell(7);
-        tt.value = { formula: "SUM(D" + f + ":F" + f + ")", result: r2(b + m + a) };
+        dinero(ws, f, 4, b); dinero(ws, f, 5, m); dinero(ws, f, 6, a); dinero(ws, f, 7, re);
+        const tt = row.getCell(8);
+        tt.value = { formula: "SUM(D" + f + ":G" + f + ")", result: r2(b + m + a + re) };
         tt.numFmt = MONEDA;
-        dinero(ws, f, 8, iva); totIvaCob += iva;
-        if (moraC > 0.009) { enMoraDia += nMora; marcaMora(row.getCell(9), moraC, "una parte cayó en mora (" + nMora + ")"); }
-        totG.B += b; totG.M += m; totG.A += a; totG.T += b + m + a;
+        dinero(ws, f, 9, iva); totIvaCob += iva;
+        if (moraC > 0.009) { enMoraDia += nMora; marcaMora(row.getCell(10), moraC, "una parte cayó en mora (" + nMora + ")"); }
+        totG.B += b; totG.M += m; totG.A += a; totG.R += re; totG.T += b + m + a + re;
         f++;
       }
-      pintaSubtotal(ws, f, 9, [4, 5, 6, 7, 8], f0);
+      pintaSubtotal(ws, f, 10, [4, 5, 6, 7, 8, 9], f0);
       if (enMoraDia > 0) {
-        const cm = ws.getRow(f).getCell(9);
+        const cm = ws.getRow(f).getCell(10);
         cm.value = enMoraDia + " en mora";
         cm.font = { bold: true, size: 9, color: { argb: ROJO }, name: "Century Gothic" };
       }
       f++;
     }
-    pintaTotal(ws, f, 9, [4, 5, 6, 7, 8],
-      { 4: totG.B, 5: totG.M, 6: totG.A, 7: totG.T, 8: totIvaCob });
+    pintaTotal(ws, f, 10, [4, 5, 6, 7, 8, 9],
+      { 4: totG.B, 5: totG.M, 6: totG.A, 7: totG.R, 8: totG.T, 9: totIvaCob });
     ws.views = [{ state: "frozen", ySplit: 5 }];
     ctx._cobranzaTotales = totG;
   }
@@ -1411,7 +1427,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     ws.columns = [{ width: 4 }, { width: 24 }, { width: 13 }, { width: 14 }, { width: 14 }, { width: 11 }, { width: 13 },
       ...Array(8).fill({ width: 10 })];
     tit(ws, 1, "FOOAX · SEMÁFORO POR CENTRO (M2) · verde ≥97% · ámbar 85–96% · rojo <85%", 15);
-    sub(ws, 2, "SOLO LÍNEA GRUPAL — individuales y reestructuras no pintan al grupo · esperado (cuotas de la semana) vs cobrado (apps) · umbrales sugeridos, Dirección los fija · los rojos arriba · semana " + semanaTxt, 15);
+    sub(ws, 2, "LÍNEA GRUPAL + REESTRUCTURAS DEL CENTRO (opción 1 de Dirección, 17-sep) — las individuales puras no pintan al grupo · esperado (cuotas de la semana) vs cobrado (apps) · umbrales sugeridos, Dirección los fija · los rojos arriba · semana " + semanaTxt, 15);
     const semanasHist = [];
     {
       let L = lunes;
@@ -1433,7 +1449,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       // El semáforo mide al GRUPO: las individuales y reestructuras del
       // centro no entran ni al esperado ni al cobrado — Rosa Elia (ARENITA)
       // pintaba de rojo a su centro sin ser mora del grupo (Monse, 17-sep).
-      if (c.grupo === "INDIVIDUALES") continue;
+      if (c.grupo === "INDIVIDUALES" && !esReesGrupal(c)) continue;
       if (!c.centro || c.centro === "INDIVIDUAL" || /^C-?0$/i.test(String(c.centro).trim())) continue;
       const k = ctx.norm(c.centro);
       const b = esperadoCentro[k] || (esperadoCentro[k] = { centro: c.centro, ejec: c.ejecutivo, esperado: 0 });
@@ -1444,7 +1460,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const filasC = Object.values(esperadoCentro)
       .map((b) => {
         const cobrado = captura.filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro)
-          && grupoDe(r.producto) !== "INDIVIDUALES").reduce((t, r) => t + r.pago + r.sol, 0);
+          && (grupoDe(r.producto) !== "INDIVIDUALES" || esReesGrupal(r))).reduce((t, r) => t + r.pago + r.sol, 0);
         const pct = b.esperado > 0 ? cobrado / b.esperado : 0;
         return { ...b, cobrado, pct };
       })
@@ -1460,7 +1476,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
       cSem.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
       semanasHist.forEach((lw, i) => {
         const capW = capPorSemana[lw].filter((r) => ctx.norm(r.centro) === ctx.norm(b.centro)
-          && grupoDe(r.producto) !== "INDIVIDUALES").reduce((t, r) => t + r.pago + r.sol, 0);
+          && (grupoDe(r.producto) !== "INDIVIDUALES" || esReesGrupal(r))).reduce((t, r) => t + r.pago + r.sol, 0);
         const pctW = b.esperado > 0 ? capW / b.esperado : 0;
         const c2 = row.getCell(8 + i);
         c2.value = r2(pctW); c2.numFmt = "0%";
@@ -1627,7 +1643,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     const moraGrupalEj = {}, moraIndEj = {};
     for (const g of (mora.dias || []))
       for (const x of (g.filas || [])) {
-        const bolsa = grupoDe(x.producto) === "INDIVIDUALES" ? moraIndEj : moraGrupalEj;
+        const bolsa = (grupoDe(x.producto) === "INDIVIDUALES" && !esReesGrupal(x)) ? moraIndEj : moraGrupalEj;
         bolsa[x.ejecutivo] = r2((bolsa[x.ejecutivo] || 0) + (x.faltante || 0));
       }
     let f = 5;
@@ -2024,7 +2040,7 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     // pierde filas o centros, este check truena.
     const cuotaFichas = ["BASICO", "MICROEMPRESAS", "ADICIONALES", "INDIVIDUALES"]
       .reduce((x, g2) => x + ((totalesGrupo[g2] || {}).cuota || 0), 0);
-    check("COBRANZA (lo que toca cobrar) vs cuotas de las cuatro fichas", totG.T, cuotaFichas);
+    check("COBRANZA (lo que toca cobrar) vs cuotas de las fichas + reestructuras grupales", totG.T, cuotaFichas + (totG.R || 0));
     void capGar; void capPagos;
     const porEjecSuma = Object.values(capPorEjec).reduce((a, b) => a + b, 0);
     check("POR EJECUTIVO total vs captura de las apps", porEjecSuma, capTotal);
@@ -2033,7 +2049,11 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     for (const g of ["BASICO", "MICROEMPRESAS", "ADICIONALES", "INDIVIDUALES"]) {
       const t = totalesGrupo[g];
       if (t) check("La ficha " + g + " trae TODOS sus créditos (préstamo vs cartera)", t.prestamo,
-        cartera.filter((c2) => c2.grupo === g && DIAS_KEY.includes(String(c2.diaPago)))
+        cartera.filter((c2) => c2.grupo === g && !(g === "INDIVIDUALES" && esReesGrupal(c2))
+          && DIAS_KEY.includes(String(c2.diaPago))
+          // El universo del check es el de la ficha: las grupales piden centro
+          // real (sin C-0 ni vacíos, que la ficha tampoco pinta).
+          && (g === "INDIVIDUALES" || (c2.centro && c2.centro !== "INDIVIDUAL" && !/^C-?0$/i.test(String(c2.centro).trim()))))
           .reduce((x, c2) => x + c2.importe, 0));
     }
     f++;
