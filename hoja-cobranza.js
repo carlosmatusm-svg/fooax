@@ -441,6 +441,73 @@ async function generar(ctx, ExcelJS, usuario, lunesOpt) {
     formula(ws, f, 8, "SUM(H5:H" + (f - 1) + ")", cartera.reduce((t, x) => t + x.importe, 0));
     formula(ws, f, 9, "SUM(I5:I" + (f - 1) + ")", cartera.reduce((t, x) => t + x.saldo, 0));
     formula(ws, f, 10, "SUM(J5:J" + (f - 1) + ")", cartera.reduce((t, x) => t + x.mora, 0));
+    // ---- RESUMEN POR LÍNEA (Karina, 17-sep: el concentrado del pie de su
+    // hoja manual). Mismo criterio que las fichas: el PRESTAMO cuenta toda la
+    // cartera viva (vencidos incluidos), la teoría solo los vigentes — así
+    // este resumen empata al centavo con los totales de cada ficha. ----
+    f += 2;
+    ws.getRow(f).getCell(2).value = "RESUMEN POR LÍNEA · préstamo colocado y teoría de la semana";
+    ws.getRow(f).getCell(2).font = { bold: true, size: 10, color: { argb: RIO }, name: "Century Gothic" };
+    f++;
+    enc(ws, f, ["", "LÍNEA", "PRESTAMO", "ABONO", "INTERES", "IVA", "TOTAL"]);
+    f++;
+    const lineasR = [["ADICIONAL", "ADICIONALES"], ["INDIVIDUAL", "INDIVIDUALES"],
+      ["BASICO", "BASICO"], ["MICROEMPRESAS", "MICROEMPRESAS"]];
+    const f0R = f;
+    for (const [nombreR, grupoR] of lineasR) {
+      let p = 0, a = 0, iN = 0, v = 0, tt = 0;
+      for (const c of cartera) {
+        if (c.grupo !== grupoR) continue;
+        p += c.importe;
+        if (c.estatus === "VENCIDO") continue;
+        const t = teoriaDe(ctx, c);
+        a += t.abono; iN += t.interes; v += t.iva; tt += t.teorico;
+      }
+      const row = ws.getRow(f);
+      row.getCell(2).value = nombreR;
+      dinero(ws, f, 3, p); dinero(ws, f, 4, a); dinero(ws, f, 5, iN);
+      dinero(ws, f, 6, v); dinero(ws, f, 7, tt);
+      f++;
+    }
+    {
+      const tr = ws.getRow(f);
+      tr.getCell(2).value = "TOTAL";
+      for (let col = 2; col <= 7; col++) {
+        tr.getCell(col).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+        tr.getCell(col).font = { bold: true, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+      }
+      for (const col of [3, 4, 5, 6, 7]) {
+        const L = colLetra(col);
+        const val = Array.from({ length: f - f0R }, (_, k) => {
+          const vv = ws.getRow(f0R + k).getCell(col).value;
+          return Number(vv && vv.result != null ? vv.result : vv) || 0;
+        }).reduce((x, y) => x + y, 0);
+        const c2 = tr.getCell(col);
+        c2.value = { formula: "SUM(" + L + f0R + ":" + L + (f - 1) + ")", result: r2(val) };
+        c2.numFmt = MONEDA;
+        c2.font = { bold: true, color: { argb: "FFFFFFFF" }, name: "Century Gothic" };
+      }
+      f += 2;
+    }
+    // Los indicadores del pie de su hoja. INVERSIÓN es un dato financiero de
+    // Dirección que el sistema no conoce: queda la celda lista para capturarlo.
+    const sociosR = new Set(cartera.map((c) => c.socio));
+    const centrosR = new Set(cartera.filter((c) => c.centro && c.centro !== "INDIVIDUAL"
+      && !/^C-?0$/i.test(String(c.centro).trim())).map((c) => ctx.norm(c.centro)));
+    const sociosIndR = new Set(cartera.filter((c) => c.grupo === "INDIVIDUALES").map((c) => c.socio));
+    for (const [eti, val] of [["TOTAL CLIENTES", sociosR.size], ["TOTAL DE CENTROS", centrosR.size],
+      ["TOTAL CLIENTES INDIVIDUAL", sociosIndR.size], ["INVERSIÓN", null]]) {
+      const row = ws.getRow(f);
+      row.getCell(2).value = eti;
+      row.getCell(2).font = { bold: true, size: 9.5, name: "Century Gothic" };
+      if (val != null) { row.getCell(3).value = val; row.getCell(3).font = { bold: true, name: "Century Gothic" }; }
+      else {
+        row.getCell(3).value = "";
+        row.getCell(4).value = "(dato de Dirección — captúralo aquí)";
+        row.getCell(4).font = { italic: true, size: 8.5, color: { argb: "FF71717A" }, name: "Century Gothic" };
+      }
+      f += 2;
+    }
     ws.views = [{ state: "frozen", ySplit: 4 }];
   }
 
