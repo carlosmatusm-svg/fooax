@@ -4055,6 +4055,8 @@ const {
   ticketGarantiaLiquidaH14,
   resumenGarantias,
   estadoDeCuentaGarantia,
+  validarAportacionGarantiaEnReestructura,
+  elegibilidadLiberacionGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -5968,6 +5970,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // (pedido de Karina, 5-ago).
   const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim() || null;
   let producto = String(b.producto || "").trim() || null;
+  // El crédito exacto al que quedó ligado el movimiento (cuando "obliga"
+  // clienta) — CU-006 item 30: se guarda para poder revisar su etiqueta antes
+  // de aceptar una aportación de garantía (ver candado más abajo).
+  let creditoLigado = null;
   if (socio) {
     let cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
     // LA GARANTÍA SE ENTREGA CUANDO EL CRÉDITO YA TERMINÓ (Monse, 8-sep: «la
@@ -5999,9 +6005,22 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
       if (!exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto
         + "\" activo. Los suyos son: " + cred.map((c) => c.producto).join(", ") + "." });
       producto = exacto.producto;      // se guarda con el nombre canónico del padrón
+      creditoLigado = exacto;
     }
   } else {
     producto = null;                   // sin clienta no hay crédito que ligar
+  }
+
+  // CANDADO — NO GARANTÍA EN REESTRUCTURA (CU-006 item 30, respuesta de
+  // Dirección 18-sep-2026, ver dominios/garantia_liquida.js
+  // validarAportacionGarantiaEnReestructura). Solo aplica a los conceptos que
+  // SON una aportación/entrada de garantía ("Garantía líquida" y "Garantía A"
+  // del catálogo CONCEPTOS_DIR) — "Garantía líquida entregada"/"Garantía A
+  // entregada" (salidas) y "...aplicada" no se tocan, porque esas SÍ deben
+  // poder sacar lo que ya estaba guardado desde antes de la reestructura.
+  if (creditoLigado && (tipoNombre === "Garantía líquida" || tipoNombre === "Garantía A")) {
+    const rechazoReestructura = validarAportacionGarantiaEnReestructura(creditoLigado);
+    if (rechazoReestructura) return res.status(400).json({ error: rechazoReestructura });
   }
 
   // GARANTÍA LÍQUIDA ENTREGADA — CANDADO ANTIDUPLICADO (10-sep-2026, CU-006,
