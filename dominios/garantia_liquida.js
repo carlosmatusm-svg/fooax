@@ -191,12 +191,12 @@ module.exports = function crearDominioGarantiaLiquida({
     { tema: "Ajuste de garantía por salida de una integrante del grupo", motivo: "No existe la regla de reparto entre las que quedan.", responsable: "Dirección" },
   ];
   const PENDIENTES_FICHA_GARANTIA = [
-    // "Exportar PDF/Excel" YA NO está bloqueado por falta de DATOS (21-sep-2026):
-    // ticketLiberacionGarantia() más abajo ensambla el JSON completo del ticket
-    // de liberación (formato "HOJA DE LIBERACION DE GARANTIAS" de Karina). Lo
-    // que sigue pendiente es SOLO la capa de impresión/exportación del archivo
-    // en sí (PDF o Excel) a partir de ese JSON — eso no lo hace este dominio.
-    { tema: "Generar el archivo PDF/Excel del ticket de liberación (para imprimir y firmar)", motivo: "ticketLiberacionGarantia() ya arma los datos completos; falta la capa de renderizado/impresión.", responsable: "Carlos / Karina" },
+    // "Exportar/imprimir el ticket" YA NO está pendiente (21-sep-2026, hallazgo
+    // de validación sobre el audio de Karina): ticketLiberacionGarantia() arma
+    // el JSON completo y ticket-liberacion-garantia.js lo renderiza como vista
+    // HTML imprimible (GET /api/garantias/liberacion/ticket) — la clienta firma
+    // sobre el papel impreso o el PDF que genera el diálogo de impresión del
+    // teléfono/tablet del ejecutivo.
     { tema: "Botón 'Ajuste manual' con autorización de Dirección", motivo: "No existe un tipo de movimiento ni candado dedicado a esto.", responsable: "Dirección" },
   ];
 
@@ -542,15 +542,30 @@ module.exports = function crearDominioGarantiaLiquida({
   // historial, el crédito del padrón para nombre/centro/ejecutivo, y la(s)
   // salida(s) ya registradas para fecha y monto entregado.
   //
-  // SOLO ARMA LOS DATOS (el objeto que llevaría el ticket) — la impresión o
-  // exportación a PDF/Excel del documento en sí queda para una capa
-  // posterior que consuma este resultado (ver PENDIENTES_FICHA_GARANTIA).
+  // ARMA LOS DATOS (el objeto que lleva el ticket); la vista imprimible que
+  // los renderiza como HTML vive en ../ticket-liberacion-garantia.js, servida
+  // por GET /api/garantias/liberacion/ticket (21-sep-2026, hallazgo de
+  // validación sobre el audio de Karina: "cuando entregas la garantía tienes
+  // que imprimir un ticket que se los deje firmar y que el ejecutivo lo deje
+  // escanear").
   //
   // TELÉFONO DE CONTACTO de la nota del sobre sellado: configurable por
   // variable de entorno, nunca el número real hardcodeado — mismo patrón que
-  // PORCENTAJE_GARANTIA_LIQUIDA.
+  // PORCENTAJE_GARANTIA_LIQUIDA. Custodia/autoriza (ver CUSTODIA_GARANTIAS /
+  // AUTORIZA_GARANTIAS arriba) siguen el mismo patrón.
   const TELEFONO_CONTACTO_GARANTIAS = process.env.TELEFONO_CONTACTO_GARANTIAS
     || "(configurar TELEFONO_CONTACTO_GARANTIAS)";
+
+  // CUSTODIA/AUTORIZA: los dos roles fijos de Dirección que el Excel real
+  // ("REPORTE DE SALIDA A", validado 21-sep-2026) exige en cada liberación —
+  // "Custodia: Ing. Alejandra González Arango · Autoriza: Lic. Anel Aydee
+  // Díaz Silva, Directora General". Van por variable de entorno, nunca
+  // hardcodeados sin poder cambiar (mismo patrón que TELEFONO_CONTACTO_GARANTIAS):
+  // si Dirección cambia de responsable, se actualiza la variable, no el código.
+  const CUSTODIA_GARANTIAS = process.env.CUSTODIA_GARANTIAS
+    || "Ing. Alejandra González Arango";
+  const AUTORIZA_GARANTIAS = process.env.AUTORIZA_GARANTIAS
+    || "Lic. Anel Aydee Díaz Silva, Directora General";
 
   // Dos cosas que el Excel de Karina asume pero que el sistema NO puede
   // resolver por sí solo — se declaran como dato, no se adivinan (mismo
@@ -658,6 +673,8 @@ module.exports = function crearDominioGarantiaLiquida({
       },
       notaSobreSellado: "El sobre de la garantía debe entregarse SELLADO. Si se nota manipulado, NO se recibe "
         + "— llamar antes al " + TELEFONO_CONTACTO_GARANTIAS + ".",
+      custodia: CUSTODIA_GARANTIAS,
+      autoriza: AUTORIZA_GARANTIAS,
       elegibilidadLiberacion: ficha.elegibilidadLiberacion,
       pendientes: PENDIENTES_TICKET_LIBERACION,
     };

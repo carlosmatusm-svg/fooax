@@ -2643,6 +2643,10 @@ app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, r
 // la Hoja de Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su
 // contexto. A producción con OK de Karina, 10-sep-2026.
 const hojaCobranza = require("./hoja-cobranza");
+// Vista imprimible del ticket de liberación de garantías (CU-006, 21-sep-2026)
+// — mismo criterio que hojaCobranza: módulo de renderizado aparte, server.js
+// solo lo llama y decide cómo servir su resultado.
+const ticketLiberacionGarantiaHtml = require("./ticket-liberacion-garantia");
 app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, res) => {
   try {
     // "Intentemos con el de la semana pasada y de este" (Karina, 10-sep):
@@ -6239,6 +6243,20 @@ app.get("/api/garantias/liberacion", requiere("direccion", "admin"), (req, res) 
   const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
   if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
   res.json(resultado);
+});
+
+// VISTA IMPRIMIBLE del ticket de liberación (21-sep-2026, hallazgo de
+// validación sobre un audio de Karina: "cuando entregas la garantía tienes
+// que imprimir un ticket que se los deje firmar y que el ejecutivo lo deje
+// escanear para que quede de evidencia"). Mismos datos y mismos parámetros
+// que /api/garantias/liberacion — solo cambia el formato de salida (HTML con
+// @media print en vez de JSON) para que se pueda abrir en el teléfono/tablet
+// del ejecutivo, imprimir o guardar como PDF con el diálogo del sistema, y
+// que la clienta firme sobre el papel.
+app.get("/api/garantias/liberacion/ticket", requiere("direccion", "admin"), (req, res) => {
+  const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.type("html").send(ticketLiberacionGarantiaHtml.renderHtml(resultado));
 });
 
 app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, res) => {
