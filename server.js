@@ -4068,13 +4068,21 @@ const {
   elegibilidadLiberacionGarantia,
   reporteSemanalGarantias,
   reporteSalidaGarantiasPorClienta,
+  corteDiarioGarantias,
   ticketLiberacionGarantia,
+  alertaVencimientoGarantiaHipotecaria,
+  alertasGarantiaHipotecariaPorVencer,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
   obtenerPadron: () => PADRON,
   porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
   numeroDePago,
+  hoyMX,
+  // Vigencia de la garantía hipotecaria (21-sep-2026, audio de Karina + pedido
+  // de Carlos): días de anticipación del aviso, configurable — mismo patrón
+  // que COMPROBANTE_DOMICILIO_MESES_MAX, nunca hardcodeado en la lógica.
+  garantiaHipotecariaDiasAlerta: Number(process.env.GARANTIA_HIPOTECARIA_DIAS_ALERTA) || 3,
 });
 
 // Dominio Notificaciones (NOT-01, CU-020) extraído a
@@ -5257,6 +5265,47 @@ app.get("/api/creditos/renovacion", requiere("direccion", "admin"), (req, res) =
     vigenciaDocumentosRenovacion: vigenciaDocumentosRenovacion(c) });
 });
 
+// VIGENCIA DE LA GARANTÍA HIPOTECARIA (21-sep-2026, audio de Karina: "el
+// sistema tiene que decir con tres días antes que ya está por expirar" +
+// pedido explícito de Carlos: "avisar 3 días antes de vencer la vigencia
+// del documento hipotecario"). Mismo patrón exacto que
+// /api/creditos/documentos-renovacion (DOC-01) — motivo obligatorio en la
+// bitácora, se guarda vía store.agregarCambioPadron, nunca se sobrescribe
+// en silencio. alertaVencimientoGarantiaHipotecaria/
+// alertasGarantiaHipotecariaPorVencer viven en dominios/garantia_liquida.js.
+app.post("/api/creditos/garantia-hipotecaria", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const fechaVencimiento = String(b.fechaVencimiento || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaVencimiento))
+    return res.status(400).json({ error: "La fecha de vencimiento de la vigencia hipotecaria no se entiende (usa el calendario)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto,
+    campos: { garantiaHipotecaria: { fechaVencimiento } },
+    motivo, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  const actualizado = creditoActivo(c.id, c.producto);
+  res.json({ ok: true, clienta: actualizado, alerta: alertaVencimientoGarantiaHipotecaria(actualizado) });
+});
+
+app.get("/api/creditos/garantia-hipotecaria", requiere("direccion", "admin"), (req, res) => {
+  const c = creditoActivo(req.query.id, req.query.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({ garantiaHipotecaria: c.garantiaHipotecaria || null,
+    alerta: alertaVencimientoGarantiaHipotecaria(c) });
+});
+
+// Tablero de Dirección: solo las clientas cuya vigencia hipotecaria ya
+// venció o está a 3 días (o menos) de vencer — no regresa a quien no
+// necesita alerta (mismo criterio que reporteSalidaGarantiasPorClienta).
+app.get("/api/garantias/hipotecaria/alertas", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasGarantiaHipotecariaPorVencer());
+});
+
 // Re-dar crédito a una clienta que LIQUIDÓ: crédito NUEVO (monto+cuota), mismo
 // grupo, con nombre de producto distinto. El crédito anterior queda en el
 // historial (no se toca). Reusa la protección de socio y centro del alta.
@@ -6267,6 +6316,17 @@ app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, 
 app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
   const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
   res.json(reporteSalidaGarantiasPorClienta(mes));
+});
+
+// CORTE DIARIO DE GARANTÍAS por grupo (centro) y tipo de crédito (producto)
+// — 21-sep-2026, audio de Karina/Dirección. Reporte APARTE del arqueo diario
+// de caja (GET /api/arqueo, más abajo): agrupan por unidades distintas
+// (ejecutiva vs. centro/producto) — ver el comentario en
+// dominios/garantia_liquida.js::corteDiarioGarantias para la validación
+// técnica completa de por qué no se mete dentro de calcularArqueo.
+app.get("/api/garantias/corte-diario", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  res.json(corteDiarioGarantias(fecha));
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo

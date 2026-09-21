@@ -28,6 +28,8 @@ module.exports = function crearDominioGarantiaLiquida({
   obtenerPadron,
   porcentajeGarantiaLiquida,
   numeroDePago,
+  hoyMX,
+  garantiaHipotecariaDiasAlerta,
 }) {
   // GARANTÍA LÍQUIDA: CONEXIÓN AUTOMÁTICA AL DESEMBOLSO (10-sep-2026, CU-006,
   // Anexo F §7-8). generarSobreDispersion ya calculaba el 10% retenido desde
@@ -186,9 +188,14 @@ module.exports = function crearDominioGarantiaLiquida({
   // datos, no como código — así el propio backend cita, palabra por palabra,
   // la misma fila de PENDIENTES_POR_CONFIRMAR.md que le mostraría a Dirección.
   const PENDIENTES_RESUMEN_GARANTIAS = [
-    { tema: "Bienes en garantía (hipotecaria)", motivo: "Sin modelo de datos de documento/vencimiento — Dirección aún no define el control documental (Regla 8.1).", responsable: "Dirección" },
+    { tema: "Bienes en garantía (hipotecaria)", motivo: "AVANCE 21-sep-2026 (audio Karina + pedido de Carlos): ya se puede capturar la fecha de vencimiento de la vigencia del documento hipotecario y el sistema avisa 3 días antes (ver alertaVencimientoGarantiaHipotecaria/alertasGarantiaHipotecariaPorVencer). Lo que SIGUE pendiente de Dirección es el resto del control documental (Regla 8.1): qué tipo de bien, ubicación física, custodia del documento físico — eso no se inventa aquí.", responsable: "Dirección" },
     { tema: "Filtro 'solo por vencer' (2 semanas para entregar)", motivo: "Falta definir la consecuencia de exceder el plazo — PENDIENTES sección 3.", responsable: "Dirección" },
-    { tema: "Ajuste de garantía por salida de una integrante del grupo", motivo: "No existe la regla de reparto entre las que quedan.", responsable: "Dirección" },
+    // "Ajuste de garantía por salida de una integrante del grupo" YA NO está
+    // pendiente (21-sep-2026, Carlos confirma por escrito): cuando una
+    // integrante sale del grupo es porque ya liquidó o porque dejó de pagar
+    // (mora) — nunca hay reparto ni transferencia de su garantía hacia las
+    // demás. No hace falta una regla de reparto porque el caso que la
+    // necesitaría no existe (ver PENDIENTES_POR_CONFIRMAR.md sección 3).
   ];
   const PENDIENTES_FICHA_GARANTIA = [
     // "Exportar/imprimir el ticket" YA NO está pendiente (21-sep-2026, hallazgo
@@ -529,6 +536,150 @@ module.exports = function crearDominioGarantiaLiquida({
     };
   }
 
+  // CORTE DIARIO DE GARANTÍAS, POR GRUPO (centro) Y POR TIPO DE CRÉDITO
+  // (producto) — 21-sep-2026, audio de Karina/Dirección: "el corte diario de
+  // garantías tiene que ser por grupo por tipo de crédito", reforzando que
+  // "es muy importante que haya un corte diario". Ella misma no sabía si esto
+  // se complementa con el arqueo diario que ya existe (`calcularArqueo` en
+  // server.js) — SE VALIDÓ TÉCNICAMENTE (21-sep-2026) que NO conviene meterlo
+  // ahí: `calcularArqueo` agrupa por EJECUTIVA desde los snapshots del día
+  // (caja física de una persona, protegido por 81+ casos de
+  // tests/bateria_arqueo.js); este corte agrupa por CENTRO y PRODUCTO desde
+  // el padrón/créditos — es una unidad de agrupación distinta. Forzarlo
+  // dentro del arqueo arriesgaría el cuadre de caja ya probado por una
+  // funcionalidad que ni comparte esa unidad. Por eso este corte vive como
+  // reporte APARTE, con su propio endpoint, mismo criterio de fecha que el
+  // arqueo (misma fecha, código separado) — nunca modifica calcularArqueo.
+  //
+  // No existe un catálogo canónico de "tipo de crédito" en el sistema (ver
+  // PENDIENTES_POR_CONFIRMAR.md sección 3) — se usa el texto de `producto` ya
+  // normalizado (mismo criterio que el resto del módulo), no se inventa un
+  // catálogo nuevo aquí.
+  function corteDiarioGarantias(fechaISO) {
+    const padron = obtenerPadron();
+    const movs = movimientosDeGarantiaEntre(fechaISO, fechaISO);
+
+    const filas = movs.map((mov) => {
+      const socio = socioDeMov(mov);
+      const credito = padron.find((c) => String(c.id).split("|")[0] === socio
+        && norm(c.producto) === norm(productoDeMov(mov) || "")) || null;
+      return {
+        folio: mov.folio,
+        socio, nombre: (credito && credito.nombre) || null,
+        centro: (credito && credito.centro) || "—",
+        producto: (credito && credito.producto) || productoDeMov(mov) || "—",
+        entrada: !!mov.entrada,
+        monto: Number(mov.monto) || 0,
+        tipo: mov.tipo || mov.concepto,
+      };
+    });
+
+    const sumar = (mapa, llave, campo, monto) => {
+      if (!mapa[llave]) mapa[llave] = { entradas: 0, salidas: 0 };
+      mapa[llave][campo] = Math.round((mapa[llave][campo] + monto) * 100) / 100;
+    };
+
+    const porCentro = {}, porProducto = {}, porCentroYProducto = {};
+    let totalEntradas = 0, totalSalidas = 0;
+    for (const fila of filas) {
+      const campo = fila.entrada ? "entradas" : "salidas";
+      sumar(porCentro, fila.centro, campo, fila.monto);
+      sumar(porProducto, fila.producto, campo, fila.monto);
+      sumar(porCentroYProducto, fila.centro + " · " + fila.producto, campo, fila.monto);
+      if (fila.entrada) totalEntradas = Math.round((totalEntradas + fila.monto) * 100) / 100;
+      else totalSalidas = Math.round((totalSalidas + fila.monto) * 100) / 100;
+    }
+
+    const aArreglo = (mapa, llaveNombre) => Object.keys(mapa).sort()
+      .map((k) => ({ [llaveNombre]: k, entradas: mapa[k].entradas, salidas: mapa[k].salidas }));
+
+    return {
+      fecha: fechaISO,
+      totalEntradas, totalSalidas,
+      porGrupoYTipoCredito: Object.keys(porCentroYProducto).sort().map((llave) => {
+        const [centro, producto] = llave.split(" · ");
+        return { centro, producto, entradas: porCentroYProducto[llave].entradas, salidas: porCentroYProducto[llave].salidas };
+      }),
+      porCentro: aArreglo(porCentro, "centro"),
+      porTipoCredito: aArreglo(porProducto, "producto"),
+      movimientos: filas,
+      notaArqueo: "Este corte es un reporte APARTE del arqueo diario de caja (GET /api/arqueo): el arqueo agrupa "
+        + "por EJECUTIVA (caja física de una persona); este corte agrupa por CENTRO y TIPO DE CRÉDITO desde el "
+        + "padrón — son unidades de agrupación distintas, y mezclarlas arriesgaría el cuadre de caja ya probado. "
+        + "Se consulta para la misma fecha que el arqueo, pero con código y endpoint separados.",
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // VIGENCIA DE LA GARANTÍA HIPOTECARIA (21-sep-2026, audio de Karina —
+  // "el sistema tiene que decir con tres días antes que ya está por
+  // expirar" — y pedido explícito de Carlos: "avisar 3 días antes de vencer
+  // la vigencia del documento hipotecario"). Aclara la ambigüedad que había
+  // quedado abierta en PENDIENTES_POR_CONFIRMAR.md: el aviso es sobre la
+  // VIGENCIA DEL DOCUMENTO hipotecario (ej. escritura, avalúo, póliza que
+  // respalda la garantía), NO sobre el plazo de 2 semanas para entregar la
+  // garantía líquida al cierre (ese es otro pendiente, distinto, todavía sin
+  // definir la consecuencia de excederlo).
+  //
+  // MODELO DE DATOS MÍNIMO Y ADITIVO: hasta hoy NO existía ningún campo para
+  // esto (confirmado por grep — server.js solo tenía un comentario diciendo
+  // que la garantía hipotecaria "no se inventa aquí"). Se sigue el MISMO
+  // patrón ya aprobado por Dirección para DOC-01 (INE/comprobante de
+  // domicilio, ver dominios/renovacion_documentos.js): un campo opcional en
+  // el crédito, `credito.garantiaHipotecaria.fechaVencimiento`, capturado vía
+  // store.agregarCambioPadron (mismo mecanismo que documentosRenovacion) —
+  // así que sin esa fecha, el sistema simplemente no puede avisar (no
+  // adivina un vencimiento que Dirección no ha capturado).
+  //
+  // A diferencia de vigenciaDocumentosRenovacion() (que solo regresa
+  // vencido/no vencido/null), esto necesita adelantar el aviso ANTES del
+  // vencimiento — por eso calcula días restantes, no solo un booleano.
+  const GARANTIA_HIPOTECARIA_DIAS_ALERTA = Number(garantiaHipotecariaDiasAlerta) || 3;
+
+  function diasEntre(desdeISO, hastaISO) {
+    const a = new Date(desdeISO + "T12:00");
+    const b = new Date(hastaISO + "T12:00");
+    return Math.round((b - a) / 86400000);
+  }
+
+  // Pura: dado UN crédito del padrón, regresa su alerta de vigencia
+  // hipotecaria, o null si esa clienta no tiene fecha de vencimiento
+  // capturada todavía (no hay nada que avisar sin el dato).
+  function alertaVencimientoGarantiaHipotecaria(credito) {
+    const fechaVencimiento = credito && credito.garantiaHipotecaria && credito.garantiaHipotecaria.fechaVencimiento;
+    if (!fechaVencimiento) return null;
+    const hoy = hoyMX();
+    const diasRestantes = diasEntre(hoy, fechaVencimiento);
+    return {
+      fechaVencimiento,
+      diasRestantes,
+      vencida: diasRestantes < 0,
+      porVencer: diasRestantes >= 0 && diasRestantes <= GARANTIA_HIPOTECARIA_DIAS_ALERTA,
+      diasAlerta: GARANTIA_HIPOTECARIA_DIAS_ALERTA,
+    };
+  }
+
+  // Lista, para TODO el padrón activo, solo las clientas cuya garantía
+  // hipotecaria ya está vencida o está por vencer dentro de la ventana de
+  // aviso — pensado para el tablero de Dirección (mismo criterio que
+  // reporteSalidaGarantiasPorClienta: no regresa a quien no necesita alerta).
+  function alertasGarantiaHipotecariaPorVencer() {
+    const padron = obtenerPadron().filter((c) => c.activa !== false && c.estatus !== "BAJA");
+    const alertas = padron
+      .map((credito) => {
+        const alerta = alertaVencimientoGarantiaHipotecaria(credito);
+        if (!alerta || !(alerta.vencida || alerta.porVencer)) return null;
+        return {
+          socio: String(credito.id).split("|")[0], nombre: credito.nombre,
+          centro: credito.centro, producto: credito.producto,
+          ...alerta,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.diasRestantes - b.diasRestantes);
+    return { fecha: hoyMX(), diasAlerta: GARANTIA_HIPOTECARIA_DIAS_ALERTA, alertas };
+  }
+
   // ---------------------------------------------------------------------
   // TICKET DE LIBERACIÓN DE GARANTÍAS (CU-006, formato exacto de la "HOJA DE
   // LIBERACION DE GARANTIAS" de Karina/Dirección — Excel validado 21-sep-2026).
@@ -690,8 +841,11 @@ module.exports = function crearDominioGarantiaLiquida({
     estadoDeCuentaGarantia,
     reporteSemanalGarantias,
     reporteSalidaGarantiasPorClienta,
+    corteDiarioGarantias,
     validarAportacionGarantiaEnReestructura,
     elegibilidadLiberacionGarantia,
     ticketLiberacionGarantia,
+    alertaVencimientoGarantiaHipotecaria,
+    alertasGarantiaHipotecariaPorVencer,
   };
 };

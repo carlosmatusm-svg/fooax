@@ -145,6 +145,11 @@ function aplicarCambios(base, cambios) {
         // renovación (pendiente, CU-007 §10.6). Se fusiona, no se reemplaza: una
         // segunda captura no borra la fecha del documento que no se volvió a tocar.
         if (k.documentosRenovacion) cl.documentosRenovacion = Object.assign({}, cl.documentosRenovacion, k.documentosRenovacion);
+        // Vigencia de la garantía hipotecaria (21-sep-2026, audio de Karina +
+        // pedido de Carlos: avisar 3 días antes de que venza). Mismo criterio
+        // que documentosRenovacion: se fusiona, no se reemplaza, y una
+        // segunda captura no borra la fecha si esta vez no se volvió a mandar.
+        if (k.garantiaHipotecaria) cl.garantiaHipotecaria = Object.assign({}, cl.garantiaHipotecaria, k.garantiaHipotecaria);
         // Etiqueta (Recuperación, Renovación…). La cadena vacía SÍ cuenta: es
         // como se quita. Por eso se compara contra undefined y no con un if
         // truthy — con un truthy nunca se podría borrar.
