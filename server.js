@@ -4064,11 +4064,13 @@ const {
   elegibilidadLiberacionGarantia,
   reporteSemanalGarantias,
   reporteSalidaGarantiasPorClienta,
+  ticketLiberacionGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
   obtenerPadron: () => PADRON,
   porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+  numeroDePago,
 });
 
 // Dominio Notificaciones (NOT-01, CU-020) extraído a
@@ -6229,6 +6231,16 @@ app.get("/api/garantias/ficha", requiere("direccion", "admin"), (req, res) => {
 // corte confirmado por Dirección, ver dominios/garantia_liquida.js. El pegamento
 // HTTP solo normaliza la fecha al lunes de su semana (mismo criterio que el
 // resto de reportes de corte semanal, ver lunesDeLaSemana) y traduce a JSON.
+// TICKET DE LIBERACIÓN DE GARANTÍAS (CU-006, formato "HOJA DE LIBERACION DE
+// GARANTIAS" de Karina, 21-sep-2026). ticketLiberacionGarantia vive en
+// dominios/garantia_liquida.js — esta ruta es solo el pegamento HTTP: mismo
+// criterio de parámetros que /api/garantias/ficha (id + producto).
+app.get("/api/garantias/liberacion", requiere("direccion", "admin"), (req, res) => {
+  const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
+});
+
 app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, res) => {
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
   res.json(reporteSemanalGarantias(lunesDeLaSemana(fecha)));

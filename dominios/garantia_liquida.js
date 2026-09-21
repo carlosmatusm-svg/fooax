@@ -27,6 +27,7 @@ module.exports = function crearDominioGarantiaLiquida({
   carteraViva,
   obtenerPadron,
   porcentajeGarantiaLiquida,
+  numeroDePago,
 }) {
   // GARANTÍA LÍQUIDA: CONEXIÓN AUTOMÁTICA AL DESEMBOLSO (10-sep-2026, CU-006,
   // Anexo F §7-8). generarSobreDispersion ya calculaba el 10% retenido desde
@@ -190,7 +191,12 @@ module.exports = function crearDominioGarantiaLiquida({
     { tema: "Ajuste de garantía por salida de una integrante del grupo", motivo: "No existe la regla de reparto entre las que quedan.", responsable: "Dirección" },
   ];
   const PENDIENTES_FICHA_GARANTIA = [
-    { tema: "Exportar PDF (para la socia) / Excel (para conciliar)", motivo: "No hay generación de documentos para esta ficha todavía.", responsable: "Carlos / Karina" },
+    // "Exportar PDF/Excel" YA NO está bloqueado por falta de DATOS (21-sep-2026):
+    // ticketLiberacionGarantia() más abajo ensambla el JSON completo del ticket
+    // de liberación (formato "HOJA DE LIBERACION DE GARANTIAS" de Karina). Lo
+    // que sigue pendiente es SOLO la capa de impresión/exportación del archivo
+    // en sí (PDF o Excel) a partir de ese JSON — eso no lo hace este dominio.
+    { tema: "Generar el archivo PDF/Excel del ticket de liberación (para imprimir y firmar)", motivo: "ticketLiberacionGarantia() ya arma los datos completos; falta la capa de renderizado/impresión.", responsable: "Carlos / Karina" },
     { tema: "Botón 'Ajuste manual' con autorización de Dirección", motivo: "No existe un tipo de movimiento ni candado dedicado a esto.", responsable: "Dirección" },
   ];
 
@@ -523,6 +529,140 @@ module.exports = function crearDominioGarantiaLiquida({
     };
   }
 
+  // ---------------------------------------------------------------------
+  // TICKET DE LIBERACIÓN DE GARANTÍAS (CU-006, formato exacto de la "HOJA DE
+  // LIBERACION DE GARANTIAS" de Karina/Dirección — Excel validado 21-sep-2026).
+  //
+  // Es DISTINTO al ticket H.14 (ticketGarantiaLiquidaH14): el H.14 es el
+  // comprobante de CADA movimiento suelto (una entrada o una salida); este es
+  // el documento de CIERRE — pensado para IMPRIMIRSE y que la clienta lo
+  // FIRME en papel al recibir de vuelta TODA su garantía guardada al terminar
+  // su ciclo. No recalcula nada: solo junta, en el formato del Excel de
+  // Karina, datos que YA existen — estadoDeCuentaGarantia() para el saldo y el
+  // historial, el crédito del padrón para nombre/centro/ejecutivo, y la(s)
+  // salida(s) ya registradas para fecha y monto entregado.
+  //
+  // SOLO ARMA LOS DATOS (el objeto que llevaría el ticket) — la impresión o
+  // exportación a PDF/Excel del documento en sí queda para una capa
+  // posterior que consuma este resultado (ver PENDIENTES_FICHA_GARANTIA).
+  //
+  // TELÉFONO DE CONTACTO de la nota del sobre sellado: configurable por
+  // variable de entorno, nunca el número real hardcodeado — mismo patrón que
+  // PORCENTAJE_GARANTIA_LIQUIDA.
+  const TELEFONO_CONTACTO_GARANTIAS = process.env.TELEFONO_CONTACTO_GARANTIAS
+    || "(configurar TELEFONO_CONTACTO_GARANTIAS)";
+
+  // Dos cosas que el Excel de Karina asume pero que el sistema NO puede
+  // resolver por sí solo — se declaran como dato, no se adivinan (mismo
+  // patrón que PENDIENTES_FICHA_GARANTIA/PENDIENTES_RESUMEN_GARANTIAS).
+  const PENDIENTES_TICKET_LIBERACION = [
+    {
+      tema: "Ejecutivo responsable de la ENTREGA física",
+      motivo: "El ticket usa el ejecutivo asignado al crédito en el padrón (quién lo cobra) — el sistema no "
+        + "captura quién entrega físicamente el sobre si es una persona distinta (ej. Dirección entrega en "
+        + "oficina). No se adivina: se cita cuál de los dos es.",
+      responsable: "Dirección",
+    },
+    {
+      tema: "Folio único cuando se liberan Garantía Líquida y Garantía A el mismo cierre",
+      motivo: "El folio SIEMPRE es 1:1 con un movimiento (una salida = un folio) — nunca agrupa varias "
+        + "entregas bajo un solo folio. Si la clienta recibe Líquida y A en el mismo cierre son DOS folios "
+        + "(uno por tipo); el ticket los lista como dos partidas con Subtotal por tipo y un Total, en vez de "
+        + "inventar un folio agrupador que no existe en los movimientos reales.",
+      responsable: "Sistemas (documentado, no bloquea la entrega)",
+    },
+  ];
+
+  function formatoDDMMAAAA(fechaISO) {
+    const [anio, mes, dia] = String(fechaISO || "").split("-");
+    return (anio && mes && dia) ? `${dia}-${mes}-${anio}` : (fechaISO || null);
+  }
+
+  // Una partida del ticket por tipo de garantía (Líquida o A) — folio, fecha y
+  // monto SON los de su propio movimiento de salida; el periodo cubierto va
+  // desde el primer movimiento de ese historial (la primera aportación) hasta
+  // la fecha de esa misma salida.
+  function partidaDeSalida(filaSalida, historialCompleto, tipoGarantia) {
+    if (!filaSalida) return null;
+    const primeraFila = historialCompleto[0];
+    return {
+      tipoGarantia,
+      folio: filaSalida.folio,
+      fechaEntrega: filaSalida.fecha,
+      monto: Math.round((filaSalida.monto || 0) * 100) / 100,
+      periodo: { desde: primeraFila.fecha, hasta: filaSalida.fecha },
+      comentarioPeriodo: "GARANTIAS DEL " + formatoDDMMAAAA(primeraFila.fecha)
+        + " AL " + formatoDDMMAAAA(filaSalida.fecha),
+    };
+  }
+
+  function ticketLiberacionGarantia(usuario, socioSolicitado, productoSolicitado) {
+    const ficha = estadoDeCuentaGarantia(usuario, socioSolicitado, productoSolicitado);
+    if (ficha.error) return ficha;
+
+    const credito = buscarCreditoDeSocia(ficha.socio, ficha.producto);
+    if (!credito) {
+      return { error: "No encuentro el crédito de esa clienta para armar el ticket.", status: 400 };
+    }
+
+    const ultimaSalidaLiquida = ficha.historial.filter((fila) => !fila.entrada).at(-1) || null;
+    const ultimaSalidaA = ficha.historialGarantiaA.filter((fila) => !fila.entrada).at(-1) || null;
+
+    const partidas = [
+      partidaDeSalida(ultimaSalidaLiquida, ficha.historial, "Líquida"),
+      partidaDeSalida(ultimaSalidaA, ficha.historialGarantiaA, "A"),
+    ].filter(Boolean);
+
+    // SIN SALIDA REGISTRADA no hay nada que liberar todavía: no se genera un
+    // ticket vacío o inventado — se avisa con claridad (una clienta que aún
+    // no recibió su garantía no debería salir con un ticket en $0.00).
+    if (partidas.length === 0) {
+      return {
+        error: "Esta clienta todavía no tiene ninguna salida de garantía registrada — no hay nada que liberar.",
+        status: 400,
+      };
+    }
+
+    const cv = carteraViva(usuario);
+    const saldoActual = infoCredito(cv, credito).saldoActual;
+    const pagoAlCierre = numeroDePago(credito, saldoActual);
+    const notaPagoAlCierre = pagoAlCierre && pagoAlCierre.pago != null
+      ? " — CIERRE AL PAGO " + pagoAlCierre.pago
+      : "";
+
+    const total = Math.round(partidas.reduce((suma, p) => suma + p.monto, 0) * 100) / 100;
+
+    return {
+      folio: partidas.length === 1 ? partidas[0].folio : null,
+      folios: partidas.map((p) => p.folio),
+      fechaEntrega: partidas.at(-1).fechaEntrega,
+      nombreClienta: credito.nombre,
+      socio: ficha.socio,
+      producto: credito.producto,
+      partidas,
+      subtotal: partidas.map((p) => ({ tipoGarantia: p.tipoGarantia, monto: p.monto })),
+      montoEntregado: total,
+      total,
+      comentarios: partidas.map((p) => p.comentarioPeriodo).join(" / ") + notaPagoAlCierre,
+      numeroDePagoCierre: pagoAlCierre && pagoAlCierre.pago != null ? pagoAlCierre.pago : null,
+      firmaRecibido: {
+        firmado: false,
+        fecha: null,
+        nota: "El sistema no captura firma digital — se marca a mano en el papel impreso, al momento en que "
+          + "la clienta recibe su garantía.",
+      },
+      ejecutivo: {
+        nombre: credito.ejecutivo || null,
+        centro: credito.centro || null,
+        firma: { firmado: false, fecha: null },
+      },
+      notaSobreSellado: "El sobre de la garantía debe entregarse SELLADO. Si se nota manipulado, NO se recibe "
+        + "— llamar antes al " + TELEFONO_CONTACTO_GARANTIAS + ".",
+      elegibilidadLiberacion: ficha.elegibilidadLiberacion,
+      pendientes: PENDIENTES_TICKET_LIBERACION,
+    };
+  }
+
   return {
     registrarGarantiaLiquidaAlDesembolsar,
     garantiaLiquidaDisponible,
@@ -535,5 +675,6 @@ module.exports = function crearDominioGarantiaLiquida({
     reporteSalidaGarantiasPorClienta,
     validarAportacionGarantiaEnReestructura,
     elegibilidadLiberacionGarantia,
+    ticketLiberacionGarantia,
   };
 };
