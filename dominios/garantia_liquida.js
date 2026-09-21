@@ -297,6 +297,15 @@ module.exports = function crearDominioGarantiaLiquida({
   // (historialGarantiaA/saldoActualGarantiaA), sin tocar los campos
   // existentes de Garantía Líquida (historial/saldoActual) para no romper a
   // quien ya los consume.
+  //
+  // TODOS sus créditos, activos o de BAJA (CU-006 item 27, fusión con PR#27
+  // 19-sep-2026): LA FICHA SE CONSULTA AUNQUE EL CRÉDITO YA TERMINÓ (mismo
+  // criterio que garantiaLiquidaDisponible y el candado de /api/movimiento —
+  // Monse, 8-sep: «la clienta liquidó y no renovó, y no me deja liberar su
+  // garantía»). Imprescindible para CU-006 item 27: sin esto, Dirección
+  // nunca podría ver si la garantía de un crédito YA CERRADO (aunque la
+  // clienta tenga otro crédito activo con otro producto) quedó lista para
+  // liberarse.
   function estadoDeCuentaGarantia(usuario, socioSolicitado, productoSolicitado) {
     const socio = String(socioSolicitado ?? "").replace(/[\s\-.]/g, "").trim();
     if (!socio) return { error: "Falta el número de socio.", status: 400 };
@@ -305,18 +314,24 @@ module.exports = function crearDominioGarantiaLiquida({
       (credito) => String(credito.id).split("|")[0] === socio
         && credito.activa !== false && credito.estatus !== "BAJA",
     );
-    if (creditosDeLaSocia.length === 0) {
-      return { error: "No encuentro una clienta activa con ese número de socio.", status: 400 };
+    const todosSusCreditos = obtenerPadron().filter((credito) => String(credito.id).split("|")[0] === socio)
+      .sort((c1, c2) => String(c2.alta_fecha || "").localeCompare(String(c1.alta_fecha || "")));
+    if (todosSusCreditos.length === 0) {
+      return { error: "No encuentro una clienta con ese número de socio.", status: 400 };
     }
 
     const productoBuscado = productoSolicitado?.trim();
+    // Con producto explícito se busca en TODOS sus créditos (para poder
+    // pedir la ficha de uno ya cerrado); sin producto, se prioriza uno
+    // activo (comportamiento de siempre) y solo se cae a uno de BAJA si no
+    // le queda ningún crédito activo.
     const creditoExacto = productoBuscado
-      ? creditosDeLaSocia.find((credito) => norm(credito.producto) === norm(productoBuscado))
+      ? todosSusCreditos.find((credito) => norm(credito.producto) === norm(productoBuscado))
       : null;
     if (productoBuscado && !creditoExacto) {
-      return { error: `Esa clienta no tiene un crédito "${productoBuscado}" activo.`, status: 400 };
+      return { error: `Esa clienta no tiene un crédito "${productoBuscado}".`, status: 400 };
     }
-    const credito = creditoExacto ?? creditosDeLaSocia[0];
+    const credito = creditoExacto ?? creditosDeLaSocia[0] ?? todosSusCreditos[0];
     const claveDelCredito = claveCredito(socio, credito.producto);
 
     const historial = historialGarantiaDelCredito(socio, claveDelCredito, credito.producto,
@@ -331,7 +346,76 @@ module.exports = function crearDominioGarantiaLiquida({
       socio, nombre: credito.nombre, centro: credito.centro, producto: credito.producto,
       saldoActual: disponible, creditosVivos: creditosDeLaSocia.length, historial,
       saldoActualGarantiaA: disponibleA, historialGarantiaA,
+      elegibilidadLiberacion: elegibilidadLiberacionGarantia(usuario, socio, credito.producto),
       pendientes: PENDIENTES_FICHA_GARANTIA,
+    };
+  }
+
+  // CANDADO — NO GARANTÍA EN REESTRUCTURA (CU-006 item 30, 19-sep-2026:
+  // Dirección resuelve que "NO debe existir garantía en reestructura. Si
+  // existía una garantía, debió aplicarse al crédito antes de reestructurar;
+  // una vez reestructurado no se solicita aportación adicional de garantía,
+  // porque la reestructura ocurre precisamente porque la clienta no tiene
+  // solvencia para pagar — mucho menos para aportar a una garantía."). El
+  // crédito se identifica como reestructura por su etiqueta (catálogo ETIQUETAS
+  // de server.js, "Reestructura" — asignada por Dirección/admin vía
+  // /api/creditos/etiqueta). Regresa null si NO hay problema (se puede
+  // capturar la aportación); regresa el mensaje de rechazo si SÍ lo hay.
+  function validarAportacionGarantiaEnReestructura(credito) {
+    if (!credito) return null;
+    if (!/reestructura/i.test(String(credito.etiqueta || ""))) return null;
+    return "Este crédito está etiquetado \"Reestructura\": no se solicita aportación "
+      + "adicional de garantía (CU-006 item 30, respuesta de Dirección 18-sep-2026). "
+      + "Si ya existía una garantía, debió aplicarse al crédito antes de reestructurar.";
+  }
+
+  // ELEGIBILIDAD DE LIBERACIÓN AL CIERRE DE CICLO (CU-006 item 27, 19-sep-2026:
+  // Dirección confirma que "se libera al cierre/liquidación del crédito que
+  // garantiza, EXCEPTO si esa garantía está garantizando además otro crédito" —
+  // esa excepción, item 26, es una decisión manual de Dirección caso por caso,
+  // NO parametrizable, así que el sistema no puede saber por sí solo si esta
+  // garantía en particular quedó aplicada cruzada a otro crédito. Lo único que
+  // SÍ puede verificar es si la clienta tiene OTRO crédito activo: si lo tiene,
+  // no asume que está libre — deja la decisión a Dirección (mismo criterio que
+  // el resto del módulo: advertir, nunca mover dinero solo). No genera ningún
+  // movimiento — es solo informativo, para que el tablero/ficha lo muestre.
+  //
+  // Nota de fusión (20-sep-2026, PR #27 sobre PR #28 ya mergeado): solo cubre
+  // Garantía Líquida por ahora (usa garantiaLiquidaDisponible) — extender a
+  // Garantía A queda para cuando Dirección confirme que el mismo criterio de
+  // liberación aplica a ese tipo de garantía (no está resuelto en CU-006).
+  function elegibilidadLiberacionGarantia(usuario, socio, producto) {
+    const padron = obtenerPadron();
+    const credito = padron.find((c) => String(c.id).split("|")[0] === String(socio)
+      && norm(c.producto) === norm(producto));
+    if (!credito) return { liberable: false, motivo: "No encuentro ese crédito.", otroCreditoActivo: null };
+
+    const { disponible } = garantiaLiquidaDisponible(usuario, socio, producto);
+    if (!(disponible > 0.009)) {
+      return { liberable: false, motivo: "No hay garantía guardada que liberar.", otroCreditoActivo: null };
+    }
+
+    const cerrado = credito.activa === false || credito.estatus === "BAJA";
+    if (!cerrado) {
+      return { liberable: false, motivo: "El crédito que garantiza sigue vigente — se libera hasta que cierre/liquide (CU-006 item 27).", otroCreditoActivo: null };
+    }
+
+    const otroActivo = padron.find((c) => String(c.id).split("|")[0] === String(socio)
+      && claveCredito(c.id, c.producto) !== claveCredito(credito.id, credito.producto)
+      && c.activa !== false && c.estatus !== "BAJA");
+    if (otroActivo) {
+      return {
+        liberable: false,
+        motivo: "La clienta tiene otro crédito activo (" + otroActivo.producto + ") — Dirección debe decidir si "
+          + "esta garantía se aplica cruzada antes de liberarla (CU-006 item 26, decisión manual caso por caso).",
+        otroCreditoActivo: { id: otroActivo.id, producto: otroActivo.producto },
+      };
+    }
+
+    return {
+      liberable: true,
+      motivo: "Crédito cerrado y sin otro crédito activo de la clienta — puede liberarse (CU-006 item 27).",
+      otroCreditoActivo: null,
     };
   }
 
@@ -449,5 +533,7 @@ module.exports = function crearDominioGarantiaLiquida({
     estadoDeCuentaGarantia,
     reporteSemanalGarantias,
     reporteSalidaGarantiasPorClienta,
+    validarAportacionGarantiaEnReestructura,
+    elegibilidadLiberacionGarantia,
   };
 };
