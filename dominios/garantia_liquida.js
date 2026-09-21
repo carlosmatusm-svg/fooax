@@ -81,21 +81,31 @@ module.exports = function crearDominioGarantiaLiquida({
   // neteo (recepciones − entregas/aplicaciones desde el corte) que ya usa el
   // desglose del crédito. Sin usuario válido (o sin encontrar el crédito) regresa
   // 0: nunca se asume garantía disponible que no se pudo comprobar.
-  function garantiaLiquidaDisponible(usuario, socio, producto) {
+  // Crédito de la socia contra el que se cuadra su garantía (líquida o A):
+  // extraído el 20-sep-2026 de garantiaLiquidaDisponible para que
+  // garantiaADisponible use exactamente la misma búsqueda — refactor puro,
+  // mismo comportamiento, ver checklist de extracción en CLAUDE.md.
+  //
+  // LA GARANTÍA SE DEVUELVE AUNQUE EL CRÉDITO YA TERMINÓ (Monse 8-sep, caso
+  // ALBA): el guardado no se esfuma cuando la clienta liquida o se da de
+  // baja — es justo entonces cuando se le entrega. Mismo criterio que el
+  // linkeo del tablero: su crédito más reciente aunque esté de baja. Sin
+  // esto, el candado del CU-006 les regresaba "$0.00 guardado" a las
+  // clientas de baja y nadie podía liberarles su garantía.
+  function buscarCreditoDeSocia(socio, producto) {
     const padron = obtenerPadron();
     let cred = padron.find((c) => String(c.id).split("|")[0] === String(socio)
       && norm(c.producto) === norm(producto) && c.activa !== false && c.estatus !== "BAJA");
-    // LA GARANTÍA SE DEVUELVE AUNQUE EL CRÉDITO YA TERMINÓ (Monse 8-sep, caso
-    // ALBA): el guardado no se esfuma cuando la clienta liquida o se da de
-    // baja — es justo entonces cuando se le entrega. Mismo criterio que el
-    // linkeo del tablero: su crédito más reciente aunque esté de baja. Sin
-    // esto, el candado del CU-006 les regresaba "$0.00 guardado" a las
-    // clientas de baja y nadie podía liberarles su garantía.
     if (!cred) {
       cred = padron.filter((c) => String(c.id).split("|")[0] === String(socio)
           && norm(c.producto) === norm(producto))
         .sort((c1, c2) => String(c2.alta_fecha || "").localeCompare(String(c1.alta_fecha || "")))[0] || null;
     }
+    return cred;
+  }
+
+  function garantiaLiquidaDisponible(usuario, socio, producto) {
+    const cred = buscarCreditoDeSocia(socio, producto);
     if (!cred) return { disponible: 0, credito: null };
     const cv = carteraViva(usuario);
     const clave = claveCredito(cred.id, cred.producto);
@@ -107,6 +117,27 @@ module.exports = function crearDominioGarantiaLiquida({
       // de BAJA): mismo neteo del motor, con sus acumulados por clave.
       guardado = Math.max(0, ((cv.garantias || {})[clave] || 0)
         + ((cv.cobrosGarMov || {})[clave] || 0) - ((cv.entregasGar || {})[clave] || 0));
+    }
+    return { disponible: Math.max(0, Math.round(guardado * 100) / 100), credito: cred };
+  }
+
+  // GARANTÍA A DISPONIBLE (20-sep-2026, hallazgo de validación del módulo de
+  // Garantías: la Garantía A es un concepto DISTINTO a la Garantía Líquida
+  // -RESUELTO 10-sep-2026, Karina Matus- con su propio acumulado en
+  // carteraVivaCalcular (cobrosGarA/entregasGarA), pero hasta hoy ese saldo
+  // solo se veía en el desglose de un crédito individual, nunca en la
+  // pantalla de Garantías. Mismo patrón exacto que garantiaLiquidaDisponible,
+  // leyendo el campo `garantiaA` de infoCredito() en vez de `garantia`.
+  function garantiaADisponible(usuario, socio, producto) {
+    const cred = buscarCreditoDeSocia(socio, producto);
+    if (!cred) return { disponible: 0, credito: null };
+    const cv = carteraViva(usuario);
+    const clave = claveCredito(cred.id, cred.producto);
+    let guardado;
+    if (cv.porCredito.has(clave)) {
+      guardado = infoCredito(cv, cred).garantiaA || 0;
+    } else {
+      guardado = Math.max(0, ((cv.cobrosGarA || {})[clave] || 0) - ((cv.entregasGarA || {})[clave] || 0));
     }
     return { disponible: Math.max(0, Math.round(guardado * 100) / 100), credito: cred };
   }
@@ -163,9 +194,27 @@ module.exports = function crearDominioGarantiaLiquida({
     { tema: "Botón 'Ajuste manual' con autorización de Dirección", motivo: "No existe un tipo de movimiento ni candado dedicado a esto.", responsable: "Dirección" },
   ];
 
+  // Reduce genérico centro→pasivo, usado para Garantía Líquida y Garantía A
+  // por igual (mismo cálculo, dos campos de origen distintos).
+  function pasivoPorCentroDe(creditosConGarantia, leerMonto) {
+    const acumulado = creditosConGarantia.reduce((acc, item) => {
+      const centro = item.credito.centro || "—";
+      const previo = acc[centro] ?? 0;
+      return { ...acc, [centro]: Math.round((previo + leerMonto(item)) * 100) / 100 };
+    }, {});
+    return Object.keys(acumulado).sort().map((centro) => ({ centro, monto: acumulado[centro] }));
+  }
+
   // RESUMEN (página 7 del lienzo, "GA · Garantías"): pasivo total y
   // desglose por centro. Reutiliza el mismo cálculo por crédito que ya usa
   // /api/creditos (infoCredito) — no inventa una fórmula nueva de garantía.
+  //
+  // GARANTÍA A (20-sep-2026, hallazgo de validación): hasta hoy este resumen
+  // solo mostraba Garantía Líquida — Garantía A se captura y se calcula desde
+  // el 10-sep-2026 (concepto propio en CONCEPTOS_DIR) pero no tenía dónde
+  // verse. Se agrega como bloque PARALELO, nunca sumado al de Líquida — son
+  // dos pasivos distintos (RESUELTO 10-sep-2026, Karina Matus) y mezclarlos
+  // en un solo total sería inventar una cifra que Dirección no pidió.
   function resumenGarantias(usuario) {
     const carteraDelUsuario = carteraViva(usuario);
     const creditosVivos = obtenerPadron().filter(
@@ -179,27 +228,38 @@ module.exports = function crearDominioGarantiaLiquida({
       }))
       .filter(({ garantia }) => garantia > 0.009);
 
+    const creditosConGarantiaA = creditosVivos
+      .map((credito) => ({
+        credito,
+        garantiaA: Math.round((infoCredito(carteraDelUsuario, credito).garantiaA ?? 0) * 100) / 100,
+      }))
+      .filter(({ garantiaA }) => garantiaA > 0.009);
+
     const pasivoTotal = Math.round(
       creditosConGarantia.reduce((acumulado, { garantia }) => acumulado + garantia, 0) * 100,
     ) / 100;
-
-    const pasivoPorCentro = creditosConGarantia.reduce((acumulado, { credito, garantia }) => {
-      const centro = credito.centro || "—";
-      const totalPrevio = acumulado[centro] ?? 0;
-      return { ...acumulado, [centro]: Math.round((totalPrevio + garantia) * 100) / 100 };
-    }, {});
+    const pasivoTotalGarantiaA = Math.round(
+      creditosConGarantiaA.reduce((acumulado, { garantiaA }) => acumulado + garantiaA, 0) * 100,
+    ) / 100;
 
     return {
       pasivoTotal,
       sociasConGarantia: creditosConGarantia.length,
-      porCentro: Object.keys(pasivoPorCentro)
-        .sort()
-        .map((centro) => ({ centro, monto: pasivoPorCentro[centro] })),
+      porCentro: pasivoPorCentroDe(creditosConGarantia, (i) => i.garantia),
       socias: [...creditosConGarantia]
         .sort((a, b) => b.garantia - a.garantia)
         .slice(0, 200)
         .map(({ credito, garantia }) => ({
           id: credito.id, nombre: credito.nombre, centro: credito.centro, producto: credito.producto, garantia,
+        })),
+      pasivoTotalGarantiaA,
+      sociasConGarantiaA: creditosConGarantiaA.length,
+      porCentroGarantiaA: pasivoPorCentroDe(creditosConGarantiaA, (i) => i.garantiaA),
+      sociasGarantiaA: [...creditosConGarantiaA]
+        .sort((a, b) => b.garantiaA - a.garantiaA)
+        .slice(0, 200)
+        .map(({ credito, garantiaA }) => ({
+          id: credito.id, nombre: credito.nombre, centro: credito.centro, producto: credito.producto, garantiaA,
         })),
       pendientes: PENDIENTES_RESUMEN_GARANTIAS,
     };
@@ -211,6 +271,32 @@ module.exports = function crearDominioGarantiaLiquida({
   // la aplicación — aquí solo se listan en orden, no se recalcula nada
   // distinto. Regresa { error, status } en vez de lanzar: quien llama
   // (server.js) decide cómo traducirlo a la respuesta HTTP.
+  // Historial movimiento a movimiento de un crédito filtrado por un patrón de
+  // tipo (líquida o A) — extraído el 20-sep-2026 para que estadoDeCuentaGarantia
+  // arme las dos fichas (Líquida y A) con la misma lógica de saldo corrido.
+  function historialGarantiaDelCredito(socio, claveDelCredito, productoDelCredito, patronTipo) {
+    const movimientosDelCredito = store.todosMovimientos()
+      .filter((mov) => !mov.anulado && patronTipo.test((tipoDeMov(mov) ?? "").trim()))
+      .filter((mov) => socioDeMov(mov) === socio
+        && claveCredito(socioDeMov(mov), productoDeMov(mov) ?? productoDelCredito) === claveDelCredito)
+      .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+
+    return movimientosDelCredito.reduce((filas, mov) => {
+      const saldoAnterior = filas.at(-1)?.saldoDespues ?? 0;
+      const saldoDespues = Math.round((saldoAnterior + (mov.entrada ? mov.monto : -mov.monto)) * 100) / 100;
+      return [...filas, {
+        fecha: mov.fecha, folio: mov.folio, tipo: mov.tipo ?? mov.concepto, monto: mov.monto,
+        entrada: !!mov.entrada, saldoDespues,
+        capturadoPor: mov.registradoPor ?? null, nota: mov.nota ?? null,
+      }];
+    }, []);
+  }
+
+  // GARANTÍA A EN LA FICHA (20-sep-2026, hallazgo de validación): mismo
+  // criterio que en resumenGarantias — se agrega como bloque paralelo
+  // (historialGarantiaA/saldoActualGarantiaA), sin tocar los campos
+  // existentes de Garantía Líquida (historial/saldoActual) para no romper a
+  // quien ya los consume.
   function estadoDeCuentaGarantia(usuario, socioSolicitado, productoSolicitado) {
     const socio = String(socioSolicitado ?? "").replace(/[\s\-.]/g, "").trim();
     if (!socio) return { error: "Falta el número de socio.", status: 400 };
@@ -233,38 +319,135 @@ module.exports = function crearDominioGarantiaLiquida({
     const credito = creditoExacto ?? creditosDeLaSocia[0];
     const claveDelCredito = claveCredito(socio, credito.producto);
 
-    const movimientosDelCredito = store.todosMovimientos()
-      .filter((mov) => !mov.anulado
-        && /^garant[íi]a l[íi]quida( entregada| aplicada)?$/i.test((tipoDeMov(mov) ?? "").trim()))
-      .filter((mov) => socioDeMov(mov) === socio
-        && claveCredito(socioDeMov(mov), productoDeMov(mov) ?? credito.producto) === claveDelCredito)
-      .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
-
-    const historial = movimientosDelCredito.reduce((filas, mov) => {
-      const saldoAnterior = filas.at(-1)?.saldoDespues ?? 0;
-      const saldoDespues = Math.round((saldoAnterior + (mov.entrada ? mov.monto : -mov.monto)) * 100) / 100;
-      return [...filas, {
-        fecha: mov.fecha, folio: mov.folio, tipo: mov.tipo ?? mov.concepto, monto: mov.monto,
-        entrada: !!mov.entrada, saldoDespues,
-        capturadoPor: mov.registradoPor ?? null, nota: mov.nota ?? null,
-      }];
-    }, []);
+    const historial = historialGarantiaDelCredito(socio, claveDelCredito, credito.producto,
+      /^garant[íi]a l[íi]quida( entregada| aplicada)?$/i);
+    const historialGarantiaA = historialGarantiaDelCredito(socio, claveDelCredito, credito.producto,
+      /^garant[íi]a a( entregada)?$/i);
 
     const { disponible } = garantiaLiquidaDisponible(usuario, socio, credito.producto);
+    const { disponible: disponibleA } = garantiaADisponible(usuario, socio, credito.producto);
 
     return {
       socio, nombre: credito.nombre, centro: credito.centro, producto: credito.producto,
       saldoActual: disponible, creditosVivos: creditosDeLaSocia.length, historial,
+      saldoActualGarantiaA: disponibleA, historialGarantiaA,
       pendientes: PENDIENTES_FICHA_GARANTIA,
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // REPORTES DE GARANTÍAS (CU-008). Solo se construyen los DOS reportes del
+  // catálogo de cinco que ya tienen ejemplo real y corte confirmado por
+  // Dirección — ver PENDIENTES_POR_CONFIRMAR.md sección 3, fila "Requerimientos
+  // exactos y ejemplos del reporte": "pendientes de devolución" y "aplicadas a
+  // crédito" siguen sin ejemplo (pedidos a Dirección el 10-sep-2026, sin
+  // respuesta todavía), y el "ticket de depósitos" de cuadre sigue sin que
+  // Administración defina qué datos lleva y quién lo firma — ninguno de los
+  // tres se inventa aquí. El corte oficial es LUNES (RESUELTO 11-sep-2026) y
+  // la semana del sistema cierra en domingo (RESUELTO 11-sep-2026, ya cubre
+  // recuperaciones de domingo dentro de su propia semana).
+  //
+  // Cubren los DOS tipos de garantía que hoy se capturan como movimiento de
+  // caja (Líquida y A) — un solo reporte de garantías, no uno por tipo,
+  // mostrando el tipo en cada fila. La Garantía Hipotecaria no tiene
+  // movimiento de caja (es documental, Regla 8.1) y no aplica a estos reportes.
+  const PATRON_TIPOS_GARANTIA = /^garant[íi]a (l[íi]quida( entregada| aplicada)?|a( entregada)?)$/i;
+
+  function movimientosDeGarantiaEntre(desdeISO, hastaISO) {
+    return store.todosMovimientos().filter((mov) => !mov.anulado
+      && PATRON_TIPOS_GARANTIA.test((tipoDeMov(mov) ?? "").trim())
+      && String(mov.fecha || "") >= desdeISO && String(mov.fecha || "") <= hastaISO);
+  }
+
+  // REPORTE SEMANAL DE ENTRADA/SALIDA (página del catálogo CU-008 #1, con
+  // ejemplo real en "PLANILLA-GARANTIAS LUNES PRIMERA PARTE.xlsx"): por día,
+  // por quién lo capturó, y por forma de pago. `fechaLunes` YA debe venir
+  // normalizada al lunes de su semana (server.js la resuelve con
+  // lunesDeLaSemana antes de llamar aquí, mismo patrón que el resto de
+  // reportes de corte semanal).
+  function reporteSemanalGarantias(fechaLunes) {
+    const desde = fechaLunes;
+    const hastaDt = new Date(fechaLunes + "T12:00:00");
+    hastaDt.setDate(hastaDt.getDate() + 6);
+    const hasta = hastaDt.toISOString().slice(0, 10);
+
+    const movs = movimientosDeGarantiaEntre(desde, hasta);
+    const sumar = (mapa, llave, monto) => { mapa[llave] = Math.round(((mapa[llave] || 0) + monto) * 100) / 100; };
+
+    const porDia = {}, porQuien = {}, porForma = {};
+    let totalEntradas = 0, totalSalidas = 0;
+    for (const mov of movs) {
+      const monto = Number(mov.monto) || 0;
+      const quien = mov.ejecutivo || mov.registradoPor || "—";
+      const forma = mov.metodo === "retencion" ? "Retención automática" : (mov.metodo || "—");
+      if (!porDia[mov.fecha]) porDia[mov.fecha] = { entradas: 0, salidas: 0 };
+      if (!porQuien[quien]) porQuien[quien] = { entradas: 0, salidas: 0 };
+      if (!porForma[forma]) porForma[forma] = { entradas: 0, salidas: 0 };
+      const campo = mov.entrada ? "entradas" : "salidas";
+      sumar(porDia[mov.fecha], campo, monto);
+      sumar(porQuien[quien], campo, monto);
+      sumar(porForma[forma], campo, monto);
+      if (mov.entrada) totalEntradas = Math.round((totalEntradas + monto) * 100) / 100;
+      else totalSalidas = Math.round((totalSalidas + monto) * 100) / 100;
+    }
+
+    const aArreglo = (mapa, llaveNombre) => Object.keys(mapa).sort()
+      .map((k) => ({ [llaveNombre]: k, entradas: mapa[k].entradas, salidas: mapa[k].salidas }));
+
+    return {
+      semana: { desde, hasta },
+      totalEntradas, totalSalidas,
+      porDia: aArreglo(porDia, "fecha"),
+      porQuienCaptura: aArreglo(porQuien, "quien"),
+      porFormaPago: aArreglo(porForma, "forma"),
+    };
+  }
+
+  // REPORTE DE SALIDAS POR CLIENTA (página del catálogo CU-008 #2, con
+  // ejemplo real en la misma planilla): folio, centro, ejecutivo, monto,
+  // periodo — con rollup mensual por centro. `mes` en formato "YYYY-MM".
+  function reporteSalidaGarantiasPorClienta(mes) {
+    const desde = mes + "-01";
+    const hastaDt = new Date(desde + "T12:00:00");
+    hastaDt.setMonth(hastaDt.getMonth() + 1);
+    hastaDt.setDate(hastaDt.getDate() - 1);
+    const hasta = hastaDt.toISOString().slice(0, 10);
+    const padron = obtenerPadron();
+
+    const salidas = movimientosDeGarantiaEntre(desde, hasta)
+      .filter((mov) => !mov.entrada)
+      .map((mov) => {
+        const socio = socioDeMov(mov);
+        const cred = padron.find((c) => String(c.id).split("|")[0] === socio
+          && norm(c.producto) === norm(productoDeMov(mov) || "")) || null;
+        return {
+          folio: mov.folio, fecha: mov.fecha, socio, nombre: (cred && cred.nombre) || null,
+          centro: (cred && cred.centro) || "—", quien: mov.ejecutivo || mov.registradoPor || "—",
+          monto: Number(mov.monto) || 0, tipo: mov.tipo || mov.concepto,
+        };
+      })
+      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+    const porCentro = salidas.reduce((acc, s) => {
+      acc[s.centro] = Math.round(((acc[s.centro] || 0) + s.monto) * 100) / 100;
+      return acc;
+    }, {});
+
+    return {
+      mes, periodo: { desde, hasta }, salidas,
+      rollupPorCentro: Object.keys(porCentro).sort().map((centro) => ({ centro, total: porCentro[centro] })),
     };
   }
 
   return {
     registrarGarantiaLiquidaAlDesembolsar,
     garantiaLiquidaDisponible,
+    garantiaADisponible,
     ultimaSalidaGarantiaLiquida,
     ticketGarantiaLiquidaH14,
     resumenGarantias,
     estadoDeCuentaGarantia,
+    reporteSemanalGarantias,
+    reporteSalidaGarantiasPorClienta,
   };
 };

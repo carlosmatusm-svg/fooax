@@ -1431,7 +1431,11 @@ function carteraVivaCalcular(usuario) {
   // cobrosGarMov y entregasGar se exponen para el candado de Garantía Líquida
   // (CU-006): un crédito de BAJA no entra a porCredito, pero su guardado por
   // clave sí vive aquí y es lo que se le devuelve a la clienta que se va.
-  return { porCredito, pagos, garantias, cobrosGarMov, entregasGar };
+  // cobrosGarA/entregasGarA: mismo motivo pero para Garantía A (20-sep-2026,
+  // hallazgo de validación — antes solo se usaban para calcular garantiaA en
+  // porCredito, sin exponerse, así que garantiaADisponible() no tenía cómo
+  // calcular el guardado de una clienta cuyo crédito ya no está en cartera viva).
+  return { porCredito, pagos, garantias, cobrosGarMov, entregasGar, cobrosGarA, entregasGarA };
 }
 // CONCILIACIÓN: ¿todo lo que se cobró bajó de algún saldo?
 // Es el control que sustituye al "pedirle el Excel a Monse para comparar". Si
@@ -4051,10 +4055,13 @@ const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUI
 const {
   registrarGarantiaLiquidaAlDesembolsar,
   garantiaLiquidaDisponible,
+  garantiaADisponible,
   ultimaSalidaGarantiaLiquida,
   ticketGarantiaLiquidaH14,
   resumenGarantias,
   estadoDeCuentaGarantia,
+  reporteSemanalGarantias,
+  reporteSalidaGarantiasPorClienta,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -6013,6 +6020,18 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // 10-sep-2026 que ese módulo YA está contratado, así que el candado se activa:
   // ya no se puede entregar/aplicar más de lo disponible ni repetir una entrega
   // que ya dejó el guardado en cero.
+  // GARANTÍA A — disponible ANTES del movimiento (20-sep-2026, hallazgo de
+  // validación, CU-006 item 12 RESUELTO 10-sep-2026: "por cada importe
+  // recibido se deberá generar un ticket o extender un recibo... sin
+  // distinguir por volumen ni por tipo de garantía"). A propósito NO se
+  // agrega candado antiduplicado aquí (eso no forma parte de lo resuelto por
+  // Dirección para Garantía A todavía) — solo el dato para poder emitir el
+  // ticket en cada entrada Y cada salida, como exige el item 12.
+  let disponibleAntesA = null;
+  if ((tipoNombre === "Garantía A" || tipoNombre === "Garantía A entregada") && socio && producto) {
+    disponibleAntesA = garantiaADisponible(req.usuario, socio, producto).disponible;
+  }
+
   let disponibleAntes = null;
   if (tipoNombre === "Garantía líquida entregada" && socio && producto) {
     const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
@@ -6060,9 +6079,19 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // —recepción, aplicación, devolución— se manda junto con el movimiento para
   // que el tablero lo pueda imprimir o mostrar. Solo se calcula el "después"
   // cuando ya sabíamos el "antes" (entregada); para el resto no aplica todavía.
-  const ticket = (tipoNombre === "Garantía líquida entregada" && disponibleAntes != null)
-    ? ticketGarantiaLiquidaH14(mov, disponibleAntes, Math.max(0, disponibleAntes - monto))
-    : null;
+  //
+  // GARANTÍA A (20-sep-2026, item 12 RESUELTO): se agrega ticket también en
+  // CADA aportación ("Garantía A", entrada) y CADA entrega ("Garantía A
+  // entregada", salida) — mismo formato H.14, mismo generador; la función no
+  // tiene nada específico de Garantía Líquida en su cuerpo.
+  let ticket = null;
+  if (tipoNombre === "Garantía líquida entregada" && disponibleAntes != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntes, Math.max(0, disponibleAntes - monto));
+  } else if (tipoNombre === "Garantía A" && disponibleAntesA != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntesA, disponibleAntesA + monto);
+  } else if (tipoNombre === "Garantía A entregada" && disponibleAntesA != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntesA, Math.max(0, disponibleAntesA - monto));
+  }
   res.json({ ok: true, movimiento: mov, ticket });
 });
 
@@ -6174,6 +6203,21 @@ app.get("/api/garantias/ficha", requiere("direccion", "admin"), (req, res) => {
   const resultado = estadoDeCuentaGarantia(req.usuario, req.query.id, req.query.producto);
   if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
   res.json(resultado);
+});
+
+// REPORTES DE GARANTÍAS (CU-008, 20-sep-2026 — hallazgo de validación: solo
+// se construyen los 2 de 5 reportes del catálogo que ya tienen ejemplo real y
+// corte confirmado por Dirección, ver dominios/garantia_liquida.js. El pegamento
+// HTTP solo normaliza la fecha al lunes de su semana (mismo criterio que el
+// resto de reportes de corte semanal, ver lunesDeLaSemana) y traduce a JSON.
+app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  res.json(reporteSemanalGarantias(lunesDeLaSemana(fecha)));
+});
+
+app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
+  const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
+  res.json(reporteSalidaGarantiasPorClienta(mes));
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
