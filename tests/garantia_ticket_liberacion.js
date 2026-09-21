@@ -145,7 +145,13 @@ async function ticketDe(ca, socio, producto) {
     /Autoriza/i.test(html) && /Anel Aydee/i.test(html) && /Directora General/i.test(html), "no encontrada Autoriza");
   ok("deja un espacio físico para la firma de la clienta y del ejecutivo",
     /Firma de la clienta/i.test(html) && /Firma del ejecutivo/i.test(html), "no encontrado el espacio de firma");
+  ok("el nombre real de la clienta aparece junto a su línea de firma (21-sep-2026, pedido de Carlos)",
+    new RegExp("Prueba Con Salida " + RUN + "[\\s\\S]{0,80}Firma de la clienta", "i").test(html), "no encontrado el nombre junto a la firma de la clienta");
+  ok("el nombre real del ejecutivo aparece junto a su línea de firma",
+    new RegExp("Karina[\\s\\S]{0,80}Firma del ejecutivo", "i").test(html), "no encontrado el nombre junto a la firma del ejecutivo");
   ok("trae el botón/atajo para imprimir (window.print())", /window\.print\(\)/.test(html), "no encontrado window.print()");
+  ok("trae el logo de FOOAX (21-sep-2026, pedido de Karina/Dirección)",
+    /<img[^>]+src="\/img\/logo-fooax-hoja\.png"/.test(html), "no encontrado el <img> del logo");
 
   console.log("\n" + PASS + " pasaron, " + FAIL + " fallaron.");
   process.exit(FAIL > 0 ? 1 : 0);

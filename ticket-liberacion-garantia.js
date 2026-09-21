@@ -18,6 +18,21 @@
 // propio teléfono/tablet del ejecutivo ya resuelve "guardar como PDF" o
 // imprimir en papel para que la clienta firme a mano (el sistema no captura
 // firma digital, solo deja el espacio físico).
+//
+// LOS DOS NOMBRES EN LAS FIRMAS (21-sep-2026, pedido de Carlos): antes las
+// dos líneas de firma solo decían el ROL ("Firma de la clienta", "Firma del
+// ejecutivo") sin el nombre real de la persona, aunque el sistema ya lo
+// tiene (nombreClienta y ejecutivo.nombre ya venían arriba en el ticket).
+// Ahora el nombre completo se imprime arriba de cada línea de firma, para
+// que quien firme y quien reciba el papel/escaneo sepan exactamente de
+// quién es cada firma sin tener que buscarlo en otra parte del documento.
+//
+// LOGO (21-sep-2026, pedido de Karina/Dirección): usa /img/logo-fooax-hoja.png,
+// el mismo PNG chico ya usado para insertarlo en la Hoja de Cobranza (Excel,
+// ver hoja-cobranza.js). Se referencia por ruta (<img src="/img/...">), no
+// como base64 embebido: express.static ya sirve /public en la raíz (mismo
+// criterio que login.html/tablero.html, que ya cargan /img/logo-fooax.jpg),
+// así que no hace falta duplicar el archivo dentro de este módulo.
 "use strict";
 
 function escaparHtml(valor) {
@@ -74,13 +89,19 @@ function renderHtml(ticket) {
   .responsables { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ccc; font-size: 12.5px; }
   .responsables .dato strong { min-width: 100px; }
   .btn-imprimir { margin: 0 0 20px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
+  .encabezado { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 4px; }
+  .encabezado img { height: 48px; width: auto; }
+  .encabezado h1 { margin: 0; }
   @media print { .btn-imprimir { display: none; } body { margin: 8mm; } }
 </style>
 </head>
 <body>
   <button class="btn-imprimir" onclick="window.print()">Imprimir / Guardar como PDF</button>
 
-  <h1>TICKET DE LIBERACIÓN DE GARANTÍA${tituloFolio}</h1>
+  <div class="encabezado">
+    <img src="/img/logo-fooax-hoja.png" alt="FOOAX">
+    <h1>TICKET DE LIBERACIÓN DE GARANTÍA${tituloFolio}</h1>
+  </div>
   <h2>FOOAX</h2>
 
   <div class="dato"><strong>Fecha de entrega:</strong> ${escaparHtml(ticket.fechaEntrega)}</div>
@@ -106,8 +127,8 @@ function renderHtml(ticket) {
   <div class="dato"><strong>Ejecutivo:</strong> ${escaparHtml(nombreEjecutivo)} &nbsp;·&nbsp; <strong>Centro:</strong> ${escaparHtml(centroEjecutivo)}</div>
 
   <div class="firmas">
-    <div class="firma"><div class="linea">Firma de la clienta (recibido de conformidad)</div></div>
-    <div class="firma"><div class="linea">Firma del ejecutivo (entregó)</div></div>
+    <div class="firma"><div class="linea"><strong>${escaparHtml(ticket.nombreClienta)}</strong><br>Firma de la clienta (recibido de conformidad)</div></div>
+    <div class="firma"><div class="linea"><strong>${escaparHtml(nombreEjecutivo)}</strong><br>Firma del ejecutivo (entregó)</div></div>
   </div>
 
   <div class="responsables">
