@@ -461,6 +461,15 @@
   .dlhint{font-size:11.5px;color:var(--gris);margin:8px 16px 0}
   .reccard{background:#fff;border:1px solid var(--lav);border-radius:10px;padding:14px 16px;margin:0 16px}
   .rechint{font-size:12px;color:var(--gris);line-height:1.45;margin-bottom:10px}
+  /* Desglose de garantias por grupo (centro) con cada integrante adentro,
+     21-sep-2026 -- item 44 de CU-006 corregido: el dato ya lo calculaba
+     resumenGarantias(), faltaba pintarlo. <details> nativo, sin JS extra
+     para abrir/cerrar cada centro. */
+  .gardet{border:1px solid var(--lav);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:#fff}
+  .gardet summary{display:flex;justify-content:space-between;gap:10px;cursor:pointer;font-size:13px;list-style:none}
+  .gardet summary::-webkit-details-marker{display:none}
+  .gardet summary span{color:var(--rio)}
+
   /* Tarjetas "pendiente de definir" (pantalla de Garantías MVP, 10-sep-2026):
      lo que el mockup pide y todavía no se puede construir se muestra así, en
      vez de ocultarlo o inventar el dato. */
@@ -3745,27 +3754,58 @@ function pintarPendientesGarantia(contId, pendientes) {
     + '<div class="garpendresp">Le toca a: ' + hesc(p.responsable) + '</div></div>'
   ).join("");
 }
+// Agrupa el arreglo plano "socias"/"sociasGarantiaA" (que ya trae id, nombre,
+// centro, producto, garantia/garantiaA por integrante) por centro, para
+// pintar el desglose dentro de cada grupo -- Karina preguntó el 21-sep-2026
+// si esto ya se veía; el dato ya lo calculaba resumenGarantias() pero nunca
+// se pintaba en pantalla (item 44 de CU-006, corregido el mismo día). OJO:
+// "socias"/"sociasGarantiaA" vienen topadas a 200 filas globales desde el
+// backend (mismo límite del MVP, no nuevo aquí) -- si un centro tiene
+// integrantes fuera de ese tope no aparecerán en su desglose; no se oculta
+// este límite, se hereda tal cual del endpoint existente.
+function agruparPorCentro(lista, campoMonto) {
+  const porCentro = new Map();
+  (lista || []).forEach((s) => {
+    const centro = s.centro || "Sin centro";
+    if (!porCentro.has(centro)) porCentro.set(centro, []);
+    porCentro.get(centro).push(s);
+  });
+  porCentro.forEach((integrantes) => integrantes.sort((a, b) => b[campoMonto] - a[campoMonto]));
+  return porCentro;
+}
+function pintarDesgloseCentros(filasTotales, porIntegrante, campoMonto, etiquetaCol) {
+  if (!filasTotales || !filasTotales.length) return '';
+  const grupos = agruparPorCentro(porIntegrante, campoMonto);
+  return filasTotales.map((x) => {
+    const integrantes = grupos.get(x.centro) || [];
+    const filasIntegrantes = integrantes.map((s) =>
+      '<tr><td>' + hesc(s.nombre || s.id) + '</td><td>' + hesc(s.producto || "—") + '</td><td>' + dinero(s[campoMonto]) + '</td></tr>').join("");
+    return '<details class="gardet"><summary><span>' + hesc(x.centro) + '</span><b>' + dinero(x.monto) + '</b></summary>'
+      + (filasIntegrantes
+          ? '<table class="ct-tab" style="margin-top:6px"><thead><tr><th>Clienta</th><th>Producto</th><th>' + hesc(etiquetaCol) + '</th></tr></thead><tbody>' + filasIntegrantes + '</tbody></table>'
+          : '<div class="rechint" style="margin-top:6px">Sin detalle por integrante (o fuera del tope de 200 que trae el endpoint).</div>')
+      + '</details>';
+  }).join("");
+}
 async function cargarGarantias() {
   const box = $("garResumen"), boxA = $("garResumenA");
   try {
     const r = await fetch("/api/garantias", { credentials: "include" });
     const d = await r.json();
     if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
-    const filasCentro = (d.porCentro || []).map((x) =>
-      '<tr><td>' + hesc(x.centro) + '</td><td>' + dinero(x.monto) + '</td></tr>').join("");
+    const gruposCentro = pintarDesgloseCentros(d.porCentro, d.socias, "garantia", "Garantía");
     box.innerHTML =
       '<div class="renrow"><span>Pasivo total de Garantía Líquida</span><b>' + dinero(d.pasivoTotal) + '</b></div>'
       + '<div class="renrow"><span>Socias con garantía viva</span><b>' + d.sociasConGarantia + '</b></div>'
-      + (filasCentro ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Centro</th><th>Garantía</th></tr></thead><tbody>' + filasCentro + '</tbody></table>' : '');
+      + (gruposCentro ? '<div style="margin-top:8px">' + gruposCentro + '</div>' : '');
     // GARANTÍA A (20-sep-2026): mismo patrón, bloque separado — pasivoTotalGarantiaA
     // y porCentroGarantiaA nunca se mezclan con los de Líquida de arriba.
     if (boxA) {
-      const filasCentroA = (d.porCentroGarantiaA || []).map((x) =>
-        '<tr><td>' + hesc(x.centro) + '</td><td>' + dinero(x.monto) + '</td></tr>').join("");
+      const gruposCentroA = pintarDesgloseCentros(d.porCentroGarantiaA, d.sociasGarantiaA, "garantiaA", "Garantía A");
       boxA.innerHTML =
         '<div class="renrow"><span>Pasivo total de Garantía A</span><b>' + dinero(d.pasivoTotalGarantiaA) + '</b></div>'
         + '<div class="renrow"><span>Socias con Garantía A</span><b>' + d.sociasConGarantiaA + '</b></div>'
-        + (filasCentroA ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Centro</th><th>Garantía A</th></tr></thead><tbody>' + filasCentroA + '</tbody></table>' : '<div class="rechint">Sin Garantía A capturada todavía.</div>');
+        + (gruposCentroA ? '<div style="margin-top:8px">' + gruposCentroA + '</div>' : '<div class="rechint">Sin Garantía A capturada todavía.</div>');
     }
     pintarPendientesGarantia("garPendGlobal", d.pendientes);
   } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
