@@ -691,6 +691,59 @@ const ExcelJS = require("exceljs");
 // El motor de reglas: los intereses se calculan con lo que Dirección escribe en
 // data/reglas-productos.json, no con números metidos en este archivo.
 const motor = require("./motor-reglas");
+// Vista imprimible del ticket de liberación de garantías (CU-006).
+const ticketLiberacionGarantiaHtml = require("./ticket-liberacion-garantia");
+
+// GARANTÍA LÍQUIDA — Anexo F §7-8 ("el 10% que normalmente se recibe de la
+// clienta"), validado por CLIC (Contadora Consuelo). Parámetro de entorno,
+// nunca fijo en código.
+const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUIDA) || 10;
+
+// AJUSTE MANUAL DE GARANTÍA — QUIÉN AUTORIZA (CU-006, audio de Karina):
+// Lic. Alejandra o Lic. Monse, cualquiera de las dos. Se verifica por
+// IDENTIDAD DE SESIÓN (el id de USUARIOS con el que se entró), nunca por un
+// campo de texto libre — ver dominios/garantia_liquida.js#puedeAutorizarAjusteManual.
+// Parámetro de entorno (lista separada por comas), nunca fijo en código.
+const USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA = (process.env.GARANTIA_USUARIOS_AUTORIZAN_AJUSTE || "alejandra,monse")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+// Dominio Garantía Líquida (CU-006), portado a esta rama de prueba
+// (test/garantias-a-main) SOLO con lo que necesita — sin los otros 3
+// dominios (sincronizacion_desembolso, sobres_segregacion,
+// renovacion_documentos) que en develop se extrajeron en el mismo commit
+// pero NO son parte de este alcance. server.js solo inyecta lo que el
+// dominio necesita y usa las funciones que regresa.
+const {
+  registrarGarantiaLiquidaAlDesembolsar,
+  garantiaLiquidaDisponible,
+  garantiaADisponible,
+  ultimaSalidaGarantiaLiquida,
+  ticketGarantiaLiquidaH14,
+  resumenGarantias,
+  estadoDeCuentaGarantia,
+  validarAportacionGarantiaEnReestructura,
+  elegibilidadLiberacionGarantia,
+  reporteSemanalGarantias,
+  reporteSalidaGarantiasPorClienta,
+  corteDiarioGarantias,
+  ticketLiberacionGarantia,
+  alertaVencimientoGarantiaHipotecaria,
+  alertasGarantiaHipotecariaPorVencer,
+  alertasPlazoEntregaGarantia,
+  registrarRegresoHojaLiberacion,
+  alertasPlazoRegresoHojaLiberacion,
+  registrarAjusteManualGarantia,
+  validarSalidaAnticipadaGarantiaLiquida,
+} = require("./dominios/garantia_liquida")({
+  store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
+  infoCredito, carteraViva,
+  obtenerPadron: () => PADRON,
+  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+  numeroDePago,
+  hoyMX,
+  garantiaHipotecariaDiasAlerta: Number(process.env.GARANTIA_HIPOTECARIA_DIAS_ALERTA) || 3,
+  usuariosAutorizanAjusteManual: USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA,
+});
 
 function filasCobranza(snaps) {
   const filas = [];
@@ -1428,7 +1481,15 @@ function carteraVivaCalcular(usuario) {
       // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo.
       fechasLiq: liquidado > 0 ? Object.keys(fechasLiq[soc] || {}) : [] });
   }
-  return { porCredito, pagos, garantias };
+  // Se exponen también los acumulados crudos por clave (cobrosGarMov,
+  // entregasGar, cobrosGarA, entregasGarA): garantiaLiquidaDisponible/
+  // garantiaADisponible (dominios/garantia_liquida.js, portado junto con
+  // CU-006 Garantías a esta rama de prueba) los necesita para créditos que
+  // YA NO están en porCredito (liquidaron o se dieron de baja) — sin esto,
+  // "cv.cobrosGarMov"/"cv.entregasGar" salían siempre undefined y la
+  // garantía guardada de una clienta de BAJA se veía en $0 aunque tuviera
+  // saldo real (caso ALBA, Monse 8-sep — sección 63-G de la batería).
+  return { porCredito, pagos, garantias, cobrosGarMov, entregasGar, cobrosGarA, entregasGarA };
 }
 // CONCILIACIÓN: ¿todo lo que se cobró bajó de algún saldo?
 // Es el control que sustituye al "pedirle el Excel a Monse para comparar". Si
@@ -3618,6 +3679,14 @@ app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
     desembolso: desembolso || null,
     diaPago: diaPagoAlta || diaDelCentro(centro) || null,
   };
+  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
+  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
+  // NOTA: aquí no existe sincronizarAlDesembolsar (CU-013/014, no portado a
+  // main todavía), así que `clienta.sobreDispersion` nunca se llena y esta
+  // llamada es un no-op seguro — no hay retención automática del 10% al
+  // desembolsar en esta rama de prueba, solo el registro MANUAL de garantía
+  // ya capturada (ver PENDIENTES_POR_CONFIRMAR.md).
+  registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
     fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
@@ -4865,6 +4934,44 @@ app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => 
   res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
 });
 
+// VIGENCIA DE LA GARANTÍA HIPOTECARIA (CU-006, audio de Karina: "el sistema
+// tiene que decir con tres días antes que ya está por expirar"). Mismo
+// patrón que /api/creditos/documentos-renovacion — motivo obligatorio en la
+// bitácora, se guarda vía store.agregarCambioPadron, nunca se sobrescribe
+// en silencio. alertaVencimientoGarantiaHipotecaria/
+// alertasGarantiaHipotecariaPorVencer viven en dominios/garantia_liquida.js.
+app.post("/api/creditos/garantia-hipotecaria", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const fechaVencimiento = String(b.fechaVencimiento || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaVencimiento))
+    return res.status(400).json({ error: "La fecha de vencimiento de la vigencia hipotecaria no se entiende (usa el calendario)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto,
+    campos: { garantiaHipotecaria: { fechaVencimiento } },
+    motivo, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  const actualizado = creditoActivo(c.id, c.producto);
+  res.json({ ok: true, clienta: actualizado, alerta: alertaVencimientoGarantiaHipotecaria(actualizado) });
+});
+
+app.get("/api/creditos/garantia-hipotecaria", requiere("direccion", "admin"), (req, res) => {
+  const c = creditoActivo(req.query.id, req.query.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({ garantiaHipotecaria: c.garantiaHipotecaria || null,
+    alerta: alertaVencimientoGarantiaHipotecaria(c) });
+});
+
+// Tablero de Dirección: solo las clientas cuya vigencia hipotecaria ya
+// venció o está a 3 días (o menos) de vencer.
+app.get("/api/garantias/hipotecaria/alertas", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasGarantiaHipotecariaPorVencer());
+});
+
 // Re-dar crédito a una clienta que LIQUIDÓ: crédito NUEVO (monto+cuota), mismo
 // grupo, con nombre de producto distinto. El crédito anterior queda en el
 // historial (no se toca). Reusa la protección de socio y centro del alta.
@@ -5025,6 +5132,11 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
       motivo: "Liquidó y renovó (recrédito)", porRecredito: true,
       fecha: hoyMX(), por: req.usuario.nombre, ts });
   }
+  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
+  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
+  // NOTA: aquí no existe sincronizarAlDesembolsar (CU-013/014, no portado a
+  // main todavía) — no-op seguro, sin retención automática del 10%.
+  registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
     fecha: hoyMX(), por: req.usuario.nombre, ts: ts + 1 });
   refrescarPadron();
@@ -5533,6 +5645,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // (pedido de Karina, 5-ago).
   const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim() || null;
   let producto = String(b.producto || "").trim() || null;
+  // El crédito exacto al que quedó ligado el movimiento (cuando "obliga"
+  // clienta) — CU-006 item 30: se guarda para poder revisar su etiqueta antes
+  // de aceptar una aportación de garantía (ver candado más abajo).
+  let creditoLigado = null;
   if (socio) {
     let cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
     // LA GARANTÍA SE ENTREGA CUANDO EL CRÉDITO YA TERMINÓ (Monse, 8-sep: «la
@@ -5564,20 +5680,69 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
       if (!exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto
         + "\" activo. Los suyos son: " + cred.map((c) => c.producto).join(", ") + "." });
       producto = exacto.producto;      // se guarda con el nombre canónico del padrón
+      creditoLigado = exacto;
     }
   } else {
     producto = null;                   // sin clienta no hay crédito que ligar
   }
 
-  // GARANTÍA LÍQUIDA ENTREGADA: no se puede entregar más de lo que la clienta
-  // tiene GUARDADO (su garantía cobrada, ya neteada con entregas anteriores).
-  // El mensaje trae el disponible, para no dejar a nadie adivinando.
-  // LAS ENTREGAS DE GARANTÍA VAN LIBRES (Karina, 25-ago): el registro de lo
-  // que cada clienta tiene guardado pertenece a un módulo que FOOAX aún no
-  // paga, así que el sistema no valida NI anota contra ese guardado — la
-  // entrega pasa como cualquier salida. El linkeo a la clienta sigue siendo
-  // obligatorio (eso es la captura básica, no el módulo). El neteo interno
-  // del guardado queda dormido, con piso en 0, listo para cuando se contrate.
+  // CANDADO — NO GARANTÍA EN REESTRUCTURA (CU-006 item 30, respuesta de
+  // Dirección 18-sep-2026, ver dominios/garantia_liquida.js
+  // validarAportacionGarantiaEnReestructura). Solo aplica a los conceptos que
+  // SON una aportación/entrada de garantía ("Garantía líquida" y "Garantía A"
+  // del catálogo CONCEPTOS_DIR) — "Garantía líquida entregada"/"Garantía A
+  // entregada" (salidas) y "...aplicada" no se tocan, porque esas SÍ deben
+  // poder sacar lo que ya estaba guardado desde antes de la reestructura.
+  if (creditoLigado && (tipoNombre === "Garantía líquida" || tipoNombre === "Garantía A")) {
+    const rechazoReestructura = validarAportacionGarantiaEnReestructura(creditoLigado);
+    if (rechazoReestructura) return res.status(400).json({ error: rechazoReestructura });
+  }
+
+  // GARANTÍA LÍQUIDA ENTREGADA — CANDADO ANTIDUPLICADO (CU-006, CU-022 Regla
+  // H.14 / sección 5: "el candado antiduplicado rechaza la segunda devolución
+  // y muestra el ticket con el que salió"). El neteo (recepciones automáticas
+  // al desembolso + cobradas a mano − entregadas) lo calcula
+  // garantiaLiquidaDisponible() reusando infoCredito(): ya no se puede
+  // entregar/aplicar más de lo disponible ni repetir una entrega que ya dejó
+  // el guardado en cero.
+  // GARANTÍA A — disponible ANTES del movimiento (CU-006 item 12 RESUELTO: "por
+  // cada importe recibido se deberá generar un ticket o extender un recibo...
+  // sin distinguir por volumen ni por tipo de garantía"). A propósito NO se
+  // agrega candado antiduplicado aquí — solo el dato para poder emitir el
+  // ticket en cada entrada Y cada salida, como exige el item 12.
+  let disponibleAntesA = null;
+  if ((tipoNombre === "Garantía A" || tipoNombre === "Garantía A entregada") && socio && producto) {
+    disponibleAntesA = garantiaADisponible(req.usuario, socio, producto).disponible;
+  }
+
+  let disponibleAntes = null;
+  if (tipoNombre === "Garantía líquida entregada" && socio && producto) {
+    const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
+    disponibleAntes = g.disponible;
+    if (monto > g.disponible + 0.009) {
+      const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+      return res.status(400).json({
+        error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
+          + (g.disponible <= 0.009 && previa
+              ? " — ya se devolvió/aplicó por completo con el ticket " + previa.folio + " (" + previa.fecha + ")."
+              : ". No se puede entregar más de lo que tiene guardado."),
+        disponible: g.disponible,
+        ticketAnterior: previa ? { folio: previa.folio, fecha: previa.fecha, monto: previa.monto } : null,
+      });
+    }
+  }
+
+  // MOTIVO OBLIGATORIO + ALERTA EN EL HISTORIAL AL SACAR LA GARANTÍA ANTES DE
+  // TIEMPO (CU-006 — ver
+  // dominios/garantia_liquida.js#validarSalidaAnticipadaGarantiaLiquida). Si
+  // la garantía todavía no era liberable, exige `motivoSalidaAnticipada` —
+  // no bloquea la salida en sí, solo exige dejar el motivo por escrito.
+  let salidaAnticipada = null;
+  if (tipoNombre === "Garantía líquida entregada" && socio && producto) {
+    const evaluacion = validarSalidaAnticipadaGarantiaLiquida(req.usuario, socio, producto, b.motivoSalidaAnticipada);
+    if (evaluacion.error) return res.status(evaluacion.status).json({ error: evaluacion.error, elegibilidad: evaluacion.elegibilidad });
+    if (evaluacion.salidaAnticipada) salidaAnticipada = evaluacion;
+  }
 
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
@@ -5592,10 +5757,166 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     tipo: tipo ? tipoNombre : null,
     entrada: tipo ? !!tipo.entrada : store.entradaPorTexto(concepto || categoria),
     autorizadoA: (b.autorizadoA || "").trim() || null,
+    salidaAnticipada: !!salidaAnticipada,
+    motivoSalidaAnticipada: salidaAnticipada ? salidaAnticipada.motivoSalidaAnticipada : null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);
-  res.json({ ok: true, movimiento: mov });
+  // TICKET H.14 (Anexo H.14, CU-022): en los tres movimientos de garantía
+  // —recepción, aplicación, devolución— se manda junto con el movimiento para
+  // que el tablero lo pueda imprimir o mostrar. Solo se calcula el "después"
+  // cuando ya sabíamos el "antes" (entregada); para el resto no aplica todavía.
+  // GARANTÍA A: se agrega ticket también en CADA aportación ("Garantía A",
+  // entrada) y CADA entrega ("Garantía A entregada", salida) — mismo formato
+  // H.14, mismo generador.
+  let ticket = null;
+  if (tipoNombre === "Garantía líquida entregada" && disponibleAntes != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntes, Math.max(0, disponibleAntes - monto));
+  } else if (tipoNombre === "Garantía A" && disponibleAntesA != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntesA, disponibleAntesA + monto);
+  } else if (tipoNombre === "Garantía A entregada" && disponibleAntesA != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntesA, Math.max(0, disponibleAntesA - monto));
+  }
+  res.json({ ok: true, movimiento: mov, ticket });
+});
+
+// APLICAR GARANTÍA LÍQUIDA A MORA/CRÉDITO (CU-006, CU-022 sección 5): no es
+// efectivo que se mueve, es transferencia interna, DOBLE REGISTRO (Regla
+// G.2/CU-022: "o entran los dos, o no entra ninguno"):
+//   1) "Garantía líquida aplicada" — baja el guardado de garantía del crédito.
+//   2) "Recuperación" — abona ESE MISMO monto al crédito.
+// Los dos movimientos comparten `aplicacionId`. Alcance a propósito acotado:
+// solo aplica la garantía guardada de un crédito contra SU PROPIO saldo/mora.
+app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim();
+  const monto = Math.round((Number(b.monto) || 0) * 100) / 100;
+  const motivo = (b.motivo || "").trim();
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(b.fecha || "") ? b.fecha : hoyMX();
+  if (!socio) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
+  if (!motivo) return res.status(400).json({ error: "Escribe el motivo de la aplicación (queda en el rastro)." });
+  const cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+  if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
+  let producto = String(b.producto || "").trim();
+  if (!producto && cred.length === 1) producto = cred[0].producto;
+  if (!producto)
+    return res.status(400).json({ error: "Elige CUÁL de sus créditos: " + cred.map((c) => c.producto).join(", ") + "." });
+  const exacto = cred.find((c) => norm(c.producto) === norm(producto));
+  if (!exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto + "\" activo." });
+  producto = exacto.producto;
+  const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
+  if (monto > g.disponible + 0.009) {
+    const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+    return res.status(400).json({
+      error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
+        + (g.disponible <= 0.009 && previa
+            ? " — ya se devolvió/aplicó por completo con el ticket " + previa.folio + " (" + previa.fecha + ")."
+            : ". No se puede aplicar más de lo que tiene guardado."),
+      disponible: g.disponible,
+      ticketAnterior: previa ? { folio: previa.folio, fecha: previa.fecha, monto: previa.monto } : null,
+    });
+  }
+  const delDia = store.movimientosDeFecha(fecha).length;
+  const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
+  const aplicacionId = "APG-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
+  const ts = Date.now();
+  const movGarantia = {
+    folio: aplicacionId + "-G", fecha, monto, concepto: "Garantía líquida aplicada",
+    categoria: "Garantía líquida aplicada", metodo: "retencion",
+    ejecutivo: null, socio, producto, tipo: "Garantía líquida aplicada", entrada: false,
+    aplicacionId, nota: motivo,
+    registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts,
+  };
+  const movRecuperacion = {
+    folio: aplicacionId + "-R", fecha, monto, concepto: "Recuperación (garantía líquida aplicada)",
+    categoria: "Otro", metodo: "retencion",
+    ejecutivo: null, socio, producto, tipo: "Recuperación", entrada: true,
+    aplicacionId, nota: "Aplicación de Garantía Líquida al crédito, folio " + movGarantia.folio + ". " + motivo,
+    registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: ts + 1,
+  };
+  // O entran los dos, o no entra ninguno (Regla G.2/CU-022).
+  store.agregarMovimiento(movGarantia);
+  store.agregarMovimiento(movRecuperacion);
+  const ticket = ticketGarantiaLiquidaH14(movGarantia, g.disponible, Math.max(0, g.disponible - monto));
+  res.json({ ok: true, movimientoGarantia: movGarantia, movimientoRecuperacion: movRecuperacion, ticket });
+});
+
+// ---------- PANTALLA MÍNIMA DE GARANTÍAS (CU-006) ----------
+// resumenGarantias/estadoDeCuentaGarantia viven en dominios/garantia_liquida.js
+// — estas dos rutas son solo el pegamento HTTP.
+app.get("/api/garantias", requiere("direccion", "admin"), (req, res) => {
+  res.json(resumenGarantias(req.usuario));
+});
+
+app.get("/api/garantias/ficha", requiere("direccion", "admin"), (req, res) => {
+  const resultado = estadoDeCuentaGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
+});
+
+// TICKET DE LIBERACIÓN DE GARANTÍAS (CU-006, formato "HOJA DE LIBERACION DE
+// GARANTIAS" de Karina). ticketLiberacionGarantia vive en
+// dominios/garantia_liquida.js.
+app.get("/api/garantias/liberacion", requiere("direccion", "admin"), (req, res) => {
+  const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
+});
+
+// VISTA IMPRIMIBLE del ticket de liberación — mismos datos y parámetros que
+// /api/garantias/liberacion, solo cambia el formato de salida (HTML con
+// @media print en vez de JSON).
+app.get("/api/garantias/liberacion/ticket", requiere("direccion", "admin"), (req, res) => {
+  const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.type("html").send(ticketLiberacionGarantiaHtml.renderHtml(resultado));
+});
+
+app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  res.json(reporteSemanalGarantias(lunesDeLaSemana(fecha)));
+});
+
+app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
+  const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
+  res.json(reporteSalidaGarantiasPorClienta(mes));
+});
+
+// CORTE DIARIO DE GARANTÍAS por grupo (centro) y tipo de crédito (producto)
+// — reporte APARTE del arqueo diario de caja.
+app.get("/api/garantias/corte-diario", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  res.json(corteDiarioGarantias(fecha));
+});
+
+// ALERTA/ESCALACIÓN — PLAZO DE 2 SEMANAS PARA ENTREGAR LA GARANTÍA (CU-006).
+// Ver dominios/garantia_liquida.js#alertasPlazoEntregaGarantia.
+app.get("/api/garantias/alertas-plazo-entrega", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoEntregaGarantia(req.usuario));});
+
+// PLAZO DE 5 DÍAS PARA REGRESAR LA HOJA DE LIBERACIÓN FIRMADA (CU-006). El
+// candado es informativo — alerta y escala, nunca bloquea.
+app.get("/api/garantias/hoja-liberacion/alertas-plazo-regreso", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoRegresoHojaLiberacion());
+});
+
+app.post("/api/garantias/hoja-liberacion/regresada", requiere("direccion", "admin"), (req, res) => {
+  const resultado = registrarRegresoHojaLiberacion(req.body || {}, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);});
+
+// AJUSTE MANUAL DE GARANTÍA CON AUTORIZACIÓN (CU-006): aplica igual a
+// Garantía Líquida y Garantía A — la autorización se exige vía identidad de
+// sesión (ver dominios/garantia_liquida.js).
+app.post("/api/garantias/ajuste-manual", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const resultado = registrarAjusteManualGarantia({
+    socio: b.socio, producto: b.producto, tipoGarantia: b.tipoGarantia,
+    direccion: b.direccion, monto: b.monto, motivo: b.motivo,
+  }, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error, disponible: resultado.disponible });
+  res.json(resultado);
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo

@@ -3620,8 +3620,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     autorizadoA: "CLIENTA TESORERIA" }));
   ok("la autorización CON clienta y monto entregado SÍ entra", !a102.error,
     JSON.stringify(a102).slice(0, 80));
+  // CU-006 (motivo obligatorio al sacar la garantía antes de tiempo, Regla H.14):
+  // este crédito sigue vigente, así que la salida ya no procede sin motivo —
+  // se anota uno explícito, mismo monto y mismo resultado esperado.
   const g102 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 850,
-    concepto: "Garantía devuelta", socio: "70000009102", producto: "Grupal-Basico" }));
+    concepto: "Garantía devuelta", socio: "70000009102", producto: "Grupal-Basico",
+    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
   ok("la garantía líquida entregada también, con su concepto propio", !g102.error,
     JSON.stringify(g102).slice(0, 80));
   const rb102 = await j(await mov102({ tipo: "Recurso de bancos para caja", monto: 20000,
@@ -3752,15 +3756,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     { headers: H(cm) }));
   ok("y le SUMA a su garantía guardada (estaba en 0, ahora $300)",
     dgTras.ok && dgTras.garantiaGuardada === 300, "guardada=" + dgTras.garantiaGuardada);
+  // CU-006 (motivo obligatorio al sacar la garantía antes de tiempo, Regla H.14):
+  // este crédito sigue vigente (no ha cerrado/liquidado), así que ambas salidas
+  // de abajo ya necesitan su motivo explícito — mismos montos, mismo resultado.
   const gEnt2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 300,
-    concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico" }));
+    concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico",
+    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
   ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",
     !gEnt2.error, JSON.stringify(gEnt2).slice(0, 60));
-  const gMasX2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 400,
-    concepto: "trae garantía de antes", socio: "70000009102", producto: "Grupal-Basico" }));
-  ok("entregar MÁS de lo registrado PASA, libre y sin nota (módulo no contratado)",
-    !gMasX2.error && !(gMasX2.movimiento || {}).notaGarantia,
-    JSON.stringify(gMasX2).slice(0, 70));
+  // CU-006/CU-022 Regla H.14 (candado antiduplicado, resuelto después del
+  // 24-ago): el tope que se había quitado ese día quedó superado por este
+  // candado — ya NO se puede sacar más garantía de la que hay disponible,
+  // sin importar que la clienta "trajera garantía de antes". Con $0
+  // disponibles en este punto del ciclo, la salida de $400 se rechaza.
+  const gMasX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 400,
+    concepto: "trae garantía de antes", socio: "70000009102", producto: "Grupal-Basico",
+    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." });
+  ok("entregar MÁS de lo disponible ya se rechaza (candado antiduplicado H.14)",
+    gMasX2.status === 400, "status " + gMasX2.status);
   const dgPiso = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
   ok("y el guardado registrado no se va a negativo: queda en 0",
@@ -5615,9 +5628,14 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
         socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) });
     await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
       body: JSON.stringify({ id: "78000000020", producto: "Grupal-Basico", saldo: 0, motivo: "liquidó (prueba)" }) });
+    // CU-006 (motivo obligatorio al sacar la garantía antes de tiempo, Regla
+    // H.14): el ajuste de saldo a 0 (arriba) NO marca el crédito como
+    // BAJA/inactivo — elegibilidadLiberacionGarantia() todavía lo ve
+    // "vigente", así que esta salida ya necesita su motivo explícito.
     const e1 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
       body: JSON.stringify({ tipo: "Garantía líquida entregada", monto: 200, concepto: "se le regresa",
-        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) }));
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo",
+        motivoSalidaAnticipada: "Liquidó (saldo 0) — autorizado por Dirección (prueba)." }) }));
     ok("a la que LIQUIDÓ (saldo 0) SÍ se le entrega su garantía, linkeada",
       e1.ok === true && e1.movimiento && String(e1.movimiento.socio) === "78000000020",
       JSON.stringify(e1).slice(0, 80));

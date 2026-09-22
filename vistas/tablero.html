@@ -435,6 +435,21 @@
   .dlhint{font-size:11.5px;color:var(--gris);margin:8px 16px 0}
   .reccard{background:#fff;border:1px solid var(--lav);border-radius:10px;padding:14px 16px;margin:0 16px}
   .rechint{font-size:12px;color:var(--gris);line-height:1.45;margin-bottom:10px}
+  /* Desglose de garantías por grupo (centro) con cada integrante adentro.
+     <details> nativo, sin JS extra para abrir/cerrar cada centro. */
+  .gardet{border:1px solid var(--lav);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:#fff}
+  .gardet summary{display:flex;justify-content:space-between;gap:10px;cursor:pointer;font-size:13px;list-style:none}
+  .gardet summary::-webkit-details-marker{display:none}
+  .gardet summary span{color:var(--rio)}
+
+  /* Tarjetas "pendiente de definir" (pantalla de Garantías MVP, CU-006):
+     lo que el mockup pide y todavía no se puede construir se muestra así, en
+     vez de ocultarlo o inventar el dato. */
+  .garpend{background:#FFF8E6;border:1px solid #F0D98A;border-left:4px solid #C9971F;
+    border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12.5px}
+  .garpend b{color:#7A5A0A}
+  .garpendmot{color:var(--gris);margin-top:2px;line-height:1.4}
+  .garpendresp{color:#7A5A0A;font-weight:700;margin-top:3px;font-size:11.5px}
   .recbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .recinput{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--lav);border-radius:10px;color:var(--tinta)}
   .recbtn{font:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--rio);border:none;
@@ -501,6 +516,7 @@
   <button class="lit" data-tb="caja" onclick="tbShow('caja')"><span class="cod">CJ</span>Caja</button>
   <button class="lit" data-tb="cartera" onclick="tbShow('cartera')"><span class="cod">CT</span>Cartera</button>
   <button class="lit" data-tb="clientas" onclick="tbShow('clientas')"><span class="cod">CL</span>Clientas</button>
+  <button class="lit" data-tb="garantias" onclick="tbShow('garantias')"><span class="cod">GA</span>Garantías</button>
   <button class="lit" data-tb="mas" onclick="tbShow('mas')"><span class="cod">MS</span>Más</button>
   <button class="lit lsub" hidden data-mas="descargas" onclick="tbShow('mas');masShow('descargas')">Descargas</button>
   <button class="lit lsub" hidden data-mas="renov" onclick="tbShow('mas');masShow('renov')">Renovaciones</button>
@@ -543,6 +559,7 @@
     <button class="tbt" data-tb="caja" onclick="tbShow('caja')">Caja</button>
     <button class="tbt" data-tb="cartera" onclick="tbShow('cartera')">Cartera</button>
     <button class="tbt" data-tb="clientas" onclick="tbShow('clientas')">Clientas</button>
+    <button class="tbt" data-tb="garantias" onclick="tbShow('garantias')">Garantías</button>
     <button class="tbt" data-tb="mas" onclick="tbShow('mas')">Más</button>
   </div>
 
@@ -731,6 +748,75 @@
   <h3>Arqueo del día · efectivo</h3>
   <div id="arqueoBox" class="arqueo"></div>
 
+  </div>
+
+  <!-- PANTALLA MÍNIMA DE GARANTÍAS (MVP, CU-006). No es la entrega 2E
+       completa del lienzo de mockups — es solo lo que ya calcula el motor de
+       Garantía Líquida portado a esta rama (/api/garantias,
+       /api/garantias/ficha, /api/garantias/reporte-semanal,
+       /api/garantias/reporte-salidas), con tarjetas explícitas de "pendiente
+       de definir" para lo que el mockup pide y todavía depende de una
+       respuesta de Dirección (no se inventa ni se oculta). Esta rama de
+       prueba (test/garantias-a-main) NO incluye la retención automática del
+       10% al desembolso (CU-013/CU-014, fuera de alcance de este port) — el
+       pasivo que aquí se ve es solo lo capturado a mano por Dirección, tal
+       como ya documentado en server.js/dominios/garantia_liquida.js. -->
+  <div class="tbtab" id="tb-garantias" style="display:none">
+    <h3 style="margin-top:6px">Garantías · resumen</h3>
+    <div class="reccard">
+      <div class="rechint">Pasivo total de Garantía Líquida y cuántas socias lo tienen guardado ahora mismo. Se calcula en vivo con los mismos números que ya usa la búsqueda de créditos — no es un dato capturado a mano.</div>
+      <div id="garResumen"><div class="arq-vacio">Cargando garantías…</div></div>
+    </div>
+
+    <!-- GARANTÍA A: es un concepto DISTINTO a la Garantía Líquida — se
+         muestra en su PROPIO bloque, nunca sumada a la de arriba, para no
+         fingir un solo pasivo donde hay dos. -->
+    <h3>Garantía A · resumen</h3>
+    <div class="reccard">
+      <div class="rechint">Pasivo de Garantía A (aportación semanal voluntaria, se devuelve al cierre del ciclo). Monto/rango de la aportación sigue sin definir por Dirección; esto solo muestra lo que ya se capturó.</div>
+      <div id="garResumenA"><div class="arq-vacio">Cargando…</div></div>
+    </div>
+
+    <h3>Ficha de una clienta</h3>
+    <div class="reccard">
+      <div class="buscador">
+        <svg class="lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="garSocio" type="search" placeholder="Número de socio…" autocomplete="off" enterkeyhint="search" onkeydown="if(event.key==='Enter')buscarFichaGarantia()">
+      </div>
+      <button class="recbtn" style="margin-top:8px" onclick="buscarFichaGarantia()">Ver estado de cuenta</button>
+      <div id="garFicha" style="margin-top:10px"></div>
+    </div>
+
+    <!-- REPORTES (CU-008): solo los 2 de 5 reportes del catálogo que ya
+         tienen ejemplo real y corte confirmado por Dirección — ver
+         PENDIENTES_POR_CONFIRMAR.md sección 3. Los otros 3 (pendientes de
+         devolución, aplicadas a crédito, ticket de depósitos) siguen abajo
+         como pendientes, no se inventan aquí. -->
+    <h3>Reporte semanal de entrada/salida</h3>
+    <div class="reccard">
+      <div class="rechint">Corte oficial: lunes, semana de lunes a domingo. Incluye Garantía Líquida y Garantía A.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="garRepSemFecha" type="date">
+        <button class="recbtn" onclick="cargarReporteSemanalGarantias()">Ver semana</button>
+      </div>
+      <div id="garRepSemanal" style="margin-top:10px"></div>
+    </div>
+
+    <h3>Reporte de salidas por clienta (mensual)</h3>
+    <div class="reccard">
+      <div class="rechint">Folio, centro, quién capturó y monto de cada salida del mes, con rollup por centro.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="garRepMesMes" type="month">
+        <button class="recbtn" onclick="cargarReporteSalidasGarantias()">Ver mes</button>
+      </div>
+      <div id="garRepSalidas" style="margin-top:10px"></div>
+    </div>
+
+    <h3>Lo que todavía falta definir</h3>
+    <div class="reccard">
+      <div class="rechint">Esta pantalla es un primer paso (MVP): muestra lo que el motor de garantías ya calcula (Líquida y A) y 2 de los 5 reportes del catálogo de CU-008. La conciliación contra la cuenta bancaria de garantías, el ticket de depósitos, los 2 reportes restantes del catálogo, y el control de bienes en garantía (hipotecaria) todavía dependen de que Dirección resuelva varios pendientes — se listan abajo tal como están en <code>PENDIENTES_POR_CONFIRMAR.md</code>, sección 3, para no fingir que ya existen.</div>
+      <div id="garPendGlobal"></div>
+    </div>
   </div>
 
   <div class="tbtab" id="tb-mas" style="display:none">
@@ -3418,12 +3504,168 @@ function masShow(sec) {
   document.querySelectorAll(".mchip,.lsub").forEach((b) => b.classList.toggle("active", b.dataset.mas === sec));
 }
 try { window._masSec = localStorage.getItem("masSec") || "descargas"; } catch { window._masSec = "descargas"; }
+// ---------- GARANTÍAS (pantalla mínima, MVP, CU-006) ----------
+// Consume /api/garantias, /api/garantias/ficha, /api/garantias/reporte-semanal
+// y /api/garantias/reporte-salidas (server.js, portados junto con el dominio
+// dominios/garantia_liquida.js a esta rama de prueba). Cada endpoint trae su
+// propio arreglo "pendientes" -- lo que el mockup pide y aún no se puede
+// calcular -- y esta pantalla lo pinta tal cual, con el mismo texto que manda
+// el servidor, en vez de inventar una explicación distinta aquí.
+let _garCargada = false;
+function pintarPendientesGarantia(contId, pendientes) {
+  const cont = $(contId);
+  if (!cont) return;
+  if (!pendientes || !pendientes.length) { cont.innerHTML = ""; return; }
+  cont.innerHTML = pendientes.map((p) =>
+    '<div class="garpend"><b>⚠ ' + hesc(p.tema) + '</b>'
+    + '<div class="garpendmot">' + hesc(p.motivo) + '</div>'
+    + '<div class="garpendresp">Le toca a: ' + hesc(p.responsable) + '</div></div>'
+  ).join("");
+}
+// Agrupa el arreglo plano "socias"/"sociasGarantiaA" (que ya trae id, nombre,
+// centro, producto, garantia/garantiaA por integrante) por centro, para
+// pintar el desglose dentro de cada grupo. OJO: "socias"/"sociasGarantiaA"
+// vienen topadas a 200 filas globales desde el backend (límite del MVP) -- si
+// un centro tiene integrantes fuera de ese tope no aparecerán en su
+// desglose; no se oculta este límite, se hereda tal cual del endpoint.
+function agruparPorCentro(lista, campoMonto) {
+  const porCentro = new Map();
+  (lista || []).forEach((s) => {
+    const centro = s.centro || "Sin centro";
+    if (!porCentro.has(centro)) porCentro.set(centro, []);
+    porCentro.get(centro).push(s);
+  });
+  porCentro.forEach((integrantes) => integrantes.sort((a, b) => b[campoMonto] - a[campoMonto]));
+  return porCentro;
+}
+function pintarDesgloseCentros(filasTotales, porIntegrante, campoMonto, etiquetaCol) {
+  if (!filasTotales || !filasTotales.length) return '';
+  const grupos = agruparPorCentro(porIntegrante, campoMonto);
+  return filasTotales.map((x) => {
+    const integrantes = grupos.get(x.centro) || [];
+    const filasIntegrantes = integrantes.map((s) =>
+      '<tr><td>' + hesc(s.nombre || s.id) + '</td><td>' + hesc(s.producto || "—") + '</td><td>' + dinero(s[campoMonto]) + '</td></tr>').join("");
+    return '<details class="gardet"><summary><span>' + hesc(x.centro) + '</span><b>' + dinero(x.monto) + '</b></summary>'
+      + (filasIntegrantes
+          ? '<table class="ct-tab" style="margin-top:6px"><thead><tr><th>Clienta</th><th>Producto</th><th>' + hesc(etiquetaCol) + '</th></tr></thead><tbody>' + filasIntegrantes + '</tbody></table>'
+          : '<div class="rechint" style="margin-top:6px">Sin detalle por integrante (o fuera del tope de 200 que trae el endpoint).</div>')
+      + '</details>';
+  }).join("");
+}
+async function cargarGarantias() {
+  const box = $("garResumen"), boxA = $("garResumenA");
+  try {
+    const r = await fetch("/api/garantias", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const gruposCentro = pintarDesgloseCentros(d.porCentro, d.socias, "garantia", "Garantía");
+    box.innerHTML =
+      '<div class="renrow"><span>Pasivo total de Garantía Líquida</span><b>' + dinero(d.pasivoTotal) + '</b></div>'
+      + '<div class="renrow"><span>Socias con garantía viva</span><b>' + d.sociasConGarantia + '</b></div>'
+      + (gruposCentro ? '<div style="margin-top:8px">' + gruposCentro + '</div>' : '');
+    // GARANTÍA A: mismo patrón, bloque separado — pasivoTotalGarantiaA y
+    // porCentroGarantiaA nunca se mezclan con los de Líquida de arriba.
+    if (boxA) {
+      const gruposCentroA = pintarDesgloseCentros(d.porCentroGarantiaA, d.sociasGarantiaA, "garantiaA", "Garantía A");
+      boxA.innerHTML =
+        '<div class="renrow"><span>Pasivo total de Garantía A</span><b>' + dinero(d.pasivoTotalGarantiaA) + '</b></div>'
+        + '<div class="renrow"><span>Socias con Garantía A</span><b>' + d.sociasConGarantiaA + '</b></div>'
+        + (gruposCentroA ? '<div style="margin-top:8px">' + gruposCentroA + '</div>' : '<div class="rechint">Sin Garantía A capturada todavía.</div>');
+    }
+    pintarPendientesGarantia("garPendGlobal", d.pendientes);
+  } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+async function buscarFichaGarantia() {
+  const socio = ($("garSocio").value || "").trim();
+  const cont = $("garFicha");
+  if (!socio) { cont.innerHTML = '<div class="arq-vacio">Escribe un número de socio.</div>'; return; }
+  cont.innerHTML = '<div class="arq-vacio">Buscando…</div>';
+  try {
+    const r = await fetch("/api/garantias/ficha?id=" + encodeURIComponent(socio), { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo buscar.") + '</div>'; return; }
+    const filas = (d.historial || []).map((m) =>
+      '<tr><td>' + hesc(m.fecha) + '</td><td>' + hesc(m.tipo) + '</td><td>' + (m.entrada ? '+' : '−') + dinero(m.monto)
+      + '</td><td>' + dinero(m.saldoDespues) + '</td><td>' + hesc(m.capturadoPor || "—") + '</td></tr>').join("");
+    // GARANTÍA A EN LA FICHA: bloque propio bajo el de Líquida, usando
+    // historialGarantiaA/saldoActualGarantiaA — nunca se mezcla con el
+    // historial de Líquida de arriba.
+    const filasA = (d.historialGarantiaA || []).map((m) =>
+      '<tr><td>' + hesc(m.fecha) + '</td><td>' + hesc(m.tipo) + '</td><td>' + (m.entrada ? '+' : '−') + dinero(m.monto)
+      + '</td><td>' + dinero(m.saldoDespues) + '</td><td>' + hesc(m.capturadoPor || "—") + '</td></tr>').join("");
+    cont.innerHTML =
+      '<div class="permeta"><b>' + hesc(d.nombre) + '</b> · ' + hesc(d.socio) + ' · ' + hesc(d.centro || "—") + ' · ' + hesc(d.producto || "—") + '</div>'
+      + '<div class="renrow"><span>Saldo de garantía guardado hoy</span><b>' + dinero(d.saldoActual) + '</b></div>'
+      + (d.creditosVivos > 1 ? '<div class="rechint">Tiene ' + d.creditosVivos + ' créditos vivos — este estado de cuenta es del crédito \"' + hesc(d.producto) + '\".</div>' : '')
+      + (filas
+          ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Monto</th><th>Saldo</th><th>Capturó</th></tr></thead><tbody>' + filas + '</tbody></table>'
+          : '<div class="rechint">Sin movimientos de Garantía Líquida en este crédito.</div>')
+      + '<div class="renrow" style="margin-top:10px"><span>Saldo de Garantía A guardado hoy</span><b>' + dinero(d.saldoActualGarantiaA) + '</b></div>'
+      + (filasA
+          ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Monto</th><th>Saldo</th><th>Capturó</th></tr></thead><tbody>' + filasA + '</tbody></table>'
+          : '<div class="rechint">Sin movimientos de Garantía A en este crédito.</div>')
+      + '<div id="garFichaPend" style="margin-top:8px"></div>';
+    pintarPendientesGarantia("garFichaPend", d.pendientes);
+  } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
+// REPORTES DE GARANTÍAS (CU-008) — consumen /api/garantias/reporte-semanal y
+// /api/garantias/reporte-salidas.
+async function cargarReporteSemanalGarantias() {
+  const cont = $("garRepSemanal");
+  const fecha = ($("garRepSemFecha").value || "").trim();
+  cont.innerHTML = '<div class="arq-vacio">Cargando…</div>';
+  try {
+    const url = "/api/garantias/reporte-semanal" + (fecha ? "?fecha=" + encodeURIComponent(fecha) : "");
+    const r = await fetch(url, { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const filasDia = (d.porDia || []).map((x) =>
+      '<tr><td>' + hesc(x.fecha) + '</td><td>' + dinero(x.entradas) + '</td><td>' + dinero(x.salidas) + '</td></tr>').join("");
+    const filasQuien = (d.porQuienCaptura || []).map((x) =>
+      '<tr><td>' + hesc(x.quien) + '</td><td>' + dinero(x.entradas) + '</td><td>' + dinero(x.salidas) + '</td></tr>').join("");
+    const filasForma = (d.porFormaPago || []).map((x) =>
+      '<tr><td>' + hesc(x.forma) + '</td><td>' + dinero(x.entradas) + '</td><td>' + dinero(x.salidas) + '</td></tr>').join("");
+    cont.innerHTML =
+      '<div class="permeta">Semana ' + hesc(d.semana.desde) + ' a ' + hesc(d.semana.hasta) + '</div>'
+      + '<div class="renrow"><span>Total entradas</span><b>' + dinero(d.totalEntradas) + '</b></div>'
+      + '<div class="renrow"><span>Total salidas</span><b>' + dinero(d.totalSalidas) + '</b></div>'
+      + '<b style="display:block;margin-top:8px">Por día</b>'
+      + (filasDia ? '<table class="ct-tab"><thead><tr><th>Fecha</th><th>Entradas</th><th>Salidas</th></tr></thead><tbody>' + filasDia + '</tbody></table>' : '<div class="rechint">Sin movimientos esa semana.</div>')
+      + '<b style="display:block;margin-top:8px">Por quién capturó</b>'
+      + (filasQuien ? '<table class="ct-tab"><thead><tr><th>Quien</th><th>Entradas</th><th>Salidas</th></tr></thead><tbody>' + filasQuien + '</tbody></table>' : '')
+      + '<b style="display:block;margin-top:8px">Por forma de pago</b>'
+      + (filasForma ? '<table class="ct-tab"><thead><tr><th>Forma</th><th>Entradas</th><th>Salidas</th></tr></thead><tbody>' + filasForma + '</tbody></table>' : '');
+  } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+async function cargarReporteSalidasGarantias() {
+  const cont = $("garRepSalidas");
+  const mes = ($("garRepMesMes").value || "").trim();
+  cont.innerHTML = '<div class="arq-vacio">Cargando…</div>';
+  try {
+    const url = "/api/garantias/reporte-salidas" + (mes ? "?mes=" + encodeURIComponent(mes) : "");
+    const r = await fetch(url, { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const filas = (d.salidas || []).map((s) =>
+      '<tr><td>' + hesc(s.folio) + '</td><td>' + hesc(s.fecha) + '</td><td>' + hesc(s.nombre || s.socio) + '</td><td>' + hesc(s.centro) + '</td><td>' + hesc(s.quien) + '</td><td>' + dinero(s.monto) + '</td><td>' + hesc(s.tipo) + '</td></tr>').join("");
+    const filasRollup = (d.rollupPorCentro || []).map((x) =>
+      '<tr><td>' + hesc(x.centro) + '</td><td>' + dinero(x.total) + '</td></tr>').join("");
+    cont.innerHTML =
+      '<div class="permeta">Mes ' + hesc(d.mes) + '</div>'
+      + (filas ? '<table class="ct-tab"><thead><tr><th>Folio</th><th>Fecha</th><th>Clienta</th><th>Centro</th><th>Quién</th><th>Monto</th><th>Tipo</th></tr></thead><tbody>' + filas + '</tbody></table>' : '<div class="rechint">Sin salidas ese mes.</div>')
+      + '<b style="display:block;margin-top:8px">Rollup por centro</b>'
+      + (filasRollup ? '<table class="ct-tab"><thead><tr><th>Centro</th><th>Total</th></tr></thead><tbody>' + filasRollup + '</tbody></table>' : '');
+  } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
 function tbShow(name) {
   document.querySelectorAll(".tbt,.lit").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
   // Los submenús de Más solo se ven cuando Más está abierto (acordeón).
   document.querySelectorAll(".lsub").forEach((b) => { b.hidden = name !== "mas"; });
   if (name === "mas") masShow(window._masSec || "descargas");
-  ["hoy", "caja", "cartera", "clientas", "mas"].forEach((t) => {
+  if (name === "garantias" && !_garCargada) { _garCargada = true; cargarGarantias(); }
+  ["hoy", "caja", "cartera", "clientas", "garantias", "mas"].forEach((t) => {
     const el = document.getElementById("tb-" + t);
     if (el) el.style.display = (t === name) ? "" : "none";
   });

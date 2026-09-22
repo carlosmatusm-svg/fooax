@@ -23,7 +23,16 @@ const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambio
   // enviar el arqueo se borraba y había que remarcar todo al día siguiente
   // (lo reportó Nery el 19-ago). Append-only, como los ajustes: cada marca
   // se agrega encima y queda quién la puso y cuándo.
-  renov: [] };
+  renov: [],
+  // REGISTROS APPEND-ONLY GENÉRICOS (11-sep-2026, portado junto con CU-006
+  // Garantías: dominios/garantia_liquida.js lo usa para su propia bitácora).
+  // Cada CU de cumplimiento necesita su propio rastro inmutable — mismo
+  // principio que padron_cambios: nunca se edita ni se borra una fila, el
+  // estado vigente se DERIVA de la última fila. En vez de una tabla y un
+  // archivo por CU, todos viven aquí: `registros[nombre]` es un arreglo de
+  // filas en orden de llegada. En archivos: data/registro_<nombre>.json; en
+  // Postgres: tabla `registros` (nombre, data, ts).
+  registros: {} };
 
 // ¿ENTRA O SALE ESE DINERO? Desde el 6-ago el movimiento lo trae escrito
 // (`entrada`), porque el concepto se elige de un catálogo. Los ANTERIORES no lo
@@ -176,6 +185,11 @@ async function init() {
     await pool.query("CREATE TABLE IF NOT EXISTS sesiones (sid text PRIMARY KEY, usuario text, creada bigint)");
     const se = await pool.query("SELECT sid, usuario, creada FROM sesiones").catch(() => ({ rows: [] }));
     for (const r of se.rows) mem.sesiones[r.sid] = { usuario: r.usuario, creada: Number(r.creada) };
+    // Registros append-only genéricos por CU (ver `mem.registros`), portado
+    // junto con CU-006 Garantías.
+    await pool.query("CREATE TABLE IF NOT EXISTS registros (id serial PRIMARY KEY, nombre text, data jsonb, ts bigint)");
+    const rg = await pool.query("SELECT nombre, data FROM registros ORDER BY ts, id").catch(() => ({ rows: [] }));
+    for (const r of rg.rows) (mem.registros[r.nombre] = mem.registros[r.nombre] || []).push(r.data);
 
     const s = await pool.query("SELECT ejecutivo, fecha, data, ts, recibido FROM snapshots");
     for (const r of s.rows) {
@@ -227,6 +241,15 @@ async function init() {
     try { mem.ajustes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "cobranza_ajustes.json"), "utf8")); } catch { mem.ajustes = []; }
     try { mem.renov = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "renov_gestion.json"), "utf8")); } catch { mem.renov = []; }
     try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
+    // Registros append-only genéricos: un archivo por nombre,
+    // data/registro_<nombre>.json (portado junto con CU-006 Garantías).
+    try {
+      for (const f of fs.readdirSync(DATA_DIR)) {
+        const m = /^registro_([a-z0-9_]+)\.json$/.exec(f);
+        if (!m) continue;
+        try { mem.registros[m[1]] = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), "utf8")) || []; } catch { mem.registros[m[1]] = []; }
+      }
+    } catch { /* sin carpeta todavía: se crea al primer registro */ }
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
   }
@@ -317,6 +340,12 @@ function persistCambio(c) {
       .catch((e) => console.error("[store] cambio padrón:", e.message));
   } else escribirJSON("padron_cambios.json", mem.cambios);
 }
+function persistRegistro(nombre, fila) {
+  if (usePg) {
+    pool.query("INSERT INTO registros (nombre, data, ts) VALUES ($1,$2,$3)", [nombre, fila, fila.ts || Date.now()])
+      .catch((e) => console.error("[store] registro " + nombre + ":", e.message));
+  } else escribirJSON("registro_" + nombre + ".json", mem.registros[nombre]);
+}
 function persistSesion(sid, s) {
   if (usePg) {
     pool.query("INSERT INTO sesiones (sid, usuario, creada) VALUES ($1,$2,$3) ON CONFLICT (sid) DO NOTHING",
@@ -338,6 +367,10 @@ function toco() { rev++; }
 
 module.exports = {
   revision() { return rev; },
+  // Nombres de los registros append-only cargados (portado junto con CU-006
+  // Garantías; ARCO exporta todos los que mencionen a la persona, sin tener
+  // que conocerlos por nombre).
+  nombresRegistros() { return Object.keys(mem.registros); },
   init,
   // Para que el servidor use EXACTAMENTE la misma regla al guardar un
   // movimiento que la que se usa al leerlo. Tenerla en dos lados fue justo lo
@@ -647,6 +680,21 @@ module.exports = {
     return cambio;
   },
   cambiosPadron() { return mem.cambios; },
+
+  // Registros append-only genéricos (ver `mem.registros`), portado junto con
+  // CU-006 Garantías. `registro(nombre)` devuelve las filas tal cual se
+  // agregaron (orden de llegada); nunca hay editar/borrar: el estado vigente
+  // se deriva de la última fila, igual que el padrón se deriva de
+  // padron_cambios.
+  registro(nombre) { return mem.registros[nombre] || []; },
+  agregarRegistro(nombre, fila) {
+    if (!/^[a-z0-9_]+$/.test(String(nombre))) throw new Error("nombre de registro inválido: " + nombre);
+    toco();
+    const f = Object.assign({ ts: Date.now() }, fila);
+    (mem.registros[nombre] = mem.registros[nombre] || []).push(f);
+    persistRegistro(nombre, f);
+    return f;
+  },
 
   // Sesiones persistentes (sobreviven redespliegues).
   sesiones() { return mem.sesiones; },
