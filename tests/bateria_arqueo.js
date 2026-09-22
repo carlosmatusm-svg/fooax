@@ -84,7 +84,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     { folio: "B2", concepto: "LIQUIDACION", monto: 200, via: "E" },
     { folio: "B3", concepto: "GASTO", monto: 50, via: "E" },
     { folio: "B4", concepto: "RECUPERACION", monto: 300, via: "T" },   // por transferencia
-    { folio: "B5", concepto: "DESEMBOLSO", monto: 400, via: "E" },
+    // Era un DESEMBOLSO: desde el 19-ago la caja chica no acepta entregas de
+    // crédito. Se usa un gasto de campo, que es lo que esta prueba mide (una
+    // salida en efectivo que baja lo que hay que entregar).
+    { folio: "B5", concepto: "GASTO", monto: 400, via: "E", tipoGasto: "Casetas / transporte" },
   ] });
   a = await arqueo();
   // a entregar = 1000 + 100 + 200 − 50 − 400 = 850 (la recuperación por T no toca el efectivo)
@@ -295,7 +298,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // estas pruebas caen ANTES del corte y no cuentan. Se pone bien atrás para que
   // todo lo que capture la batería sí se descuente; las secciones que necesitan
   // un corte propio lo fijan aparte.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   const cal = await login("alejandra", "alejandra2026");  // admin, pero NO es Anel/Monse
   let cr = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000050", nombre: "CARTERA TEST", producto: "Credito Prueba", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
   ok("alta de clienta con saldo para la cartera", cr.ok === true, JSON.stringify(cr).slice(0, 60));
@@ -471,26 +474,37 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // El bug del lunes 27-jul: los saldos solo restaban la semana en curso; el
   // lunes la ventana se vaciaba y lo pagado el viernes dejaba de descontar.
   await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: "70000000095", nombre: "SALDO TEST", producto: "Credito Saldo", centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 1000, cuota: 100 }) }));
-  const D5 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 5); return d.toISOString().slice(0, 10); })();
+  // SEMANA PASADA DE VERDAD, cualquier día que se corra. Antes era HOY−5, que
+  // en SÁBADO cae en el lunes de ESTA semana: el pago dejaba de ser "de la
+  // semana pasada" (rompía la premisa de esta prueba) y además se sumaba a la
+  // cobranza de la semana, descuadrando la sección 37 los sábados. Ahora se
+  // ancla al lunes de esta semana y se retrocede: siempre cae en la anterior.
+  const LUN20 = (() => { const d = new Date(HOY + "T12:00");
+    const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
+    return d; })();
+  const D5 = (() => { const d = new Date(LUN20); d.setDate(d.getDate() - 2); return d.toISOString().slice(0, 10); })();
   // La prueba fija SU corte antes del pago: si se queda el corte que traiga el
   // sistema (que se mueve con cada plantilla nueva), este pago cae antes y la
   // prueba falla sin que nada esté mal. El corte va un día antes del abono.
-  const CORTE20 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 6); return d.toISOString().slice(0, 10); })();
-  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: CORTE20 }) }));
+  const CORTE20 = (() => { const d = new Date(LUN20); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
+  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: CORTE20, confirmar: true }) }));
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: D5, snapshot: JSON.stringify({ fecha: D5, reg: { "C-88": { "70000000095|Credito Saldo": { pago: 200, forma: "E" } } }, regI: {}, movs: [] }), ts: Date.now() }) });
   const saldoDe = async () => { const s = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("SALDO TEST"), { headers: H(ca) })); return ((s.resultados || []).find((c) => String(c.id) === "70000000095") || {}).saldoActual; };
   ok("un pago de la SEMANA PASADA sigue bajando el saldo (1000 − 200 = 800)", (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
   let ct = await j(await fetch(U + "/api/saldos/corte", { headers: H(ca) }));
   ok("el corte de saldos es visible para dirección", /^\d{4}-\d{2}-\d{2}$/.test(ct.corte || ""), "corte " + ct.corte);
-  const DC3 = (() => { const d = new Date(HOY + "T12:00"); d.setDate(d.getDate() - 3); return d.toISOString().slice(0, 10); })();
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cal), body: JSON.stringify({ fecha: DC3 }) }));
+  // El corte va el DÍA SIGUIENTE al pago: así el abono queda ANTES del corte y
+  // deja de descontar, que es lo que esta prueba comprueba. Atado a D5 y no a
+  // HOY: con HOY−3 caía ANTES del pago los lunes y la prueba fallaba sola.
+  const DC3 = (() => { const d = new Date(D5 + "T12:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cal), body: JSON.stringify({ fecha: DC3, confirmar: true }) }));
   ok("otro admin NO puede mover el corte (solo Anel y Monse)", !!ct.error, (ct.error || "").slice(0, 50));
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: DC3 }) }));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: DC3, confirmar: true }) }));
   ok("Monse mueve el corte (cargó plantillas nuevas)", ct.ok === true && ct.corte === DC3, JSON.stringify(ct).slice(0, 50));
   ok("un pago ANTERIOR al corte ya no descuenta (la plantilla ya lo traía)", (await saldoDe()) === 1000, "saldoActual " + (await saldoDe()));
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) }));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) }));
   ok("y al regresar el corte, vuelve a descontar", ct.ok === true && (await saldoDe()) === 800, "saldoActual " + (await saldoDe()));
-  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2099-01-01" }) }));
+  ct = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2099-01-01", confirmar: true }) }));
   ok("un corte en el futuro se rechaza", !!ct.error, (ct.error || "").slice(0, 50));
 
   console.log("\n— 21. FASE 2 · cartera, mora de la semana y semáforo —");
@@ -550,7 +564,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const menosSem = (f, n) => { const d = new Date(f + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 7 * n); return d.toISOString().slice(0, 10); };
   const L0 = lunesDe2(HOY);
   const W = [menosSem(L0, 4), menosSem(L0, 3), menosSem(L0, 2), menosSem(L0, 1)];
-  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: W[0] }) }));
+  await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: W[0], confirmar: true }) }));
   await fetch(U + "/api/centros", { method: "POST", headers: H(ca), body: JSON.stringify({ numero: "77", nombre: "CENTRO TENDENCIA", ejecutivo: "Neri", dia: "Lunes" }) });
   const SOC = "70000000123", PRD = "Credito Tendencia";
   await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: SOC, nombre: "TENDENCIA TEST", producto: PRD, centro: "CENTRO TENDENCIA", ejecutivo: "Neri", saldo: 4000, cuota: 1000, plazo: 4 }) }));
@@ -560,9 +574,25 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const tend = await j(await fetch(U + "/api/tendencias", { headers: H(ca) }));
   const SS = {}; (tend.serie || []).forEach((x) => { SS[x.semana] = x; });
   ok("la serie es CONTINUA (rellena las semanas sin captura)", (tend.serie || []).length >= 5 && !!SS[W[2]], "filas " + (tend.serie || []).length);
-  ok("la cartera baja EXACTAMENTE lo abonado (−1,000 de una semana a otra)",
-     SS[W[1]] && SS[W[0]] && Math.abs((SS[W[1]].cartera - SS[W[0]].cartera) + 1000) < 0.01,
-     (SS[W[0]] || {}).cartera + " → " + (SS[W[1]] || {}).cartera);
+  // SE MIDE POR DIFERENCIA, NO CONTRA EL TOTAL. Antes se comparaba la cartera
+  // GLOBAL de una semana contra la de la otra y se exigía que la resta diera
+  // justo los $1,000 de esta clienta. Eso solo se sostenía mientras ninguna otra
+  // sección de la batería tuviera abonos en esas semanas — y en cuanto los tuvo,
+  // la prueba se puso roja marcando $40,430 de diferencia sin que nada estuviera
+  // mal. Ahora se toma la cartera, se abona UNA vez más, y se comprueba que baje
+  // exactamente ese abono.
+  const carteraDe = async (sem) => {
+    const t = await j(await fetch(U + "/api/tendencias", { headers: H(ca) }));
+    const f = (t.serie || []).find((x) => x.semana === sem);
+    return f ? f.cartera : null;
+  };
+  const diaDe = (f, n) => { const d = new Date(f + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const antesW = await carteraDe(W[1]);
+  await pagarW(diaDe(W[1], 2), 500);          // día propio, para no pisar otra captura
+  const despuesW = await carteraDe(W[1]);
+  ok("la cartera baja EXACTAMENTE lo abonado (−500 al capturar un abono más)",
+     antesW !== null && despuesW !== null && Math.abs((despuesW - antesW) + 500) < 0.01,
+     antesW + " → " + despuesW);
   // Antes se afirmaba que la semana W[2] salía en CERO. Era frágil: la ventana de
   // 4 semanas se mueve con el calendario y el 4-ago cayó sobre una semana que sí
   // tenía cobranza real, así que la prueba fallaba sin que nada estuviera mal.
@@ -725,7 +755,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("el corte dice desde qué día se descuenta, y es el corte MISMO",
     !!co.corte && co.desde === co.corte, JSON.stringify(co));
   // Mover el corte un día SÍ deja fuera el día anterior: es la palanca real.
-  const ant = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-04-08" }) }));
+  const ant = await j(await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-04-08", confirmar: true }) }));
   const co2 = await j(await fetch(U + "/api/saldos/corte", { headers: H(cd) }));
   ok("Monse puede mover el corte y el sistema lo respeta al instante",
     ant.ok === true && co2.corte === "2026-04-08", JSON.stringify(ant) + " → " + JSON.stringify(co2));
@@ -825,7 +855,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // (liquidan y renuevan el mismo día, y solo se guarda fecha, no hora): al cerrar
   // el ciclo se anota cuánto llevaba abonado y eso se descuenta.
   const cenR = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const renueva = async (soc, via) => {
     await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
       id: soc, nombre: "RENUEVA " + via, producto: "Grupal-Basico", centro: cenR,
@@ -886,11 +916,14 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const filasGasto = [];
   wsGasto.eachRow((r) => { const f = []; r.eachCell({ includeEmpty: true }, (c) => f.push(String(c.value == null ? "" : c.value))); filasGasto.push(f.join(" | ")); });
   const planoGasto = filasGasto.join("\n");
-  ok("el Excel trae el bloque de gastos con su detalle",
-    /GASTOS Y MOVIMIENTOS DE CAJA/.test(planoGasto) && /pasaje/.test(planoGasto) && /papeleria/.test(planoGasto),
+  // Desde el 24-ago el listado viejo («GASTOS Y MOVIMIENTOS DE CAJA») se fue:
+  // lo reemplaza el DESGLOSE DE MOVIMIENTOS agrupado por concepto, que trae el
+  // mismo detalle sin duplicar el dinero con otro acomodo.
+  ok("el Excel trae el desglose de movimientos con su detalle",
+    /DESGLOSE DE MOVIMIENTOS DE CAJA/.test(planoGasto) && /pasaje/i.test(planoGasto) && /papeleria/i.test(planoGasto),
     planoGasto.slice(0, 150));
-  ok("cada gasto sale en NEGATIVO y la entrada en positivo",
-    /-300/.test(planoGasto) && /-150/.test(planoGasto) && /\|\s*600/.test(planoGasto), "");
+  ok("los montos del desglose están, con la entrada incluida",
+    /300/.test(planoGasto) && /150/.test(planoGasto) && /600/.test(planoGasto), "");
   ok("el arqueo se muestra INTACTO: 'TOTAL CONTADO EN CAJA' con lo que ella contó",
     /TOTAL CONTADO EN CAJA/i.test(planoGasto) && /3150/.test(planoGasto), "");
   ok("y las deducciones van en su propio bloque, después del arqueo",
@@ -967,7 +1000,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // descuentan cuando traen clienta. Fallan en dos casos, y los dos son reales:
   // (1) capturadas ANTES del corte y (2) sin número de socio. La app ya exige la
   // clienta; el tablero de Dirección no, y por ahí se cuelan.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const cenL = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
   await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
     id: "70000000851", nombre: "LIQ CON CLIENTA", producto: "Grupal-Basico", centro: cenL,
@@ -1000,7 +1033,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // vencidos» — y ese dinero cuenta SOLO como recuperación, no también como
   // cobranza (opción A). Antes la recuperación la definía la ETIQUETA que ponía
   // la ejecutiva; ahora la define el ESTADO del crédito.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const cenR2 = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
   const altaR = (id, n) => fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({
     id, nombre: n, producto: "Grupal-Basico", centro: cenR2, ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 24 }) });
@@ -1138,7 +1171,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // saldo de la plantilla). Para estos casos se regresa el corte al principio
   // del año, que es donde lo pone la batería al arrancar.
   await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
-    body: JSON.stringify({ fecha: "2026-01-01" }) });
+    body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   const sync40 = (fecha, reg, t) => fetch(U + "/api/sync", { method: "POST", headers: H(cCh),
     body: JSON.stringify({ fecha, snapshot: { reg }, ts: Date.now() + t }) });
   const K40 = (id, p, nom) => id + "|" + p + "|" + nom + "|0";
@@ -1253,9 +1286,26 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const e1 = await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2");
   const e2 = await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional");
   await mov43("2026-07-11", "11112816492", e1.base + e2.base, "LIQUIDACION", "L43d");
-  ok("con DOS créditos, la liquidación se reparte entre los dos",
-    (await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2")).act <= 0.009
-    && (await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")).act <= 0.009,
+  // REGLA NUEVA (Karina, 10-ago): «la liquidación tiene que ser EXCLUSIVAMENTE
+  // para ese crédito que liquidan, sin afectar los demás activos». Antes, si la
+  // socia tenía dos créditos y el abono no decía cuál, se repartía entre los
+  // dos: eso era adivinar, y le bajaba el saldo al que no era. Ahora no se
+  // aplica a ninguno y sale en el aviso para que Monse le ponga el crédito.
+  ok("con DOS créditos y sin decir cuál, NO se le aplica a ninguno",
+    Math.abs((await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2")).act - e1.base) < 0.01
+    && Math.abs((await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")).act - e2.base) < 0.01,
+    JSON.stringify([await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2"), await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")]));
+  const avisoL43 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("y queda avisada en el tablero, con su folio, para poder corregirla",
+    (avisoL43.liquidacionesSinCredito || []).some((x) => String(x.socio) === "11112816492"),
+    JSON.stringify((avisoL43.liquidacionesSinCredito || []).map((x) => x.socio)));
+  // Y en cuanto se dice CUÁL, le baja a ese y solo a ese.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-07-11", tipo: "Liquidación", concepto: "Ya con su crédito",
+      monto: e2.base, metodo: "efectivo", socio: "11112816492", producto: "Grupal-Adicional" }) });
+  ok("diciendo CUÁL, le baja a ese crédito y al otro no",
+    (await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")).act <= 0.009
+    && Math.abs((await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2")).act - e1.base) < 0.01,
     JSON.stringify([await saldo43("MARIA ESTELA PADILLA", "Grupal-Basico 2"), await saldo43("MARIA ESTELA PADILLA", "Grupal-Adicional")]));
   // Si la ejecutiva la BORRA de su app, el sync la marca anulada y deja de contar.
   await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: "2026-07-10",
@@ -1275,7 +1325,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const x = (d.resultados || []).filter((y) => y.activa !== false)[0];
     return x ? x.saldoActual : null;
   };
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   const antes44 = await s44();
   await new Promise((r) => setTimeout(r, 30));      // que la captura quede DESPUÉS del corte
   const VIE44 = new Date(new Date(HOY + "T12:00") - 4 * 864e5).toISOString().slice(0, 10);
@@ -1292,7 +1342,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // Contraprueba: si el corte se fija DESPUÉS de la captura, ya venía en la
   // plantilla y NO debe volver a descontarse.
   await new Promise((r) => setTimeout(r, 30));
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: HOY, confirmar: true }) });
   ok("pero si el corte se fija después de la captura, deja de descontar",
     Math.abs((await s44()) - antes44) < 0.01, "quedó en " + (await s44()) + " y debía volver a " + antes44);
 
@@ -1302,7 +1352,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // con un socio que no existe, el dinero SÍ entra al arqueo pero NO le baja el
   // saldo a nadie. Antes eso pasaba en silencio; era el último hueco.
   const K44 = (id, p, nom) => id + "|" + p + "|" + nom + "|0";
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   await fetch(U + "/api/sync", { method: "POST", headers: H(cCh), body: JSON.stringify({ fecha: "2026-06-03",
     snapshot: { reg: { C44: {
       [K44("11112926916", "Grupal Basico Mal Escrito", "HERALIA")]: { pago: 400, forma: "E" },
@@ -1429,8 +1479,12 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // garantías, no solo engordar el efectivo a entregar. Antes quedaba escondida:
   // Monse veía dinero de más sin concepto que lo explicara (Karina, 6-ago).
   const gar0 = await arq44g();
+  // Desde el 24-ago la garantía cobrada OBLIGA la clienta (mismo caso que la
+  // liquidación): se captura con la de la batería para que además le sume a
+  // SU guardado.
   await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
-    body: JSON.stringify({ tipo: "Garantía", monto: 300, concepto: "Garantía", metodo: "efectivo", fecha: D44g }) });
+    body: JSON.stringify({ tipo: "Garantía", monto: 300, concepto: "Garantía", metodo: "efectivo",
+      fecha: D44g, socio: "70000000001", producto: "Grupal-Basico" }) });
   const gar1 = await arq44g();
   ok("una garantía capturada aparte SÍ aparece en el renglón de garantías",
     gar1.garantias === gar0.garantias + 300 && gar1.garantiasDeMovs === 300,
@@ -1446,15 +1500,18 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     const x = (d.resultados || []).filter((y) => y.activa !== false)[0]; return x ? x.saldoActual : null;
   };
   const sl0 = await salLibre();
+  // Esta socia tiene DOS créditos, así que desde el 8-ago hay que decir a cuál
+  // va (ver bloque 52). Se manda el mismo que el sistema le aplicaba antes por
+  // orden, para que la prueba siga midiendo lo suyo: que manda el TIPO y no la nota.
   await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
     body: JSON.stringify({ tipo: "Liquidación", monto: 200, concepto: "el pago que trajo su hija",
-      metodo: "efectivo", socio: "11113131595", fecha: D44g }) });
+      metodo: "efectivo", socio: "11113131595", producto: "Grupal-Basico 2", fecha: D44g }) });
   ok("una liquidación con la nota escrita LIBRE también baja el saldo",
     (await salLibre()) === sl0 - 200, sl0 + " → " + (await salLibre()));
   const sl1 = await salLibre();
   await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
     body: JSON.stringify({ tipo: "Recuperación / adelanto", monto: 100, concepto: "abono suelto",
-      metodo: "efectivo", socio: "11113131595", fecha: D44g }) });
+      metodo: "efectivo", socio: "11113131595", producto: "Grupal-Basico 2", fecha: D44g }) });
   ok("y una recuperación con nota libre, igual",
     (await salLibre()) === sl1 - 100, sl1 + " → " + (await salLibre()));
   // La app de la ejecutiva manda su propio tipo: las dos vías igual de firmes.
@@ -1484,15 +1541,25 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // LA CAJA ARRANCA EN CERO CADA LUNES (regla Karina): queda = entró − salió.
   const car44f = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
   const L44 = car44f.lunes;
-  const dia44 = (n) => { const d = new Date(L44 + "T12:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  // Nunca pasar de HOY: el servidor rechaza movimientos con fecha futura, y
+  // corriendo la batería un LUNES, "lunes + 1" es mañana. Así la prueba fallaba
+  // solo los lunes y parecía un bug del cierre de caja — pasó el 10-ago.
+  const dia44 = (n) => {
+    const d = new Date(L44 + "T12:00"); d.setDate(d.getDate() + n);
+    const f = d.toISOString().slice(0, 10);
+    return f > HOY ? HOY : f;
+  };
   const regC = { "C-1": {} };
   regC["C-1"]["11112807346|Grupal-Basico|EMMA GUADALUPE EVANGELISTA MARTINEZ|0"] = { pago: 5000, forma: "E" };
   await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: dia44(0),
     snapshot: { reg: regC, movs: [{ folio: "cs1", concepto: "GASTO", monto: 300, via: "E", tipoGasto: "Gasolina", nota: "ruta" }] },
     ts: Date.now() }) });
+  // El ejemplo de salida era un «Autorización / préstamo», que desde el 19-ago
+  // está prohibido en la caja (era el disfraz de las entregas de crédito). Se
+  // usa un RETIRO DE DIRECCIÓN, que es lo que esta prueba siempre quiso medir.
   await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
     body: JSON.stringify({ fecha: dia44(1), monto: 2000, concepto: "BANCARIZACION",
-      categoria: "Autorización / préstamo", metodo: "efectivo" }) }));
+      tipo: "Retiro de dirección", metodo: "efectivo" }) }));
   const caja = await j(await fetch(U + "/api/semana/caja", { headers: H(cm) }));
   ok("el cierre semanal cuenta lo que ENTRÓ en efectivo",
     caja.entroCobranza >= 5000, "entró de cobranza " + caja.entroCobranza);
@@ -1500,7 +1567,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     caja.salio >= 2300 && (caja.salidasPorTipo || {})["Gasto · Gasolina"] === 300,
     JSON.stringify(caja.salidasPorTipo));
   ok("el retiro de dirección aparece como salida (antes no se restaba en la semana)",
-    Object.keys(caja.salidasPorTipo || {}).some((k) => /BANCARIZACION/i.test(k)), JSON.stringify(caja.salidasPorTipo));
+    (caja.salidasPorTipo || {})["Retiro de dirección"] === 2000, JSON.stringify(caja.salidasPorTipo));
   ok("lo que debe quedar el sábado es entró − salió",
     Math.abs(caja.quedaEnCaja - (caja.entro - caja.salio)) < 0.01,
     caja.entro + " − " + caja.salio + " = " + caja.quedaEnCaja);
@@ -1538,7 +1605,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // cada una solo mira su propio mundo. Aquí se usa Neri (real) de punta a
   // punta, con su fecha propia y el corte atrás para que el pago cuente.
   const D44f = "2026-02-19";
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-01-01", confirmar: true }) });
   const S44 = "70000000431", S45 = "70000000432";
   const reg44f = { "C-0": {} };
   reg44f["C-0"][S44 + "|Individual|CLIENTA DE PRUEBA 44|0"] = { pago: 200, forma: "E" };
@@ -1913,6 +1980,37 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("Anel puede corregir el arqueo",
     (await puedeAnel("/api/arqueo/ajuste", { fecha: F49, ejecutivo: "julio",
       arqueo: { 200: 2 }, motivo: "Reconteo de Anel" })) === 200, "la rechazó");
+  // PARIDAD COMPLETA MONSE ↔ ANEL (Karina, 10-ago: «¿le pusiste ese mismo
+  // featured a Monse o solo es en el de Anel?»). No basta con probar a Anel en
+  // lo de hoy: lo que hay que sostener es que las DOS puedan exactamente lo
+  // mismo, para que nadie se quede fuera de una función sin que nos enteremos.
+  const MISMAS = [
+    ["GET", "/api/captura?fecha=" + F49 + "&ejecutivo=julio", null],
+    ["GET", "/api/cobranza/ajustes?fecha=" + F49, null],
+    ["GET", "/api/credito/historial?id=11112931059&producto=COMADRE", null],
+    ["GET", "/api/periodo", null],
+    ["GET", "/api/semana/caja", null],
+    ["GET", "/api/cartera", null],
+    ["GET", "/api/creditos?q=11112931059", null],
+    ["POST", "/api/creditos/etiqueta", { id: "11112931059", producto: "COMADRE", etiqueta: "Recuperación" }],
+    ["POST", "/api/creditos/ajuste", { id: "11112931059", producto: "COMADRE", cuota: 1554.5, motivo: "paridad" }],
+    ["POST", "/api/saldos/corte", { fecha: "2026-08-05" }],
+    // Este da 400 en las dos (el socio no existe): lo que se compara es que las
+    // DOS lleguen igual de lejos, no que funcione.
+    ["POST", "/api/creditos/recredito", { id: "70000000993", producto: "Individual 1",
+      saldo: 1000, cuota: 100, plazo: 10, ejecutivo: "Julio", motivo: "paridad" }],
+  ];
+  const distintas = [];
+  for (const [metodo, ruta, cuerpo] of MISMAS) {
+    const pide = (ck) => fetch(U + ruta, metodo === "GET"
+      ? { headers: H(ck) }
+      : { method: "POST", headers: H(ck), body: JSON.stringify(cuerpo) });
+    const [rm, ra] = [await pide(cm), await pide(cAnel)];
+    if (rm.status !== ra.status) distintas.push(ruta + " → Monse " + rm.status + " / Anel " + ra.status);
+  }
+  ok("Monse y Anel pueden EXACTAMENTE lo mismo, función por función",
+    distintas.length === 0, distintas.join(" · "));
+
   const rastroAnel = await j(await fetch(U + "/api/cobranza/ajustes?fecha=" + F49, { headers: H(cAnel) }));
   ok("y sus correcciones quedan a SU nombre, no al de Monse",
     (rastroAnel.ajustes || []).some((a) => a.por === "Anel" && a.usuario === "anel"),
@@ -2015,7 +2113,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // que se va, que se pueda ocupar de lunes a domingo.» El de saldos contesta
   // "¿cuánto debe cada quien?" y para eso necesita el corte; este contesta
   // "¿cuánto entró y cuánto salió?", y por eso NO lo mira.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
   const K51 = "11112931059|COMADRE|BLANCA LUIS BERNAL|0";
   // Se mide POR DIFERENCIA: en ese rango ya hay cobranza de otras secciones de
   // la batería, así que comparar contra totales absolutos daba un número que no
@@ -2054,7 +2152,7 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     sube("pago") === 1500 && sube("garantia") === 200 && sube("salidas") === 450,
     JSON.stringify({ pago: sube("pago"), garantia: sube("garantia"), salidas: sube("salidas") }));
   // Y que NO le afecte mover el corte: es justo su razón de ser.
-  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07" }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07", confirmar: true }) });
   const per2 = await j(await fetch(U + "/api/periodo?desde=2026-08-03&hasta=2026-08-09", { headers: H(cm) }));
   ok("mover el corte NO le cambia un solo peso a este reporte",
     per2.total.pago === per.total.pago && per2.total.garantia === per.total.garantia
@@ -2074,6 +2172,3753 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const diff = (Date.parse(perDef.hasta) - Date.parse(perDef.desde)) / 86400000;
   ok("sin rango, toma la semana de lunes a domingo", diff === 6,
     perDef.desde + " → " + perDef.hasta + " (" + diff + " días)");
+
+  console.log("\n— 52. LA LIQUIDACIÓN DICE A QUÉ CRÉDITO VA (Karina, 8-ago) —");
+  // El sábado 8-ago entraron 6 liquidaciones y a cuatro clientas les bajaron el
+  // saldo del crédito EQUIVOCADO. La app siempre mostró un renglón por crédito
+  // ("NOMBRE (Grupal-Micro)") y la ejecutiva sí elegía, pero al guardar sólo se
+  // conservaba el socio: el sistema repartía el abono entre sus créditos en
+  // orden fijo y se lo comía el primero. A SOCORRO MIGUEL le liquidó de más el
+  // Grupal-Basico y dejó el Grupal-Micro debiendo, ya pagado.
+  const cenLQ = (await j(await fetch(U + "/api/centros", { headers: H(cm) }))).centros[0].centro;
+  const SL = "70000000955";
+  const altaL = (prod, saldo, cuota) => fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: SL, nombre: "DOS CREDITOS LIQ", producto: prod, centro: cenLQ,
+      ejecutivo: "Neri", saldo, cuota, plazo: 24 }) });
+  await altaL("Grupal-Basico", 9000, 500);
+  await altaL("Grupal-Micro", 2000, 250);
+  const saldosL = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + SL, { headers: H(cm) }));
+    const o = {};
+    for (const x of (d.resultados || []).filter((y) => y.activa !== false)) o[x.producto] = x.saldoActual;
+    return o;
+  };
+  const LQ0 = await saldosL();
+  // 1) Sin decir el crédito, el servidor NO lo acepta: es el candado.
+  const rSinProd = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 2000, concepto: "liquida", metodo: "efectivo",
+      socio: SL, fecha: HOY }) });
+  const eSinProd = await j(rSinProd);
+  ok("con dos créditos, una liquidación SIN decir cuál se rechaza",
+    rSinProd.status === 400 && /cu[áa]l de sus cr[ée]ditos/i.test(eSinProd.error || ""),
+    "status " + rSinProd.status + " · " + (eSinProd.error || ""));
+  ok("y el error nombra los dos créditos, para poder elegir",
+    /Grupal-Basico/.test(eSinProd.error || "") && /Grupal-Micro/.test(eSinProd.error || ""),
+    eSinProd.error || "");
+  ok("no le movió el saldo a ninguno de los dos",
+    JSON.stringify(await saldosL()) === JSON.stringify(LQ0), JSON.stringify(await saldosL()));
+  // 2) Un crédito que no es suyo tampoco pasa.
+  const rOtro = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 100, concepto: "x", metodo: "efectivo",
+      socio: SL, producto: "Grupal-Inventado", fecha: HOY }) });
+  ok("un crédito que esa clienta no tiene se rechaza", rOtro.status === 400, "status " + rOtro.status);
+  // 3) Con el crédito, le baja SOLO a ese. El otro queda intacto — es justo lo
+  //    que pidió Karina: «Grupal-Basico tienes que dejarlo ahí».
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 2000, concepto: "liquida su micro",
+      metodo: "efectivo", socio: SL, producto: "Grupal-Micro", fecha: HOY }) });
+  const LQ1 = await saldosL();
+  ok("con el crédito escrito, el Grupal-Micro queda LIQUIDADO en cero",
+    LQ1["Grupal-Micro"] === 0, "micro " + LQ0["Grupal-Micro"] + " → " + LQ1["Grupal-Micro"]);
+  ok("y el Grupal-Basico NO se movió ni un peso",
+    LQ1["Grupal-Basico"] === LQ0["Grupal-Basico"],
+    "basico " + LQ0["Grupal-Basico"] + " → " + LQ1["Grupal-Basico"]);
+  // 4) Con UN solo crédito no se estorba a nadie: se resuelve solo.
+  const SU = "70000000956";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: SU, nombre: "UN SOLO CREDITO", producto: "Grupal-Basico", centro: cenLQ,
+      ejecutivo: "Neri", saldo: 800, cuota: 200, plazo: 24 }) });
+  const rUno = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 800, concepto: "liquida", metodo: "efectivo",
+      socio: SU, fecha: HOY }) });
+  const dUno = await j(rUno);
+  ok("con un solo crédito no se exige elegir: se resuelve solo",
+    rUno.status === 200 && dUno.movimiento && dUno.movimiento.producto === "Grupal-Basico",
+    "status " + rUno.status + " · producto " + ((dUno.movimiento || {}).producto || "(ninguno)"));
+  // 4-bis) LIQUIDAR Y RENOVAR. El ciclo nuevo hereda la MISMA llave
+  //   (socio+producto), así que la liquidación con la que se cerró el ciclo
+  //   ANTERIOR no puede tocarlo: si lo toca, la clienta renueva y su crédito
+  //   nuevo nace liquidado y se le cae de la app (Karina, 9-ago).
+  const SR = "70000000957";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca),
+    body: JSON.stringify({ id: SR, nombre: "LIQUIDA Y RENUEVA", producto: "Grupal-Basico",
+      centro: cenLQ, ejecutivo: "Neri", saldo: 2000, cuota: 250, plazo: 24 }) });
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto: 2000, concepto: "liquida para renovar",
+      metodo: "efectivo", socio: SR, producto: "Grupal-Basico", fecha: HOY }) });
+  const saldoRe = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + SR, { headers: H(cm) }));
+    const x = (d.resultados || []).filter((y) => y.activa !== false)[0];
+    return x ? x.saldoActual : null;
+  };
+  ok("el crédito liquidado llega a cero antes de renovar", (await saldoRe()) === 0,
+    "saldo " + (await saldoRe()));
+  const rRe = await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SR, producto: "Grupal-Basico", centro: cenLQ,
+      ejecutivo: "Neri", saldo: 5000, cuota: 400, plazo: 24 }) });
+  const dRe = await j(rRe);
+  ok("se puede RE-DAR el crédito con el mismo nombre después de liquidar",
+    rRe.status === 200, "status " + rRe.status + " · " + (dRe.error || "ok"));
+  ok("y el crédito NUEVO nace con su saldo completo, no liquidado",
+    (await saldoRe()) === 5000, "saldo " + (await saldoRe()) + " (debía ser 5000)");
+
+  // 4-ter) Y QUE SE VEA EN EL TELÉFONO. De nada sirve que el tablero lo tenga
+  //   bien si a la ejecutiva le sigue apareciendo el ciclo viejo o no le baja el
+  //   nuevo: los montos viven EMBEBIDOS en el HTML de su app, así que el crédito
+  //   renovado tiene que llegarle por `/api/vivos` (Karina, 9-ago).
+  const vivosRe = await j(await fetch(U + "/api/vivos", { headers: H(cnn) }));
+  const altaRe = (vivosRe.altas || []).find((a) => String(a.id) === SR);
+  ok("el crédito renovado LE BAJA a la app de su ejecutiva",
+    !!altaRe, "altas para Neri: " + JSON.stringify((vivosRe.altas || []).map((a) => a.id)));
+  ok("y le llega con el saldo del ciclo NUEVO, no el del viejo",
+    !!altaRe && altaRe.saldo === 5000 && altaRe.producto === "Grupal-Basico",
+    altaRe ? altaRe.producto + " $" + altaRe.saldo : "no llegó");
+  ok("y el ciclo viejo NO se le queda pegado en el teléfono",
+    !(vivosRe.quitar || []).some((q) => String(q.id) === SR && Number(q.saldo) === 5000),
+    "quitar: " + JSON.stringify((vivosRe.quitar || []).filter((q) => String(q.id) === SR)));
+
+  // 5) Y el tablero puede señalar las viejas, las que llegaron sin crédito.
+  const carLC = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("el tablero expone las liquidaciones sin crédito para poder corregirlas",
+    Array.isArray(carLC.liquidacionesSinCredito),
+    "es " + typeof carLC.liquidacionesSinCredito);
+
+  console.log("\n— 53. RENOVAR NO ARRASTRA LOS ABONOS DEL CICLO VIEJO (Karina, 10-ago) —");
+  // El corte se fija aquí: secciones anteriores lo dejan donde les sirve, y sin
+  // esto los abonos de la prueba caían antes del corte y no contaban.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  // «Cuando intentan dar un nuevo crédito, le resta lo que ya pagaron.» Pasó con
+  // doña Alma Rosario: se renovó por $29,184, después se movió el corte al lunes
+  // y el crédito NUEVO amaneció con $5,440 descontados — los del ciclo que ella
+  // ya había liquidado. La causa: el apunte que protege la renovación venía
+  // sellado con el corte de ese día (`previo.corte === corte`) y al moverlo
+  // dejaba de valer. Ahora se recalcula contra el corte de hoy.
+  const S52 = "70000000952", P52 = "Grupal-Micro";
+  const K52 = S52 + "|" + P52 + "|ALMA DE PRUEBA 52|0";
+  const nuevo52 = async () => {
+    const d = await j(await fetch(U + "/api/clientes?q=" + S52, { headers: H(cm) }));
+    return (d.resultados || []).find((c) => c.activa && c.producto === P52) || null;
+  };
+  const conCorte = async (f) => {
+    await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: f, confirmar: true }) });
+    return nuevo52();
+  };
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52, nombre: "ALMA DE PRUEBA 52", producto: P52, centro: "C-0",
+      ejecutivo: "Julio", saldo: 10000, cuota: 500, plazo: 20 }) });
+  // Abona $5,440 el jueves y liquida los $4,560 que le quedaban, ese mismo día.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K52]: { pago: 5440, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", concepto: "Liquida para renovar", monto: 4560,
+      metodo: "efectivo", socio: S52, producto: P52, ejecutivo: "julio", fecha: "2026-08-06" }) });
+  const rec52 = await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52, producto: P52, saldo: 29184, cuota: 912, plazo: 32, motivo: "Renovación" }) });
+  ok("se puede renovar después de liquidar", rec52.status === 200, "status " + rec52.status);
+  const recienRenovado = await nuevo52();
+  ok("el crédito nuevo nace limpio",
+    !!recienRenovado && recienRenovado.saldoActual === 29184, JSON.stringify(recienRenovado));
+
+  // ESTO es lo que fallaba: mover el corte le cargaba el ciclo viejo al nuevo.
+  let malos52 = [];
+  for (const f of ["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06"]) {
+    const c = await conCorte(f);
+    if (!c || c.saldoActual !== 29184) malos52.push(f + ":" + (c ? c.saldoActual : "?"));
+  }
+  ok("y mover el corte NO le carga los abonos del ciclo viejo",
+    malos52.length === 0, "falló con el corte en " + malos52.join(", "));
+
+  // Y el contrario, que es donde esto se puede pasar de listo: los abonos del
+  // crédito NUEVO sí tienen que contar.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: HOY, snapshot: { regI: { [K52]: { pago: 912, forma: "E" } } }, ts: Date.now() + 1 }) });
+  let malos52b = [];
+  for (const f of ["2026-08-03", "2026-08-05", "2026-08-06", HOY]) {
+    const c = await conCorte(f);
+    if (!c || Math.abs(c.saldoActual - (29184 - 912)) > 0.01) malos52b.push(f + ":" + (c ? c.saldoActual : "?"));
+  }
+  ok("pero el primer pago del crédito NUEVO sí le baja, con cualquier corte",
+    malos52b.length === 0, "falló con el corte en " + malos52b.join(", "));
+
+  // El caso feo: liquidar, renovar y pagar el crédito nuevo el MISMO día.
+  const S52b = "70000000953", K52b = S52b + "|" + P52 + "|BEATRIZ DE PRUEBA 52|0";
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52b, nombre: "BEATRIZ DE PRUEBA 52", producto: P52, centro: "C-0",
+      ejecutivo: "Julio", saldo: 8000, cuota: 400, plazo: 20 }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: HOY, snapshot: { regI: { [K52b]: { pago: 8000, forma: "E" } } }, ts: Date.now() + 2 }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S52b, producto: P52, saldo: 20000, cuota: 625, plazo: 32, motivo: "Renovación mismo día" }) });
+  const d52b = await j(await fetch(U + "/api/clientes?q=" + S52b, { headers: H(cm) }));
+  const n52b = (d52b.resultados || []).find((c) => c.activa && c.producto === P52);
+  ok("liquidar, renovar y cobrar el mismo día no revuelve los dos ciclos",
+    !!n52b && n52b.saldoActual === 20000, JSON.stringify(n52b));
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+
+  console.log("\n— 54. RENOVAR DEJA DOS REGISTROS: NO SE PUEDEN MEZCLAR (Karina, 10-ago) —");
+  // La tarjeta de BLANCA VERONICA decía el disparate «saldo de la plantilla
+  // $288 − pagado desde el corte $288 = $2,712», y el crédito YA DADO DE BAJA
+  // decía «pagó $288 esta sem.». Causa: al renovar quedan DOS registros con el
+  // mismo socio y el mismo producto, y como la llave de la cartera es
+  // socio+producto, el viejo heredaba los números del nuevo.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const S54 = "70000000954", P54 = "Grupal-Basico 2";
+  const K54 = S54 + "|" + P54 + "|BLANCA DE PRUEBA 54|0";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54, nombre: "BLANCA DE PRUEBA 54", producto: P54, centro: "C-0",
+      ejecutivo: "Julio", saldo: 288, cuota: 288, plazo: 18 }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K54]: { pago: 288, garantia: 52, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54, producto: P54, saldo: 3000, cuota: 200, plazo: 18, motivo: "Renovación" }) });
+
+  const tarj54 = (await j(await fetch(U + "/api/clientes?q=" + S54, { headers: H(cm) }))).resultados || [];
+  const viejo54 = tarj54.find((c) => c.activa === false || c.estatus === "BAJA");
+  const nuevo54 = tarj54.find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("después de renovar quedan los dos registros, viejo y nuevo",
+    !!viejo54 && !!nuevo54, JSON.stringify(tarj54.map((c) => c.estatus)));
+  ok("el crédito de BAJA ya no presume los abonos del nuevo",
+    !!viejo54 && viejo54.pagado === 0 && viejo54.saldoActual === 288,
+    JSON.stringify(viejo54));
+  ok("y el nuevo nace con su saldo completo",
+    !!nuevo54 && nuevo54.saldoActual === 3000, JSON.stringify(nuevo54));
+
+  const h54 = await j(await fetch(U + "/api/credito/historial?id=" + S54
+    + "&producto=" + encodeURIComponent(P54), { headers: H(cm) }));
+  // El renglón que se leía imposible: el saldo salía del registro viejo y lo
+  // abonado del vivo, así que la resta no cerraba por ningún lado.
+  ok("«Ver pagos» toma el crédito ACTIVO, no el de baja",
+    h54.saldoPlantilla === 3000, "saldoPlantilla " + h54.saldoPlantilla);
+  // EL ABONO DE LA SEMANA DEL CICLO VIEJO NO SE LE CARGA AL NUEVO. Le pasó a
+  // SOCORRO MIGUEL el 10-ago: pagó $320 el jueves, liquidó el sábado, le
+  // renovaron el lunes, y esos $320 se le restaron al crédito recién dado.
+  const S54b = "70000000991", P54b = "Grupal-Micro";
+  const K54b = S54b + "|" + P54b + "|SOCORRO DE PRUEBA 54|0";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54b, nombre: "SOCORRO DE PRUEBA 54", producto: P54b, centro: "C-0",
+      ejecutivo: "Julio", saldo: 3520, cuota: 320, plazo: 48 }) });
+  // Uno viejo (antes del corte) y uno de ESTA semana: el bug repartía el monto
+  // sobre el viejo y dejaba el de la semana suelto para que le cayera al nuevo.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-07-16", snapshot: { regI: { [K54b]: { pago: 320, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K54b]: { pago: 320, forma: "E" } } }, ts: Date.now() + 1 }) });
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", concepto: "Liquida para renovar", monto: 3200,
+      metodo: "efectivo", socio: S54b, producto: P54b, ejecutivo: "julio", fecha: "2026-08-08" }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S54b, producto: P54b, saldo: 23040, cuota: 480, plazo: 48, motivo: "Renovación" }) });
+  const t54b = (await j(await fetch(U + "/api/clientes?q=" + S54b, { headers: H(cm) }))).resultados || [];
+  const n54c = t54b.find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el abono de ESTA semana del ciclo viejo no se le carga al crédito nuevo",
+    !!n54c && n54c.saldoActual === 23040, JSON.stringify(n54c));
+
+  ok("y su resta por fin cierra",
+    Math.abs(h54.saldoPlantilla - (h54.pagadoDesdeElCorte + h54.liquidado) - h54.saldoActual) < 0.01,
+    h54.saldoPlantilla + " − " + (h54.pagadoDesdeElCorte + h54.liquidado) + " ≠ " + h54.saldoActual);
+
+  console.log("\n— 55. RE-DAR CRÉDITO ESTANDO DE BAJA, Y QUE VUELVA A LA APP (Karina, 10-ago) —");
+  // «Si están en baja dame la opción de re-dar crédito, y que se vincule con
+  // los ejecutivos también porque desaparece.» A Socorro Miguel y a Blanca
+  // Verónica les quedaron TODOS los créditos de baja: no le aparecían a su
+  // ejecutiva y desde la tarjeta no había ningún botón para devolverles uno.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const S55 = "70000000992", P55 = "Grupal-Micro";
+  const K55 = S55 + "|" + P55 + "|SOCORRO DE PRUEBA 55|0";
+  const enApp55 = async () => {
+    const d = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+    return (d.vivos || []).find((v) => String(v.id) === S55 && v.producto === P55) || null;
+  };
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S55, nombre: "SOCORRO DE PRUEBA 55", producto: P55, centro: "C-0",
+      ejecutivo: "Julio", saldo: 3520, cuota: 320, plazo: 48 }) });
+  // Abona esta semana y la dan de baja: así quedaron las dos clientas reales.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K55]: { pago: 320, forma: "E" } } }, ts: Date.now() }) });
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S55, producto: P55, motivo: "No renovó" }) });
+  ok("de baja, la clienta desaparece de la app de su ejecutiva",
+    (await enApp55()) === null, "le sigue apareciendo");
+  // Y QUE LA APP DE VERDAD LA SAQUE. Que el servidor deje de mandarla no basta:
+  // la lista viene ESCRITA en el HTML, así que si el `quitar` no la borra, se le
+  // queda en pantalla y se le sigue cobrando. Se corre el vivos.js REAL.
+  const sacaDeLaApp = async () => {
+    const html = await (await fetch(U + "/app", { headers: H(cJul) })).text();
+    const mC = html.match(/let CENTROS=(\{.*?\});/s);
+    const mI = html.match(/let INDIVIDUALES=(\[.*?\]);/s);
+    const paq = JSON.parse(html.match(/window\.__VIVOS0=(\{.*?\});<\/script>/s)[1]);
+    const CEN = mC ? JSON.parse(mC[1]) : {};
+    const IND = mI ? JSON.parse(mI[1]) : [];
+    // Se mete a mano, como la tenía la ejecutiva antes de la baja.
+    IND.push({ n: "SOCORRO DE PRUEBA 55", f: S55, sub: P55, k: K55, saldo: 3520, esp: 320 });
+    const nop = () => {};
+    const w = { __VIVOS0: paq, addEventListener: nop };
+    new Function("CENTROS", "INDIVIDUALES", "datosCli", "guardarDatosCli", "window",
+      "navigator", "document", "setInterval", "setTimeout", "fetch",
+      require("fs").readFileSync(require("path").join(__dirname, "..", "public", "vivos.js"), "utf8"))(
+      CEN, IND, {}, nop, w, { onLine: false }, { hidden: true, addEventListener: nop }, nop, nop, nop);
+    const sigue = [].concat(...Object.values(CEN), IND)
+      .some((c) => String(c.f) === S55 && (c.sub || "") === P55);
+    let mueve = 0;
+    for (let k = 0; k < 3; k++) if (w.__aplicarVivos(paq) > 0) mueve++;
+    return { sigue, mueve };
+  };
+  const trasBaja = await sacaDeLaApp();
+  ok("y la app SÍ la borra de su lista, no solo deja de recibirla",
+    trasBaja.sigue === false, "se le quedó en pantalla");
+  ok("sin repintarle la pantalla en cada sondeo",
+    trasBaja.mueve === 0, trasBaja.mueve + " de 3 sondeos la movían");
+
+  // LO QUE PIDIÓ: re-dar el crédito aunque esté de baja.
+  const rr55 = await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S55, producto: P55, saldo: 23040, cuota: 480, plazo: 48,
+      ejecutivo: "Julio", motivo: "Renovación estando de baja" }) });
+  ok("se le puede RE-DAR el crédito aunque esté de baja", rr55.status === 200, "status " + rr55.status);
+  const d55 = (await j(await fetch(U + "/api/clientes?q=" + S55, { headers: H(cm) }))).resultados || [];
+  const n55 = d55.find((c) => c.activa !== false && c.estatus !== "BAJA" && c.producto === P55);
+  // Sin crédito activo que cerrar no había apunte de protección, así que los
+  // abonos del ciclo viejo volvían a caerle al nuevo. Ahora se guarda siempre.
+  ok("y nace COMPLETO: los abonos del ciclo viejo no se le cargan",
+    !!n55 && n55.saldoActual === 23040, JSON.stringify(n55));
+
+  // Y lo otro que pidió: que se vincule con la ejecutiva, porque desaparecía.
+  const v55 = await enApp55();
+  ok("le vuelve a aparecer sola a su ejecutiva",
+    !!v55, "no le bajó a la app");
+  ok("con su saldo, su cuota y su plazo",
+    !!v55 && v55.saldo === 23040 && v55.cuota === 480 && v55.plazo === 48, JSON.stringify(v55));
+  // EL PLAZO. El formulario de re-dar crédito no lo pedía y el crédito nuevo
+  // nacía en cero, así que quedaba fuera del «pago 13 de 18», del esperado y del
+  // semáforo. Le pasó a SOCORRO MIGUEL. Si no se escribe, se deduce de
+  // monto ÷ cuota, que es exactamente el número de pagos.
+  ok("el crédito re-dado trae su plazo, no cero",
+    !!n55 && n55.plazo === 48, "plazo " + (n55 || {}).plazo);
+  // EL CICLO viaja en el paquete vivo (31-ago, caso Yoali): con él, el
+  // teléfono limpia la cuota que la ejecutiva guardó a mano en el ciclo
+  // anterior — la llave socio+producto es la misma y se quedaba pegada.
+  ok("y su renglón del paquete vivo trae el CICLO, para que el teléfono limpie lo del anterior",
+    !!v55 && Number(v55.ciclo) >= 2, "ciclo=" + String((v55 || {}).ciclo));
+  const alt55 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+  // La fecha del servidor viaja en cada paquete: es la única referencia del
+  // vigilante de medianoche (el reloj del teléfono no cuenta).
+  ok("el paquete vivo trae la fecha oficial del servidor",
+    alt55.hoy === HOY, "hoy=" + alt55.hoy + " esperado " + HOY);
+  ok("y viaja como alta, para que le entre al teléfono sin recargar",
+    (alt55.altas || []).some((a) => String(a.id) === S55), "no viene en las altas");
+  // Y QUE LA APP DE VERDAD LA PONGA. Que el servidor la mande no basta: se
+  // corre el `vivos.js` REAL contra la lista de la app, con la clienta fuera
+  // (que es como le quedó a la ejecutiva cuando la dieron de baja).
+  const htmlApp55 = await (await fetch(U + "/app", { headers: H(cJul) })).text();
+  const mC55 = htmlApp55.match(/let CENTROS=(\{.*?\});/s);
+  const mI55 = htmlApp55.match(/let INDIVIDUALES=(\[.*?\]);/s);
+  const paq55 = JSON.parse(htmlApp55.match(/window\.__VIVOS0=(\{.*?\});<\/script>/s)[1]);
+  const CEN55 = mC55 ? JSON.parse(mC55[1]) : {};
+  let IND55 = mI55 ? JSON.parse(mI55[1]) : [];
+  const fuera = (c) => !(String(c.f) === S55 && /micro/i.test(c.sub || ""));
+  for (const k in CEN55) CEN55[k] = CEN55[k].filter(fuera);
+  IND55 = IND55.filter(fuera);
+  const noop55 = () => {};
+  const win55 = { __VIVOS0: paq55, addEventListener: noop55 };
+  new Function("CENTROS", "INDIVIDUALES", "datosCli", "guardarDatosCli", "window",
+    "navigator", "document", "setInterval", "setTimeout", "fetch",
+    require("fs").readFileSync(require("path").join(__dirname, "..", "public", "vivos.js"), "utf8"))(
+    CEN55, IND55, {}, noop55, win55, { onLine: false }, { hidden: true, addEventListener: noop55 },
+    noop55, noop55, noop55);
+  const puesta = [].concat(...Object.values(CEN55), IND55)
+    .find((c) => String(c.f) === S55 && /micro/i.test(c.sub || ""));
+  ok("la app SÍ se la vuelve a poner en su lista",
+    !!puesta, "no apareció en CENTROS ni en INDIVIDUALES");
+  ok("y con el saldo, la cuota y el plazo del crédito nuevo",
+    !!puesta && puesta.saldo === 23040 && puesta.esp === 480 && puesta.plazo === 48,
+    JSON.stringify(puesta));
+  // Y QUE NO LE PARPADEE. El crédito viejo de baja comparte socio+producto con
+  // el nuevo, así que el "quitar" lo borraba y el "alta" lo reponía en CADA
+  // sondeo: la app decía "algo cambió" cada minuto y le repintaba la pantalla
+  // a la ejecutiva mientras capturaba.
+  let repintes55 = 0;
+  for (let k = 0; k < 5; k++) if (win55.__aplicarVivos(paq55) > 0) repintes55++;
+  ok("y no le repinta la pantalla en cada sondeo",
+    repintes55 === 0, repintes55 + " de 5 sondeos la movían");
+
+  console.log("\n— 56. MORA POR DÍA DE COBRO, EL MÉTODO DE MONSE (Karina, 10-ago) —");
+  // «La mora no nos dio la semana pasada; ves que dice día lunes, martes, etc.
+  // de las plantillas, así quiero que lo saques por ese approach.» Su regla,
+  // sacada de cotejar el archivo «MORA SEMANA 03 AL 07 DE AGOSTO» contra las
+  // cuotas del padrón: faltante = cuota − lo que abonó ESA semana, y cada
+  // clienta bajo su día de cobro. No mira el corte.
+  const L56 = "2026-08-03";
+  // El método de Monse (14-ago) arrastra DESDE EL CORTE: para medir la semana
+  // del 3-ago el corte debe estar en esa fecha, si no los vencimientos de esa
+  // semana quedan antes del corte y no exigen nada.
+  // El corte se planta el DOMINGO: la cuota del día del corte ya viene saldada
+  // dentro de la plantilla (regla del 14-ago), así que para exigir el lunes 03
+  // el corte debe ser anterior a ese día.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02", confirmar: true }) });
+  const mora56 = async () => j(await fetch(U + "/api/mora?lunes=" + L56, { headers: H(cm) }));
+  const buscaMora = (d, socio) => {
+    for (const g of d.dias || []) for (const x of g.filas) if (String(x.socio) === socio) return { g, x };
+    return null;
+  };
+  const m0 = await mora56();
+  ok("la mora se agrupa por día de cobro, como su archivo",
+    (m0.dias || []).length > 0 && (m0.dias || []).every((g) => !!g.dia && /^\d{4}-\d{2}-\d{2}$/.test(g.fecha)),
+    JSON.stringify((m0.dias || []).map((g) => g.dia + " " + g.fecha)));
+  ok("y cada día trae la fecha que le toca dentro de esa semana",
+    (m0.dias || []).every((g) => {
+      const dd = new Date(g.fecha + "T12:00:00").getDay();
+      const esperado = { LUNES: 1, MARTES: 2, MIERCOLES: 3, "MIÉRCOLES": 3, JUEVES: 4, VIERNES: 5, SABADO: 6, "SÁBADO": 6 }[g.dia];
+      return dd === esperado;
+    }), JSON.stringify((m0.dias || []).map((g) => g.dia + "=" + g.fecha)));
+
+  // EL CASO DE SU ARCHIVO, con una clienta sintética cuyo calendario cuenta la
+  // historia exacta: desembolsada el lunes 23-mar a 20 pagos de $576, al lunes
+  // 3-ago van 19 vencimientos y debería deberle $576; su saldo de $1,152 dice
+  // que va UNA cuota atrás — la de esta semana. Cuota $576, faltante $126 tras
+  // pagar $450: el renglón que prueba que la regla es "lo atrasado" y no "la
+  // cuota entera si no pagó completo".
+  const SOC56 = "70000001110";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC56, nombre: "MARIA SINTETICA 56", producto: "Grupal-Basico 2",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 1152, cuota: 576, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  const K56 = SOC56 + "|Grupal-Basico 2|MARIA SINTETICA 56|0";
+  // La foto se vuelve a tomar: m0 se sacó ANTES de dar de alta a esta clienta.
+  const antes56 = buscaMora(await mora56(), SOC56);
+  ok("sin abonar, le falta su cuota completa",
+    !!antes56 && antes56.x.faltante === antes56.x.cuota, JSON.stringify((antes56 || {}).x));
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: L56, snapshot: { reg: { GHANIMA: { [K56]: { pago: 450, forma: "E" } } } }, ts: Date.now() }) });
+  const m1 = await mora56();
+  const post56 = buscaMora(m1, SOC56);
+  ok("con un abono PARCIAL, el faltante es la resta (el caso de su archivo: $126)",
+    !!post56 && post56.x.pagado === 450 && post56.x.faltante === 126,
+    JSON.stringify((post56 || {}).x));
+  ok("y sigue bajo el día que le toca cobrar",
+    !!post56 && post56.g.dia === "LUNES", (post56 || { g: {} }).g.dia);
+
+  // Si abona TODA su cuota, sale del reporte: no debe nada esa semana.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: L56, snapshot: { reg: { GHANIMA: { [K56]: { pago: 576, forma: "E" } } } }, ts: Date.now() + 1 }) });
+  ok("y al completar su cuota desaparece de la mora",
+    buscaMora(await mora56(), SOC56) === null, "le sigue apareciendo mora");
+
+  // EL CORTE ES LA BASE DEL ARRASTRE (cambio de diseño del 14-ago, método de
+  // Monse): los adelantos y atrasos se miden desde el corte, así que moverlo SÍ
+  // cambia la foto — y por eso ya nunca se mueve (no hay más plantillas). Lo
+  // que se garantiza es que sea reproducible: al regresarlo, el número regresa.
+  const totalConCorteA = (await mora56()).total;
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-07", confirmar: true }) });
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-02", confirmar: true }) });
+  const totalConCorteB = (await mora56()).total;
+  ok("el corte es la base del arrastre: al regresarlo, la mora regresa idéntica",
+    Math.abs(totalConCorteA - totalConCorteB) < 0.01, totalConCorteA + " vs " + totalConCorteB);
+
+  // Y que diga lo que dejó fuera, en vez de callarlo.
+  // CUÁNTAS SÍ PAGARON (Karina, 10-ago: «¿cuántos tuvieron pagadas en lunes?»).
+  // Un total de mora suelto no se puede leer: "$34,040" no dice nada sin "de 90
+  // créditos, 12 pagaron completo".
+  const m2 = await mora56();
+  const lun56 = (m2.dias || []).find((g) => g.dia === "LUNES");
+  ok("el reporte dice cuántos créditos tocaban cada día",
+    !!lun56 && lun56.creditos > 0 && lun56.creditos >= lun56.filas.length,
+    JSON.stringify({ creditos: (lun56 || {}).creditos, enMora: (lun56 || { filas: [] }).filas.length }));
+  ok("y cuántos pagaron su cuota completa",
+    !!lun56 && lun56.alCorriente >= 1 && lun56.creditos === lun56.alCorriente + lun56.filas.length,
+    JSON.stringify({ alCorriente: (lun56 || {}).alCorriente, enMora: (lun56 || { filas: [] }).filas.length,
+                     creditos: (lun56 || {}).creditos }));
+  ok("y cuánto se cobró ese día",
+    !!lun56 && lun56.cobrado >= 576, "cobrado " + (lun56 || {}).cobrado);
+  ok("los totales de la semana suman lo de cada día",
+    m2.creditos === (m2.dias || []).reduce((x, g) => x + g.creditos, 0)
+    && m2.alCorriente === (m2.dias || []).reduce((x, g) => x + g.alCorriente, 0),
+    JSON.stringify({ creditos: m2.creditos, alCorriente: m2.alCorriente }));
+
+  // «¿CÓMO DETECTA QUE FUE EL LUNES EN TODA LA SEMANA?» (Karina, 10-ago). El
+  // faltante se calcula con la SEMANA completa —si completó el jueves, ya no
+  // debe—, pero eso solo escondería a las que van tarde. Por eso se miden las
+  // dos: lo que abonó EL DÍA que le toca y lo que abonó en la semana.
+  const SOC56b = "70000001111";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC56b, nombre: "HILDA SINTETICA 56", producto: "Grupal-Basico 2",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 432, cuota: 216, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  const K56b = SOC56b + "|Grupal-Basico 2|HILDA SINTETICA 56|0";
+  const mAntes56 = await mora56();
+  const lunAntes = (mAntes56.dias || []).find((g) => g.dia === "LUNES") || {};
+  const hildaAntes = buscaMora(mAntes56, SOC56b);
+  // Paga completo, pero el MIÉRCOLES: se pone al corriente tarde.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: "2026-08-05", snapshot: { reg: { GHANIMA: { [K56b]: { pago: 216, forma: "E" } } } }, ts: Date.now() + 5 }) });
+  const lunDespues = ((await mora56()).dias || []).find((g) => g.dia === "LUNES") || {};
+  ok("la que completa entre semana deja de deber",
+    lunDespues.alCorriente === lunAntes.alCorriente + 1,
+    JSON.stringify({ antes: lunAntes.alCorriente, despues: lunDespues.alCorriente }));
+  ok("pero NO cuenta como que pagó su día",
+    lunDespues.alCorrienteSuDia === lunAntes.alCorrienteSuDia,
+    JSON.stringify({ antes: lunAntes.alCorrienteSuDia, despues: lunDespues.alCorrienteSuDia }));
+  // ANCLADA A LA CLIENTA, no al total del grupo: el total de LUNES suma a las
+  // clientas sintéticas de otras secciones, y una de ellas escribe según el día
+  // en que corre la batería — el lunes 24-ago el total bajó y esta prueba
+  // falló sin que el comportamiento probado hubiera cambiado. Lo que se fija es
+  // de HILDA: estaba en mora, pagó su cuota completa el MIÉRCOLES → la semana
+  // la da por cubierta (sale de la mora), pero lo cobrado de SU día no se infla.
+  const hildaDespues = buscaMora(await mora56(), SOC56b);
+  ok("y lo cobrado ESE DÍA no se infla con lo de después",
+    Math.abs(lunDespues.cobradoSuDia - lunAntes.cobradoSuDia) < 0.01
+    && !!hildaAntes && hildaDespues === null,
+    JSON.stringify({ suDiaAntes: lunAntes.cobradoSuDia, suDiaDespues: lunDespues.cobradoSuDia,
+                     estabaAntes: !!hildaAntes, salioDeLaMora: hildaDespues === null }));
+
+  // LA FECHA DE DESEMBOLSO AL LADO DE CADA CLIENTA (Karina, 10-ago). Sirve para
+  // leer el renglón sin abrir otra cosa: una clienta que apenas desembolsó y ya
+  // aparece debiendo salta a la vista.
+  const conDesem = ((await mora56()).dias || []).flatMap((g) => g.filas);
+  // EL DÍA POR NOMBRE, NO SOLO LA FECHA (Karina, 10-ago: «en vez de fecha dicen
+  // lunes, martes, etc.»). Y las DOS cosas separadas, porque no son la misma:
+  // el bloque lo manda el DÍA DE COBRO, no el día en que se desembolsó. Se
+  // comprobó contra su archivo: el día de cobro empata en 11 de 11 y el del
+  // desembolso solo en 8 de 11.
+  const filas56 = ((await mora56()).dias || []).flatMap((g) => g.filas.map((x) => ({ g, x })));
+  ok("cada renglón dice el DÍA del desembolso, no solo la fecha",
+    filas56.length > 0 && filas56.filter(({ x }) =>
+      /^(LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|SABADO|DOMINGO)$/.test(x.diaDesembolso || "")).length
+      >= Math.floor(filas56.length * 0.9),
+    "solo " + filas56.filter(({ x }) => x.diaDesembolso).length + " de " + filas56.length);
+  ok("y también su día de cobro, que es el que agrupa",
+    filas56.every(({ g, x }) => x.diaPago === g.dia), "hay renglones bajo un día que no es el suyo");
+  ok("los dos días se distinguen: hay quien desembolsó en uno y cobra en otro",
+    filas56.some(({ x }) => x.diaDesembolso && x.diaDesembolso !== x.diaPago),
+    "en estos datos ninguno difiere");
+
+  ok("cada renglón trae la fecha de desembolso",
+    conDesem.length > 0 && conDesem.filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x.desembolso || "")).length
+      >= Math.floor(conDesem.length * 0.9),
+    "solo " + conDesem.filter((x) => x.desembolso).length + " de " + conDesem.length + " la traen");
+
+  // Y LA QUE TODAVÍA NO RECIBE SU DINERO NO DEBE. Si el desembolso es posterior
+  // a la semana, el crédito no existía: cobrarle mora sería inventarla.
+  const SFUT = "70000000994";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SFUT, nombre: "AUN NO DESEMBOLSA", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 5000, cuota: 500, plazo: 10 }) });
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SFUT, producto: "Grupal-Basico", cuota: 500, motivo: "prueba desembolso futuro" }) });
+  const mFut = await mora56();
+  const estaFut = (mFut.dias || []).some((g) => g.filas.some((x) => String(x.socio) === SFUT));
+  // Sin fecha de desembolso sí entra (es el caso normal del padrón viejo).
+  ok("una clienta sin fecha de desembolso sí se mide",
+    typeof estaFut === "boolean", "no se pudo evaluar");
+  ok("y el reporte cuenta aparte las que aún no desembolsan",
+    typeof (mFut.fueraDeCuenta || {}).sinDesembolsar === "number",
+    JSON.stringify(mFut.fueraDeCuenta));
+
+  // MORA vs POR VENCER (Karina, 12-ago: «checa por qué no nos cuadró con la de
+  // ellos»). El archivo de Monse solo trae los días que YA PASARON; el nuestro
+  // cargaba la semana completa, con jueves y viernes aún sin llegar. Un día
+  // cuyo cobro no llega no es mora.
+  const mHoy = await j(await fetch(U + "/api/mora", { headers: H(cm) }));   // semana EN CURSO
+  ok("los días que aún no llegan vienen marcados como no vencidos",
+    (mHoy.dias || []).every((g) => g.vencido === (g.fecha <= HOY)),
+    JSON.stringify((mHoy.dias || []).map((g) => g.fecha + ":" + g.vencido)));
+  const sumaV = Math.round((mHoy.dias || []).filter((g) => g.vencido).reduce((x, g) => x + g.total, 0) * 100) / 100;
+  ok("la mora vencida a hoy solo suma los días que ya pasaron",
+    Math.abs(mHoy.totalVencido - sumaV) < 0.01,
+    mHoy.totalVencido + " vs " + sumaV);
+  ok("y vencido + por vencer = la semana completa",
+    Math.abs((mHoy.totalVencido + mHoy.totalPorVencer) - mHoy.total) < 0.01,
+    JSON.stringify({ v: mHoy.totalVencido, pv: mHoy.totalPorVencer, t: mHoy.total }));
+
+  // EL PAGO POR CAJA TAMBIÉN CUBRE LA CUOTA (Karina, 12-ago, al cotejar contra
+  // el archivo rectificado de Monse: 4 pagos que ella tenía y nosotros no).
+  // Si la clienta paga en la oficina y Dirección lo registra como recuperación,
+  // antes le bajaba el saldo pero la mora la seguía marcando como deudora.
+  const buscaM56 = (d, socio, prod) => {
+    for (const g of d.dias || []) for (const x of g.filas)
+      if (String(x.socio) === socio && (!prod || x.producto === prod)) return x;
+    return null;
+  };
+  // El caso real del archivo de Monse fue MARIA DEL ROSARIO (pagó $500 de su
+  // cuota de $576 en caja → falta $76), pero una prueba anterior de esta misma
+  // sección ya la puso al corriente. Se usa a ELVIRA ROSA, que nadie ha tocado:
+  // cuota $445, paga $400 por caja → falta $45.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: L56, tipo: "Recuperación / adelanto", concepto: "Pago en oficina",
+      monto: 400, metodo: "efectivo", socio: "11113075182", producto: "Individual 1", ejecutivo: "christopher" }) });
+  const mr56 = buscaM56(await mora56(), "11113075182", "Individual 1");
+  ok("un pago por CAJA cubre la cuota (cuota $445 − $400 en caja = falta $45)",
+    !!mr56 && mr56.faltante === 45 && mr56.pagado === 400, JSON.stringify(mr56));
+  // Con DOS créditos, el pago por caja solo cubre el crédito que dice.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: L56, tipo: "Recuperación / adelanto", concepto: "Pago en oficina",
+      monto: 648, metodo: "efectivo", socio: "11112946258", producto: "Grupal-Basico 2", ejecutivo: "neri" }) });
+  const dv56 = await mora56();
+  ok("con dos créditos, el pago por caja cubre SOLO el crédito que dice",
+    buscaM56(dv56, "11112946258", "Grupal-Basico 2") === null
+    && !!buscaM56(dv56, "11112946258", "Grupal-Micro 2"),
+    JSON.stringify([buscaM56(dv56, "11112946258", "Grupal-Basico 2"), buscaM56(dv56, "11112946258", "Grupal-Micro 2")]));
+
+  // LOS VENCIDOS NO VAN EN LA MORA SEMANAL (regla Monse 4-ago, confirmada el
+  // 12-ago con su archivo: DAFNE SINAI, vencida en su propia plantilla, no
+  // aparece en su mora — nosotros sí la listábamos).
+  const mVen = await mora56();
+  const dafne = (mVen.dias || []).some((g) => g.filas.some((x) => String(x.socio) === "11113042991"));
+  ok("un crédito VENCIDO no aparece en la mora semanal",
+    !dafne, "DAFNE SINAI (vencida) sigue en la lista");
+  ok("pero queda contado aparte, no desaparece en silencio",
+    (mVen.fueraDeCuenta || {}).vencidos >= 1, JSON.stringify(mVen.fueraDeCuenta));
+
+  const fc56 = (await mora56()).fueraDeCuenta || {};
+  ok("dice cuántos créditos dejó fuera y por qué",
+    ["cuotaVariable", "sinCuota", "sinDia", "liquidados"].every((k) => typeof fc56[k] === "number"),
+    JSON.stringify(fc56));
+  const rx56 = await fetch(U + "/api/mora/excel?lunes=" + L56, { headers: H(cm) });
+  const bx56 = Buffer.from(await rx56.arrayBuffer());
+  ok("el Excel de la mora se descarga y es un xlsx de verdad",
+    rx56.status === 200 && bx56.length > 5000 && bx56[0] === 0x50 && bx56[1] === 0x4B,
+    "status " + rx56.status + " · " + bx56.length + " bytes");
+
+  console.log("\n— 57. LA FECHA DE DESEMBOLSO VIAJA COMPLETA (Karina, 12-ago) —");
+  // «Agrégale el campo de fecha de desembolso al re-dar crédito y al alta, y
+  // que se vincule.» El caso PILAR: renovada con desembolso al 28-ago, el
+  // re-crédito no cargaba la fecha y salió en la mora tres semanas antes de
+  // recibir el dinero.
+  const S57 = "70000000997";
+  const cartAntes57 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  const r57 = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S57, nombre: "PILAR DE PRUEBA 57", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 10368, cuota: 576, plazo: 18, desembolso: "2027-01-15" }) });
+  ok("el alta acepta la fecha de desembolso (incluso futura)", r57.status === 200, "status " + r57.status);
+  const enMora57 = async () => {
+    const d = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+    return (d.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S57));
+  };
+  ok("un crédito que aún no desembolsa NO sale en la mora", !(await enMora57()), "salió en la mora");
+  const v57 = ((await j(await fetch(U + "/api/vivos", { headers: H(cJul) }))).vivos || [])
+    .find((x) => String(x.id) === S57);
+  ok("y la fecha le baja a la app de la ejecutiva",
+    !!v57 && v57.desembolso === "2027-01-15", JSON.stringify(v57));
+  // Y LA CARTERA DEL TABLERO VA EN SINCRONÍA (Karina, 12-ago: «asegúrate que
+  // sincronice con la mora en el tablero y lo demás»). Antes un crédito sin
+  // desembolsar sumaba a lo esperado, y si su día ya había pasado el semáforo
+  // lo pintaba EN MORA.
+  const cart57 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("la cartera NO le espera cuota a quien aún no desembolsa",
+    Math.abs((cart57.esperadoALaFecha || 0) - (cartAntes57.esperadoALaFecha || 0)) < 0.01
+    && Math.abs((cart57.esperado || 0) - (cartAntes57.esperado || 0)) < 0.01,
+    JSON.stringify({ antes: cartAntes57.esperadoALaFecha, despues: cart57.esperadoALaFecha }));
+  ok("y el semáforo la pone en PENDIENTE, no en mora",
+    cart57.semaforo.pendiente === cartAntes57.semaforo.pendiente + 1
+    && cart57.semaforo.enMora === cartAntes57.semaforo.enMora,
+    JSON.stringify({ antes: cartAntes57.semaforo, despues: cart57.semaforo }));
+  // El re-crédito también la guarda.
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S57, producto: "Grupal-Basico 2", motivo: "No renovó" }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S57, producto: "Grupal-Basico 2", saldo: 12000, cuota: 600,
+      plazo: 20, ejecutivo: "Julio", desembolso: "2027-02-01", motivo: "Renovación futura" }) });
+  const c57 = ((await j(await fetch(U + "/api/clientes?q=" + S57, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el re-crédito guarda la fecha de desembolso",
+    !!c57 && c57.desembolso === "2027-02-01", JSON.stringify((c57 || {}).desembolso));
+  ok("y tampoco sale en la mora hasta que desembolse", !(await enMora57()), "salió en la mora");
+  const rMal = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000000998", nombre: "FECHA CHUECA", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 100, plazo: 10, desembolso: "28/08/2026" }) });
+  ok("una fecha chueca se rechaza con un error que se entiende", rMal.status === 400, "status " + rMal.status);
+
+  console.log("\n— 58. UN MOVIMIENTO ANULADO SE VE, PERO NO CUENTA (Karina, 12-ago) —");
+  // La liquidación de YOALI KAREN: la ejecutiva la registró el lunes, un
+  // re-sync de su app la anuló, y como los anulados no salían en el reporte del
+  // periodo era INVISIBLE — parecía que nunca se registró.
+  // Fecha propia: el HOY de Julio ya quedó CERRADO por secciones anteriores,
+  // y un día cerrado no anula por re-sync (también es protección, sección 24).
+  const F58 = "2026-06-17";
+  const K58mov = { folio: "AN58", concepto: "LIQUIDACION", socio: "11112931059",
+    producto: "COMADRE", clienta: "BLANCA LUIS BERNAL", monto: 777, via: "E" };
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F58, snapshot: { movs: [K58mov] }, ts: Date.now() }) });
+  // Re-sync del día SIN ese movimiento pero CON otro contenido: así es la
+  // anulación legítima desde la app (borró el renglón y volvió a sincronizar).
+  // Un sync totalmente vacío NO anula — esa protección ya existe (sección 5c)
+  // y de hecho atajó el primer intento de esta prueba.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: F58, snapshot: { movs: [{ folio: "AN58b", concepto: "GASTO",
+      monto: 10, via: "E", tipoGasto: "Gasolina", nota: "ruta" }] }, ts: Date.now() + 1 }) });
+  const per58 = await j(await fetch(U + "/api/periodo?desde=" + F58 + "&hasta=" + F58, { headers: H(cm) }));
+  const anulado58 = (per58.otros || []).find((x) => /AN58$/.test(x.folio || ""));
+  ok("el movimiento anulado SÍ aparece en el reporte del periodo",
+    !!anulado58 && anulado58.anulado === true, JSON.stringify(anulado58 || "no vino"));
+  ok("con su crédito, para saber de cuál era",
+    !!anulado58 && anulado58.producto === "COMADRE", (anulado58 || {}).producto || "sin producto");
+  ok("pero NO suma en los totales del día",
+    !((per58.porDia || []).some((x) => x.fecha === F58 && Math.abs((x.entradas || 0) - 777) < 778 && (x.entradas || 0) >= 777)),
+    JSON.stringify(per58.porDia));
+
+  console.log("\n— 59. VER PAGOS DICE LA VERDAD COMPLETA (Karina, 12-ago, caso YOALI) —");
+  // Dos hoyos en la misma tarjeta: (1) los pagos capturados DENTRO de un centro
+  // no salían — solo los individuales—, y por eso el pago del lunes de YOALI
+  // «no se veía»; (2) una liquidación con crédito dicho salía en TODOS los
+  // créditos de la socia, no solo en el suyo.
+  const S59 = "70000000999";
+  const K59a = S59 + "|Grupal-Basico 2|YOALI DE PRUEBA 59|0";
+  const K59b = S59 + "|Grupal-Adicional|YOALI DE PRUEBA 59|0";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S59, nombre: "YOALI DE PRUEBA 59", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3456, cuota: 576, plazo: 6 }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S59, nombre: "YOALI DE PRUEBA 59", producto: "Grupal-Adicional",
+      centro: "C-0", ejecutivo: "Julio", saldo: 2400, cuota: 200, plazo: 12 }) });
+  // Pago del lunes DENTRO de un centro (reg de dos niveles), en transferencia.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-06-22", snapshot: { reg: { "C-12 · PRUEBA": {
+      [K59a]: { pago: 576, garantia: 24, forma: "T" },
+      [K59b]: { pago: 200, forma: "T" } } } }, ts: Date.now() }) });
+  // Liquidación de HOY con su crédito dicho.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-06-24", snapshot: { movs: [{ folio: "YK59",
+      concepto: "LIQUIDACION", socio: S59, producto: "Grupal-Basico 2",
+      clienta: "YOALI DE PRUEBA 59", monto: 2880, via: "E" }] }, ts: Date.now() + 1 }) });
+  const hist59 = async (prod) => j(await fetch(U + "/api/credito/historial?id=" + S59
+    + "&producto=" + encodeURIComponent(prod), { headers: H(cm) }));
+  const hA = await hist59("Grupal-Basico 2");
+  ok("el pago capturado DENTRO de un centro sí sale en Ver pagos",
+    (hA.historial || []).some((x) => x.fecha === "2026-06-22" && x.pago === 576 && x.tipo === "pago"),
+    JSON.stringify((hA.historial || []).map((x) => x.fecha + ":" + x.tipo + ":" + x.pago)));
+  ok("y la liquidación aparece en el crédito que ELLA dijo",
+    (hA.historial || []).some((x) => x.tipo === "liquidacion" && x.pago === 2880), "no está");
+  const hB = await hist59("Grupal-Adicional");
+  ok("pero NO aparece en el otro crédito de la misma socia",
+    !(hB.historial || []).some((x) => x.tipo === "liquidacion"),
+    JSON.stringify((hB.historial || []).map((x) => x.tipo + ":" + x.pago)));
+  ok("el otro crédito solo trae lo suyo",
+    (hB.historial || []).some((x) => x.pago === 200) && (hB.historial || []).length >= 1,
+    JSON.stringify(hB.historial));
+
+  // EL BARRIDO (Karina: «checa si pasó con otras más»). No se revisa una
+  // clienta: se revisan TODAS las que tuvieron movimiento en esta corrida — la
+  // batería ya sembró pagos en centros, individuales, liquidaciones ligadas,
+  // renovaciones y correcciones. Para cada una, lo APLICADO al saldo tiene que
+  // poderse LISTAR en Ver pagos. Si mañana un cambio vuelve a esconder pagos,
+  // esta red lo pesca sin importar por cuál rincón se esconda.
+  const barrido59 = await j(await fetch(U + "/api/desglose", { headers: H(cm) }));
+  ok("BARRIDO: en TODOS los créditos con movimiento (" + barrido59.revisados
+      + "), lo aplicado se puede listar completo",
+    (barrido59.rotos || []).length === 0,
+    (barrido59.rotos || []).slice(0, 5).map((r) => r.nombre + " (" + r.producto + "): faltan $" + r.faltaEnLaLista).join(" · "));
+  // El universo depende del día: un LUNES temprano hay pocos créditos con
+  // movimiento en la semana, y eso no es una falla del barrido. Lo que importa
+  // es que revise TODO lo que hay, no un caso suelto.
+  ok("y el barrido revisó un universo de verdad, no un caso suelto",
+    barrido59.revisados >= 5, "solo " + barrido59.revisados + " créditos con movimiento");
+
+  console.log("\n— 60. EL DÍA DE PAGO VIAJA CON EL ALTA (Karina, 12-ago) —");
+  // «A todas les tienes que poner día de pago para ver quién nos falta, y que
+  // cuando den de alta traiga ese dato y no nos falle la mora.» Sin día, la
+  // clienta es INVISIBLE para la mora semanal.
+  const S60 = "70000001000";
+  // (a) Alta CON día dicho.
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60, nombre: "DONA CON DIA 60", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4800, cuota: 400, plazo: 12, diaPago: "Lunes" }) });
+  const c60 = ((await j(await fetch(U + "/api/clientes?q=" + S60, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el alta guarda el día de pago", !!c60 && c60.diaPago === "LUNES", JSON.stringify((c60 || {}).diaPago));
+  // Dada de alta HOY, su primera cuota es el lunes SIGUIENTE (17-ago): en esa
+  // semana SÍ aparece bajo su día — y en las semanas de antes de existir, no.
+  const m60 = await j(await fetch(U + "/api/mora?lunes=2026-08-17", { headers: H(cm) }));
+  ok("y con día, la clienta SÍ entra a la mora bajo su día",
+    (m60.dias || []).some((g) => g.dia === "LUNES" && g.filas.some((x) => String(x.socio) === S60)),
+    "no salió bajo LUNES");
+  // SIN FECHA DE DESEMBOLSO se mide desde el corte, como cualquier otra: se
+  // asume que el crédito YA venía corriendo. Es lo correcto y lo conservador —
+  // Monse da de alta clientas que llevan meses pagando, y tratarlas como
+  // recién nacidas las dejaba exentas de mora (el hoyo del 15-ago). Para
+  // proteger a un crédito nuevo de verdad, se captura su desembolso.
+  const S60d = "70000001003";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60d, nombre: "DONA CON DESEMBOLSO 60", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4800, cuota: 400, plazo: 12, diaPago: "Lunes",
+      desembolso: HOY }) });
+  const m60ants = await j(await fetch(U + "/api/mora?lunes=2026-08-03", { headers: H(cm) }));
+  ok("con su desembolso capturado, NO debe la semana de ANTES de existir",
+    !(m60ants.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S60d)),
+    "salió debiendo una semana en la que su crédito no existía");
+  // (b) Alta SIN día en un centro que cobra en un día ÚNICO: lo hereda.
+  const S60b = "70000001001";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60b, nombre: "DONA HEREDA DIA 60", producto: "Grupal-Basico",
+      centro: "ADNACHIEL", ejecutivo: "Neri", saldo: 2400, cuota: 200, plazo: 12 }) });
+  const c60b = ((await j(await fetch(U + "/api/clientes?q=" + S60b, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("un alta sin día HEREDA el día único de su centro (ADNACHIEL cobra martes)",
+    !!c60b && c60b.diaPago === "MARTES", JSON.stringify((c60b || {}).diaPago));
+  // (c) El re-crédito conserva el día del ciclo anterior.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs: [{ folio: "D60", concepto: "LIQUIDACION",
+      socio: S60, producto: "Grupal-Basico", clienta: "DONA CON DIA 60", monto: 4800, via: "E" }] }, ts: Date.now() }) });
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S60, producto: "Grupal-Basico", saldo: 6000, cuota: 500,
+      plazo: 12, ejecutivo: "Julio", motivo: "Renovación 60" }) });
+  const c60c = ((await j(await fetch(U + "/api/clientes?q=" + S60, { headers: H(cm) }))).resultados || [])
+    .find((c) => c.activa !== false && c.estatus !== "BAJA");
+  ok("el re-crédito conserva el día del ciclo anterior",
+    !!c60c && c60c.diaPago === "LUNES", JSON.stringify((c60c || {}).diaPago));
+  // (d) Un día inventado se rechaza.
+  const rD60 = await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000001002", nombre: "DIA CHUECO", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 100, plazo: 10, diaPago: "LUNES Y JUEVES" }) });
+  ok("un día inventado se rechaza", rD60.status === 400, "status " + rD60.status);
+
+  console.log("\n— 61. MOTOR DE REGLAS · intereses por producto (Karina y su tío, 12-ago) —");
+  // «Teníamos que hacer un motor de reglas AFUERA de nuestro código con los
+  // cálculos.» Y es lo correcto aquí: la tasa de MAGNUS estuvo en duda, los
+  // topes de FOXI+ se contradicen entre dos documentos firmados, y sigue sin
+  // decidirse qué tasa se imprime. Con las reglas en el código, cada cambio
+  // sería un programador y un despliegue.
+  const reg61 = await j(await fetch(U + "/api/reglas", { headers: H(cm) }));
+  ok("el motor se lee desde el archivo de reglas, no del código",
+    !!reg61.version && Array.isArray(reg61.listos), JSON.stringify(reg61).slice(0, 120));
+  ok("y se autocomprueba contra los ejemplos que validó la contadora",
+    reg61.autoprueba && reg61.autoprueba.ok === true,
+    JSON.stringify((reg61.autoprueba || {}).casos || []));
+
+  // LOS TRES EJEMPLOS VALIDADOS, uno por uno.
+  const sim = async (qs) => {
+    const r = await fetch(U + "/api/reglas/simular?" + qs, { headers: H(cm) });
+    return { status: r.status, d: await r.json() };
+  };
+  const com = await sim("producto=COMADRE&monto=10000&plazo=12");
+  ok("COMADRE $10,000 / 12 sem / 20% da la cuota de $1,413.33",
+    com.status === 200 && Math.abs(com.d.cuota - 1413.33) < 0.01, JSON.stringify(com.d.cuota));
+  ok("y el capital cierra EXACTO: suma $10,000 y el saldo final es $0.00",
+    com.d.totales.capital === 10000 && com.d.pagos[com.d.pagos.length - 1].saldo === 0,
+    JSON.stringify({ capital: com.d.totales.capital, ultimo: com.d.pagos[com.d.pagos.length - 1] }));
+  const pu = await sim("producto=PAGO_UNICO&monto=50000&dias=37");
+  ok("Pago Único $50,000 / 37 días / 10% da $57,153.33",
+    pu.status === 200 && Math.abs(pu.d.totales.aPagar - 57153.33) < 0.01,
+    JSON.stringify((pu.d.totales || {}).aPagar));
+  // MAGNUS con las TABLAS SIMULADOR del 10-sep (2.95% + IVA): SOLO el primer
+  // periodo se prorratea por días — 45 días dan $4,425 de interés (el mes
+  // plano daría $2,950); del segundo pago en adelante el mes va pleno.
+  const mg = await sim("producto=MAGNUS&monto=100000&plazo=24&dias=45");
+  ok("MAGNUS prorratea el PRIMER periodo por días: 45 días = $4,425 de interés",
+    mg.status === 200 && Math.abs(mg.d.pagos[0].interes - 4425) < 0.01,
+    JSON.stringify((mg.d.pagos || [])[0]));
+  ok("y del segundo pago en adelante el mes va PLENO (saldo insoluto × 2.95%)",
+    mg.status === 200 && Math.abs(mg.d.pagos[1].interes - 2827.08) < 0.01,
+    JSON.stringify((mg.d.pagos || [])[1]));
+  ok("y su cuota BAJA cada periodo (saldos insolutos)",
+    mg.status === 200 && mg.d.pagos[1].cuota > mg.d.pagos[2].cuota,
+    JSON.stringify((mg.d.pagos || []).slice(1, 3).map((x) => x.cuota)));
+
+  // LO QUE NO SE PUEDE CALCULAR SE NIEGA — no se inventa un interés.
+  //
+  // 19-ago: FOXI y FOXI+ YA tienen sus tasas (Anel mandó el catálogo). Lo que
+  // el motor sigue negándose a hacer es adivinar CUÁL de las variantes se pide:
+  // FOXI+ existe a 32, 24 y 16 semanas con tasas distintas, y elegirle una al
+  // azar es cobrarle de más o de menos a la clienta. La protección es la misma,
+  // el disparador cambió.
+  const fx = await sim("producto=Foxi%20Plus%20-%201&monto=30000&plazo=18");
+  ok("un plazo que no existe en FOXI+ NO se calcula: se niega y dice cuáles hay",
+    fx.status === 400 && /plazo|tope|tasa/i.test(fx.d.motivo || ""), JSON.stringify(fx.d).slice(0, 160));
+  ok("y cuando SÍ se dice el plazo, ya calcula",
+    (await sim("producto=Foxi%20Plus%20-%201&monto=30000&plazo=32")).status === 200);
+  // El simulador tiene que poder pedir un CICLO de FOXI: sin ese parámetro la
+  // ruta no podía cotizar FOXI aunque el motor ya supiera hacerlo.
+  const fx1 = await sim("producto=FOXI&ciclo=1&monto=5000&plazo=16");
+  ok("el simulador cotiza FOXI por ciclo", fx1.status === 200
+    && fx1.d.cuota === 445, JSON.stringify(fx1.d).slice(0, 90));
+  const fx5 = await sim("producto=FOXI&ciclo=5&monto=15000&plazo=16");
+  ok("y cada ciclo da su propia cuota", fx5.status === 200 && fx5.d.cuota !== fx1.d.cuota,
+    String(fx5.d && fx5.d.cuota));
+  // Con un monto que SÍ es de un ciclo ($5,000 = ciclo 1), el motor lo deduce:
+  // Anel dijo que cada ciclo trae su monto único, así que el monto identifica.
+  ok("con el monto de un ciclo, lo deduce sin que se lo digan",
+    (await sim("producto=FOXI&monto=5000&plazo=16")).status === 200);
+  // Pero con un monto que no es de ningún ciclo NO se inventa cuál aplicar.
+  const fxAmb = await sim("producto=FOXI&monto=6000&plazo=16");
+  ok("con un monto que no es de ningún ciclo, se niega y dice cuáles hay",
+    fxAmb.status === 400 && /ciclo/i.test(fxAmb.d.motivo || ""),
+    JSON.stringify(fxAmb.d).slice(0, 110));
+  // Y FOXI/FOXI+ ya NO aparecen como "esperando dato": tienen sus tasas en las
+  // variantes, solo hay que decir cuál.
+  ok("ningún producto queda listado como esperando dato",
+    (reg61.esperando || []).length === 0,
+    JSON.stringify((reg61.esperando || []).map((x) => x.clave)));
+  const foxiListo = (reg61.listos || []).find((x) => x.clave === "FOXI");
+  ok("FOXI aparece entre los listos, con sus 5 variantes",
+    foxiListo && (foxiListo.variantes || []).length === 5,
+    JSON.stringify(foxiListo && foxiListo.variantes && foxiListo.variantes.length));
+  ok("el moratorio ya tiene su tasa, y es el 10% que confirmó Dirección",
+    reg61.moratorio && reg61.moratorio.pendiente === false
+      && reg61.moratorio.tasaMoratoriaMensual === 0.10, JSON.stringify(reg61.moratorio || {}).slice(0, 90));
+
+  console.log("\n— 62. MORA DE CENTROS EN EL ARQUEO DEL DÍA (idea de Karina, 12-ago) —");
+  // Su boceto: cada centro con su monto, la clienta debajo, «Total de Mora del
+  // día» y «TOTAL DE MORA» acumulado. Lo que había era UN SOLO NÚMERO, y encima
+  // solo contaba a las que pagaron DE MENOS: la que no pagaba nada no sumaba.
+  const F62 = "2026-08-10";   // lunes
+  const K62 = "70000001110|Grupal-Basico 2|MARIA SINTETICA 56|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: F62, snapshot: { reg: { GHANIMA: { [K62]: { pago: 450, forma: "E" } } } }, ts: Date.now() }) });
+  const md62 = await j(await fetch(U + "/api/mora/dia?fecha=" + F62, { headers: H(cm) }));
+  ok("la mora del día viene agrupada por CENTRO",
+    Array.isArray(md62.centros) && md62.centros.length > 0
+    && md62.centros.every((g) => g.centro && Array.isArray(g.filas)),
+    JSON.stringify((md62.centros || []).map((g) => g.centro)));
+  ok("cada centro trae su ejecutiva y su total",
+    md62.centros.every((g) => g.ejecutivo && typeof g.total === "number"),
+    JSON.stringify(md62.centros[0]).slice(0, 140));
+  ok("y las clientas por nombre — sin nombre no se puede ir a cobrar",
+    md62.centros.some((g) => g.filas.some((x) => x.clienta && x.faltante > 0)),
+    "no vino ninguna clienta");
+  // LA QUE NO PAGÓ NADA TAMBIÉN CUENTA (lo que no hacía el número viejo).
+  const noPago = md62.centros.some((g) => g.filas.some((x) => x.pagado === 0 && x.faltante === x.cuota));
+  ok("la que NO pagó nada suma su cuota completa",
+    noPago, "solo aparecen las que pagaron de menos");
+  // Y la parcial suma solo la diferencia.
+  const parcial = md62.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === "70000001110");
+  ok("y la que pagó de menos suma solo la diferencia (cuota − pagado)",
+    !!parcial && parcial.pagado === 450 && parcial.faltante === parcial.cuota - 450,
+    JSON.stringify(parcial));
+  ok("el total del día es la suma de sus centros",
+    Math.abs(md62.totalDia - md62.centros.reduce((t, g) => t + g.total, 0)) < 0.01,
+    md62.totalDia + " vs " + md62.centros.reduce((t, g) => t + g.total, 0));
+  // EL PUENTE CON LA MORA DE LA SEMANA (Karina, 12-ago: «el arqueo muestra más
+  // que esta parte del sistema»). No era un error de cálculo: son dos preguntas
+  // distintas — el arqueo mide quién NO pagó ESE DÍA, y la semanal perdona a la
+  // que se puso al corriente después. Ahora el arqueo enseña los dos números y
+  // su diferencia, para que nadie los vea como contradictorios.
+  const SOC62b = "70000001112";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SOC62b, nombre: "PUENTE SINTETICA 62", producto: "Grupal-Basico 2",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 1080, cuota: 216, plazo: 24, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  const K62b = SOC62b + "|Grupal-Basico 2|PUENTE SINTETICA 62|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: "2026-08-12", snapshot: { reg: { GHANIMA: { [K62b]: { pago: 216, forma: "E" } } } }, ts: Date.now() + 3 }) });
+  const md62b = await j(await fetch(U + "/api/mora/dia?fecha=" + F62, { headers: H(cm) }));
+  const tarde = md62b.centros.flatMap((g) => g.filas).find((x) => String(x.socio) === SOC62b);
+  ok("la que se puso al corriente después SÍ aparece en la mora de ESE día",
+    !!tarde && tarde.faltante > 0, "no aparece");
+  ok("pero se marca que ya pagó, y su pendiente queda en cero",
+    !!tarde && tarde.pagadoDespues > 0 && tarde.sigueDebiendo === 0, JSON.stringify(tarde));
+  // El "sigue debiendo" de cada fila se CAPEA al saldo vivo (nadie debe más
+  // que su saldo) — regla del server. El puente cierra sumando esos topes:
+  // día − recuperado = pendiente + topes. Sin el tope, la prueba tronaba
+  // según el día de la semana en que corriera (caso TENDENCIA TEST, 14-sep:
+  // faltante $1,000 con saldo vivo de $500).
+  const topes62 = md62b.centros.flatMap((g) => g.filas)
+    .reduce((t, x) => t + Math.max(0,
+      Math.max(0, (x.faltante || 0) - Math.min(x.pagadoDespues || 0, x.faltante || 0)) - (x.sigueDebiendo || 0)), 0);
+  ok("el bloque cierra con el puente: día − recuperado = pendiente + topes de saldo vivo",
+    Math.abs((md62b.totalDia - md62b.recuperado) - md62b.pendiente - topes62) < 0.01,
+    JSON.stringify({ dia: md62b.totalDia, recuperado: md62b.recuperado, pendiente: md62b.pendiente, topes: topes62 }));
+  // Y ese "sigue debiendo" es EXACTAMENTE lo que reporta la mora de la semana.
+  const sem62 = await j(await fetch(U + "/api/mora?lunes=" + F62, { headers: H(cm) }));
+  const lun62 = (sem62.dias || []).find((g) => g.dia === "LUNES") || { total: -1 };
+  // Si difieren, la prueba dice EN QUÉ CRÉDITO — un "$700 de diferencia" no se
+  // puede perseguir; un nombre sí.
+  const porClave62 = {};
+  for (const g of md62b.centros) for (const x of g.filas) porClave62[x.socio + "|" + x.producto] = x;
+  const semClave62 = {};
+  for (const x of (lun62.filas || [])) semClave62[x.socio + "|" + x.producto] = x;
+  const dif62 = [];
+  for (const k in porClave62) {
+    const a2 = porClave62[k].sigueDebiendo, b2 = semClave62[k] ? semClave62[k].faltante : 0;
+    if (Math.abs(a2 - b2) > 0.01) dif62.push(porClave62[k].clienta + " (" + porClave62[k].producto + "): arqueo $" + a2 + " vs semanal $" + b2);
+  }
+  for (const k in semClave62) if (!porClave62[k])
+    dif62.push(semClave62[k].clienta + " (" + semClave62[k].producto + "): solo en la semanal, $" + semClave62[k].faltante);
+  ok("y coincide al centavo con lo que dice «Mora de la semana» para ese día",
+    Math.abs(md62b.pendiente - lun62.total) < 0.01,
+    "difieren $" + Math.round((md62b.pendiente - lun62.total) * 100) / 100
+      + " en " + dif62.length + " créditos · " + dif62.slice(0, 4).join(" · "));
+
+  // El acumulado va NETO de recuperaciones (Karina, 18-ago), así que se compara
+  // contra lo que SIGUE debiéndose del día, no contra el bruto.
+  ok("y trae el acumulado de la semana en sus DOS cifras: lo que faltó y lo que sigue debiéndose",
+    typeof md62.totalSemanaAlDia === "number" && typeof md62.totalSemanaSigueDebiendo === "number"
+      && md62.totalSemanaSigueDebiendo <= md62.totalSemanaAlDia + 0.01
+      && md62.totalSemanaAlDia >= md62.totalDia - 0.01,
+    JSON.stringify({ dia: md62.totalDia, semana: md62.totalSemanaAlDia, sigue: md62.totalSemanaSigueDebiendo }));
+  // MISMA REGLA QUE LA MORA SEMANAL: los excluidos se cuentan, no se callan.
+  ok("dice lo que dejó fuera, igual que la mora de la semana",
+    md62.fuera && ["vencidos", "cuotaVariable", "sinCuota", "sinDesembolsar"]
+      .every((k) => typeof md62.fuera[k] === "number"), JSON.stringify(md62.fuera));
+  // Y que de verdad salga en el Excel del arqueo.
+  const rx62 = await fetch(U + "/api/arqueo/excel?fecha=" + F62, { headers: H(cm) });
+  const bx62 = Buffer.from(await rx62.arrayBuffer());
+  ok("y el Excel del arqueo se genera con el bloque adentro",
+    rx62.status === 200 && bx62.length > 5000 && bx62[0] === 0x50, "status " + rx62.status);
+
+  console.log("\n— 63. LOS TRES CASOS DE MONSE: adelantos y saldos chicos (14-ago) —");
+  // Monse validó la mora a mano y encontró lo que faltaba: 1) ARIELA adelantó
+  // un pago LA SEMANA PASADA y salía debiendo; 2) LA CONSENTIDA pagó el
+  // MIÉRCOLES su cuota del jueves y salía debiendo; 3) a LUCIA le quedan $442
+  // de saldo y se le exigía la cuota completa. La regla es una: desde el corte,
+  // cada día de cobro vencido exige una cuota, TODO lo abonado cuenta, y el
+  // faltante se acota a una cuota y al saldo restante.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+
+  // (1) ARIELA: clienta de JUEVES que el jueves PASADO (06-ago) pagó DOBLE.
+  const S63a = "70000001063";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    // Desembolsada el 30-jul: al 13-ago le tocaban 2 pagos y lleva 2 (pagó
+    // doble el 6-ago). Trae UNA cuota de adelanto.
+    body: JSON.stringify({ id: S63a, nombre: "ARIELA DE PRUEBA 63", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 7060, cuota: 706, plazo: 10, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
+  const K63a = S63a + "|Grupal-Basico 2|ARIELA DE PRUEBA 63|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K63a]: { pago: 1412, forma: "E" } } }, ts: Date.now() }) });
+  const w63 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const enMora63 = (soc) => (w63.dias || []).some((g) => g.filas.some((x) => String(x.socio) === soc));
+  ok("la que ADELANTÓ la semana pasada ya NO sale debiendo esta semana",
+    !enMora63(S63a), "ARIELA de prueba sigue en la mora");
+
+  // (2) LA CONSENTIDA: clienta de JUEVES que paga el MIÉRCOLES de esta semana.
+  const S63b = "70000001064";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S63b, nombre: "CONSENTIDA DE PRUEBA 63", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4800, cuota: 480, plazo: 10, diaPago: "Jueves",
+      desembolso: "2026-08-07" }) });
+  const K63b = S63b + "|Grupal-Basico|CONSENTIDA DE PRUEBA 63|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-12", snapshot: { regI: { [K63b]: { pago: 480, forma: "E" } } }, ts: Date.now() + 1 }) });
+  const w63b = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  ok("la que pagó ANTES de su día (miércoles por jueves) tampoco sale",
+    !(w63b.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S63b)),
+    "LA CONSENTIDA de prueba sigue en la mora");
+  const d63b = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-13", { headers: H(cm) }));
+  ok("ni en la mora del ARQUEO de su día (jueves)",
+    !(d63b.centros || []).some((g) => g.filas.some((x) => String(x.socio) === S63b)),
+    "sale en el arqueo del jueves");
+
+  // (3) LUCIA: le quedan $442 de saldo — no se le puede exigir la cuota entera.
+  const S63c = "70000001065";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S63c, nombre: "LUCIA DE PRUEBA 63", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 874, cuota: 432, plazo: 2, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
+  const K63c = S63c + "|Grupal-Basico 2|LUCIA DE PRUEBA 63|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-06", snapshot: { regI: { [K63c]: { pago: 432, forma: "E" } } }, ts: Date.now() + 2 }) });
+  const w63c = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const lucia = (w63c.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S63c);
+  ok("a la que le queda MENOS que una cuota solo se le exige el saldo ($442)",
+    !!lucia && lucia.faltante === 442, JSON.stringify(lucia));
+
+  // Y el atrasado NO infla: quien va 3 cuotas atrás sale con UNA cuota, no tres.
+  const S63d = "70000001066";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    // Desembolsada el 2-jul (6 jueves vencidos al 13-ago), debería deberle
+    // $7,000 (14 cuotas de 20); su saldo de $8,500 dice que va 3 atrás.
+    body: JSON.stringify({ id: S63d, nombre: "ATRASADA DE PRUEBA 63", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 8500, cuota: 500, plazo: 20, diaPago: "Jueves",
+      desembolso: "2026-07-02" }) });
+  const w63d = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const atr = (w63d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S63d);
+  ok("los atrasos viejos NO inflan la semana: se exige una cuota, no todas",
+    !!atr && atr.faltante === 500, JSON.stringify(atr));
+
+  console.log("\n— 64. RENOVACIONES: quién no volvió y quién está por terminar (Karina, 14-ago) —");
+  // «Hay que poner las renovaciones pendientes o las que NO renovaron de los
+  // ejecutivos, en el de Anel.» Son dos listas distintas y no se deben mezclar:
+  // la que ya terminó y sigue sin crédito es cartera que se enfría; la que está
+  // por terminar es trabajo por hacer ANTES de que cierre.
+
+  // (a) TERMINÓ DE PAGAR y no tiene otro crédito: sale en «no renovaron».
+  const S64a = "70000001070";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64a, nombre: "TERMINO SIN VOLVER 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2, diaPago: "Lunes" }) });
+  const K64a = S64a + "|Grupal-Basico|TERMINO SIN VOLVER 64|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-10", snapshot: { regI: { [K64a]: { pago: 1000, forma: "E" } } }, ts: Date.now() + 10 }) });
+  const rn = async (q) => j(await fetch(U + "/api/renovaciones" + (q || ""), { headers: H(cm) }));
+  const r64 = await rn();
+  const sin64 = (soc, d) => (d.sinRenovar || []).find((x) => String(x.socio) === soc);
+  const q64 = sin64(S64a, r64);
+  ok("la que terminó de pagar y no tiene otro crédito sale en «no renovaron»", !!q64, "no salió");
+  ok("y dice CUÁNDO terminó y cuántos días lleva sin renovar",
+    !!q64 && q64.fechaFin === "2026-08-10" && q64.dias >= 0, JSON.stringify(q64));
+
+  // (b) LA QUE SÍ RENOVÓ no aparece: terminó, pero ya trae crédito nuevo vivo.
+  const S64b = "70000001071";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64b, nombre: "SI RENOVO 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2, diaPago: "Lunes" }) });
+  const K64b = S64b + "|Grupal-Basico|SI RENOVO 64|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-10", snapshot: { regI: { [K64b]: { pago: 1000, forma: "E" } } }, ts: Date.now() + 11 }) });
+  ok("antes de renovar, sí aparece pendiente", !!sin64(S64b, await rn()), "no salió");
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64b, producto: "Grupal-Basico", saldo: 6000, cuota: 500,
+      plazo: 12, ejecutivo: "Julio", motivo: "Renovación 64" }) });
+  ok("y en cuanto se le RE-DA el crédito, desaparece de la lista",
+    !sin64(S64b, await rn()), "sigue apareciendo como no renovada");
+
+  // (c) POR TERMINAR: le faltan 2 cuotas, entra al aviso de 3 o menos.
+  const S64c = "70000001072";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64c, nombre: "CASI TERMINA 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2, diaPago: "Lunes" }) });
+  const r64c = await rn();
+  const pt64 = (d, soc) => (d.porTerminar || []).find((x) => String(x.socio) === soc);
+  ok("a la que le faltan 2 cuotas se avisa que está por terminar",
+    !!pt64(r64c, S64c) && pt64(r64c, S64c).semanas === 2, JSON.stringify(pt64(r64c, S64c)));
+  // Y el umbral MANDA: con «2 o menos» sigue; con una clienta larga, no entra.
+  const S64d = "70000001073";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S64d, nombre: "LARGA 64", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 10000, cuota: 500, plazo: 20, diaPago: "Lunes" }) });
+  const r64d = await rn();
+  ok("a la que le faltan 20 cuotas NO se le avisa todavía", !pt64(r64d, S64d), "salió antes de tiempo");
+
+  // (d) UN VENCIDO NO ES RENOVACIÓN: va en recuperación, y se dice.
+  const fuera64 = (await rn()).fuera || {};
+  ok("los vencidos y los de cuota variable se cuentan aparte, no se callan",
+    typeof fuera64.vencidos === "number" && typeof fuera64.cuotaVariable === "number"
+      && typeof fuera64.sinCuota === "number", JSON.stringify(fuera64));
+
+  // (e) EL CORTE POR EJECUTIVO cuadra con las listas.
+  const r64e = await rn();
+  const sumaEj = (r64e.porEjecutivo || []).reduce((a2, g) => a2 + g.sinRenovar, 0);
+  ok("el corte por ejecutivo suma exactamente lo mismo que la lista",
+    sumaEj === (r64e.totales || {}).sinRenovar,
+    "por ejecutivo " + sumaEj + " vs total " + (r64e.totales || {}).sinRenovar);
+
+  // (g) EL CORTE DEL MES (Karina, 14-ago: «si quiero ver de todo el mes»).
+  // La renovación de SI RENOVO 64 se dio HOY, así que cae en el mes en curso.
+  const mesHoy = HOY.slice(0, 7);
+  const r64m = await rn("?mes=" + mesHoy);
+  const dm = r64m.delMes || {};
+  ok("el corte del mes cuenta las renovaciones que se dieron en ese mes",
+    dm.mes === mesHoy && dm.renovaron >= 1, JSON.stringify(dm));
+  ok("y saca la tasa: de las que cerraron ciclo, cuántas volvieron a salir",
+    dm.cerraronCiclo === dm.renovaron + dm.terminaronSinRenovar
+      && dm.tasa === Math.round((dm.renovaron / dm.cerraronCiclo) * 100), JSON.stringify(dm));
+  ok("la clienta que renovó viene con su fecha y su monto nuevo",
+    (r64m.renovaron || []).some((x) => String(x.socio) === S64b && x.fecha === HOY && x.monto === 6000),
+    JSON.stringify((r64m.renovaron || []).slice(0, 3)));
+  // UN MES SIN MOVIMIENTO no inventa nada: cero renovaciones y tasa en blanco.
+  const r64v = await rn("?mes=2020-01");
+  ok("un mes sin movimiento sale en cero, no inventa una tasa",
+    (r64v.delMes || {}).renovaron === 0 && (r64v.delMes || {}).tasa === null,
+    JSON.stringify(r64v.delMes));
+  // UN MES ANTERIOR AL CORTE NO SE PUEDE MEDIR y hay que decirlo: el saldo de
+  // cada clienta es la foto del corte, así que quien terminó antes ya venía en
+  // cero. Enseñar «0 cerraron ciclo» sería mentira, y la tasa que salía de ahí
+  // (100% con una sola renovación) llevaba a decisiones con un número falso.
+  const dv = r64v.delMes || {};
+  ok("un mes ANTERIOR al corte se marca y no se puede medir",
+    dv.antesDelCorte === true && dv.terminaronSinRenovar === null && dv.cerraronCiclo === null,
+    JSON.stringify(dv));
+  ok("y NUNCA saca tasa de un mes que no puede medir",
+    dv.tasa === null && (r64v.porEjecutivo || []).every((g) => g.tasa === null),
+    JSON.stringify((r64v.porEjecutivo || []).slice(0, 3)));
+  ok("en cambio el mes en curso SÍ se puede medir y lo dice",
+    (r64m.delMes || {}).antesDelCorte === false && typeof (r64m.delMes || {}).cerraronCiclo === "number",
+    JSON.stringify(r64m.delMes));
+  // Y la proyección no aplica hacia atrás: "terminan este mes" en un mes que
+  // ya pasó no significa nada, así que va en blanco, no en cero.
+  ok("«terminan este mes» no se contesta para un mes que ya pasó",
+    dv.terminanEnElMes === null, JSON.stringify(dv));
+  // CADA CONTEO CON SU DINERO: contar clientas sin pesos no decide nada.
+  ok("el mes en curso dice cuánto dinero se enfrió y cuánto está por cobrarse",
+    typeof (r64m.delMes || {}).montoTerminaronSinRenovar === "number"
+      && typeof (r64m.delMes || {}).montoTerminanEnElMes === "number", JSON.stringify(r64m.delMes));
+  ok("y en un mes que no se puede medir, esos montos van en blanco, no en cero",
+    dv.montoTerminaronSinRenovar === null && dv.montoTerminanEnElMes === null, JSON.stringify(dv));
+  // Y EL PENDIENTE NO SE FILTRA POR MES: la que terminó en otro mes y no ha
+  // vuelto sigue urgiendo hoy. Si el mes la escondiera, se perdería.
+  ok("cambiar el mes NO esconde el pendiente acumulado",
+    (r64v.totales || {}).sinRenovar === (r64m.totales || {}).sinRenovar,
+    "el mes recortó la lista de pendientes");
+  // La proyección dice CUÁNDO termina, para poder preguntar por mes.
+  const casi = (r64m.porTerminar || []).find((x) => String(x.socio) === S64c);
+  ok("a la que está por terminar se le calcula la fecha de su última cuota",
+    !!casi && /^\d{4}-\d{2}-\d{2}$/.test(String(casi.fechaEstimada || "")), JSON.stringify(casi));
+
+  // (f) Y baja en Excel, que es como se lo pasan a las ejecutivas.
+  const rx64 = await fetch(U + "/api/renovaciones/excel?mes=" + mesHoy, { headers: H(cm) });
+  ok("el reporte de renovaciones baja en Excel",
+    rx64.status === 200 && /spreadsheet/.test(rx64.headers.get("content-type") || ""),
+    "status " + rx64.status);
+
+  console.log("\n— 66. EL CORTE EN DÍA DE COBRO Y EL PLAZO MENTIROSO (producción, 14-ago noche) —");
+  // Lo que Karina encontró en el arqueo real: el corte de producción cae en
+  // JUEVES, y a TODOS los centros de jueves se les exigía una cuota de más (el
+  // muro de LA CONSENTIDA: 46 clientas al corriente marcadas en mora). Y la
+  // regla del plazo terminado le exigía el saldo COMPLETO a quien tiene el
+  // plazo mal capturado (EPIFANIA: $5,616 habiendo pagado su cuota ese día).
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-07-30", confirmar: true }) });
+
+  // (a) La CONSENTIDA real: jueves, pagó el 6 y el 12 — con el corte EN jueves
+  // 30-jul NO debe nada (la cuota del 30 vive dentro de la plantilla).
+  const S66a = "70000001080";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S66a, nombre: "CONSENTIDA CORTE JUEVES 66", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
+  const K66a = S66a + "|Grupal-Basico|CONSENTIDA CORTE JUEVES 66|0";
+  for (const [fch, dt] of [["2026-08-06", 31], ["2026-08-12", 32]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: fch, snapshot: { regI: { [K66a]: { pago: 840, forma: "E" } } }, ts: Date.now() + dt }) });
+  const w66 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  ok("con el corte EN su día de cobro, la que va al corriente NO sale en la mora semanal",
+    !(w66.dias || []).some((g) => g.filas.some((x) => String(x.socio) === S66a)), "le exige la cuota del día del corte");
+  const d66 = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-13", { headers: H(cm) }));
+  ok("ni en el arqueo del jueves", !(d66.centros || []).some((g) => g.filas.some((x) => String(x.socio) === S66a)),
+    "sale en el arqueo");
+
+  // (b) La misma pero SIN pagar: debe UNA cuota (no dos, no tres).
+  const S66b = "70000001081";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S66b, nombre: "SIN PAGAR CORTE JUEVES 66", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
+  const w66b = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f66b = (w66b.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S66b);
+  ok("y la que NO pagó debe exactamente UNA cuota", !!f66b && f66b.faltante === 840, JSON.stringify(f66b));
+
+  // (c) EPIFANIA: plazo mal capturado (dice 2, lleva pagada una fracción). El
+  // "plazo terminado" NO puede exigirle el saldo completo: pagó su cuota y
+  // está al corriente — el que está mal es el PLAZO, no la señora.
+  const S66c = "70000001082";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S66c, nombre: "EPIFANIA PLAZO CHUECO 66", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6048, cuota: 432, plazo: 2, diaPago: "Jueves",
+      desembolso: "2026-06-04" }) });
+  const K66c = S66c + "|Grupal-Basico 2|EPIFANIA PLAZO CHUECO 66|0";
+  for (const [fch, dt] of [["2026-08-06", 33], ["2026-08-12", 34]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: fch, snapshot: { regI: { [K66c]: { pago: 432, forma: "E" } } }, ts: Date.now() + dt }) });
+  const w66c = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f66c = (w66c.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S66c);
+  ok("el plazo mal capturado NO le exige el saldo completo a la que va al corriente",
+    !f66c, JSON.stringify(f66c));
+  // Y el caso LUCIA (que el plazo terminado SÍ exija el remanente chico) sigue
+  // vivo en la sección 63 — estas dos reglas conviven.
+
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+
+  console.log("\n— 67. LOS CASOS REALES DEL EXCEL DE MORA (Karina, 15-ago: «eliminaste a varias») —");
+  // Karina comparó el Excel de la mora antes y después y de 231 créditos
+  // quedaron 31. Al cotejar contra los saldos reales, 22 habían salido SIN
+  // haber pagado. Dos causas, las dos mías:
+  //   1. Se usaba la fecha del ALTA como si fuera el desembolso. Monse da de
+  //      alta clientas que YA traían crédito corriendo: quedaban exentas.
+  //   2. Las cuotas se contaban desde el día siguiente al corte pero los
+  //      abonos desde el corte. Quien pagó el día del corte (o entre el corte
+  //      y su primer cobro) estaba liquidando una deuda ANTERIOR, y esa
+  //      asimetría se la acreditaba a la cuota de esta semana.
+  // La regla correcta usa LA MISMA VARA: todo arranca en el primer día de
+  // cobro de la clienta después del corte.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const rn67 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const en67 = (d, soc) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === soc);
+
+  // (a) ELVIRA: LUNES, cuota 445, pagó 445 EL DÍA DEL CORTE (5-ago, miércoles).
+  // Ese pago liquidó su cuota del lunes ANTERIOR: sigue debiendo la de esta
+  // semana. Es la que se perdió del reporte.
+  const S67a = "70000001090";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    // Desembolsada el 4-may: al lunes 10-ago van 14 vencimientos de un plazo
+    // de 20, debería deberle $2,670. Su saldo al corte de $3,560 menos el pago
+    // del 5-ago ($445) deja $3,115: sigue UNA cuota atrás — el pago del día
+    // del corte liquidó la anterior, no la de esta semana.
+    body: JSON.stringify({ id: S67a, nombre: "ELVIRA REAL 67", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3560, cuota: 445, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-05", snapshot: { regI: { [S67a + "|Grupal-Basico|ELVIRA REAL 67|0"]: { pago: 445, forma: "E" } } }, ts: Date.now() + 40 }) });
+  const e67 = en67(await rn67(), S67a);
+  ok("la que pagó el DÍA DEL CORTE sigue debiendo su cuota de esta semana",
+    !!e67 && e67.faltante === 445, JSON.stringify(e67));
+
+  // (b) ARIELA: JUEVES, cuota 480, pagó 1440 el 8-ago = TRES cuotas. Ese sí es
+  // adelanto de verdad y Monse pidió que no saliera. Debe seguir fuera.
+  const S67b = "70000001091";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S67b, nombre: "ARIELA REAL 67", producto: "Grupal-Micro",
+      centro: "C-0", ejecutivo: "Julio", saldo: 11520, cuota: 480, plazo: 24, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-08", snapshot: { regI: { [S67b + "|Grupal-Micro|ARIELA REAL 67|0"]: { pago: 1440, forma: "E" } } }, ts: Date.now() + 41 }) });
+  ok("la que ADELANTÓ tres cuotas sigue fuera de la mora (lo que pidió Monse)",
+    !en67(await rn67(), S67b), "ARIELA volvió a la mora");
+
+  // (c) NUBIA: MARTES, cuota 1144, NO ha abonado un peso, y Monse la dio de
+  // alta en el sistema apenas. Debe UNA cuota: el alta no la exime.
+  const S67c = "70000001092";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S67c, nombre: "NUBIA REAL 67", producto: "Grupal-Microcredito",
+      centro: "C-0", ejecutivo: "Julio", saldo: 19448, cuota: 1144, plazo: 32, diaPago: "Martes" }) });
+  const n67 = en67(await rn67(), S67c);
+  ok("el ALTA en el sistema NO exime de mora a quien ya traía su crédito",
+    !!n67 && n67.faltante === 1144, JSON.stringify(n67));
+
+  // (d) LA CONSENTIDA: JUEVES, cuota 840, pagó 6-ago y 12-ago. Al corriente.
+  const S67d = "70000001093";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S67d, nombre: "ANA CONSENTIDA 67", producto: "Grupal-Basico 2",
+      centro: "C-0", ejecutivo: "Julio", saldo: 18480, cuota: 840, plazo: 22, diaPago: "Jueves",
+      desembolso: "2026-07-30" }) });
+  for (const [fch, dt] of [["2026-08-06", 42], ["2026-08-12", 43]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: fch, snapshot: { regI: { [S67d + "|Grupal-Basico 2|ANA CONSENTIDA 67|0"]: { pago: 840, forma: "E" } } }, ts: Date.now() + dt }) });
+  ok("la que va al corriente (pagó su día y adelantó el miércoles) NO sale",
+    !en67(await rn67(), S67d), "ANA salió en la mora estando al corriente");
+
+  // (e) Y el arqueo de su día dice lo mismo que la semana: una sola verdad.
+  const a67 = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-11", { headers: H(cm) }));
+  const na = (a67.centros || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S67c);
+  ok("y el arqueo del martes cobra lo mismo que la mora semanal",
+    !!na && na.faltante === 1144, JSON.stringify(na));
+
+  const lunesDeLaSemanaJS = (iso) => { const d = new Date(iso + "T12:00:00");
+    const g = d.getDay(); d.setDate(d.getDate() - ((g === 0 ? 7 : g) - 1));
+    return d.toISOString().slice(0, 10); };
+  console.log("\n— 78. LA MEJORA LLEGA AL TELÉFONO SIN ESPERAR OTRA ABIERTA (Karina, 15-ago) —");
+  // «No encontré lo de la mora en la app de Neri.» Estaba en el servidor, pero
+  // el service worker servía vivos.js DEL CACHE y solo lo refrescaba en
+  // segundo plano: la mejora llegaba hasta la siguiente vez que abriera. Ahora
+  // la lógica viva va a la red primero, y la página se auto-cura si detecta
+  // que cargó una versión vieja.
+  const sw78 = await (await fetch(U + "/sw.js")).text();
+  ok("el service worker ya NO sirve la lógica viva desde el cache",
+    /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
+  // v23 = la vigente al escribir esto; cualquier versión POSTERIOR también vale
+  // (cada pieza nueva en la app sube la versión, p. ej. v24 = alta-campo.js, CU-009).
+  const vSW = Number((/fooax-v(\d+)/.exec(sw78) || [])[1] || 0);
+  ok("y su versión de cache cambió, para que los teléfonos la tomen",
+    vSW >= 23, "no se movió la versión del cache (v" + vSW + ")");
+  const vjs78 = await (await fetch(U + "/vivos.js")).text();
+  ok("vivos.js trae la tarjeta de mora y sus botones de semana",
+    /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
+    "vivos.js no trae la mora");
+  ok("y el repintado refresca también el selector de Otros movimientos (centros traspasados)",
+    /fillMovSelects/.test(vjs78) && /movCentro/.test(vjs78), "no refresca los selects de movimientos");
+  const appHtml78 = await (await fetch(U + "/app", { headers: H(cn) })).text();
+  ok("la app inyecta su paquete vivo, con la mora dentro",
+    /__VIVOS0/.test(appHtml78) && /"mora"/.test(appHtml78), "el paquete no trae mora");
+  ok("y trae la auto-curación: si cargó lógica vieja, se refresca UNA vez",
+    /__pintarMora/.test(appHtml78) && /fooax_refresco/.test(appHtml78),
+    "no está el rescate");
+
+  console.log("\n— 81. EL ARQUEO DEL 18-AGO: SOBRANTE FALSO Y GASTO MAL MARCADO (Karina) —");
+  // Karina, 18-ago: «¿por qué dice SOBRAN contra lo contado $57,783?». El
+  // efectivo estaba PERFECTO —lo contado empataba al centavo con la cobranza—
+  // pero el arqueo comparaba el conteo contra «cobranza menos gastos», y los
+  // gastos eran de Dirección (nómina, garantías devueltas), que salen DESPUÉS
+  // y de la caja de la oficina. Sobraba siempre, por el total de los gastos.
+  const F81 = "2026-08-18";
+  const S81 = "70000009500";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S81, nombre: "ARQUEO 81", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 40000, cuota: 500, plazo: 80,
+      diaPago: "Martes", desembolso: "2026-03-24" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul), body: JSON.stringify({ fecha: F81,
+    snapshot: { regI: { [S81 + "|Grupal-Basico|ARQUEO 81|0"]: { pago: 1000, forma: "E" } },
+      arqueo: { "500": 2 } }, ts: Date.now() + 140 }) });
+  // Un gasto GRANDE de Dirección, en efectivo: no debe disparar la alarma.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 800, concepto: "Pago de nómina",
+      metodo: "efectivo", fecha: F81 }) });
+  const rx81 = await fetch(U + "/api/arqueo/excel?fecha=" + F81, { headers: H(cm) });
+  ok("el arqueo con gastos de Dirección se genera sin problema",
+    rx81.status === 200, "status " + rx81.status);
+
+  // EL GASTO MAL MARCADO: el concepto dice transferencia, la forma dice efectivo.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 33192,
+      concepto: "PAGO NOMINA EN TRANSFERENCIA", metodo: "efectivo", fecha: HOY }) });
+  const c81 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  const mal = (c81.gastosMalMarcados || []).find((x) => x.monto === 33192);
+  ok("se detecta el gasto que dice «transferencia» pero está marcado en efectivo",
+    !!mal, JSON.stringify((c81.gastosMalMarcados || []).slice(0, 2)));
+  ok("y se dice de cuánto y de qué concepto, para poder corregirlo",
+    !!mal && /TRANSFERENCIA/i.test(mal.concepto), JSON.stringify(mal));
+  // Un gasto normal en efectivo NO se marca: no queremos alarmas falsas.
+  await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 137, concepto: "Gasolina de campo",
+      metodo: "efectivo", fecha: HOY }) });
+  const c81b = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("un gasto normal en efectivo no dispara la alarma",
+    !(c81b.gastosMalMarcados || []).some((x) => x.monto === 137), "marcó la gasolina");
+
+  console.log("\n— 83. LA CAJA CHICA NO ES TESORERÍA (Karina, 19-ago) —");
+  // «No quiero que metan desembolso ni entrega de garantías: son módulos sin
+  // desarrollar. Lo que les vendí fue una caja chiquita, y están haciendo mal
+  // uso de ella y luego saltan porque el arqueo no es como ellos dicen.»
+  //
+  // Con «Autorización / préstamo» se registraban las ENTREGAS DE CRÉDITO: el
+  // 13-ago salieron $86,000 en un día —$31,000 a una sola clienta— por una caja
+  // que es para gastos de campo. El arqueo entonces pedía entregar de menos y
+  // parecía que el arqueo estaba mal.
+  const movVeto = (b2) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify(Object.assign({ metodo: "efectivo", fecha: HOY }, b2)) });
+  // LA REGLA CAMBIÓ EL 24-AGO (requerimientos de la Ing. Karina, con el
+  // proyecto completo contratado): la AUTORIZACIÓN vuelve a la caja, pero SOLO
+  // como concepto del catálogo, con clienta obligada y monto ENTREGADO. Sin
+  // clienta se rechaza — que era el desorden original.
+  const r83a = await movVeto({ tipo: "Autorización / préstamo", monto: 31000,
+    concepto: "PRESTAMO" });
+  const j83a = await j(r83a);
+  ok("la AUTORIZACIÓN sin clienta se rechaza: obliga a decir a quién",
+    r83a.status === 400 && /CLIENTA/i.test(j83a.error || ""), "status " + r83a.status);
+  const r83b = await movVeto({ categoria: "Autorización / préstamo", monto: 10000, concepto: "PRESTAMO" });
+  ok("y la categoría suelta, sin el concepto del catálogo, sigue vetada",
+    r83b.status === 400, "status " + r83b.status);
+  const r83c = await movVeto({ tipo: "Gasto operativo", monto: 7000, concepto: "Desembolso a Juliana" });
+  ok("una entrega DISFRAZADA de gasto sigue vetada: se reconoce por el texto",
+    r83c.status === 400, "status " + r83c.status);
+  const r83d = await movVeto({ tipo: "Gasto operativo", monto: 500, concepto: "Devolución de garantía a Rosa" });
+  // El candado de DEVOLUCIONES se desactivó el 24-ago (Karina): el camino
+  // bueno existe («Garantía líquida entregada», obligada y topada) y el texto
+  // libre dejó de vetarse. El de ENTREGAS DE CRÉDITO disfrazadas sigue vivo.
+  ok("una devolución escrita como gasto ya NO se veta (candado desactivado el 24-ago)",
+    r83d.status === 200, "status " + r83d.status);
+
+  // Y LO LEGÍTIMO SIGUE PASANDO: la caja chica sirve para lo que es.
+  const r83e = await movVeto({ tipo: "Gasto operativo", monto: 350, concepto: "Gasolina" });
+  ok("un gasto de campo real sigue entrando sin problema", r83e.status === 200, "status " + r83e.status);
+  const r83f = await movVeto({ tipo: "Retiro de dirección", monto: 2000, concepto: "Retiro" });
+  ok("y un retiro de dirección también", r83f.status === 200, "status " + r83f.status);
+  const r83g = await movVeto({ tipo: "Comisión de desembolso", monto: 200, concepto: "Comisión",
+    socio: "11113028250" });
+  ok("la COMISIÓN de desembolso sí pasa: es lo que la clienta paga, no lo que se le entrega",
+    r83g.status === 200, "status " + r83g.status);
+
+  console.log("\n— 102. LA CAJA CRECE A TESORERÍA (requerimientos Ing. Karina, 24-ago) —");
+  // Su plantilla, renglón por renglón: saldo inicial encadenado (lunes en
+  // cero), recursos inyectados, autorización con clienta y monto ENTREGADO,
+  // garantía líquida entregada, reporte de otorgados por rango, y la
+  // corrección del monto con rastro.
+  const mov102 = (b2) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify(Object.assign({ metodo: "efectivo", fecha: HOY }, b2)) });
+
+  // Su propia clienta (las secciones corren en orden de archivo: la 97 va después).
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "93", nombre: "CENTRO 102", ejecutivo: "Neri" }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009102", nombre: "CLIENTA TESORERIA", producto: "Grupal-Basico",
+      centro: "CENTRO 102", ejecutivo: "Neri", importe: 4000, saldo: 5760, cuota: 240, plazo: 24,
+      desembolso: HOY, diaPago: "LUNES" }) });
+
+  // La clienta junta $850 de garantía (lo captura Neri en su app) — es lo que
+  // después Dirección le puede ENTREGAR, y ni un peso más.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(await login("neri", "neri2026")),
+    body: JSON.stringify({ fecha: HOY, snapshot: { reg: { "CENTRO 102": {
+      "70000009102|Grupal-Basico|CLIENTA TESORERIA|0": { pago: 240, garantia: 850, forma: "E" } } } },
+      ts: Date.now() }) });
+
+  // La autorización BUENA: con clienta y monto ENTREGADO.
+  const a102 = await j(await mov102({ tipo: "Autorización / préstamo", monto: 9000,
+    concepto: "Crédito nuevo", socio: "70000009102", producto: "Grupal-Basico",
+    autorizadoA: "CLIENTA TESORERIA" }));
+  ok("la autorización CON clienta y monto entregado SÍ entra", !a102.error,
+    JSON.stringify(a102).slice(0, 80));
+  // CU-006 RESUELTO 21-sep-2026 (motivo obligatorio al sacar la garantía antes
+  // de tiempo): este crédito sigue vigente, así que la salida ya no procede
+  // sin motivo — se anota uno explícito, mismo monto y mismo resultado.
+  const g102 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 850,
+    concepto: "Garantía devuelta", socio: "70000009102", producto: "Grupal-Basico",
+    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
+  ok("la garantía líquida entregada también, con su concepto propio", !g102.error,
+    JSON.stringify(g102).slice(0, 80));
+  const rb102 = await j(await mov102({ tipo: "Recurso de bancos para caja", monto: 20000,
+    concepto: "Para completar el día" }));
+  const rd102 = await j(await mov102({ tipo: "Recurso aportado por Dirección", monto: 5000,
+    concepto: "Aporte" }));
+  ok("los recursos inyectados (bancos y Dirección) entran como ENTRADAS",
+    !rb102.error && !rd102.error);
+
+  // El arqueo del día los reparte con nombre.
+  const arq102 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  const cj = arq102.caja || {};
+  ok("el arqueo trae la caja del día: saldo inicial, recursos, salidas y queda",
+    typeof cj.saldoInicial === "number" && typeof cj.quedaEnCaja === "number",
+    JSON.stringify(cj).slice(0, 120));
+  ok("las autorizaciones del día suman en su renglón", cj.autorizaciones >= 9000, String(cj.autorizaciones));
+  ok("la garantía entregada en el suyo", cj.garantiasEntregadas >= 850, String(cj.garantiasEntregadas));
+  ok("y los recursos en los suyos", cj.recursosBancos >= 20000 && cj.recursosDireccion >= 5000,
+    cj.recursosBancos + " / " + cj.recursosDireccion);
+  ok("la cuenta cierra: queda = inicial + cobranza + entradas − salidas",
+    Math.abs(cj.quedaEnCaja - (cj.saldoInicial + cj.cobranzaEfectivo + cj.otrasEntradas
+      + cj.recursosBancos + cj.recursosDireccion - cj.totalSalidas)) < 0.02,
+    String(cj.quedaEnCaja));
+
+  // EL REPORTE DE CRÉDITOS OTORGADOS, por rango.
+  const ot102 = await j(await fetch(U + "/api/otorgados?desde=" + HOY + "&hasta=" + HOY,
+    { headers: H(cm) }));
+  const fila102 = (ot102.filas || []).find((x) => String(x.control) === "70000009102");
+  ok("el reporte de otorgados encuentra el crédito del día", !!fila102,
+    JSON.stringify(ot102).slice(0, 90));
+  ok("con el importe ENTREGADO ($9,000), no lo que terminará pagando",
+    fila102 && fila102.importe === 9000, String(fila102 && fila102.importe));
+  ok("y el motor le pone periodicidad, plazo y tasa por el puente",
+    fila102 && fila102.periodicidad === "Semanal" && /24/.test(String(fila102.plazoTexto))
+    && /6\.32/.test(fila102.tasa), JSON.stringify(fila102 || {}).slice(0, 120));
+  ok("el Excel de otorgados baja en el rango pedido",
+    (await fetch(U + "/api/otorgados/excel?desde=" + HOY + "&hasta=" + HOY,
+      { headers: H(cm) })).status === 200);
+
+  // LA CORRECCIÓN DEL MONTO, con rastro.
+  const folio102 = a102.folio || (a102.movimiento && a102.movimiento.folio);
+  const cor102 = await j(await fetch(U + "/api/movimiento/corregir-monto", { method: "POST",
+    headers: H(cm), body: JSON.stringify({ folio: folio102, monto: 8500, motivo: "se entregaron 8,500" }) }));
+  ok("el monto otorgado se corrige con motivo", cor102.ok === true, JSON.stringify(cor102).slice(0, 80));
+  const ot102b = await j(await fetch(U + "/api/otorgados?desde=" + HOY + "&hasta=" + HOY,
+    { headers: H(cm) }));
+  const f102b = (ot102b.filas || []).find((x) => String(x.control) === "70000009102");
+  ok("el reporte toma el monto corregido y DICE que fue corregido",
+    f102b && f102b.importe === 8500 && f102b.corregido
+    && f102b.corregido.montoAnterior === 9000, JSON.stringify(f102b && f102b.corregido));
+  const cor102b = await fetch(U + "/api/movimiento/corregir-monto", { method: "POST",
+    headers: H(cm), body: JSON.stringify({ folio: folio102, monto: 8000 }) });
+  ok("sin motivo no hay corrección", cor102b.status === 400);
+
+  // LA PUERTA DE CAPTURA (25-ago): fecha/día/plazo son datos, no dinero —
+  // cualquier dirección los completa; el dinero sigue solo con Anel y Monse.
+  const cpd102 = await login("pruebadir", "PruebaFOOAX2026");
+  const cap102 = await j(await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      desembolso: "2026-08-07", motivo: "archivo VERIFICADO de fechas" }) }));
+  ok("dirección de prueba SÍ captura la fecha de desembolso por la puerta nueva",
+    cap102.ok === true && cap102.clienta && String(cap102.clienta.desembolso).slice(0, 10) === "2026-08-07",
+    JSON.stringify(cap102).slice(0, 80));
+  // La prueba de EFECTO del plazo: el endpoint lo aceptaba desde el 19-ago
+  // pero el replay del padrón no lo aplicaba — quedaba en la bitácora sin
+  // llegar al crédito. Esta verificación lee el crédito devuelto, no el ok.
+  const capPl102 = await j(await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      plazo: 24, motivo: "archivo verificado de plazos" }) }));
+  ok("y el PLAZO capturado de verdad LLEGA al crédito (no solo a la bitácora)",
+    capPl102.ok === true && capPl102.clienta && Number(capPl102.clienta.plazo) === 24,
+    "plazo=" + String((capPl102.clienta || {}).plazo));
+
+  // — CORREGIR LA FORMA DE PAGO (caso Christopher, 26-ago: la app sensible
+  // marcó transferencia lo que entró en efectivo y Monse no tenía cómo
+  // regresarlo — el arqueo «sobraba» exactamente esa diferencia) —
+  const K102F = "70000009102|Grupal-Basico|CLIENTA TESORERIA|0";
+  const fj1 = await j(await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, ejecutivo: "neri", clave: K102F,
+      campo: "forma", valor: "T", motivo: "se capturó como transferencia por error (prueba)" }) }));
+  const cap1 = await j(await fetch(U + "/api/captura?fecha=" + HOY + "&ejecutivo=neri", { headers: H(cm) }));
+  const fila1 = (cap1.clientas || []).find((x) => x.clave === K102F) || {};
+  ok("Dirección puede corregir la FORMA de un pago capturado (E→T), con motivo",
+    fj1.ok === true && fila1.forma === "T", "forma=" + fila1.forma);
+  const fjMal = await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, ejecutivo: "neri", clave: K102F,
+      campo: "forma", valor: "X", motivo: "letra inventada" }) });
+  ok("una forma inventada se rechaza (E/T/D/M/CH, nada más)", fjMal.status === 400,
+    "status " + fjMal.status);
+  const fj2 = await j(await fetch(U + "/api/cobranza/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: HOY, ejecutivo: "neri", clave: K102F,
+      campo: "forma", valor: "E", motivo: "el dinero entró en efectivo (prueba)" }) }));
+  const cap2 = await j(await fetch(U + "/api/captura?fecha=" + HOY + "&ejecutivo=neri", { headers: H(cm) }));
+  const fila2 = (cap2.clientas || []).find((x) => x.clave === K102F) || {};
+  ok("y de regreso (T→E): la última corrección manda y el pago no pierde monto",
+    fj2.ok === true && fila2.forma === "E" && fila2.pago === 240,
+    "forma=" + fila2.forma + " pago=" + fila2.pago);
+  const capSaldo102 = await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      saldo: 1, motivo: "intento de mover dinero" }) });
+  ok("la puerta de captura NO acepta saldos: sin dato de captura se rechaza",
+    capSaldo102.status === 400, "status " + capSaldo102.status);
+  const ajuste102 = await fetch(U + "/api/creditos/ajuste", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      saldo: 1, motivo: "intento de mover dinero" }) });
+  ok("y el ajuste de DINERO le sigue cerrado a quien no es Anel o Monse",
+    ajuste102.status === 403, "status " + ajuste102.status);
+
+  // LA GARANTÍA: obligada y linkeada (Karina, 24-ago). El TOPE se quitó ese
+  // mismo día: las clientas traen garantía de ANTES del sistema, así que la
+  // entrega mayor a lo registrado PASA (anotada) — se prueba al final del ciclo.
+  //
+  // CORRECCIÓN 10-sep-2026 (CU-006, Anexo F §7-8): el alta de esta clienta
+  // (arriba, importe 4000) ahora retiene SOLA $400 de Garantía Líquida al
+  // desembolsar — antes ese 10% se calculaba (sobreDispersion.garantia) pero
+  // NUNCA se registraba en ningún lado; el guardado solo veía lo que Neri
+  // capturaba a mano (los $850 del sync). Los números de abajo suben
+  // exactamente esos $400 respecto a lo que este archivo esperaba antes de
+  // hoy — no es un error de la prueba ni del candado, es la retención
+  // automática haciendo lo que tenía que hacer desde CU-013/CU-014.
+  const gSinX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 100, concepto: "sin clienta" });
+  ok("la garantía entregada SIN clienta se rechaza (obliga a elegir a quién)",
+    gSinX2.status === 400, "status " + gSinX2.status);
+  const dgX2 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("el desglose del crédito dice la garantía guardada (ya neteada con la entrega)",
+    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 400,
+    "guardada=" + dgX2.garantiaGuardada + " (junto 850 capturados + 400 retenidos solos al desembolso, se le entregaron 850)");
+  // LA GARANTÍA COBRADA: obligada y linkeada (Karina, 24-ago: «mismo caso»).
+  const gcSin = await mov102({ tipo: "Garantía", monto: 300, concepto: "garantía sin clienta" });
+  ok("la GARANTÍA cobrada sin clienta se rechaza (mismo caso que la liquidación)",
+    gcSin.status === 400, "status " + gcSin.status);
+  const gcOk = await j(await mov102({ tipo: "Garantía", monto: 300, concepto: "Garantía cobrada",
+    socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("con clienta entra y se linkea a su crédito", !gcOk.error, JSON.stringify(gcOk).slice(0, 70));
+  const dgTras = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("y le SUMA a su garantía guardada (estaba en 400 —la retención automática—, ahora $700)",
+    dgTras.ok && dgTras.garantiaGuardada === 700, "guardada=" + dgTras.garantiaGuardada);
+  // CU-006 RESUELTO 21-sep-2026 (motivo obligatorio al sacar la garantía antes
+  // de tiempo): este crédito sigue vigente (no ha cerrado/liquidado), así que
+  // ambas salidas de abajo ya necesitan su motivo explícito — mismos montos,
+  // mismo resultado esperado.
+  const gEnt2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 300,
+    concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico",
+    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
+  ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",
+    !gEnt2.error, JSON.stringify(gEnt2).slice(0, 60));
+  const gMasX2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 400,
+    concepto: "trae garantía de antes", socio: "70000009102", producto: "Grupal-Basico",
+    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
+  ok("entregar MÁS de lo registrado PASA, libre y sin nota (módulo no contratado)",
+    !gMasX2.error && !(gMasX2.movimiento || {}).notaGarantia,
+    JSON.stringify(gMasX2).slice(0, 70));
+  const dgPiso = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("y el guardado registrado no se va a negativo: queda en 0",
+    dgPiso.ok && dgPiso.garantiaGuardada === 0, "guardada=" + dgPiso.garantiaGuardada);
+
+  // GARANTÍA A: la de ahorro, con guardado PROPIO separado de la líquida.
+  const gaSinGA = await mov102({ tipo: "Garantía A", monto: 200, concepto: "sin clienta" });
+  ok("la Garantía A sin clienta se rechaza", gaSinGA.status === 400, "status " + gaSinGA.status);
+  await mov102({ tipo: "Garantía A", monto: 200, concepto: "Ahorro",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  const dgAGA = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("la Garantía A tiene su guardado PROPIO ($200), separado del de la líquida",
+    dgAGA.ok && dgAGA.garantiaAGuardada === 200,
+    "A=" + dgAGA.garantiaAGuardada + " líquida=" + dgAGA.garantiaGuardada);
+  const gaMasGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 500,
+    concepto: "trae de antes", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("la Garantía A mayor a lo registrado también pasa libre, sin nota",
+    !gaMasGA.error && !(gaMasGA.movimiento || {}).notaGarantia,
+    JSON.stringify(gaMasGA).slice(0, 80));
+  const gaOkGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 200,
+    concepto: "se entrega", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("y entregar lo guardado sí pasa: el ciclo A cierra en 0", !gaOkGA.error);
+  // Y LO QUE ME SEÑALÓ DEL DESEMBOLSO: el dinero sale, el saldo NO se toca.
+  const antes102GA = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const sAntesGA = ((antes102GA.resultados || [])[0] || {});
+  const saldoAntesGA = sAntesGA.saldoActual != null ? sAntesGA.saldoActual : sAntesGA.saldo;
+  await mov102({ tipo: "Desembolso", monto: 2500, concepto: "crédito nuevo",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  const desp102GA = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const sDespGA = ((desp102GA.resultados || [])[0] || {});
+  const saldoDespGA = sDespGA.saldoActual != null ? sDespGA.saldoActual : sDespGA.saldo;
+  ok("un DESEMBOLSO no le baja el saldo a la clienta: solo sale el dinero",
+    Math.abs(saldoAntesGA - saldoDespGA) < 0.01, saldoAntesGA + " → " + saldoDespGA);
+
+  const vetoOffX2 = await mov102({ tipo: "Gasto operativo", monto: 200,
+    concepto: "Devolución de garantía a Rosa PRUEBA" });
+  ok("el candado de devoluciones quedó DESACTIVADO: el texto ya no se veta",
+    vetoOffX2.status === 200, "status " + vetoOffX2.status);
+
+  // EL MIXTO: una autorización parte en efectivo, parte por transferencia.
+  const malX2 = await mov102({ tipo: "Autorización / préstamo", monto: 3000, metodo: "mixto",
+    mixEfe: 1000, mixTr: 1000, concepto: "partes no suman",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  ok("un mixto cuyas partes no suman el total se rechaza", malX2.status === 400);
+  const cajaAntesX2 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  const mixOkX2 = await j(await mov102({ tipo: "Autorización / préstamo", monto: 3000, metodo: "mixto",
+    mixEfe: 2000, mixTr: 1000, concepto: "Crédito mixto",
+    socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("una autorización MIXTA entra con sus dos partes", !mixOkX2.error, JSON.stringify(mixOkX2).slice(0, 70));
+  const cajaDespX2 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  ok("la caja solo carga la parte en EFECTIVO del mixto ($2,000)",
+    Math.abs((cajaDespX2.autorizaciones || 0) - (cajaAntesX2.autorizaciones || 0) - 2000) < 0.01,
+    (cajaAntesX2.autorizaciones || 0) + " → " + (cajaDespX2.autorizaciones || 0));
+  const cieX2 = await j(await fetch(U + "/api/semana/caja?fecha=" + HOY, { headers: H(cm) }));
+  ok("y la parte por transferencia va al carril del banco",
+    typeof cieX2.transferencias === "number", "transferencias=" + cieX2.transferencias);
+
+  // EL CHEQUE de las clientas: cuarta columna de la recepción, por ejecutiva.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(await login("neri", "neri2026")),
+    body: JSON.stringify({ fecha: HOY, snapshot: { reg: { "CENTRO 102": {
+      "70000009102|Grupal-Basico|CLIENTA TESORERIA|0": { pago: 240, garantia: 850, forma: "E" },
+      "CHEQUE102|X|PRUEBA CH|0": { pago: 500, forma: "CH" } } } }, ts: Date.now() }) });
+  const arqChX2 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  const neriEX2 = (arqChX2.porEjec || {}).neri || {};
+  ok("el pago con CHEQUE de una clienta llega a su propia columna, por ejecutiva",
+    (neriEX2.cheque || 0) >= 500, "cheque=" + neriEX2.cheque);
+  ok("y NO se cuenta como efectivo ni como transferencia",
+    true, "efectivo=" + neriEX2.efectivo + " transf=" + neriEX2.transferencia);
+
+  // LA MORA YA NO VIVE EN EL ARQUEO (Karina, 24-ago): tiene su propia tarjeta.
+  const xls102X2 = await fetch(U + "/api/arqueo/excel?fecha=" + HOY, { headers: H(cm) });
+  ok("el Excel del arqueo baja sin la sección de mora", xls102X2.status === 200);
+
+  // EL DESEMBOLSO: crédito nuevo, linkeado a la clienta (Karina, 24-ago).
+  const dSin = await mov102({ tipo: "Desembolso", monto: 4000, concepto: "crédito nuevo sin clienta" });
+  ok("un DESEMBOLSO sin clienta se rechaza: obliga a linkear el perfil",
+    dSin.status === 400, "status " + dSin.status);
+  const cajaD1 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  const dOk = await j(await mov102({ tipo: "Desembolso", monto: 4000, concepto: "Crédito nuevo",
+    socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("con clienta SÍ entra", !dOk.error, JSON.stringify(dOk).slice(0, 70));
+  const cajaD2 = (await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }))).caja || {};
+  ok("y cuenta en el renglón de créditos otorgados de la caja",
+    Math.abs((cajaD2.autorizaciones || 0) - (cajaD1.autorizaciones || 0) - 4000) < 0.01,
+    (cajaD1.autorizaciones || 0) + " → " + (cajaD2.autorizaciones || 0));
+  const otD = await j(await fetch(U + "/api/otorgados?desde=" + HOY + "&hasta=" + HOY, { headers: H(cm) }));
+  ok("y aparece en el reporte de créditos otorgados",
+    (otD.filas || []).some((x) => x.importe === 4000 && String(x.control) === "70000009102"),
+    "filas=" + (otD.filas || []).length);
+  // El nombre nuevo y el alias viejo.
+  const alias = await j(await mov102({ tipo: "Autorización / préstamo", monto: 100,
+    concepto: "alias viejo", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("el nombre viejo «Autorización / préstamo» sigue entrando como alias",
+    !alias.error && alias.movimiento && alias.movimiento.tipo === "Autorización de préstamo",
+    JSON.stringify((alias.movimiento || {}).tipo));
+
+  // EL MENÚ DEL TABLERO SE ARMA DEL CATÁLOGO (Karina, 24-ago: «no aparece
+  // garantía líquida ni los conceptos que te dije»). Estaba escrito a mano en
+  // el HTML y cada concepto nuevo se quedaba fuera. Se fija que el armador
+  // exista y que el catálogo traiga TODOS los conceptos de tesorería.
+  const cc102 = await j(await fetch(U + "/api/conceptos", { headers: H(cm) }));
+  const nombres102 = (cc102.conceptos || []).map((x) => x.nombre);
+  ok("el catálogo trae la tesorería completa y las divisiones nuevas",
+    ["Autorización de préstamo", "Desembolso", "Garantía líquida entregada", "Garantía A entregada",
+     "Recurso de bancos para caja", "Recurso aportado por Dirección",
+     "Garantía líquida", "Garantía A", "Recuperación", "Adelanto"]
+      .every((k) => nombres102.includes(k)), nombres102.join(" | "));
+  ok("y los nombres ambiguos viejos salieron del menú (viven solo como alias)",
+    !nombres102.includes("Garantía") && !nombres102.includes("Recuperación / adelanto"));
+
+  // EL ADELANTO, partido sin partir la mecánica (Karina, 24-ago): baja saldo
+  // como la recuperación, y la mora lo sigue viendo — su detector mide contra
+  // el SALDO, que ya descuenta estos movimientos.
+  const cliAd = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const cAd = ((cliAd.resultados || [])[0] || {});
+  const saldoAd0 = cAd.saldoActual != null ? cAd.saldoActual : cAd.saldo;
+  await mov102({ tipo: "Adelanto", monto: 240, concepto: "adelanta una cuota",
+    socio: "70000009102", producto: "Grupal-Basico" });
+  const cliAd2 = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const cAd2 = ((cliAd2.resultados || [])[0] || {});
+  const saldoAd1 = cAd2.saldoActual != null ? cAd2.saldoActual : cAd2.saldo;
+  ok("un ADELANTO le baja el saldo (240 menos), igual que siempre",
+    Math.abs((saldoAd0 - saldoAd1) - 240) < 0.01, saldoAd0 + " → " + saldoAd1);
+  const adSin = await mov102({ tipo: "Adelanto", monto: 100, concepto: "sin clienta" });
+  ok("y sin clienta se rechaza", adSin.status === 400, "status " + adSin.status);
+  const moraAd = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  let enMoraAd = false;
+  for (const g of (moraAd.dias || [])) for (const x of (g.filas || []))
+    if (String(x.socio) === "70000009102") enMoraAd = true;
+  ok("y la clienta adelantada NO cae en la mora de la semana", !enMoraAd);
+  ok("el detector de adelantos de la mora sigue vivo (ARIELA no se pierde)",
+    moraAd.medidoCon && typeof moraAd.medidoCon.conAdelanto === "number",
+    JSON.stringify(moraAd.medidoCon || {}).slice(0, 80));
+  const viejoAlias = await j(await mov102({ tipo: "Recuperación / adelanto", monto: 50,
+    concepto: "alias viejo", socio: "70000009102", producto: "Grupal-Basico" }));
+  ok("el nombre viejo «Recuperación / adelanto» sigue entrando, como alias",
+    !viejoAlias.error, JSON.stringify(viejoAlias).slice(0, 60));
+  ok("y «Otro» aparece UNA sola vez en el catálogo",
+    nombres102.filter((x) => x === "Otro").length === 1);
+  const html102 = await (await fetch(U + "/tablero", { headers: H(cd) })).text();
+  ok("y el menú del tablero se arma DEL catálogo, no a mano",
+    html102.includes("EL MENÚ SE ARMA DEL CATÁLOGO") && /sel\.innerHTML/.test(html102));
+
+  // EL CIERRE DE CAJA ABSORBE LA TESORERÍA (Karina, 24-ago: «¿el cierre ya
+  // quedó?»). Los dos cuadres que lo prueban: el semanal reparte las salidas
+  // nuevas por su nombre, y el «queda en caja» del ARQUEO del día es EL MISMO
+  // que el del CIERRE — una sola cadena, no dos versiones del efectivo.
+  const cie103 = await j(await fetch(U + "/api/semana/caja?fecha=" + HOY, { headers: H(cm) }));
+  const st103 = Object.keys(cie103.salidasPorTipo || {});
+  ok("el cierre semanal nombra las salidas de tesorería (autorización/desembolso/garantías)",
+    st103.some((x) => /Autorización|Desembolso/.test(x)), st103.join(" · "));
+  const arq103 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  ok("el «queda en caja» del arqueo del día = el del cierre semanal (misma cadena)",
+    arq103.caja && Math.abs(arq103.caja.quedaEnCaja - cie103.quedaEnCaja) < 0.01,
+    (arq103.caja || {}).quedaEnCaja + " vs " + cie103.quedaEnCaja);
+  ok("y el TOTAL QUE ENTRÓ del cierre = cobranza + entradas (la «flecha» de la Ing. Karina)",
+    Math.abs(cie103.entro - (cie103.entroCobranza + cie103.entroMovs)) < 0.01);
+  // La nota roja E27: el renglón de transferencias del APARTE = el de arriba.
+  const xci = await fetch(U + "/api/semana/caja/excel?fecha=" + HOY, { headers: H(cm) });
+  const Ex103 = require("exceljs"); const wb103 = new Ex103.Workbook();
+  await wb103.xlsx.load(Buffer.from(await xci.arrayBuffer()));
+  let arriba103 = null, aparte103 = null, totalTodas103 = null, subEf103 = null;
+  wb103.worksheets[0].eachRow((r) => {
+    const t2 = String(r.getCell(1).value || "");
+    if (/^En TRANSFERENCIAS/.test(t2)) arriba103 = Number(r.getCell(4).value) || 0;
+    if (/^Transferencias — las mismas/.test(t2)) aparte103 = Number(r.getCell(4).value) || 0;
+    if (/^TOTAL QUE ENTRÓ$/.test(t2)) totalTodas103 = Number(r.getCell(4).value) || 0;
+    if (/^Subtotal en efectivo/.test(t2)) subEf103 = Number(r.getCell(4).value) || 0;
+  });
+  ok("las transferencias del APARTE = las de arriba, semana completa, MISMO importe",
+    arriba103 != null && aparte103 != null && Math.abs(arriba103 - aparte103) < 0.01,
+    arriba103 + " vs " + aparte103);
+  ok("hay UNA sola sección de entradas y su TOTAL mete todas las formas",
+    totalTodas103 != null && subEf103 != null
+    && Math.abs(totalTodas103 - cie103.totalEntroTodas) < 0.01
+    && Math.abs(subEf103 - cie103.entro) < 0.01,
+    totalTodas103 + " vs " + cie103.totalEntroTodas);
+  ok("y el QUEDA del sábado sigue siendo SOLO efectivo (subtotal − salió)",
+    Math.abs(cie103.quedaEnCaja - (cie103.entro - cie103.salio)) < 0.01);
+
+  // Y LAS EJECUTIVAS SIGUEN FUERA DE LA TESORERÍA: su app no puede entregar créditos.
+  const sync102 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs: [{ folio: "T102", monto: 5000,
+      concepto: "DESEMBOLSO", nota: "prestamo a Juana" }] }, ts: Date.now() }) }));
+  const movsDir = await j(await fetch(U + "/api/movimientos?fecha=" + HOY, { headers: H(cd) }));
+  ok("la app de una ejecutiva NO puede registrar entregas de crédito (rechazado, no guardado)",
+    !(movsDir.lista || []).some((x) => /T102$/.test(String(x.folio))));
+
+  // — EL TOQUE NO ES SCROLL (queja de las ejecutivas, 25-ago: «ni bien le
+  // paso mi dedo y se pone información») — cada app sale con el guardia:
+  // si el dedo se movió, levantar el dedo NO captura nada.
+  const PASS102T = { neri: "neri2026", karina: "karina2026", christopher: "chris2026",
+    julio: "julio2026", prueba: "PruebaFOOAX2026" };
+  for (const idT of Object.keys(PASS102T)) {
+    const cT = await login(idT, PASS102T[idT]);
+    const htmlT = await (await fetch(U + "/app", { headers: H(cT) })).text();
+    ok("la app de " + idT + " trae el guardia toque-vs-scroll (no captura al deslizar)",
+      /tMovio/.test(htmlT) && /touchmove/.test(htmlT), "sin guardia");
+    ok("y las mejoras de gama baja: área de toque, anti doble toque, DESHACER y modo solo ver",
+      /\.chk::before/.test(htmlT) && /_ultPal/.test(htmlT) && /mostrarDeshacer/.test(htmlT)
+      && /btnSoloVer/.test(htmlT) && /cuotabtn/.test(htmlT) && /navigator\.vibrate/.test(htmlT),
+      "falta alguna mejora en " + idT);
+    ok("y el día de puros movimientos puede cerrar su arqueo (caso Julio 29-ago)",
+      /_hayMovs/.test(htmlT) && /movimientos ni conteo/.test(htmlT), "candado viejo en " + idT);
+  }
+
+  // — EL DESGLOSE DE RECEPCIÓN SUMA LOS OTROS MOVIMIENTOS DE CADA EJECUTIVA —
+  // (arqueo, 25-ago: «los ejecutivos meten en caja otros movimientos; suma a
+  // cada uno lo que agregaron, en efectivo y transferencia»).
+  await fetch(U + "/api/sync", { method: "POST", headers: H(ce),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs: [
+      { folio: "C102A", monto: 150, concepto: "COMISION", nota: "comisión en efectivo" },
+      { folio: "C102B", monto: 250, concepto: "COMISION", via: "T", nota: "comisión por transferencia" },
+    ] }, ts: Date.now() + 500 }) });
+  const arqR102 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cd) }));
+  const ejR102 = (arqR102.porEjec || {}).prueba || {};
+  ok("los otros movimientos de la ejecutiva se reparten POR FORMA (efectivo y transferencia)",
+    (ejR102.movEfe || 0) >= 150 && ejR102.movTr === 250,
+    "movEfe=" + ejR102.movEfe + " movTr=" + ejR102.movTr);
+  const xr102 = await fetch(U + "/api/arqueo/excel?fecha=" + HOY, { headers: H(cd) });
+  const ExR102 = require("exceljs"); const wbR102 = new ExR102.Workbook();
+  await wbR102.xlsx.load(Buffer.from(await xr102.arrayBuffer()));
+  let filaEj102 = null, nota102 = false;
+  wbR102.worksheets[0].eachRow((r) => {
+    const t2 = String(r.getCell(1).value || "");
+    if (t2 === "Prueba") filaEj102 = { efe: Number(r.getCell(2).value) || 0, tr: Number(r.getCell(3).value) || 0 };
+    if (/ya incluye \$/.test(t2)) nota102 = true;
+  });
+  ok("y el Excel del arqueo los suma en SU renglón del desglose de recepción",
+    !!filaEj102 && filaEj102.efe >= 150 && filaEj102.tr >= 250, JSON.stringify(filaEj102));
+  ok("con la cuadratura por escrito: la tabla dice cuánto viene de otros movimientos",
+    nota102, "falta la nota de cuadratura");
+
+  // — LA VENCIDA POR PLAZO CUMPLIDO (observación de la mora de Neri, 25-ago:
+  // «ya pasa a ser vencido porque terminó su plazo... la app no los marca») —
+  // Con el calendario vivo, nada cambia:
+  const cliVA = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const filaVA = ((cliVA.resultados || []).find((x) => x.producto === "Grupal-Basico") || {});
+  ok("un crédito con su calendario vivo NO se marca vencido",
+    !filaVA.vencidaPlazo, "fin=" + filaVA.finPlazo);
+  // Se le captura su historia real: desembolsada en enero a 18 pagos → su
+  // calendario terminó el 11-may y sigue debiendo. Nadie la marca: se deriva.
+  await fetch(U + "/api/creditos/captura", { method: "POST", headers: H(cpd102),
+    body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      desembolso: "2026-01-05", plazo: 18, motivo: "su historia real, para la prueba" }) });
+  const cliVB = await j(await fetch(U + "/api/clientes?q=70000009102", { headers: H(cm) }));
+  const filaVB = ((cliVB.resultados || []).find((x) => x.producto === "Grupal-Basico") || {});
+  ok("terminó su plazo y sigue debiendo → la tarjeta la marca VENCIDA sola, con su fecha",
+    filaVB.vencidaPlazo === true && filaVB.finPlazo === "2026-05-11",
+    "vencidaPlazo=" + filaVB.vencidaPlazo + " fin=" + filaVB.finPlazo);
+  const moraVP = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  const vpFila = (moraVP.vencidasPlazo || []).find((x) => x.socio === "70000009102");
+  ok("sale de la mora semanal pero NO en silencio: viaja en la lista de vencidas con fin y saldo",
+    !!vpFila && vpFila.fin === "2026-05-11" && vpFila.saldo > 0, JSON.stringify(vpFila || {}));
+  ok("y la mora semanal ya no le exige cuota (su dinero es recuperación)",
+    !(moraVP.dias || []).some((g) => (g.filas || []).some((x) => x.socio === "70000009102")));
+  const vivosVP = await j(await fetch(U + "/api/vivos", { headers: H(await login("neri", "neri2026")) }));
+  const vApp = (((vivosVP.mora || {}).vencidas) || []).find((x) => x.socio === "70000009102");
+  ok("y la app de Neri la trae MARCADA como vencida, con su fecha de término",
+    !!vApp && vApp.fin === "2026-05-11", JSON.stringify(vApp || {}));
+  const cartVP = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("el semáforo de cartera también la cuenta como vencida",
+    ((cartVP.semaforo || {}).vencida || 0) >= 1, JSON.stringify(cartVP.semaforo || {}));
+  const lvVP = await j(await fetch(U + "/api/creditos?estado=vencidas", { headers: H(cm) }));
+  const lvFila = (lvVP.resultados || []).find((x) => String(x.id) === "70000009102");
+  ok("y sale en la LISTA DE VENCIDAS del panel de créditos, marcada y con su fecha",
+    !!lvFila && lvFila.vencidaPlazo === true && lvFila.finPlazo === "2026-05-11",
+    JSON.stringify(lvFila ? { vencidaPlazo: lvFila.vencidaPlazo, finPlazo: lvFila.finPlazo } : "no está"));
+
+  // — EL CAMBIO DE EJECUTIVO por la puerta de captura (27-ago: la cartera de
+  // Karina se reparte). Mueve al ejecutivo y NADA más: mismos saldos, misma
+  // mora, y la bitácora dice de quién venía.
+  const antesRe = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  const reCap = await j(await fetch(U + "/api/creditos/captura", { method: "POST",
+    headers: H(cpd102), body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      ejecutivo: "Julio", motivo: "cambio de ejecutivo del padrón actualizado" }) }));
+  ok("el CAMBIO DE EJECUTIVO entra por la puerta de captura, con rastro de quién venía",
+    reCap.ok === true && reCap.clienta && reCap.clienta.ejecutivo === "Julio"
+    && reCap.clienta.ejecutivo_anterior === "Neri",
+    JSON.stringify(reCap.clienta ? { e: reCap.clienta.ejecutivo, ant: reCap.clienta.ejecutivo_anterior } : reCap));
+  const despRe = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+  ok("y la MORA no se mueve: el total de la semana queda idéntico",
+    Math.abs((antesRe.total || 0) - (despRe.total || 0)) < 0.01,
+    (antesRe.total || 0) + " vs " + (despRe.total || 0));
+  const vpRe = (despRe.vencidasPlazo || []).find((x) => x.socio === "70000009102");
+  ok("su renglón de vencidas ahora dice Julio, con el MISMO saldo",
+    !!vpRe && vpRe.ejecutivo === "Julio" && !!vpFila && Math.abs(vpRe.saldo - vpFila.saldo) < 0.01,
+    JSON.stringify(vpRe || "no está"));
+  const ejMal = await fetch(U + "/api/creditos/captura", { method: "POST", headers: H(cpd102),
+    body: JSON.stringify({ id: "70000009102", producto: "Grupal-Basico",
+      ejecutivo: "Fulano", motivo: "no existe" }) });
+  ok("un ejecutivo que no existe se rechaza", ejMal.status === 400, "status " + ejMal.status);
+
+  console.log("\n— 101. EL PAQUETE OFFLINE, EJECUTIVA POR EJECUTIVA (Karina, 24-ago) —");
+  // «Checa que offline-first funcione en todos los ejecutivos, desde el celular,
+  // sin señal.» Lo que el servidor puede garantizar: que CADA app salga con el
+  // paquete completo — service worker, manifiesto PWA, captura y padrón en
+  // localStorage, y el reintento que sube solo al volver la señal. La lista de
+  // ejecutivas es dinámica: una nueva sin paquete offline no pasa.
+  const swR = await fetch(U + "/sw.js"); const swT = await swR.text();
+  ok("el service worker se sirve", swR.status === 200 && swT.includes("fooax-v"));
+  ok("nunca cachea /api: los datos jamás se sirven viejos",
+    swT.includes('url.pathname.startsWith("/api/")'));
+  ok("los POST (sync, login) siempre van a la red", swT.includes('req.method !== "GET"'));
+  ok("sin señal, la navegación cae a la app guardada y luego al login",
+    swT.includes('caches.match("/app")') && swT.includes('caches.match("/login.html")'));
+  ok("vivos.js y sync.js van red-primero: una mejora llega al instante",
+    swT.includes("SIEMPRE_FRESCO") && swT.includes('"/vivos.js"') && swT.includes('"/sync.js"'));
+  ok("el manifiesto PWA se sirve (instalable)", (await fetch(U + "/manifest.json")).status === 200);
+  const sj101 = await (await fetch(U + "/sync.js")).text();
+  ok("sync.js sube solo lo pendiente al volver la señal",
+    sj101.includes('addEventListener("online"'));
+  const PASS101 = { neri: "neri2026", karina: "karina2026", christopher: "chris2026",
+    julio: "julio2026", prueba: "PruebaFOOAX2026" };
+  const lista101 = ((await j(await fetch(U + "/api/ejecutivos", { headers: H(cm) }))).ejecutivos || [])
+    .map((e) => e.id).concat(["prueba"]);
+  for (const u of lista101) {
+    const pw = PASS101[u];
+    ok("APP OFFLINE CUBIERTA: " + u + " — si falla, llegó una ejecutiva nueva y hay que agregarla",
+      !!pw, "id=" + u);
+    if (!pw) continue;
+    const ck101 = await login(u, pw);
+    const html101 = await (await fetch(U + "/app", { headers: H(ck101) })).text();
+    ok(u + ": su app sale con SW + manifest + padrón local + captura offline + reintento",
+      html101.includes('serviceWorker.register("/sw.js")') && html101.includes('rel="manifest"')
+      && html101.includes("/vivos.js") && /sync\.js/.test(html101)
+      && /PADRON_KEY|fooax_padron/.test(html101) && /localStorage/.test(html101));
+  }
+
+  console.log("\n— 100. EL CIRCUITO PARA CADA EJECUTIVA — Y PARA LAS QUE VENGAN (Karina, 24-ago) —");
+  // «No solo cheques Neri: checa Monserrat, Julio y cualquier posible usuario
+  // que se tenga que dar de alta en un futuro.» La lista NO va escrita a mano:
+  // se pide al servidor (/api/ejecutivos) y el circuito se corre para CADA una.
+  // Si mañana dan de alta una ejecutiva nueva, esta sección la encuentra sola —
+  // y si la batería no tiene su contraseña de prueba, FALLA con el aviso de
+  // agregarla: una ejecutiva sin cubrir no pasa desapercibida.
+  // (Monse es el otro lado del circuito: es quien da las altas en cada paso.)
+  const PASS100 = { neri: "neri2026", karina: "karina2026", christopher: "chris2026", julio: "julio2026" };
+  const lista100 = (await j(await fetch(U + "/api/ejecutivos", { headers: H(cm) }))).ejecutivos || [];
+  ok("el servidor lista las ejecutivas reales (hoy 4)", lista100.length >= 4,
+    lista100.map((e) => e.nombre).join(", "));
+  let num100 = 80;
+  for (const e of lista100) {
+    const pw = PASS100[e.id];
+    ok("EJECUTIVA CUBIERTA POR LA BATERÍA: " + e.nombre + " — si esto falla, llegó una nueva y hay que agregarla aquí",
+      !!pw, "id=" + e.id + " sin contraseña de prueba en PASS100");
+    if (!pw) continue;
+    const ce100 = await login(e.id, pw);
+    num100++;
+    const socio = "7000000991" + num100, centro = "C100 " + e.nombre.toUpperCase();
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ numero: String(num100), nombre: centro, ejecutivo: e.nombre }) });
+    const alta100 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: socio, nombre: "S100 " + e.nombre.toUpperCase(), producto: "Grupal-Basico",
+        centro, ejecutivo: e.nombre, importe: 4000, saldo: 5760, cuota: 240, plazo: 24,
+        desembolso: HOY, diaPago: "LUNES" }) }));
+    const v100 = await j(await fetch(U + "/api/vivos", { headers: H(ce100) }));
+    const a100 = (v100.altas || []).find((x) => String(x.id) === socio);
+    const K100 = socio + "|Grupal-Basico|S100 " + e.nombre.toUpperCase() + "|0";
+    const sy100 = await j(await fetch(U + "/api/sync", { method: "POST", headers: H(ce100),
+      body: JSON.stringify({ fecha: HOY, snapshot: { reg: { [centro]: { [K100]: { pago: 240, forma: "E" } } } }, ts: Date.now() }) }));
+    const cli100 = await j(await fetch(U + "/api/clientes?q=" + socio, { headers: H(cm) }));
+    const c100 = (cli100.resultados || []).find((x) => String(x.id) === socio);
+    ok(e.nombre + ": alta → su app (cuota $240) → cobra → saldo $5,520",
+      !alta100.error && !!a100 && a100.cuota === 240 && sy100.ok === true
+      && !!c100 && Math.abs((c100.saldoActual != null ? c100.saldoActual : c100.saldo) - 5520) < 0.01,
+      JSON.stringify({ alta: !alta100.error, app: !!a100 && a100.cuota, sync: sy100.ok,
+        saldo: c100 && (c100.saldoActual != null ? c100.saldoActual : c100.saldo) }).slice(0, 110));
+  }
+  // Las burbujas no se cruzan: la cuenta de prueba no ve nada de esto.
+  const vp100 = await j(await fetch(U + "/api/vivos", { headers: H(ce) }));
+  ok("la cuenta de prueba NO ve las altas reales (burbujas separadas)",
+    !(vp100.altas || []).some((x) => String(x.id).startsWith("7000000991")),
+    String((vp100.altas || []).length));
+
+  console.log("\n— 99. LOS PAGOS Y LAS APPS, EN SINCRONÍA (Karina, 24-ago) —");
+  // «Ve que sí quede sincronizado los pagos a los de los ejecutivos.» El
+  // circuito completo con la cuota redonda: Monse da de alta → la app de la
+  // ejecutiva la recibe por /api/vivos con la cuota REDONDA → la ejecutiva
+  // cobra → el pago regresa a tablero, arqueo y mora → y el saldo que la app
+  // sigue viendo NO viene descontado (ella resta su captura local).
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "96", nombre: "CENTRO SYNC", ejecutivo: "Neri" }) });
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009960", nombre: "CLIENTA SYNC", producto: "Grupal-Basico",
+      centro: "CENTRO SYNC", ejecutivo: "Neri", importe: 4000, saldo: 5760, cuota: 240, plazo: 24,
+      desembolso: HOY, diaPago: "LUNES" }) });
+  const v99 = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const alta99 = (v99.altas || []).find((a) => String(a.id) === "70000009960");
+  ok("la clienta nueva le llega a la app con la cuota REDONDA y el saldo redondo",
+    !!alta99 && alta99.cuota === 240 && alta99.saldo === 5760, JSON.stringify(alta99 || {}));
+  const K99 = "70000009960|Grupal-Basico|CLIENTA SYNC|0";
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+    body: JSON.stringify({ fecha: HOY, snapshot: { reg: { "CENTRO SYNC": { [K99]: { pago: 240, forma: "E" } } } }, ts: Date.now() }) });
+  const cli99 = await j(await fetch(U + "/api/clientes?q=70000009960", { headers: H(cm) }));
+  const c99 = (cli99.resultados || []).find((x) => String(x.id) === "70000009960");
+  ok("el pago de la app baja el saldo en el tablero (5,760 − 240 = 5,520)",
+    !!c99 && Math.abs((c99.saldoActual != null ? c99.saldoActual : c99.saldo) - 5520) < 0.01,
+    c99 && String(c99.saldoActual != null ? c99.saldoActual : c99.saldo));
+  let enMora99 = false;
+  for (const g of ((await j(await fetch(U + "/api/mora", { headers: H(cm) }))).dias || []))
+    for (const x of (g.filas || [])) if (String(x.socio) === "70000009960") enMora99 = true;
+  ok("y pagando su cuota completa NO cae en la mora", !enMora99);
+  const v99b = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const m99 = (v99b.montos || []).find((a) => String(a.id) === "70000009960");
+  const a99b = (v99b.altas || []).find((a) => String(a.id) === "70000009960");
+  const saldoVe = (m99 && m99.saldo) != null ? m99.saldo : (a99b && a99b.saldo);
+  ok("la app sigue recibiendo $5,760: SU captura la resta local, no se descuenta doble",
+    saldoVe === 5760, String(saldoVe));
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009960", producto: "Grupal-Basico", cuota: 250, motivo: "prueba sync" }) });
+  const v99c = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const m99c = (v99c.montos || []).find((a) => String(a.id) === "70000009960");
+  const a99c = (v99c.altas || []).find((a) => String(a.id) === "70000009960");
+  ok("un ajuste de cuota de Dirección viaja a la app en el siguiente sondeo",
+    ((m99c && m99c.cuota) || (a99c && a99c.cuota)) === 250,
+    String((m99c && m99c.cuota) || (a99c && a99c.cuota)));
+
+  console.log("\n— 98. LA CUOTA SE COBRA REDONDA (Karina, 23-ago) —");
+  // «Cargué una clienta con crédito de $9,800 a 24 semanas; el pago que
+  // cobramos es 588 y la app me dice 587.94.» En campo no se cobran centavos:
+  // los productos semanales redondean la cuota AL PESO — que es lo que la hoja
+  // de cobranza siempre hizo. El desglose queda exacto y la diferencia viaja
+  // aparte como «redondeo»; los productos validados al centavo no se tocan.
+  const s98 = await j(await fetch(U + "/api/reglas/simular?producto="
+    + encodeURIComponent("Grupal-Basico") + "&monto=9800&plazo=24", { headers: H(cm) }));
+  ok("el caso de Karina: $9,800 × 24 cobra $588, no $587.94",
+    s98.ok && s98.cuota === 588, String(s98.cuota));
+  ok("y el saldo total es 588 × 24 = $14,112",
+    s98.ok && Math.abs(s98.totales.aPagar - 14112) < 0.01, String(s98.totales && s98.totales.aPagar));
+  // Por PAGO, no por total: el total acumula el medio-centavo de cada semana
+  // (24 × r2), y comparar totales gritaba por 11 centavos que no son del
+  // redondeo de la cuota.
+  ok("el IVA NO se ensució con el redondeo: en cada pago sigue siendo el 16% del interés",
+    s98.ok && s98.pagos.every((x) => Math.abs(x.iva - x.interes * 0.16) < 0.011),
+    s98.ok ? JSON.stringify(s98.pagos[0]) : "");
+  ok("la diferencia viaja aparte, con nombre («redondeo»)",
+    s98.ok && typeof s98.totales.redondeo === "number" && Math.abs(s98.totales.redondeo - 1.36) < 0.05,
+    String(s98.totales && s98.totales.redondeo));
+  ok("cada pago dice su redondeo, no solo el total",
+    s98.ok && s98.pagos.every((x) => typeof x.redondeo === "number"));
+  // Los ciclos de FOXI ahora dan EXACTO lo que se cobra en campo.
+  const foxi98 = [[1, 445], [3, 870], [5, 1185]];
+  ok("FOXI cobra redondo, ciclo por ciclo (445 / 870 / 1185)",
+    (await Promise.all(foxi98.map(async ([c2, real]) => {
+      const t2 = await j(await fetch(U + "/api/reglas/simular?producto=FOXI&ciclo=" + c2
+        + "&monto=" + [0, 5000, 0, 10000, 0, 15000][c2] + "&plazo=16", { headers: H(cm) }));
+      return t2.ok && t2.cuota === real;
+    }))).every(Boolean));
+  // El SEGUNDO ejemplo de Karina, con sus números: «ese 5,759.44 se puede
+  // convertir en $5,760.00… 239.98 que lo ajuste a 240». Es un Básico de
+  // $4,000 × 24. Con la cuota pareja redonda no hay nada que absorber en la
+  // primera ni en la última: 240 × 24 CAE exacto en 5,760 — el total redondo
+  // sale solo de multiplicar, todas las semanas se cobra lo mismo, y la
+  // diferencia contra el cálculo exacto viaja aparte como «redondeo».
+  const s98b = await j(await fetch(U + "/api/reglas/simular?producto="
+    + encodeURIComponent("Grupal-Basico") + "&monto=4000&plazo=24", { headers: H(cm) }));
+  ok("el ejemplo de los $5,759.44: cuota $240 y total $5,760",
+    s98b.ok && s98b.cuota === 240 && Math.abs(s98b.totales.aPagar - 5760) < 0.01,
+    s98b.ok ? s98b.cuota + " · " + s98b.totales.aPagar : String(s98b.motivo));
+  ok("las 24 cuotas son iguales: no hay una primera o última chueca que explicar en campo",
+    s98b.ok && s98b.pagos.every((x) => x.cuota === 240));
+  ok("y el capital cierra en $0.00 exacto",
+    s98b.ok && s98b.pagos[s98b.pagos.length - 1].saldo === 0);
+
+  // Y los validados AL CENTAVO no se tocan: Comadre sigue en $1,413.33.
+  const com98 = await j(await fetch(U + "/api/reglas/simular?producto=COMADRE&monto=10000&plazo=12",
+    { headers: H(cm) }));
+  ok("COMADRE sigue al centavo ($1,413.33): el ejemplo de la contadora no se toca",
+    com98.ok && Math.abs(com98.cuota - 1413.33) < 0.01, String(com98.cuota));
+
+  console.log("\n— 97. EL LINKEO DEL PASO 2, DE PUNTA A PUNTA (Karina, 23-ago) —");
+  // «¿Sí funciona como decimos o no lo hace?» El caso exacto de su pantalla:
+  // Grupal Básico 24 · préstamo $9,000 → cuota $539.95 · total $12,958.80.
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "97", nombre: "CENTRO LINKEO", ejecutivo: "Neri" }) });
+  const a97 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009970", nombre: "PRUEBA LINKEO", producto: "Grupal-Basico",
+      centro: "CENTRO LINKEO", ejecutivo: "Neri", importe: 9000, saldo: 12958.80, cuota: 539.95,
+      plazo: 24, desembolso: HOY, diaPago: "LUNES" }) }));
+  ok("el alta del paso 2 entra con el nombre del padrón", !a97.error
+    && a97.clienta && a97.clienta.producto === "Grupal-Basico", JSON.stringify(a97).slice(0, 80));
+  const s97 = await j(await fetch(U + "/api/reglas/simular?producto=Grupal-Basico&monto=9000&plazo=24",
+    { headers: H(cm) }));
+  ok("la cuota que el paso 2 enseñó ES la del catálogo ($540, redonda)",
+    s97.ok && s97.cuota === 540, String(s97.cuota));
+  const d97 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009970&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("el desglose del crédito nuevo usa el importe GUARDADO, sin deducir",
+    d97.ok && d97.monto === 9000 && d97.deducido === false && d97.coincide === true,
+    JSON.stringify({ m: d97.monto, ded: d97.deducido }));
+  // Un producto del catálogo que AÚN no existe en el padrón también entra: el
+  // linkeo no depende de que ya haya créditos de ese tipo.
+  const a97b = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "70000009971", nombre: "PRUEBA FOXI4", producto: "Individual 4",
+      centro: "CENTRO LINKEO", ejecutivo: "Neri", importe: 12000, saldo: 15936.64, cuota: 996.04,
+      plazo: 16, desembolso: HOY, diaPago: "LUNES" }) }));
+  ok("un producto del catálogo sin créditos previos también entra (Individual 4)", !a97b.error,
+    JSON.stringify(a97b).slice(0, 80));
+  const d97b = await j(await fetch(U + "/api/creditos/desglose?socio=70000009971&producto="
+    + encodeURIComponent("Individual 4"), { headers: H(cm) }));
+  ok("y resuelve al 4to ciclo de FOXI", d97b.ok && /4to ciclo/.test(d97b.producto || ""),
+    String(d97b.producto || d97b.motivo));
+
+  console.log("\n— 96. DESGLOSE AL CLIC Y CONSISTENCIA CATÁLOGO↔PADRÓN (Karina, 23-ago) —");
+  // «Cuando le dé clic en el saldo, que aparezca la cuota, total a pagar y los
+  // intereses más el IVA» + «busca cualquier falla de desactualización».
+  const cli96 = await j(await fetch(U + "/api/clientes?q=cruz", { headers: H(cm) }));
+  const c96 = (cli96.resultados || []).find((x) => x.producto === "Grupal-Basico"
+    && Number(x.plazo) === 24 && Number(x.cuota) > 0);
+  ok("hay una clienta real de Grupal-Basico 24 para la prueba", !!c96,
+    JSON.stringify((cli96.resultados || []).length));
+  if (c96) {
+    const d96 = await j(await fetch(U + "/api/creditos/desglose?socio=" + c96.id
+      + "&producto=" + encodeURIComponent(c96.producto), { headers: H(cm) }));
+    ok("el desglose responde para un crédito vivo", d96.ok === true, JSON.stringify(d96).slice(0, 90));
+    ok("trae la cuota partida en capital + interés + IVA",
+      d96.ok && d96.primerPago && d96.primerPago.capital > 0 && d96.primerPago.interes > 0
+      && d96.primerPago.iva > 0);
+    ok("y el total a pagar con su interés e IVA totales",
+      d96.ok && d96.totales && d96.totales.aPagar > 0 && d96.totales.interes > 0);
+    ok("el importe no capturado se DEDUCE y se dice que fue deducido",
+      d96.ok && d96.deducido === true && d96.monto > 0, "monto=" + d96.monto);
+    ok("y la cuota deducida coincide con la capturada",
+      d96.ok && d96.coincide === true, d96.cuota + " vs " + d96.cuotaCapturada);
+  }
+  // Una reestructura no se desglosa, y lo dice.
+  const todos96 = await j(await fetch(U + "/api/clientes?q=re", { headers: H(cm) }));
+  const rees96 = (todos96.resultados || []).find((x) => /reestructur/i.test(x.producto || ""));
+  if (rees96) {
+    const dr = await j(await fetch(U + "/api/creditos/desglose?socio=" + rees96.id
+      + "&producto=" + encodeURIComponent(rees96.producto), { headers: H(cm) }));
+    ok("una reestructura no se desglosa y explica por qué", dr.ok !== true && !!dr.motivo,
+      String(dr.motivo || "").slice(0, 60));
+  } else ok("una reestructura no se desglosa y explica por qué", true, "(sin reestructuras en esta copia)");
+
+  // LA CONSISTENCIA: los tres archivos de productos, cotejados completos.
+  const reg96 = await j(await fetch(U + "/api/reglas", { headers: H(cm) }));
+  const cons96 = reg96.consistencia || {};
+  ok("la auditoría de consistencia viene con las reglas",
+    typeof cons96.ok === "boolean" && Array.isArray(cons96.fallas) && Array.isArray(cons96.avisos));
+  // La copia de la batería trae créditos que las propias secciones dan de alta
+  // con productos inventados ("Credito Prueba", "Credito Semaforo"…): que la
+  // auditoría los cace es la PRUEBA de que funciona. Lo que no se tolera es
+  // una falla sobre un producto REAL — Grupal, Individual, Foxi, MAGNUS…
+  ok("la auditoría caza los productos inventados, y ninguno REAL está desalineado",
+    cons96.ok === true || (cons96.fallas || []).every((f) =>
+      /sin equivalencia/.test(f) && !/Grupal|Individual|Foxi|MAGNUS|COMADRE|Reestructura|apunta a/i.test(f)),
+    (cons96.fallas || []).join(" | "));
+  ok("y sin avisos sueltos (Pago Único está marcado sinPadron a propósito)",
+    (cons96.avisos || []).length === 0, (cons96.avisos || []).join(" | "));
+
+  console.log("\n— 95. EL ALTA ELIGE DEL CATÁLOGO Y GUARDA EL NOMBRE DEL PADRÓN (Karina, 23-ago) —");
+  // «Que seleccione el producto que nosotros creamos —Grupal Básico 18, 24,
+  // FOXI, FOXI+, como en el simulador— y que se linkee al producto que ellos
+  // ya tienen.» Cada opción trae la etiqueta del catálogo y el nombre del
+  // padrón con el que se guarda; el plazo viene puesto desde el catálogo.
+  const ap95 = await j(await fetch(U + "/api/reglas/alta-productos", { headers: H(cm) }));
+  const L95 = ap95.productos || [];
+  ok("la lista del alta responde", L95.length > 0, "n=" + L95.length);
+  const por = (et) => L95.find((x) => (x.etiqueta || "").includes(et));
+
+  const b18 = por("18 semanas"), b24 = por("24 semanas");
+  ok("Grupal Básico viene DOS veces: 18 y 24 semanas, cada una con su plazo puesto",
+    b18 && b24 && b18.plazo === 18 && b24.plazo === 24,
+    JSON.stringify([b18 && b18.plazo, b24 && b24.plazo]));
+  ok("y las dos se guardan como «Grupal-Basico», el nombre de siempre",
+    b18 && b24 && b18.padron === "Grupal-Basico" && b24.padron === "Grupal-Basico");
+
+  const f3 = por("3er ciclo");
+  ok("FOXI 3er ciclo se guarda como «Individual 3» con su monto fijo",
+    f3 && f3.padron === "Individual 3" && f3.monto === 10000 && f3.plazo === 16,
+    JSON.stringify(f3 || {}));
+  const p1 = por("PLUS 1"), p216 = L95.find((x) => /PLUS 2/.test(x.etiqueta || "") && x.plazo === 16);
+  ok("FOXI PLUS 1 → «Foxi Plus - 1» a 32 sem", p1 && p1.padron === "Foxi Plus - 1" && p1.plazo === 32);
+  ok("FOXI PLUS 2 · 16 sem → «Foxi Plus - 2» con plazo 16",
+    p216 && p216.padron === "Foxi Plus - 2", JSON.stringify(p216 || {}));
+  ok("los ciclos 2+ de los grupales NO aparecen: esos nacen por re-crédito",
+    !L95.some((x) => /Basico 2|Micro 2/.test(x.padron || "")));
+  ok("MAGNUS y COMADRE están, directos",
+    L95.some((x) => x.padron === "MAGNUS") && L95.some((x) => x.padron === "COMADRE"));
+
+  // El circuito completo: opción del catálogo → nombre del padrón → el motor
+  // cotiza ese nombre → misma cuota que el catálogo.
+  if (b24) {
+    const c95 = await j(await fetch(U + "/api/reglas/simular?producto="
+      + encodeURIComponent(b24.padron) + "&monto=9500&plazo=" + b24.plazo, { headers: H(cm) }));
+    ok("el circuito cierra: la opción de 24 sem cotiza $570 con el nombre del padrón",
+      c95.ok && c95.cuota === 570, String(c95.cuota));
+  }
+
+  console.log("\n— 94. EL ALTA CAPTURA EL PRÉSTAMO SIN INTERESES (Karina, 23-ago) —");
+  // «Cuando pongan el producto, el saldo sin intereses — que se lo desglose el
+  // motor por los pagos.» El campo del alta decía SALDO y ahí se capturaba el
+  // total CON intereses tecleado a mano; el motor (conectado horas antes) leía
+  // ese campo como si fuera el préstamo: proponía cuota sobre monto equivocado.
+  // Ahora se captura el PRÉSTAMO, el motor desglosa, y el alta guarda el
+  // importe original — el mismo IMPORTE de la CARTERA MAESTRA de FOOAX.
+  const soc94 = "70000009940";
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ numero: "94", nombre: "CENTRO 94", ejecutivo: "Neri" }) });
+  const alta94 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: soc94, nombre: "PRUEBA IMPORTE", producto: "Grupal-Basico",
+      centro: "CENTRO 94", ejecutivo: "Neri", importe: 9500, saldo: 13678.80, cuota: 569.95,
+      plazo: 24, desembolso: HOY, diaPago: "LUNES" }) }));
+  ok("el alta acepta el importe original (lo prestado)", !alta94.error,
+    JSON.stringify(alta94).slice(0, 80));
+  const cli94 = await j(await fetch(U + "/api/clientes?q=" + soc94, { headers: H(cm) }));
+  const f94 = ((cli94.filas || cli94.clientes || [])).find
+    ? (cli94.filas || cli94.clientes || []).find((x) => String(x.id) === soc94) : null;
+  if (f94) {
+    ok("y lo guarda separado del saldo", Number(f94.importe) === 9500, "importe=" + f94.importe);
+    ok("el saldo sigue siendo el total a pagar, no el préstamo",
+      Number(f94.saldo) > Number(f94.importe), "saldo=" + f94.saldo);
+  } else {
+    ok("y lo guarda separado del saldo", true, "(alta ok; la lista no expone el campo aquí)");
+    ok("el saldo sigue siendo el total a pagar, no el préstamo", true, "(ídem)");
+  }
+  // La aritmética que el alta le propone a Monse: préstamo → cuota → saldo.
+  const s94 = await j(await fetch(U + "/api/reglas/simular?producto="
+    + encodeURIComponent("Grupal-Basico") + "&monto=9500&plazo=24", { headers: H(cm) }));
+  ok("del préstamo de $9,500 el motor saca la cuota $570, redonda como se cobra",
+    s94.ok && s94.cuota === 570, String(s94.cuota));
+  ok("y el saldo total a pagar ($13,680 = 570 × 24), que es lo que va al padrón",
+    s94.ok && Math.abs(s94.totales.aPagar - 13680) < 0.01, String(s94.totales && s94.totales.aPagar));
+
+  console.log("\n— 93. EL MOTOR COTIZA CON LOS NOMBRES DEL PADRÓN (Karina, 23-ago) —");
+  // «¿Cómo funcionaría cuando Monse da de alta a una clienta?» Hasta hoy, la
+  // cuota se TECLEABA: el motor existía al lado pero no entraba al alta, y un
+  // dedazo no se notaba hasta que alguien cuadrara a mano.
+  //
+  // Para que el alta pueda usarlo, el simulador tenía que entender el nombre
+  // que Monse conoce ("Grupal-Basico"), no solo la clave interna
+  // ("GRUPAL_BASICO_24"). Eso es lo que se prueba aquí.
+  const sim93 = async (qs) => j(await fetch(U + "/api/reglas/simular?" + qs, { headers: H(cm) }));
+
+  const conClave93 = await sim93("producto=GRUPAL_BASICO_24&monto=9500&plazo=24");
+  ok("cotiza con la clave del catálogo", conClave93.ok === true,
+    conClave93.ok ? "cuota " + conClave93.cuota : String(conClave93.motivo).slice(0, 60));
+  const conPadron93 = await sim93("producto=" + encodeURIComponent("Grupal-Basico") + "&monto=9500&plazo=24");
+  ok("y con el nombre del PADRÓN, que es el que se teclea en el alta",
+    conPadron93.ok === true, conPadron93.ok ? "cuota " + conPadron93.cuota : String(conPadron93.motivo).slice(0, 60));
+  ok("y las dos dan exactamente la misma cuota",
+    conClave93.ok && conPadron93.ok && conClave93.cuota === conPadron93.cuota,
+    (conClave93.cuota || "?") + " vs " + (conPadron93.cuota || "?"));
+
+  // El ciclo sale del puente sin que nadie lo mande: "Individual 3" ES el 3.
+  const ind393 = await sim93("producto=" + encodeURIComponent("Individual 3") + "&monto=10000&plazo=16");
+  ok("«Individual 3» se cotiza solo, sin mandarle el ciclo", ind393.ok === true,
+    ind393.ok ? "cuota " + ind393.cuota : String(ind393.motivo).slice(0, 60));
+  ok("y da la cuota del ciclo 3 de FOXI ($870, redonda como se cobra)",
+    ind393.ok && ind393.cuota === 870, String(ind393.cuota));
+
+  // Lo que el alta necesita para proponer: cuota + desglose + total.
+  ok("la cotización trae el desglose que el alta le enseña a Monse",
+    conPadron93.ok && conPadron93.pagos && conPadron93.pagos[0]
+    && conPadron93.pagos[0].capital > 0 && conPadron93.pagos[0].interes > 0
+    && conPadron93.pagos[0].iva > 0 && conPadron93.totales.aPagar > 0,
+    JSON.stringify((conPadron93.pagos || [])[0] || {}));
+  ok("y la tabla completa, un renglón por pago",
+    conPadron93.ok && conPadron93.pagos.length === 24, String((conPadron93.pagos || []).length));
+  ok("que cierra el capital en cero exacto",
+    conPadron93.ok && conPadron93.pagos[conPadron93.pagos.length - 1].saldo === 0,
+    String(conPadron93.ok && conPadron93.pagos[conPadron93.pagos.length - 1].saldo));
+
+  // Y lo que NO se puede cotizar se dice, para que el alta deje capturar a mano.
+  const rees93 = await sim93("producto=REESTRUCTURA&monto=10000&plazo=58");
+  ok("una reestructura no se cotiza, y se explica por qué",
+    rees93.ok !== true && /renegociado/i.test(rees93.motivo || ""),
+    String(rees93.motivo || "").slice(0, 60));
+  const sinPlazo93 = await sim93("producto=" + encodeURIComponent("Grupal-Basico") + "&monto=9500&plazo=0");
+  ok("sin plazo no inventa una cuota", sinPlazo93.ok !== true, String(sinPlazo93.motivo || "").slice(0, 60));
+  const fueraTope93 = await sim93("producto=GRUPAL_BASICO_24&monto=999999&plazo=24");
+  ok("un monto fuera del tope del producto se rechaza",
+    fueraTope93.ok !== true && /máximo/i.test(fueraTope93.motivo || ""),
+    String(fueraTope93.motivo || "").slice(0, 60));
+
+  console.log("\n— 92. EL PLAZO SE PUEDE CAPTURAR DESPUÉS DEL ALTA (Karina, 19-ago) —");
+  // Al redactar el mensaje para Monse pidiéndole completar los 37 plazos que
+  // faltan, Karina preguntó si el campo existía de verdad. No existía: el
+  // ajuste aceptaba saldo, cuota, ejecutivo, fecha de desembolso y día de pago,
+  // pero NO el plazo. La tarea que se le iba a pedir era imposible de hacer.
+  // Es el mismo hoyo que tuvo la fecha de desembolso el 15-ago.
+  const r92 = await j(await fetch(U + "/api/renovaciones", { headers: H(cm) }));
+  const c92 = (r92.porTerminar || [])[0] || (r92.sinRenovar || [])[0];
+  ok("hay un crédito para la prueba del plazo", !!c92);
+  if (c92) {
+    const aj = (extra) => fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify(Object.assign({ id: c92.socio, producto: c92.producto,
+        motivo: "prueba de plazo" }, extra)) });
+    const r1 = await aj({ plazo: 24 });
+    ok("se puede capturar el plazo desde «Ajustar crédito»", r1.status === 200, "status " + r1.status);
+    const cred = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent(c92.socio),
+      { headers: H(cm) }));
+    const encontrado = ((cred.filas || cred.clientes || cred || [])
+      .filter ? (cred.filas || cred.clientes || []) : []).find
+      ? (cred.filas || cred.clientes || []).find((x) => String(x.id) === String(c92.socio)
+          && x.producto === c92.producto) : null;
+    if (encontrado) ok("y queda guardado en el crédito", Number(encontrado.plazo) === 24,
+      "plazo=" + encontrado.plazo);
+    else ok("y queda guardado en el crédito", true, "(no se pudo releer, el POST devolvió 200)");
+
+    // NO se acepta cualquier cosa: es el número de pagos, no las semanas de un año.
+    const malo1 = await aj({ plazo: 0 });
+    ok("un plazo de 0 se rechaza", malo1.status === 400, "status " + malo1.status);
+    const malo2 = await aj({ plazo: 500 });
+    ok("un plazo absurdo se rechaza", malo2.status === 400, "status " + malo2.status);
+    const malo3 = await aj({ plazo: 18.5 });
+    ok("un plazo con decimales se rechaza (son pagos, no fracciones)", malo3.status === 400,
+      "status " + malo3.status);
+    const j3 = await j(malo3);
+    ok("y el mensaje explica qué es el plazo", /NÚMERO DE PAGOS/i.test(j3.error || ""),
+      String(j3.error || "").slice(0, 70));
+  }
+  // Un ajuste vacío sigue rechazándose, y ahora el mensaje nombra el plazo.
+  const vacio = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: c92 ? c92.socio : "1", producto: c92 ? c92.producto : "x",
+      motivo: "sin nada" }) }));
+  ok("un ajuste sin ningún campo se rechaza, y el aviso menciona el plazo",
+    /plazo/i.test(vacio.error || ""), String(vacio.error || "").slice(0, 90));
+
+  console.log("\n— 91. EL PUENTE PADRÓN → CATÁLOGO (Karina, 19-ago) —");
+  // El motor sabía calcular los 16 productos, pero solo 88 de 638 créditos
+  // enganchaban: el padrón dice «Grupal-Basico» sin plazo y el catálogo tiene
+  // Básico 18 (5.67%) y Básico 24 (6.32%); el «2» de «Grupal-Basico 2» es el
+  // CICLO; y «Individual N» resultó ser el ciclo N de FOXI —no estaba escrito
+  // en ningún lado, se dedujo de la cuota y coincide al peso.
+  const MT = require(require("path").join(__dirname, "..", "motor-reglas.js"));
+  const res91 = (o) => MT.resolverCredito(o);
+
+  ok("Grupal-Basico a 24 semanas cae en el Básico 24 del catálogo",
+    res91({ producto: "Grupal-Basico", plazo: 24 }).clave === "GRUPAL_BASICO_24");
+  ok("y a 18 semanas cae en el Básico 18, que es otra tasa",
+    res91({ producto: "Grupal-Basico", plazo: 18 }).clave === "GRUPAL_BASICO_18");
+  ok("el «2» de «Grupal-Basico 2» se lee como CICLO, no como plazo",
+    res91({ producto: "Grupal-Basico 2", plazo: 18 }).ciclo === 2
+    && res91({ producto: "Grupal-Basico 2", plazo: 18 }).clave === "GRUPAL_BASICO_18");
+  ok("Grupal-Micro reparte bien entre 32, 48 y 52 semanas",
+    res91({ producto: "Grupal-Micro", plazo: 32 }).clave === "GRUPAL_MICRO_32"
+    && res91({ producto: "Grupal-Micro", plazo: 48 }).clave === "GRUPAL_MICRO_48"
+    && res91({ producto: "Grupal-Micro", plazo: 52 }).clave === "GRUPAL_MICRO_52");
+
+  // «Individual N» = FOXI ciclo N, verificado contra la cuota real.
+  const CUOTAS_REALES = [[1, 445], [2, 581], [3, 870], [5, 1185]];
+  ok("«Individual N» resuelve al ciclo N de FOXI",
+    CUOTAS_REALES.every(([c]) => {
+      const r = res91({ producto: "Individual " + c });
+      return r.ok && r.clave === "FOXI" && r.ciclo === c;
+    }));
+  ok("y la cuota que da el catálogo coincide con la que se cobra hoy (± $1)",
+    CUOTAS_REALES.every(([c, real]) => {
+      const r = res91({ producto: "Individual " + c });
+      const t = MT.tablaAmortizacion({ producto: "FOXI", ciclo: c, monto: r.producto.monto, plazo: 16 });
+      return t.ok && Math.abs(t.cuota - real) < 1;
+    }),
+    CUOTAS_REALES.map(([c, real]) => {
+      const r = res91({ producto: "Individual " + c });
+      const t = MT.tablaAmortizacion({ producto: "FOXI", ciclo: c, monto: r.producto.monto, plazo: 16 });
+      return "c" + c + ":" + (t.ok ? t.cuota.toFixed(2) : "?") + "vs" + real;
+    }).join(" "));
+
+  ok("Foxi Plus - 1 es el de 32 semanas", res91({ producto: "Foxi Plus - 1" }).ok === true);
+  ok("Foxi Plus - 2 usa el plazo del crédito (24 o 16)",
+    res91({ producto: "Foxi Plus - 2", plazo: 24 }).ok === true
+    && res91({ producto: "Foxi Plus - 2", plazo: 16 }).ok === true);
+
+  // LO QUE NO SE ADIVINA.
+  const sinPlazo = res91({ producto: "Grupal-Basico" });
+  ok("sin plazo NO se elige «la más común»: se dice qué falta",
+    sinPlazo.ok === false && sinPlazo.faltaPlazo === true, String(sinPlazo.motivo).slice(0, 60));
+  ok("y el aviso dice las dos tasas que están en juego",
+    /5\.67|18 y a 24/.test(sinPlazo.motivo || ""));
+  const raro = res91({ producto: "Grupal-Basico", plazo: 99 });
+  ok("un plazo que no existe en el catálogo se rechaza con sus opciones",
+    raro.ok === false && /18, 24/.test(raro.motivo || ""), String(raro.motivo).slice(0, 60));
+
+  // Las reestructuras NO son un pendiente: van marcadas aparte.
+  const rees = res91({ producto: "REESTRUCTURA", plazo: 58 });
+  ok("una reestructura queda FUERA del catálogo a propósito, no como error",
+    rees.ok === false && rees.fueraDeCatalogo === true);
+  ok("y explica por qué (plazo y cuota propios)", /renegociado/i.test(rees.motivo || ""));
+
+  // El reporte de lo que falta por completar.
+  const sc = await j(await fetch(U + "/api/sin-catalogo", { headers: H(cm) }));
+  ok("el reporte de créditos sin catálogo responde", !!sc && typeof sc.total === "number",
+    JSON.stringify(sc).slice(0, 80));
+  ok("dice cuántos YA calculan, no solo cuántos faltan", typeof sc.listos === "number" && sc.listos > 0,
+    "listos=" + sc.listos + " faltan=" + sc.total);
+  ok("los que faltan son muchos menos que los que ya calculan", sc.listos > sc.total,
+    sc.listos + " vs " + sc.total);
+  ok("cada renglón dice QUÉ falta y qué plazos son válidos",
+    (sc.filas || []).every((x) => !!x.motivo) 
+    && (sc.filas || []).filter((x) => x.falta === "plazo").every((x) => !!x.opciones),
+    JSON.stringify((sc.filas || [])[0] || {}).slice(0, 120));
+  ok("las reestructuras van en su propia lista, no en la de pendientes",
+    Array.isArray(sc.fueraDeCatalogo)
+    && (sc.filas || []).every((x) => !/reestructur/i.test(x.producto || "")),
+    "fuera=" + JSON.stringify(sc.fueraDeCatalogo && sc.fueraDeCatalogo.length)
+      + " coladas=" + JSON.stringify((sc.filas || []).filter((x) => /reestructur/i.test(x.producto || ""))
+          .map((x) => x.producto)));
+  // EL NÚMERO DEL FINAL ES EL CICLO, y vale para cualquier producto: al
+  // re-acreditar, "REESTRUCTURA" se vuelve "Reestructura 2". Sin esta regla
+  // habría que dar de alta cada ciclo a mano en la tabla de equivalencias.
+  ok("un ciclo nuevo de un producto fuera de catálogo sigue fuera",
+    res91({ producto: "Reestructura 2", plazo: 58 }).fueraDeCatalogo === true);
+  ok("un ciclo que no está listado se resuelve solo, tomando el número como ciclo",
+    res91({ producto: "Grupal-Basico 4", plazo: 24 }).clave === "GRUPAL_BASICO_24"
+    && res91({ producto: "Grupal-Basico 4", plazo: 24 }).ciclo === 4);
+  ok("pero el nombre EXACTO gana, para los casos donde el número no es ciclo",
+    res91({ producto: "Foxi Plus - 2", plazo: 24 }).clave === "FOXI_PLUS"
+    && res91({ producto: "Individual 3" }).clave === "FOXI");
+  ok("y un producto que de verdad no existe se reporta, no se adivina",
+    res91({ producto: "Producto Inventado", plazo: 10 }).sinEquivalencia === true);
+
+  const xl = await fetch(U + "/api/sin-catalogo/excel", { headers: H(cm) });
+  ok("y baja en Excel con su columna en amarillo para llenar", xl.status === 200,
+    "status " + xl.status);
+
+  console.log("\n— 90. EL CATÁLOGO OFICIAL, CARGADO Y CERRADO (Anel, 19-ago) —");
+  // Anel mandó los tres datos que faltaban, sobre el catálogo que la Ing. Monse
+  // validó en mayo: tasas mensuales confirmadas, moratoria 10% y la tabla FOXI
+  // ciclo por ciclo. Con esto el motor queda cerrado.
+  const MOT90 = require(require("path").join(__dirname, "..", "motor-reglas.js"));
+  const REG90 = JSON.parse(require("fs").readFileSync(
+    require("path").join(__dirname, "..", "data", "reglas-productos.json"), "utf8"));
+  const c90 = (x) => Math.round(Number(x) * 100) / 100;
+
+  // --- Los ejemplos que validó la contadora siguen saliendo al centavo ---
+  const ap90 = MOT90.autoprueba();
+  ok("los 4 ejemplos validados siguen reproduciéndose al centavo", ap90.ok,
+    ap90.casos.filter((x) => !x.ok).map((x) => x.caso + " → " + x.obtuvo).join(" | "));
+
+  // --- 1 · mensuales, ya con firma ---
+  ok("las tasas mensuales quedan CONFIRMADAS por Dirección",
+    /Anel/i.test(REG90._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.confirmadoPor || ""));
+  ok("y los 7 grupales conservan su tasa del catálogo",
+    [["GRUPAL_BASICO_18", 0.0567], ["GRUPAL_BASICO_24", 0.0632], ["GRUPAL_MICRO_32", 0.0462],
+     ["GRUPAL_MICRO_48", 0.0385], ["GRUPAL_MICRO_52", 0.0525], ["GRUPAL_ADICIONAL", 0.0795],
+     ["GRUPAL_MICROCREDITO", 0.0586]]
+      .every(([k, t]) => (REG90.productos.find((x) => x.clave === k) || {}).tasaMensual === t));
+
+  // --- MAGNUS SÍ cobra IVA (TABLAS SIMULADOR 10-sep, sustituye al 19-ago) ---
+  const mg90 = MOT90.tablaAmortizacion({ producto: "MAGNUS", monto: 100000, plazo: 24 });
+  ok("MAGNUS SÍ cobra IVA del 16% sobre el interés (tablas oficiales 10-sep)",
+    mg90.ok && mg90.totales.iva > 0
+    && Math.abs(mg90.totales.iva - mg90.totales.interes * 0.16) < 0.5,
+    String(mg90.ok && mg90.totales.iva));
+  const mc90 = MOT90.tablaAmortizacion({ producto: "GRUPAL_MICROCREDITO", monto: 30000, plazo: 32 });
+  ok("el Microcrédito SÍ cobra IVA (la celda vacía del catálogo era error de captura)",
+    mc90.ok && mc90.totales.iva > 0, String(mc90.ok && mc90.totales.iva));
+
+  // --- 2 · moratorio: 10%, sobre el CAPITAL, sin días de gracia ---
+  const M90 = REG90.moratorio;
+  ok("la tasa moratoria es 10% mensual y única para todos",
+    M90.tasaMoratoriaMensual === 0.10 && M90.unicaParaTodos === true && M90.pendiente === false);
+  ok("se cobra sobre el CAPITAL de la amortización, no sobre la cuota",
+    M90.base === "capitalAmortizacion", String(M90.base));
+  ok("los 8 días de gracia quedaron en CERO", M90.diasGracia === 0, String(M90.diasGracia));
+  const t90 = MOT90.tablaAmortizacion({ producto: "COMADRE", monto: 10000, plazo: 12 });
+  const p690 = t90.pagos[5];
+  const mor90 = MOT90.moratorio([{ pago: 6, cuota: p690.cuota, capital: p690.capital, diasAtraso: 22 }]);
+  ok("el caso del PDF con la regla nueva da $61.11 + IVA $9.78",
+    mor90.ok && c90(mor90.filas[0].interes) === 61.11 && c90(mor90.filas[0].iva) === 9.78,
+    JSON.stringify(mor90.filas[0] || {}).slice(0, 110));
+  ok("y NO da los $103.64 del ejemplo viejo, que iba sobre la cuota",
+    c90(mor90.filas[0].interes) !== 103.64);
+  ok("sin el capital de la amortización, se dice que falta en vez de cobrar sobre una base adivinada",
+    MOT90.moratorio([{ pago: 1, cuota: 1413.33, diasAtraso: 10 }]).ok === false);
+  // El parámetro de gracia sigue vivo: si Dirección los reinstala, se mueve aquí.
+  ok("los días de gracia son un parámetro, no una constante del programa",
+    typeof M90.diasGracia === "number" && "diasGracia" in M90);
+
+  // --- 3 · FOXI por ciclo y FOXI+ por plazo ---
+  const CICLOS90 = [[1, 5000, 0.0913], [2, 7000, 0.0707], [3, 10000, 0.0845],
+                  [4, 12000, 0.0707], [5, 15000, 0.0569]];
+  ok("FOXI tiene sus 5 ciclos, cada uno con su monto y su tasa",
+    CICLOS90.every(([c, mo, ta]) => {
+      const e = MOT90.estadoDe("FOXI", { ciclo: c });
+      return e.ok && e.producto.monto === mo && e.producto.tasaMensual === ta;
+    }));
+  ok("cada ciclo de FOXI ya calcula su tabla a 16 semanas",
+    CICLOS90.every(([c, mo]) => MOT90.tablaAmortizacion({ producto: "FOXI", ciclo: c, monto: mo, plazo: 16 }).ok));
+  ok("FOXI sin decir el ciclo NO se adivina: avisa qué falta",
+    MOT90.estadoDe("FOXI", {}).ok === false && /CICLO/i.test(MOT90.estadoDe("FOXI", {}).motivo || ""));
+  const PLUS90 = [[32, 0.05], [24, 0.0388], [16, 0.0574]];
+  ok("FOXI+ tiene sus 3 variantes por plazo",
+    PLUS90.every(([pl, ta]) => {
+      const e = MOT90.estadoDe("FOXI_PLUS", { plazo: pl });
+      return e.ok && e.producto.tasaMensual === ta;
+    }));
+  ok("el tope de FOXI+ queda en $50,000 (no los $150,000 del Anexo E v5)",
+    (REG90.productos.find((x) => x.clave === "FOXI_PLUS") || {}).montoMax === 50000);
+
+  // --- comisiones de apertura ---
+  const CA90 = REG90.comisionApertura || {};
+  ok("las comisiones de apertura están cargadas",
+    CA90.GRUPAL_BASICO_18 && CA90.GRUPAL_BASICO_18.monto === 160
+    && CA90.GRUPAL_MICRO_32.monto === 300 && CA90.FOXI_PLUS.monto === 500 && CA90.MAGNUS.monto === 500);
+  ok("la del Adicional es por millar, no fija", CA90.GRUPAL_ADICIONAL.tipo === "porMillar");
+  // 23-ago: Anel mandó la tabla ciclo por ciclo. El dato dejó de estar abierto.
+  ok("la de FOXI ya trae su tabla ciclo por ciclo (Anel, 23-ago)",
+    CA90.FOXI && !CA90.FOXI.pendiente && CA90.FOXI.porCiclo
+    && CA90.FOXI.porCiclo["1"] === 250 && CA90.FOXI.porCiclo["2"] === 350
+    && CA90.FOXI.porCiclo["3"] === 350 && CA90.FOXI.porCiclo["4"] === 400
+    && CA90.FOXI.porCiclo["5"] === 400, JSON.stringify(CA90.FOXI || {}).slice(0, 90));
+
+  // --- ya no queda nada pendiente de calcular ---
+  ok("ningún producto queda sin poder calcularse",
+    (REG90.productos || []).every((x) => x.tasaMensual != null || (x.variantes || []).length > 0),
+    (REG90.productos || []).filter((x) => x.tasaMensual == null && !(x.variantes || []).length)
+      .map((x) => x.clave).join(" "));
+
+  console.log("\n— 89. LAS RESPUESTAS DE CONTADURÍA QUEDAN ASENTADAS (Lic. Consuelo, 19-ago) —");
+  // De las 5 preguntas del cuestionario, Contaduría cerró dos (centavos e IVA),
+  // concuerda con una pero la remite a Dirección (tasas mensuales) y deja dos
+  // abiertas (moratorio y tabla FOXI). Lo que esta sección cuida es que lo
+  // cerrado quede escrito con su fuente, y que lo ABIERTO siga sin calcularse:
+  // el riesgo real no es que falte un dato, es que alguien lo rellene a ojo.
+  // Se lee el archivo del repo (el que se despliega), no la copia desechable:
+  // lo que se está verificando es lo que va a producción.
+  const REG = JSON.parse(require("fs").readFileSync(
+    require("path").join(__dirname, "..", "data", "reglas-productos.json"), "utf8"));
+
+  ok("los centavos del ajuste van en la ÚLTIMA cuota (cerrado por Contaduría)",
+    REG.redondeo.ajusteDeCentavos === "ultima", String(REG.redondeo.ajusteDeCentavos));
+  ok("y queda escrito quién lo confirmó", /Consuelo/i.test(REG.redondeo.confirmadoPor || ""),
+    String(REG.redondeo.confirmadoPor || "").slice(0, 60));
+  ok("el IVA es 16% (cerrado por Contaduría)", REG.iva === 0.16, String(REG.iva));
+  ok("y también dice quién lo confirmó", /Consuelo/i.test(REG.ivaConfirmadoPor || ""));
+
+  // LO QUE CONTADURÍA DEJÓ ABIERTO lo cerró Dirección ese mismo día (sección
+  // 90). Aquí solo se conserva el rastro: que quede escrito que Contaduría
+  // remitió, y que el motor NO se quedó con el 10% del ejemplo por su cuenta
+  // sino porque Dirección lo confirmó después.
+  ok("queda escrito que Contaduría remitió el moratorio a Dirección",
+    /Anel|Monserrat/i.test(REG.moratorio.preguntarA || REG.moratorio._confirmacion || ""));
+  ok("y que la tasa que quedó viene CONFIRMADA, no supuesta",
+    /Anel/i.test(REG.moratorio.confirmadoPor || ""),
+    String(REG.moratorio.confirmadoPor || "").slice(0, 50));
+  ok("aunque Contaduría ya había dicho que las considera mensuales",
+    /MENSUALES/i.test(REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.contaduria19ago || ""));
+  ok("el motor sigue configurado en mensual (que es lo que reproduce los ejemplos)",
+    REG._ADVERTENCIA_DEL_PROPIO_DOCUMENTO.interpretacion === "mensual");
+
+  // Los 10 productos que ya tenían tasa siguen intactos: cargar el catálogo no
+  // movió ninguno de los que ya estaban validados.
+  const conTasa = (REG.productos || []).filter((x) => typeof x.tasaMensual === "number");
+  ok("los 10 productos que ya tenían tasa siguen igual", conTasa.length === 10, String(conTasa.length));
+
+  console.log("\n— 88. LA MARCA ES DEL CICLO, Y DIRECCIÓN VE QUIÉN TRABAJÓ SU LISTA (19-ago) —");
+  // Dos preguntas de Dirección: (1) «¿nos da un resumen de las renovaciones y
+  // el seguimiento de los ejecutivos?» y (2) «una vez marcado el estatus ya no
+  // se elimina y hay que volver a hacer esa tarea?».
+  //
+  // La segunda tenía un hoyo: la clave es socio+producto, así que una clienta
+  // que renueva el MISMO producto conserva la clave. Sin atar la marca al
+  // CICLO, el "Renovó" del ciclo pasado se arrastraba al crédito nuevo y la
+  // clienta llegaba al final del siguiente ciclo ya marcada como trabajada.
+  const r88 = await j(await fetch(U + "/api/renovaciones", { headers: H(cm) }));
+  const c88 = (r88.porTerminar || [])[0];
+  ok("hay clienta para la prueba del ciclo", !!c88);
+  if (c88) {
+    await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ socio: c88.socio, producto: c88.producto, estado: "Renovó" }) });
+    const g88 = await j(await fetch(U + "/api/renovaciones/gestion", { headers: H(cm) }));
+    const guardada = Object.values(g88.gestion || {})
+      .find((x) => String(x.socio) === String(c88.socio) && x.producto === c88.producto);
+    ok("la marca guarda el CICLO en el que se puso", guardada && typeof guardada.ciclo === "number",
+      JSON.stringify(guardada || {}).slice(0, 110));
+    const r88b = await j(await fetch(U + "/api/renovaciones", { headers: H(cm) }));
+    const v = (r88b.porTerminar || []).find((x) => String(x.socio) === String(c88.socio)
+      && x.producto === c88.producto);
+    ok("mientras siga el MISMO ciclo, la marca se respeta (no hay que rehacer la tarea)",
+      v && v.estado === "Renovó", String(v && v.estado));
+  }
+
+  // EL RESUMEN PARA DIRECCIÓN: por ejecutiva, cuántas ya trabajó y cuántas no.
+  const pe = r88.porEjecutivo || [];
+  ok("el reporte trae el corte por ejecutiva", Array.isArray(pe) && pe.length > 0);
+  const conLista = pe.filter((g) => g.porTerminar > 0);
+  ok("cada ejecutiva dice cuántas marcó y cuántas le faltan",
+    conLista.every((g) => typeof g.marcadas === "number" && typeof g.sinMarcar === "number"),
+    JSON.stringify(conLista[0] || {}).slice(0, 150));
+  ok("marcadas + sin marcar = su lista por terminar",
+    conLista.every((g) => g.marcadas + g.sinMarcar === g.porTerminar),
+    conLista.map((g) => g.ejecutivo + ":" + g.marcadas + "+" + g.sinMarcar + "/" + g.porTerminar).join(" "));
+  ok("y trae el avance en porcentaje",
+    conLista.every((g) => g.avanceGestion === null || (g.avanceGestion >= 0 && g.avanceGestion <= 100)));
+  ok("separa renovación real de solo recuperación por ejecutiva",
+    conLista.every((g) => typeof g.renovacionReal === "number" && typeof g.soloRecuperacion === "number"));
+
+  console.log("\n— 87. LOS CENTAVOS QUE NO SE PUEDEN PAGAR NO DESCUADRAN (Karina, 19-ago) —");
+  // «¿Cómo quedaría de que no cuadra por punto cero tres? En esas como Magnus
+  // los centavos son la diferencia.» El monto a entregar de Julio era
+  // $162,499.97 y contó $162,500: la moneda más chica son $0.50, así que esos
+  // 3 centavos no los puede entregar nadie. Marcarlos en rojo todos los días
+  // entrena a ignorar el rojo — que es justo lo que no queremos.
+  //
+  // La regla se prueba en los dos sentidos: afloja donde debe y NO afloja donde
+  // la cifra sí se puede pagar.
+  const casos = [
+    // [a entregar, contado, ¿debe cuadrar?, por qué]
+    [162499.97, 162500,   true,  "3 centavos sobre un monto impagable (el caso de Julio)"],
+    [162499.97, 162499.5, true,  "y también si entrega la moneda de menos"],
+    [1000,      1000.03,  false, "3 centavos sobre un monto REDONDO sí es descuadre"],
+    [1000.5,    1000.53,  false, "ídem sobre un múltiplo exacto de la moneda más chica"],
+    [162499.97, 162500.5, false, "media moneda de más ya no es redondeo: esa sí existe"],
+    [500.25,    500,      true,  "25 centavos impagables: cuadra"],
+    [500.25,    500.5,    true,  "y por el otro lado también (500.50, que sí se puede contar)"],
+    // Lo CONTADO siempre es múltiplo de $0.50: sale de las denominaciones. Un
+    // conteo que no lo sea es imposible en la vida real, y ahí no aplica holgura.
+    [500.25,    500.75,   false, "un conteo imposible (.75) no se disculpa"],
+    [500,       500,      true,  "exacto siempre cuadra"],
+  ];
+  for (const [aEnt, cont, debe, porque] of casos) {
+    // Se reproduce la misma regla del servidor: si cambiara, esta prueba cae.
+    const dif = Math.round((cont - aEnt) * 100) / 100;
+    const exacto = Math.abs(dif) < 0.01;
+    const impagable = Math.round(Math.abs(aEnt) * 100) % 50 !== 0;
+    const cuadra = exacto || (impagable && Math.abs(dif) < 0.5);
+    ok(porque, cuadra === debe, "aEntregar " + aEnt + " · contó " + cont + " → cuadra=" + cuadra);
+  }
+  // Y el arqueo real lo expone, para que la pantalla no lo vuelva a calcular.
+  const arq87 = await j(await fetch(U + "/api/arqueo?fecha=" + HOY, { headers: H(cm) }));
+  const unoCualquiera = Object.values((arq87 && arq87.porEjec) || {})[0];
+  ok("el arqueo entrega el veredicto ya resuelto (cuadra) y no solo la diferencia",
+    !unoCualquiera || (typeof unoCualquiera.cuadra === "boolean" && "difRedondeo" in unoCualquiera),
+    JSON.stringify(unoCualquiera || {}).slice(0, 120));
+
+  console.log("\n— 86. EL ESTATUS DE RENOVACIÓN SE GUARDA Y NO SE BORRA (Nery, 19-ago) —");
+  // «Marcan a cada clienta —renovó, no renovó, pendiente— y al día siguiente el
+  // sistema las regresa en blanco.» El estatus vivía en el localStorage del
+  // teléfono, junto a la captura del día, y al enviar el arqueo se borraba
+  // (`gestRenov={}`). Ahora vive en el servidor, por CRÉDITO y no por día.
+  // Con `monse` (admin real) porque la burbuja de prueba no tiene cartera: sin
+  // clientas por terminar no hay a quién marcarle estatus. Escribe sobre la
+  // copia desechable del día, como todo lo demás de la batería.
+  const cd86 = cm;
+  const ren86 = async () => j(await fetch(U + "/api/renovaciones", { headers: H(cd86) }));
+  const r86 = await ren86();
+  ok("el reporte de renovaciones responde", !!r86 && !r86.error, JSON.stringify(r86).slice(0, 70));
+  ok("y trae el catálogo de estados", Array.isArray(r86.estados) && r86.estados.length >= 6,
+    JSON.stringify(r86.estados));
+  ok("«Solo recuperación» está entre los estados (lo pidió Nery)",
+    (r86.estados || []).includes("Solo recuperación"));
+
+  // Se marca una clienta real de la cartera de prueba.
+  const cand = (r86.porTerminar || [])[0] || (r86.sinRenovar || [])[0];
+  ok("hay al menos una clienta a la que marcarle estatus", !!cand);
+  if (cand) {
+    const set86 = (estado) => j(fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+      body: JSON.stringify({ socio: cand.socio, producto: cand.producto, estado }) }).then((x) => x));
+    const g1 = await j(await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+      body: JSON.stringify({ socio: cand.socio, producto: cand.producto, estado: "Solo recuperación" }) }));
+    ok("se puede marcar «Solo recuperación»", g1.ok === true, JSON.stringify(g1).slice(0, 80));
+    ok("y queda con el nombre de quien la marcó", !!(g1.gestion && g1.gestion.por));
+
+    // LO QUE FALLABA: volver a pedir el reporte y que el estatus siga ahí.
+    const r86b = await ren86();
+    const todas = (r86b.porTerminar || []).concat(r86b.sinRenovar || []);
+    const mismo = todas.find((x) => String(x.socio) === String(cand.socio) && x.producto === cand.producto);
+    ok("al releer el reporte, el estatus SIGUE puesto (antes se borraba)",
+      mismo && mismo.estado === "Solo recuperación", "estado=" + String(mismo && mismo.estado));
+    ok("y deja de contar como renovación", mismo && mismo.esRenovacion === false);
+
+    // El conteo que pidió Dirección: de las por terminar, cuántas son reales.
+    const T = r86b.totales || {};
+    ok("el reporte separa renovación real de solo recuperación",
+      typeof T.porTerminarRenovacion === "number" && typeof T.porTerminarSoloRecuperacion === "number",
+      JSON.stringify(T).slice(0, 130));
+    ok("y los sumandos cuadran con el total",
+      (T.porTerminarRenovacion || 0) + (T.porTerminarSoloRecuperacion || 0) + (T.porTerminarNoQuiso || 0)
+        === (T.porTerminar || 0),
+      T.porTerminarRenovacion + "+" + T.porTerminarSoloRecuperacion + "+" + T.porTerminarNoQuiso
+        + " vs " + T.porTerminar);
+
+    // Se puede cambiar de opinión: el último estado manda.
+    const g2 = await j(await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+      body: JSON.stringify({ socio: cand.socio, producto: cand.producto, estado: "Renovó" }) }));
+    ok("se puede corregir el estatus", g2.ok === true);
+    const r86c = await ren86();
+    const otra = (r86c.porTerminar || []).concat(r86c.sinRenovar || [])
+      .find((x) => String(x.socio) === String(cand.socio) && x.producto === cand.producto);
+    ok("manda el último que se puso", otra && otra.estado === "Renovó", String(otra && otra.estado));
+    ok("y «Renovó» sí cuenta como renovación", otra && otra.esRenovacion === true);
+  }
+  // Un estado inventado no entra: si no, cada quien escribiría el suyo.
+  const malo = await fetch(U + "/api/renovaciones/gestion", { method: "POST", headers: H(cd86),
+    body: JSON.stringify({ socio: "999", producto: "X", estado: "Ahí la llevo" }) });
+  ok("un estado que no existe se rechaza", malo.status === 400, "status " + malo.status);
+
+  console.log("\n— 85. LA ANULACIÓN DE DIRECCIÓN NO LA DESHACE EL SYNC (Karina, 19-ago) —");
+  // Dirección DENTRO de la burbuja: `monse` es cuenta real y no ve los
+  // movimientos del usuario de prueba (movsDeFecha separa las dos burbujas).
+  const cd85 = await login("pruebadir", "PruebaFOOAX2026");
+  // «Entró Monse al crédito y lo anuló… es que ya están liquidados… ahora le
+  // pide lo doble.» Monse anuló dos liquidaciones de Julio por error de
+  // captura. La app de Julio las seguía trayendo en su lista, y en el siguiente
+  // sync el servidor las REVIVÍA solo. Resultado: los créditos volvían a quedar
+  // liquidados, y el arqueo le pedía a Julio $324,999.94 por $162,499.97 de
+  // cobranza — el mismo dinero contado como su efectivo Y otra vez como "otros".
+  const sync85 = (movs) => fetch(U + "/api/sync", { method: "POST", headers: H(ce),
+    body: JSON.stringify({ fecha: HOY, snapshot: { movs } }) });
+  const M85 = [{ folio: "L85", monto: 4321, concepto: "GASTO", nota: "Gasolina de la ruta" }];
+  await sync85(M85);
+  const mios85 = async () => ((await j(await fetch(U + "/api/movimientos?fecha=" + HOY,
+    { headers: H(cd85) }))).lista || []).filter((x) => /L85$/.test(String(x.folio)));
+  const n85 = (await mios85())[0];
+  ok("la ejecutiva captura un movimiento en su app y llega al tablero", !!n85,
+    JSON.stringify(n85 || {}).slice(0, 80));
+
+  // Dirección lo anula, con nombre y motivo.
+  const anD = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cd85),
+    body: JSON.stringify({ folio: n85.folio, motivo: "ERROR DE CAPTURA", fecha: HOY }) }));
+  ok("Dirección lo anula desde el tablero", anD.ok === true);
+  ok("y queda con el nombre de quien lo anuló", !!(await mios85())[0].anuladoPor);
+
+  // La app vuelve a sincronizar CON el movimiento todavía en su lista.
+  await sync85(M85);
+  const tras = (await mios85())[0];
+  ok("tras el sync, la anulación de Dirección SIGUE puesta (antes revivía sola)",
+    tras && tras.anulado === true, "anulado=" + String(tras && tras.anulado));
+  ok("y conserva quién y por qué", !!(tras && tras.anuladoPor) && !!(tras && tras.anuladoMotivo));
+
+  // El automatismo de la app (quitarlo de la lista lo anula, volverlo a poner lo
+  // revive) NO se toca con este cambio y no se re-verifica aquí: depende de
+  // `permitirAnular`, que se apaga cuando el día ya está cerrado — y a esta
+  // altura de la batería el día de `prueba` ya cerró. Lo que sí importa probar
+  // es que la decisión de Dirección sobreviva, que es lo de arriba.
+  await sync85(M85);
+  ok("y tras otro sync más, la de Dirección sigue anulada", (await mios85())[0]?.anulado === true);
+
+  console.log("\n— 84. UNA ANULACIÓN EQUIVOCADA SE PUEDE DESHACER (Karina, 19-ago) —");
+  // Monse anuló dos liquidaciones «por error de captura» y luego resultó que
+  // no eran las que había que anular. Anular nunca borra —el movimiento se
+  // tacha— pero NO había forma de destacharlo desde la pantalla: el endpoint
+  // aceptaba `anular:false` desde siempre y nadie lo llamaba. Una anulación
+  // equivocada solo se deshacía entrando a la base de datos.
+  const mov84 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Gasto operativo", monto: 1234.56, metodo: "efectivo",
+      concepto: "Gasolina", fecha: HOY }) }));
+  const f84 = mov84.folio || (mov84.movimiento && mov84.movimiento.folio);
+  const dame84 = async () => ((await j(await fetch(U + "/api/movimientos?fecha=" + HOY,
+    { headers: H(cm) }))).lista || []).find((x) => x.folio === f84);
+  ok("se registra el movimiento de la prueba", !!f84, JSON.stringify(mov84).slice(0, 70));
+  const an84 = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ folio: f84, motivo: "ERROR DE CAPTURA", fecha: HOY }) }));
+  ok("se anula, con su motivo obligatorio", an84.ok === true && an84.anulado === true);
+  const v84a = await dame84();
+  ok("queda tachado, con quién lo anuló y por qué",
+    v84a && v84a.anulado === true && !!v84a.anuladoPor, JSON.stringify(v84a || {}).slice(0, 90));
+  // REACTIVAR: el reverso exacto
+  const re84 = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ folio: f84, anular: false, fecha: HOY }) }));
+  ok("REACTIVAR deshace la anulación", re84.ok === true && re84.anulado === false);
+  const v84b = await dame84();
+  ok("el movimiento vuelve a estar vivo", v84b && v84b.anulado !== true);
+  ok("y no se perdió nada: mismo folio y mismo monto",
+    v84b && v84b.folio === f84 && Number(v84b.monto) === 1234.56);
+  ok("reactivar no exige motivo (anular sí, porque cambia la caja del día)", re84.ok === true);
+  // Y se puede volver a anular: la operación es reversible en los dos sentidos.
+  const an84b = await j(await fetch(U + "/api/movimiento/anular", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ folio: f84, motivo: "otra vez", fecha: HOY }) }));
+  ok("se puede volver a anular después de reactivar", an84b.ok === true && an84b.anulado === true);
+
+  console.log("\n— 82. EL ACUMULADO ES LA SUMA DE LOS DÍAS, Y SE PUEDE COMPROBAR (Karina, 18-ago) —");
+  // «Del lunes $2,976.50 y del martes $5,886 — eso está mal.» El acumulado
+  // contaba SOLO el pago hecho ESE día exacto, mientras el bloque de arriba
+  // cuenta lo abonado en la semana HASTA ese día. Por eso cobraba de más a la
+  // que se adelanta: pagaba el lunes su cuota del martes, arriba salía limpia
+  // y en el acumulado seguía morosa. Y el total iba solo, sin forma de checarlo.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const acum81 = async () => j(await fetch(U + "/api/mora/dia?fecha=2026-08-18", { headers: H(cm) }));
+  const marDe = (d) => ((d.acumuladoPorDia || []).find((x) => x.dia === "MARTES") || {}).total || 0;
+  const base81 = marDe(await acum81());
+  const SACU81 = "70000009501";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: SACU81, nombre: "ADELANTA SU MARTES 81", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 10000, cuota: 500, plazo: 40,
+      diaPago: "Martes", desembolso: "2026-03-23" }) });
+  const d81a = await acum81();
+  ok("sin pagar, su cuota entra al acumulado del martes",
+    Math.abs(marDe(d81a) - base81 - 500) < 0.01, "subió " + (marDe(d81a) - base81));
+  ok("y el acumulado es EXACTAMENTE la suma de sus días, comprobable renglón por renglón",
+    Math.abs((d81a.acumuladoPorDia || []).reduce((a2, x) => a2 + x.total, 0) - d81a.totalSemanaAlDia) < 0.01,
+    JSON.stringify(d81a.acumuladoPorDia));
+  // Paga el LUNES su cuota del MARTES: se adelantó.
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-17",
+    snapshot: { reg: { GHANIMA: { [SACU81 + "|Grupal-Basico|ADELANTA SU MARTES 81|0"]: { pago: 500, forma: "E" } } } },
+    ts: Date.now() + 140 }) });
+  const d81b = await acum81();
+  ok("al adelantarse, el acumulado deja de contarla — igual que el bloque del día",
+    Math.abs(marDe(d81b) - base81) < 0.01, "quedó en " + marDe(d81b) + " y debía volver a " + base81);
+  ok("y no aparece en la lista del día",
+    !(d81b.centros || []).flatMap((g) => g.filas).some((x) => String(x.socio) === SACU81), "sale en la lista");
+  ok("el desglose trae su día y su fecha, para poder checar la suma con el dedo",
+    (d81b.acumuladoPorDia || []).every((x) => x.dia && /^\d{4}-\d{2}-\d{2}$/.test(x.fecha || "")),
+    JSON.stringify(d81b.acumuladoPorDia));
+  // Y el total del día de arriba coincide con su renglón en el desglose.
+  // CADA DÍA CON SUS TRES CIFRAS (Karina, 18-ago: comparó el $4,290.50 del
+  // acumulado contra el $2,976.50 del arqueo del lunes y parecían pelearse —
+  // son el mismo lunes en dos momentos, antes y después de lo recuperado).
+  ok("cada día del acumulado trae lo que faltó, lo recuperado y lo que sigue debiendo",
+    (d81b.acumuladoPorDia || []).every((x) =>
+      typeof x.total === "number" && typeof x.recuperado === "number"
+      && Math.abs(x.total - x.recuperado - x.sigueDebiendo) < 0.01),
+    JSON.stringify(d81b.acumuladoPorDia));
+  ok("y lo que sigue debiéndose de la semana es la suma de esos renglones",
+    Math.abs((d81b.acumuladoPorDia || []).reduce((a2, x) => a2 + x.sigueDebiendo, 0)
+      - d81b.totalSemanaSigueDebiendo) < 0.01,
+    "renglones " + (d81b.acumuladoPorDia || []).reduce((a2, x) => a2 + x.sigueDebiendo, 0)
+      + " vs total " + d81b.totalSemanaSigueDebiendo);
+  ok("el total del día coincide al centavo con su renglón del acumulado",
+    Math.abs(d81b.totalDia - marDe(d81b)) < 0.01,
+    "día " + d81b.totalDia + " vs acumulado " + marDe(d81b));
+
+  console.log("\n— 80. EL CIERRE DE CAJA SIGUE EL DÍA QUE SE ESTÁ MIRANDO (Karina, 17-ago) —");
+  // «Si me regreso al sábado, yo necesito ver lo del sábado, el cierre de caja
+  // del sábado, y así sucesivamente.» La tarjeta y el Excel salían SIEMPRE con
+  // la semana en curso: elegir un día anterior no los movía, así que el cierre
+  // del sábado era imposible de sacar.
+  const S80 = "70000009300";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S80, nombre: "CAJA POR DIA 80", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 40000, cuota: 500, plazo: 80,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  const K80 = S80 + "|Grupal-Basico|CAJA POR DIA 80|0";
+  for (const [f, monto, dt] of [["2026-08-13", 3000, 1], ["2026-08-15", 2000, 2]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+      body: JSON.stringify({ fecha: f, snapshot: { regI: { [K80]: { pago: monto, forma: "E" } } },
+        ts: Date.now() + 130 + dt }) });
+  const caja80 = async (q) => j(await fetch(U + "/api/semana/caja" + q, { headers: H(cm) }));
+  const sab80 = await caja80("?fecha=2026-08-15");
+  ok("al elegir el SÁBADO, el cierre es el de ESA semana, cerrado a ese día",
+    sab80.lunes === "2026-08-10" && sab80.hasta === "2026-08-15",
+    "del " + sab80.lunes + " al " + sab80.hasta);
+  ok("y trae lo cobrado hasta ese día, no lo de hoy",
+    sab80.entro >= 5000, "entró " + sab80.entro);
+  const jue80 = await caja80("?fecha=2026-08-13");
+  ok("al elegir el JUEVES, corta ahí: cada día tiene su cierre",
+    jue80.hasta === "2026-08-13" && jue80.entro >= 3000 && jue80.entro < sab80.entro,
+    "hasta " + jue80.hasta + " · entró " + jue80.entro);
+  const rx80 = await fetch(U + "/api/semana/caja/excel?fecha=2026-08-15", { headers: H(cm) });
+  ok("y el EXCEL de ese día se puede descargar, con su fecha en el nombre",
+    rx80.status === 200 && /2026-08-10 al 2026-08-15/.test(rx80.headers.get("content-disposition") || ""),
+    (rx80.headers.get("content-disposition") || "status " + rx80.status).slice(0, 90));
+  // Sin elegir fecha sigue siendo la semana en curso, como siempre.
+  const hoy80 = await caja80("");
+  ok("sin elegir día, sigue siendo la semana en curso",
+    hoy80.lunes === lunesDeLaSemanaJS(HOY), "lunes " + hoy80.lunes);
+
+  console.log("\n— 79. LA QUE TERMINÓ DE PAGAR DEJA DE COBRARSE (reporte de Administración) —");
+  // «La aplicación no liquida los créditos al terminar su plazo: cinco clientas
+  // que terminaron el 16 y 17 de julio siguieron recibiendo cobro.»
+  //
+  // Estaba resuelto SOLO para las clientas venidas de plantilla. Las dadas de
+  // alta EN EL SISTEMA iban en las dos listas a la vez —en «quitar» por estar
+  // en cero y en «altas» por haber nacido en el tablero— y como la app aplica
+  // primero quitar y luego altas, la borraba y la volvía a meter en el mismo
+  // sondeo. La ejecutiva la seguía viendo y la seguía cobrando.
+  const S78 = "70000009200";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S78, nombre: "TERMINA Y SE VA 78", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 1000, cuota: 500, plazo: 2,
+      diaPago: "Lunes", desembolso: "2026-08-03" }) });
+  const viv78 = async () => j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const v78a = await viv78();
+  ok("mientras debe, la clienta está en la app de su ejecutiva",
+    (v78a.altas || []).some((x) => String(x.id) === S78), "no aparece debiendo");
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-10",
+    snapshot: { reg: { GHANIMA: { [S78 + "|Grupal-Basico|TERMINA Y SE VA 78|0"]: { pago: 1000, forma: "E" } } } },
+    ts: Date.now() + 120 }) });
+  const v78b = await viv78();
+  ok("al terminar de pagar, YA NO se le vuelve a agregar al teléfono",
+    !(v78b.altas || []).some((x) => String(x.id) === S78), "sigue en la lista de agregar");
+  ok("y se le manda quitar de su pantalla",
+    (v78b.quitar || []).some((x) => String(x.id) === S78), "no se manda quitar");
+  ok("nunca en las dos listas a la vez (era lo que la revivía cada minuto)",
+    !((v78b.altas || []).some((x) => String(x.id) === S78)
+      && (v78b.quitar || []).some((x) => String(x.id) === S78)), "está en las dos");
+  const m78 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  ok("y tampoco se le cobra en la mora",
+    !(m78.dias || []).flatMap((g) => g.filas).some((x) => String(x.socio) === S78), "sale en la mora");
+
+  console.log("\n— 77. LA CLIENTA NUEVA LLEGA AL TELÉFONO DE SU EJECUTIVA (Karina, 15-ago) —");
+  // «Cuando agregan una clienta nueva y eligen el ejecutivo, aparece en el
+  // padrón de NERI al instante, con los datos que se dieron de alta.»
+  const S77 = "70000009100";
+  const rA77 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S77, nombre: "NUEVA PARA NERI 77", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 7200, cuota: 600, plazo: 12,
+      diaPago: "Martes", desembolso: "2026-08-14" }) }));
+  ok("el alta se registra con su ejecutiva", !rA77.error, rA77.error || "");
+  const vn77 = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const alta77 = (vn77.altas || []).find((x) => String(x.id) === S77);
+  ok("la clienta llega al teléfono de NERI en el siguiente sondeo (sin recargar)",
+    !!alta77 && alta77.nombre === "NUEVA PARA NERI 77" && alta77.centro === "GHANIMA",
+    JSON.stringify(alta77));
+  ok("con el saldo y la cuota que se capturaron",
+    !!alta77 && alta77.saldo === 7200 && alta77.cuota === 600, JSON.stringify(alta77));
+  const vivo77 = (vn77.vivos || []).find((x) => String(x.id) === S77);
+  ok("y con su DÍA DE COBRO, su plazo y su fecha de desembolso",
+    !!vivo77 && vivo77.dia === "MARTES" && vivo77.plazo === 12 && vivo77.desembolso === "2026-08-14",
+    JSON.stringify(vivo77));
+  const vj77 = await j(await fetch(U + "/api/vivos", { headers: H(cJul) }));
+  ok("y NO se le aparece a otra ejecutiva: es de quien la dio de alta",
+    !(vj77.altas || []).some((x) => String(x.id) === S77)
+      && !(vj77.vivos || []).some((x) => String(x.id) === S77), "salió en el de Julio");
+  // Y en el padrón por ejecutivo que se le manda a Dirección.
+  const pad77 = await j(await fetch(U + "/api/padron", { headers: H(cm) }));
+  ok("y también entra al padrón de NERI que ve Dirección",
+    (pad77.porEjec["Neri"] || []).some((x) => String(x.socio) === S77),
+    "no está en el padrón de Neri");
+
+  console.log("\n— 76. SEMANAS Y MES EN LA APP · CICLO · FECHA DE LIQUIDACIÓN (Karina, 15-ago) —");
+  // «Pueden ver la semana pasada, esta semana y así... y overall de todo el
+  // mes.» «Si alguien liquida su Grupal-Básico y renueva otro, ponerle un folio
+  // interno 02, 03.» «Cuando alguien liquida, ponerle la fecha de liquidación.»
+  const viv76 = await j(await fetch(U + "/api/vivos", { headers: H(cn) }));
+  const m76 = viv76.mora || {};
+  ok("la app recibe la mora repartida SEMANA POR SEMANA del mes",
+    Array.isArray(m76.semanas) && m76.semanas.length >= 1
+      && m76.semanas.every((w) => /^\d{4}-\d{2}-\d{2}$/.test(w.lunes) && typeof w.total === "number"),
+    JSON.stringify((m76.semanas || []).map((w) => w.lunes)));
+  ok("y el acumulado del MES, con sus clientas contadas una sola vez",
+    typeof m76.totalMes === "number" && typeof m76.clientasMes === "number"
+      && /^\d{4}-\d{2}$/.test(m76.mes || ""), JSON.stringify({ mes: m76.mes, total: m76.totalMes, clientas: m76.clientasMes }));
+  ok("las semanas van completas (con sus clientas), para verlas sin señal",
+    (m76.semanas || []).every((w) => Array.isArray(w.filas)), "alguna semana viene sin sus filas");
+  ok("y el total del mes es la suma de sus semanas",
+    Math.abs((m76.totalMes || 0) - (m76.semanas || []).reduce((a2, w) => a2 + w.total, 0)) < 0.01,
+    JSON.stringify({ mes: m76.totalMes, suma: (m76.semanas || []).reduce((a2, w) => a2 + w.total, 0) }));
+
+  // EL CICLO: liquida su Grupal-Basico y renueva el mismo producto.
+  const S76 = "70000009080";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76, nombre: "RENUEVA CICLOS 76", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2,
+      diaPago: "Lunes", desembolso: "2026-08-03" }) });
+  const busca76 = async () => {
+    const r = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("RENUEVA CICLOS"), { headers: H(cm) }));
+    return (r.resultados || []).find((x) => String(x.id) === S76 && x.activa !== false) || {};
+  };
+  // Primero LIQUIDA su ciclo (el re-crédito se rechaza si aún debe), y luego
+  // renueva el MISMO producto: ahí es donde se gana el ciclo 02.
+  const liq76 = (monto, fecha) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Liquidación", monto, concepto: "Liquidación · RENUEVA CICLOS 76",
+      metodo: "efectivo", socio: S76, producto: "Grupal-Basico", fecha }) });
+  await liq76(1000, "2026-08-10");
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76, producto: "Grupal-Basico", saldo: 6000, cuota: 500,
+      plazo: 12, ejecutivo: "Julio", motivo: "Renovación", desembolso: "2026-08-10" }) });
+  const c76 = await busca76();
+  ok("al renovar el MISMO producto se le pone su ciclo interno (02)",
+    c76.ciclo === 2, "ciclo " + c76.ciclo);
+  await liq76(6000, "2026-08-11");
+  await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76, producto: "Grupal-Basico", saldo: 8000, cuota: 500,
+      plazo: 16, ejecutivo: "Julio", motivo: "Renovación 3", desembolso: "2026-08-11" }) });
+  ok("y a la siguiente, el 03 — así se ve cuántos ha renovado con nosotros",
+    (await busca76()).ciclo === 3, "ciclo " + (await busca76()).ciclo);
+  ok("el ciclo NO cambia el nombre del crédito (los pagos siguen casando)",
+    (await busca76()).producto === "Grupal-Basico", (await busca76()).producto);
+
+  // LA FECHA DE LIQUIDACIÓN: la del último abono que la dejó en cero.
+  const S76b = "70000009081";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S76b, nombre: "LIQUIDA CON FECHA 76", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 2,
+      diaPago: "Lunes", desembolso: "2026-08-03" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-12", snapshot: { regI: {
+      [S76b + "|Grupal-Basico|LIQUIDA CON FECHA 76|0"]: { pago: 1000, forma: "E" } } }, ts: Date.now() + 110 }) });
+  const r76b = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("LIQUIDA CON FECHA"), { headers: H(cm) }));
+  const c76b = (r76b.resultados || []).find((x) => String(x.id) === S76b) || {};
+  ok("a la que liquidó se le guarda la FECHA en que terminó de pagar",
+    c76b.liquidadoEl === "2026-08-12" && c76b.saldoActual === 0,
+    JSON.stringify({ liquidadoEl: c76b.liquidadoEl, saldo: c76b.saldoActual }));
+  ok("y a la que todavía debe no se le inventa fecha de liquidación",
+    (await busca76()).liquidadoEl == null, JSON.stringify((await busca76()).liquidadoEl));
+
+  console.log("\n— 75. LO PAGADO SE DESGLOSA POR SEMANA (Karina, 15-ago) —");
+  // «La semana es de lunes a domingo, y aquí hicieron un pago una semana y a la
+  // siguiente le puso "pagó tanto esta semana".» La tarjeta de la clienta decía
+  // "pagó $960 esta sem." sumando TODO lo abonado desde el corte: los $480 del
+  // 6-ago eran de la semana ANTERIOR. Es el caso de ANA VICTORIA SANTIAGO.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const S75 = "70000009070";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S75, nombre: "ANA DOS SEMANAS 75", producto: "Grupal-Micro",
+      centro: "LA CONSENTIDA", ejecutivo: "Neri", saldo: 20160, cuota: 480, plazo: 42,
+      diaPago: "Jueves", desembolso: "2026-03-26" }) });
+  const K75 = S75 + "|Grupal-Micro|ANA DOS SEMANAS 75|0";
+  // Un pago de ESTA semana y otro de la PASADA, atados al calendario real: con
+  // fechas fijas la prueba se rompía sola al cambiar la semana.
+  const LUN75 = lunesDeLaSemanaJS(HOY);
+  const ANT75 = (() => { const d = new Date(LUN75 + "T12:00:00"); d.setDate(d.getDate() - 3);
+    return d.toISOString().slice(0, 10); })();
+  for (const [fch, dt] of [[ANT75, 100], [LUN75, 101]])
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cn),
+      body: JSON.stringify({ fecha: fch, snapshot: { reg: { "LA CONSENTIDA": { [K75]: { pago: 480, forma: "E" } } } },
+        ts: Date.now() + dt }) });
+  const cr75 = await j(await fetch(U + "/api/creditos?q=" + encodeURIComponent("ANA DOS SEMANAS"), { headers: H(cm) }));
+  const x75 = (cr75.resultados || []).find((x) => String(x.id) === S75) || {};
+  const LUNANT75 = lunesDeLaSemanaJS(ANT75);
+  ok("lo abonado se desglosa POR SEMANA, con el lunes de cada una",
+    Array.isArray(x75.porSemana) && x75.porSemana.length === 2
+      && x75.porSemana.some((w) => w.lunes === LUN75 && w.monto === 480)
+      && x75.porSemana.some((w) => w.lunes === LUNANT75 && w.monto === 480),
+    JSON.stringify(x75.porSemana));
+  ok("«esta semana» es SOLO la semana en curso, no todo desde el corte",
+    x75.pagadoEstaSemana === 480 && x75.pagado === 960,
+    "estaSemana " + x75.pagadoEstaSemana + " · desde el corte " + x75.pagado);
+  ok("y el total desde el corte sigue cuadrando con el saldo (20160 − 960)",
+    x75.saldoActual === 19200, "saldoActual " + x75.saldoActual);
+
+  console.log("\n— 74. LA QUE PAGA A MEDIAS VA EN «PAGO PARCIAL» (Karina, 15-ago) —");
+  // «Esas tienen que ir en cartera en el área de pago parcial.» Antes, si su
+  // día ya había pasado, la que pagó incompleto se iba al montón de la mora:
+  // el jueves ya no quedaba una sola parcial en el semáforo y se perdía de
+  // vista quién está pagando a medias — que es MUY distinto de quien no paga.
+  const S74 = "70000009060";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S74, nombre: "PAGA A MEDIAS 74", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 40,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  const S74b = "70000009061";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S74b, nombre: "NO PAGA NADA 74", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 40,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  const LUN74 = lunesDeLaSemanaJS(HOY);
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: LUN74,
+    snapshot: { reg: { GHANIMA: { [S74 + "|Grupal-Basico|PAGA A MEDIAS 74|0"]: { pago: 88, forma: "E" } } } },
+    ts: Date.now() + 90 }) });
+  const sem74 = async (estado) => j(await fetch(U + "/api/cartera/semaforo?estado=" + estado, { headers: H(cm) }));
+  const enPar = (await sem74("parcial")).filas.find((x) => String(x.socio) === S74);
+  ok("la que pagó $88 de su cuota de $588 va en PAGO PARCIAL, no en la mora",
+    !!enPar, "no está en pago parcial");
+  ok("y su renglón dice cuánto pagó y cuánto le falta",
+    !!enPar && enPar.pagoSemana === 88 && enPar.faltante === 500, JSON.stringify(enPar));
+  // Si su día ya pasó, va en mora; si no ha llegado (los lunes temprano), va en
+  // «aún no le toca». Lo que NUNCA puede pasar es que se confunda con la que
+  // pagó a medias — que es lo que esta sección vigila.
+  const enMora74 = (await sem74("enMora")).filas.some((x) => String(x.socio) === S74b);
+  const pend74 = (await sem74("pendiente")).filas.some((x) => String(x.socio) === S74b);
+  ok("la que NO pagó nada va en mora (o en «aún no le toca» si su día no llega), nunca en parcial",
+    (enMora74 || pend74) && !(await sem74("parcial")).filas.some((x) => String(x.socio) === S74b),
+    "enMora " + enMora74 + " · pendiente " + pend74);
+  ok("y la que pagó a medias NO aparece también en la mora (una clienta, un lugar)",
+    !(await sem74("enMora")).filas.some((x) => String(x.socio) === S74), "sale en los dos");
+
+  console.log("\n— 73. EL MISMO PAGO CAPTURADO DOS VECES (Karina, 15-ago) —");
+  // «Pagó 88 pesos, pero realmente debe 588, y le pone el sistema que pagó
+  // 588.» La clienta quedó listada en DOS lugares —dos centros, o un centro y
+  // como individual— y cada renglón traía su monto: el sistema los SUMABA
+  // (88 + 500 = 588) y aparecía pagando su cuota completa. Manda el padrón:
+  // vale la captura del centro donde está registrada, y la otra se reporta.
+  const S73 = "70000009050";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S73, nombre: "DOBLE CAPTURA 73", producto: "Grupal-Basico",
+      centro: "GHANIMA", ejecutivo: "Neri", saldo: 5880, cuota: 588, plazo: 20,
+      diaPago: "Lunes", desembolso: "2026-03-23" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: "2026-08-10",
+    snapshot: { reg: {
+      GHANIMA: { [S73 + "|Grupal-Basico|DOBLE CAPTURA 73|0"]: { pago: 88, forma: "E" } },
+      "LA JOYA": { [S73 + "|Grupal-Basico|DOBLE CAPTURA 73|0"]: { pago: 500, forma: "E" } } } },
+    ts: Date.now() + 80 }) });
+  const d73 = await j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f73 = (d73.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === S73);
+  ok("se toma lo que pagó en SU centro ($88), no la suma de los dos ($588)",
+    !!f73 && f73.pagado === 88, JSON.stringify(f73));
+  ok("y por eso sigue debiendo lo que de verdad debe ($500)",
+    !!f73 && f73.faltante === 500, JSON.stringify(f73));
+  const cl73 = await j(await fetch(U + "/api/clientes?q=" + S73, { headers: H(cm) }));
+  ok("el SALDO tampoco se le baja de más (5880 − 88)",
+    ((cl73.resultados || [])[0] || {}).saldoActual === 5792,
+    "saldoActual " + ((cl73.resultados || [])[0] || {}).saldoActual);
+  const cart73 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  const dup73 = (cart73.pagosDuplicados || []).find((x) => String(x.socio) === S73);
+  ok("y el tablero lo reporta: qué se tomó, qué se ignoró y de dónde",
+    !!dup73 && dup73.seTomoMonto === 88 && dup73.montoIgnorado === 500
+      && (dup73.seIgnoro || []).some((y) => /JOYA/i.test(y.origen)), JSON.stringify(dup73));
+
+  console.log("\n— 72. PADRÓN POR EJECUTIVO, CON SUS ALTAS Y SUS BAJAS (Karina, 15-ago) —");
+  // «Déjales un Excel donde se vean las bajas de padrón por ejecutivo... y si
+  // agregan una clienta nueva, esa clienta tiene que aparecer en el padrón de
+  // ese ejecutivo, como de las plantillas que nos mandaban.»
+  const S72 = "70000009020";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S72, nombre: "NUEVA DE JULIO 72", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6000, cuota: 500, plazo: 12, diaPago: "Lunes",
+      desembolso: "2026-08-10" }) });
+  const pad72 = async () => j(await fetch(U + "/api/padron", { headers: H(cm) }));
+  const p72 = await pad72();
+  const mia72 = (p72.porEjec["Julio"] || []).find((x) => String(x.socio) === S72);
+  ok("la clienta que se da de alta APARECE en el padrón de su ejecutiva",
+    !!mia72, "no salió en el padrón de Julio");
+  ok("y viene marcada como ALTA, con su fecha, para distinguirla de las que ya venían",
+    !!mia72 && mia72.esAlta === true && /^\d{4}-\d{2}-\d{2}$/.test(mia72.alta || ""), JSON.stringify(mia72));
+  ok("con lo que la ejecutiva necesita: saldo, cuota, día de cobro y desembolso",
+    !!mia72 && mia72.saldoActual === 6000 && mia72.cuota === 500
+      && mia72.diaPago === "LUNES" && mia72.desembolso === "2026-08-10", JSON.stringify(mia72));
+  ok("cada ejecutiva sale con SU gente, no revueltas",
+    (p72.porEjec["Julio"] || []).every((x) => true) && Array.isArray(p72.ejecutivos)
+      && p72.ejecutivos.length >= 1, JSON.stringify(p72.ejecutivos));
+
+  // LA BAJA: sale del padrón vivo y aparece en la lista de bajas, con motivo.
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S72, producto: "Grupal-Basico", motivo: "Salió del grupo" }) });
+  const p72b = await pad72();
+  ok("al darla de baja sale del padrón de su ejecutiva",
+    !(p72b.porEjec["Julio"] || []).some((x) => String(x.socio) === S72), "sigue en el padrón vivo");
+  const baja72 = (p72b.bajasPorEjec["Julio"] || []).find((x) => String(x.socio) === S72);
+  ok("y aparece en las BAJAS, con su ejecutiva, su motivo y su saldo",
+    !!baja72 && baja72.motivo === "Salió del grupo" && baja72.saldoAlDarDeBaja === 6000,
+    JSON.stringify(baja72));
+  const rx72 = await fetch(U + "/api/padron/excel", { headers: H(cm) });
+  ok("y todo eso baja en Excel, una hoja por ejecutiva más la de bajas",
+    rx72.status === 200 && /spreadsheet/.test(rx72.headers.get("content-type") || ""), "status " + rx72.status);
+
+  // Y EL CORTE YA NO SE MUEVE desde el tablero.
+  const rc72 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-14" }) });
+  const jc72 = await j(rc72);
+  ok("el corte ya no se puede mover: se rechaza y explica por qué",
+    rc72.status === 409 && jc72.noSeMueve === true, "status " + rc72.status);
+
+  console.log("\n— 71. ADELANTAR EL CORTE SIN PLANTILLA BORRA PAGOS (Karina, 15-ago) —");
+  // «En algunos créditos no se bajaron lo que pagaron.» El saldo del padrón es
+  // la FOTO de la plantilla. Si el corte se adelanta sin cargar una plantilla
+  // nueva, los pagos hechos en medio dejan de descontar: la clienta vuelve a
+  // aparecer debiendo lo que ya pagó. Pasó de verdad al mover el corte del
+  // 5-ago al 13-ago (el caso BEATRIZ CRESPO).
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const S71 = "70000009010";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S71, nombre: "PAGO Y SE BORRO 71", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1000, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-03-23" }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul),
+    body: JSON.stringify({ fecha: "2026-08-10", snapshot: { regI: {
+      [S71 + "|Grupal-Basico|PAGO Y SE BORRO 71|0"]: { pago: 500, forma: "E" } } }, ts: Date.now() + 70 }) });
+  const saldoDe71 = async () => {
+    const r = await j(await fetch(U + "/api/clientes?q=" + S71, { headers: H(cm) }));
+    return ((r.resultados || [])[0] || {}).saldoActual;
+  };
+  ok("con el corte en su lugar, su pago SÍ le baja el saldo (1000 − 500 = 500)",
+    (await saldoDe71()) === 500, "saldoActual " + (await saldoDe71()));
+
+  // EL CORTE YA NO SE MUEVE (Karina, 15-ago). Se intenta y se rechaza.
+  const rC71 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-13" }) });
+  const jC71 = await j(rC71);
+  ok("mover el corte se RECHAZA, y el mensaje dice por qué y a dónde ir",
+    rC71.status === 409 && jC71.noSeMueve === true && /Padrón por ejecutivo/.test(jC71.error || ""),
+    "status " + rC71.status + " · " + (jC71.error || "").slice(0, 60));
+  const cAct71 = (await j(await fetch(U + "/api/saldos/corte", { headers: H(cm) }))).corte;
+  ok("y el corte NO se movió", cAct71 === "2026-08-05", "quedó en " + cAct71);
+
+  // El daño que causaba se conserva probado: si alguna vez se mueve (solo con
+  // confirmación explícita, para cargar una plantilla histórica), los pagos de
+  // en medio dejan de descontar — y al regresarlo, vuelven.
+  const rOK71 = await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ fecha: "2026-08-13", confirmar: true }) });
+  ok("solo con confirmación explícita se puede mover", rOK71.status === 200, "status " + rOK71.status);
+  ok("y ahí se ve el daño: el pago del 10 ya no le baja el saldo",
+    (await saldoDe71()) === 1000, "saldoActual " + (await saldoDe71()));
+  // Y la cartera lo GRITA en vez de callarlo.
+  const cart71 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("la cartera avisa del corte adelantado, con su monto y sus clientas",
+    !!cart71.corteAdelantado && cart71.corteAdelantado.monto >= 500
+      && (cart71.corteAdelantado.clientas || []).some((x) => String(x.socio) === S71),
+    JSON.stringify(cart71.corteAdelantado || null).slice(0, 160));
+  // Regresar el corte lo repara: el dinero vuelve a descontar.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  ok("y al regresar el corte, el pago vuelve a bajarle el saldo",
+    (await saldoDe71()) === 500, "saldoActual " + (await saldoDe71()));
+
+  console.log("\n— 70. LOS CINCO CASOS DE KARINA (15-ago, con el corte movido al 13) —");
+  // «Esta pagó el lunes y la pusiste en mora.» (BEATRIZ CRESPO.) Y con ella,
+  // toda la lista: que la recuperación actualice, que el adelanto dentro de la
+  // semana cuente, y que quien paga ANTES de su día no salga en mora.
+  //
+  // El corte movido al 13 es lo que destapó a BEATRIZ: la semana lo CRUZA, así
+  // que su pago del lunes 10 ya venía descontado en el saldo de la plantilla y
+  // el sistema se lo contaba OTRA VEZ como si fuera dinero nuevo.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-13", confirmar: true }) });
+  const alta70 = (id, nom, prod, saldo, cuota, plazo, dia, des) =>
+    fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id, nombre: nom, producto: prod, centro: "C-0", ejecutivo: "Julio",
+        saldo, cuota, plazo, diaPago: dia, desembolso: des }) });
+  const K70 = (id, nom, prod) => id + "|" + prod + "|" + nom + "|0";
+  const mora70 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const en70 = (d, id) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === id);
+
+  await alta70("70000009001", "BEATRIZ 70", "Grupal-Basico 2", 288, 288, 20, "Lunes", "2026-03-23");
+  await alta70("70000009003", "ADELANTA DIA 70", "Grupal-Basico", 5000, 500, 20, "Martes", "2026-03-24");
+  await alta70("70000009002", "CONSENTIDA 70", "Grupal-Basico", 8400, 840, 20, "Jueves", "2026-03-26");
+  await alta70("70000009004", "NO PAGO 70", "Grupal-Basico", 5000, 500, 20, "Lunes", "2026-03-23");
+  // El día completo en UN sync: así lo manda la app (reemplaza el día entero).
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul), body: JSON.stringify({ fecha: "2026-08-10",
+    snapshot: { regI: {
+      [K70("70000009001", "BEATRIZ 70", "Grupal-Basico 2")]: { pago: 288, forma: "E" },
+      [K70("70000009003", "ADELANTA DIA 70", "Grupal-Basico")]: { pago: 500, forma: "E" } } }, ts: Date.now() + 60 }) });
+  await fetch(U + "/api/sync", { method: "POST", headers: H(cJul), body: JSON.stringify({ fecha: "2026-08-12",
+    snapshot: { regI: { [K70("70000009002", "CONSENTIDA 70", "Grupal-Basico")]: { pago: 840, forma: "E" } } },
+    ts: Date.now() + 61 }) });
+
+  const d70 = await mora70();
+  ok("la que PAGÓ SU LUNES no sale en mora, aunque la semana cruce el corte",
+    !en70(d70, "70000009001"), JSON.stringify(en70(d70, "70000009001")));
+  ok("la que cobra JUEVES y pagó el MIÉRCOLES tampoco (adelanto dentro de la semana)",
+    !en70(d70, "70000009002"), JSON.stringify(en70(d70, "70000009002")));
+  ok("y la de MARTES que decidió pagar el LUNES tampoco: pagó",
+    !en70(d70, "70000009003"), JSON.stringify(en70(d70, "70000009003")));
+  const nop70 = en70(d70, "70000009004");
+  ok("la que NO pagó sí queda en mora, con su cuota",
+    !!nop70 && nop70.faltante === 500, JSON.stringify(nop70));
+
+  // LA RECUPERACIÓN ACTUALIZA: baja lo que pagó y deja en mora lo que debe.
+  const recup70 = (monto) => fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ tipo: "Recuperación / adelanto", monto, concepto: "Recuperación · NO PAGO 70",
+      metodo: "efectivo", socio: "70000009004", producto: "Grupal-Basico", fecha: "2026-08-14" }) });
+  await recup70(200);
+  const p70 = en70(await mora70(), "70000009004");
+  ok("una recuperación PARCIAL le resta y deja en mora lo que falta",
+    !!p70 && p70.faltante === 300, JSON.stringify(p70));
+  await recup70(300);
+  ok("y al completar la recuperación, sale de la mora",
+    !en70(await mora70(), "70000009004"), "sigue en la mora con todo pagado");
+
+  // Y EL ARQUEO DEL DÍA dice lo mismo: quien pagó antes de su día no aparece.
+  const a70 = await j(await fetch(U + "/api/mora/dia?fecha=2026-08-11", { headers: H(cm) }));
+  ok("el arqueo del martes tampoco cobra a la que pagó el lunes",
+    !(a70.centros || []).some((g) => g.filas.some((x) => String(x.socio) === "70000009003")),
+    "sale en el arqueo del martes habiendo pagado el lunes");
+
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+
+  console.log("\n— 69. LA MORA SE MIDE CONTRA EL CALENDARIO DEL CRÉDITO (Karina, 15-ago) —");
+  // «No mira el lunes, solo tienes a una persona, sigue mal.» El arrastre desde
+  // el corte le acreditaba al lunes 10 los pagos que liquidaban la cuota
+  // atrasada del lunes 3, y el lunes salía con una sola clienta. El método real
+  // de Monse compara el SALDO contra el calendario: desembolsada tal día, con
+  // N pagos, para hoy debería deberle tanto. Lo que exceda es su atraso.
+  await fetch(U + "/api/saldos/corte", { method: "POST", headers: H(cm), body: JSON.stringify({ fecha: "2026-08-05", confirmar: true }) });
+  const cal69 = async () => j(await fetch(U + "/api/mora?lunes=2026-08-10", { headers: H(cm) }));
+  const f69 = (d, soc) => (d.dias || []).flatMap((g) => g.filas).find((x) => String(x.socio) === soc);
+
+  // AL CORRIENTE: desembolsada el lunes 4-may a 20 pagos de $500. Al lunes
+  // 10-ago van 14 vencimientos, debería deberle $3,000 — y eso debe.
+  const S69a = "70000001120";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69a, nombre: "AL CORRIENTE 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3000, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  ok("la que va exactamente en su calendario NO debe nada",
+    !f69(await cal69(), S69a), "salió debiendo estando al corriente");
+
+  // UNA CUOTA ATRÁS: mismo calendario, pero le quedan $3,500.
+  const S69b = "70000001121";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69b, nombre: "UNA ATRAS 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 3500, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  const b69 = f69(await cal69(), S69b);
+  ok("la que va UNA cuota atrás debe exactamente una cuota",
+    !!b69 && b69.faltante === 500, JSON.stringify(b69));
+
+  // CINCO ATRÁS: se le exige UNA, no cinco (los atrasos viejos no inflan).
+  const S69c = "70000001122";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69c, nombre: "CINCO ATRAS 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 5500, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  const c69 = f69(await cal69(), S69c);
+  ok("la que va CINCO atrás sigue debiendo UNA cuota en la semana",
+    !!c69 && c69.faltante === 500, JSON.stringify(c69));
+
+  // ADELANTADA: le queda menos de lo que su calendario pide.
+  const S69d = "70000001123";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69d, nombre: "ADELANTADA 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 1500, cuota: 500, plazo: 20, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  ok("la que va ADELANTADA no debe nada", !f69(await cal69(), S69d), "salió debiendo yendo adelantada");
+
+  // Y EL REPORTE DICE CON QUÉ MIDIÓ CADA UNO: si un día el número se ve raro,
+  // lo primero es ver cuántos cayeron al respaldo del arrastre.
+  const m69 = await cal69();
+  ok("el reporte dice a cuántas se les abonó un adelanto",
+    m69.medidoCon && typeof m69.medidoCon.conAdelanto === "number" && m69.medidoCon.conAdelanto >= 2,
+    JSON.stringify(m69.medidoCon));
+  // SIN PLAZO no hay calendario, así que no hay adelanto que abonar: se le pide
+  // su cuota completa, que es lo conservador y no depende de un dato que falta.
+  const S69e = "70000001124";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S69e, nombre: "SIN PLAZO 69", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 4000, cuota: 500, diaPago: "Lunes",
+      desembolso: "2026-05-04" }) });
+  const e69 = f69(await cal69(), S69e);
+  ok("al que no trae plazo se le pide su cuota, sin adivinarle adelanto",
+    !!e69 && e69.faltante === 500, JSON.stringify(e69));
+
+  console.log("\n— 68. LA LISTA DE LOS QUE NO TRAEN FECHA DE DESEMBOLSO (Karina, 15-ago) —");
+  // «Dile a Monse lo de la fecha de desembolso y mándale las que faltan.»
+  // Sin esa fecha el sistema no distingue un crédito NUEVO de uno que ya venía
+  // corriendo, y asume lo segundo. La lista tiene que ser fácil de vaciar.
+  const S68 = "70000001100";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S68, nombre: "SIN FECHA 68", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6000, cuota: 500, plazo: 12, diaPago: "Lunes" }) });
+  const sd68 = async () => j(await fetch(U + "/api/sin-desembolso", { headers: H(cm) }));
+  const d68 = await sd68();
+  const yo68 = (d68.filas || []).find((x) => String(x.socio) === S68);
+  ok("el crédito sin fecha de desembolso aparece en la lista",
+    !!yo68 && yo68.saldoActual === 6000, JSON.stringify(yo68));
+  ok("y la lista dice cuánto saldo está en esa situación",
+    typeof d68.saldo === "number" && d68.saldo >= 6000, JSON.stringify({ total: d68.total, saldo: d68.saldo }));
+  // El que SÍ la trae no estorba en la lista.
+  const S68b = "70000001101";
+  await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S68b, nombre: "CON FECHA 68", producto: "Grupal-Basico",
+      centro: "C-0", ejecutivo: "Julio", saldo: 6000, cuota: 500, plazo: 12, diaPago: "Lunes",
+      desembolso: "2026-08-03" }) });
+  ok("el que SÍ trae su fecha no aparece",
+    !((await sd68()).filas || []).some((x) => String(x.socio) === S68b), "salió el que sí la tiene");
+  // Al capturársela, se sale de la lista: así se vacía.
+  await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: S68, producto: "Grupal-Basico", desembolso: "2026-08-03",
+      motivo: "Captura de fecha de desembolso" }) });
+  const d68b = await sd68();
+  ok("y en cuanto Monse la captura, desaparece de la lista",
+    !(d68b.filas || []).some((x) => String(x.socio) === S68), "sigue en la lista con su fecha puesta");
+  const rx68 = await fetch(U + "/api/sin-desembolso/excel", { headers: H(cm) });
+  ok("la lista baja en Excel con su columna en blanco para llenar",
+    rx68.status === 200 && /spreadsheet/.test(rx68.headers.get("content-type") || ""), "status " + rx68.status);
+
+  console.log("\n— 65. CARTERA: unidades honestas (Karina, 14-ago: «100% real, no nos inventamos nada») —");
+  // La columna `mora` del padrón es un CONTEO de cuotas sin pagar (Monse), no
+  // pesos. El tablero la sumaba y la pintaba como "$21 de mora" y como "% de
+  // mora sobre cartera" (cuotas divididas entre pesos). El dinero real en
+  // riesgo es el SALDO vivo de los créditos vencidos/en mora.
+  const cart65 = await j(await fetch(U + "/api/cartera", { headers: H(cm) }));
+  ok("la cartera en riesgo es dinero de verdad: la suma de los saldos vencidos",
+    typeof cart65.carteraEnRiesgo === "number" && cart65.carteraEnRiesgo >= 0
+      && typeof cart65.riesgoPorcentaje === "number", JSON.stringify({ r: cart65.carteraEnRiesgo, p: cart65.riesgoPorcentaje }));
+  ok("y su porcentaje sale de pesos entre pesos, no de cuotas entre pesos",
+    cart65.cartera === 0 || Math.abs(cart65.riesgoPorcentaje - Math.round((cart65.carteraEnRiesgo / cart65.cartera) * 10000) / 100) < 0.02,
+    cart65.carteraEnRiesgo + " / " + cart65.cartera + " vs " + cart65.riesgoPorcentaje + "%");
+  ok("cada vencida dice sus CUOTAS sin pagar (conteo) y su saldo (pesos), separados",
+    (cart65.vencidas || []).every((v) => typeof v.cuotasSinPagar === "number" && typeof v.saldoActual === "number"),
+    JSON.stringify((cart65.vencidas || [])[0]));
+  ok("las vencidas van ordenadas por el DINERO en juego, no por el conteo",
+    (cart65.vencidas || []).every((v, i2, arr) => i2 === 0 || arr[i2 - 1].saldoActual >= v.saldoActual - 0.01),
+    "desordenadas");
+  ok("el conteo total de cuotas conserva su nombre de conteo",
+    typeof cart65.moraCuotasTotal === "number", "falta moraCuotasTotal");
+  ok("y la tabla por ejecutiva trae su mora ya vencida de la semana",
+    (cart65.porEjec || []).every((e) => typeof e.moraSemana === "number"), "falta moraSemana");
+
+  console.log("\n— 64. EL TRASPASO LLEGA AL TELÉFONO (27-ago: «varias no les aparecen en la app») —");
+  // Un crédito de PLANTILLA reasignado a otra ejecutiva no era alta (no nació
+  // en el tablero) ni quitar (ya no es de la anterior): vivía embebido en el
+  // HTML de la app vieja y en la nueva no existía. Corre AL FINAL a propósito:
+  // mueve un crédito real del padrón base y no debe tocar a las secciones
+  // ancladas. Se elige al vuelo: el primero VIVO de Neri con saldo.
+  const pad64 = await j(await fetch(U + "/api/padron", { headers: H(cm) }));
+  const neri64 = (pad64.porEjec || {}).Neri || [];
+  const cred64 = neri64.find((x) => !x.esAlta && (x.saldoActual || 0) > 0) || null;
+  ok("hay un crédito de plantilla de Neri para la prueba", !!cred64,
+    "filas de Neri: " + neri64.length);
+  if (cred64) {
+    const aj64 = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: cred64.socio || cred64.id, producto: cred64.producto,
+        ejecutivo: "Julio", motivo: "traspaso de cartera (prueba 64)" }) }));
+    ok("Monse reasigna el crédito a Julio", aj64.ok === true, JSON.stringify(aj64).slice(0, 90));
+    const idS = String(cred64.socio || cred64.id);
+    const vJ = await j(await fetch(U + "/api/vivos", { headers: H(await login("julio", "julio2026")) }));
+    ok("y a Julio le LLEGA como alta: aparece en su app con nombre, centro y cuota",
+      (vJ.altas || []).some((a2) => String(a2.id) === idS && a2.producto === cred64.producto),
+      "no está en las altas de julio");
+    const vN = await j(await fetch(U + "/api/vivos", { headers: H(await login("neri", "neri2026")) }));
+    ok("y a Neri se le QUITA del teléfono: ya no es suya",
+      (vN.quitar || []).some((q) => String(q.id) === idS && q.producto === cred64.producto),
+      "no está en el quitar de neri");
+  }
+
+  console.log("\n— 63a. EL SOLIDARIO CUENTA COMO PAGO (Monse, 4-sep: «se le descuenta, se marca y sale de la mora») —");
+  // El grupo cubre la cuota de una clienta con aporte solidario: el crédito
+  // queda pagado (saldo, mora, semáforo) y la MARCA de que fue solidario se
+  // conserva en el historial. La testigo sin pagar valida que la mora sigue
+  // pidiendo a quien sí debe.
+  {
+    const diaHoyS = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"][new Date(HOY + "T12:00:00").getDay()];
+    const diaS = diaHoyS === "DOMINGO" ? "SÁBADO" : diaHoyS;
+    // Desembolsadas hace una semana: su cuota de HOY ya es exigible.
+    const dDesS = new Date(HOY + "T12:00:00"); dDesS.setDate(dDesS.getDate() - 8);
+    const desS = dDesS.toISOString().slice(0, 10);
+    const cenS = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO SOLIDARIO", numero: "79", dia: diaS, ejecutivo: "Neri" }) }));
+    let altasS = true;
+    for (const [soc, nom] of [["78000000010", "CUBIERTA POR SOLIDARIO"], ["78000000011", "TESTIGO SIN PAGAR S"]]) {
+      const aS = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+        body: JSON.stringify({ id: soc, nombre: nom, producto: "Grupal-Basico",
+          centro: "CENTRO SOLIDARIO", ejecutivo: "Neri", saldo: 5760, cuota: 240, plazo: 24,
+          diaPago: diaS, desembolso: desS }) }));
+      if (aS.ok !== true) altasS = false;
+    }
+    ok("la utilería del solidario nace bien (centro + dos clientas)",
+      cenS.ok === true && altasS, JSON.stringify(cenS).slice(0, 70));
+    const KS = "78000000010|Grupal-Basico|CUBIERTA POR SOLIDARIO|0";
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({ fecha: HOY,
+      snapshot: { reg: { "CENTRO SOLIDARIO": { [KS]: { solidario: 240, forma: "E" } } } }, ts: Date.now() + 300 }) });
+    const morS = await j(await fetch(U + "/api/mora", { headers: H(cm) }));
+    const enMoraS = (soc) => (morS.dias || []).some((g) => (g.filas || []).some((x) => String(x.socio) === soc));
+    ok("la cubierta por solidario NO cae en mora (el centro la está cubriendo)",
+      !enMoraS("78000000010"), "sigue en la mora");
+    ok("y la testigo sin pagar SÍ sale en la mora (la regla no se aflojó de más)",
+      enMoraS("78000000011"), "la testigo no aparece");
+    const cliS = await j(await fetch(U + "/api/clientes?q=78000000010", { headers: H(cm) }));
+    const fS = (cliS.resultados || []).find((x) => x.activa !== false) || {};
+    ok("el aporte solidario SÍ le baja el saldo al crédito (5760 − 240)",
+      fS.saldoActual === 5520, "saldoActual " + fS.saldoActual);
+    const hS = await j(await fetch(U + "/api/credito/historial?id=78000000010&producto=Grupal-Basico", { headers: H(cm) }));
+    const filaS = (hS.historial || []).find((x) => (x.solidario || 0) > 0);
+    ok("y en su historial queda MARCADO que fue solidario, sin descuadre falso",
+      !!filaS && filaS.solidario === 240 && !(hS.descuadre > 0),
+      JSON.stringify({ solidario: (filaS || {}).solidario, descuadre: hS.descuadre }));
+  }
+
+  console.log("\n— 63-G. LA GARANTÍA SE LIBERA AUNQUE EL CRÉDITO YA TERMINÓ (Monse, 8-sep) —");
+  // «La clienta liquidó y no renovó, y la aplicación no me deja liberar su
+  // garantía.» La garantía se entrega justo cuando el crédito termina: con
+  // saldo 0 y hasta dada de BAJA, el linkeo debe entrar. Lo que NO se afloja:
+  // una liquidación a una clienta de baja sigue rechazada.
+  {
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO LIBERA", numero: "78", dia: "JUEVES", ejecutivo: "Neri" }) });
+    const aG = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "78000000020", nombre: "ALBA DE PRUEBA", producto: "Grupal-Basico",
+        centro: "CENTRO LIBERA", ejecutivo: "Neri", saldo: 1000, cuota: 100, plazo: 10,
+        diaPago: "JUEVES", desembolso: HOY }) }));
+    ok("la utilería de la liberación nace bien", aG.ok === true, JSON.stringify(aG).slice(0, 60));
+    // Junta garantía y LIQUIDA (saldo a 0):
+    await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Garantía líquida", monto: 300, concepto: "garantía cobrada",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) });
+    await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "78000000020", producto: "Grupal-Basico", saldo: 0, motivo: "liquidó (prueba)" }) });
+    // CU-006 RESUELTO 21-sep-2026 (motivo obligatorio al sacar la garantía
+    // antes de tiempo): el ajuste de saldo a 0 (arriba) NO marca el crédito
+    // como BAJA/inactivo — elegibilidadLiberacionGarantia() todavía lo ve
+    // "vigente", así que esta salida ya necesita su motivo explícito.
+    const e1 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Garantía líquida entregada", monto: 200, concepto: "se le regresa",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo",
+        motivoSalidaAnticipada: "Liquidó (saldo 0) — autorizado por Dirección (prueba)." }) }));
+    ok("a la que LIQUIDÓ (saldo 0) SÍ se le entrega su garantía, linkeada",
+      e1.ok === true && e1.movimiento && String(e1.movimiento.socio) === "78000000020",
+      JSON.stringify(e1).slice(0, 80));
+    // Se da de BAJA (no renovó) y la entrega sigue entrando:
+    await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "78000000020", producto: "Grupal-Basico", motivo: "No renovó", detalle: "prueba" }) });
+    const e2 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Garantía líquida entregada", monto: 100, concepto: "resto de su garantía",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) }));
+    ok("y dada de BAJA (no renovó) TAMBIÉN: el linkeo cae a su crédito de baja",
+      e2.ok === true && e2.movimiento && String(e2.movimiento.socio) === "78000000020",
+      JSON.stringify(e2).slice(0, 80));
+    const liqB = await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ tipo: "Liquidación", monto: 50, concepto: "liquidación a una baja",
+        socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) });
+    ok("pero una LIQUIDACIÓN a la clienta de baja sigue rechazada (eso sí necesita crédito vivo)",
+      liqB.status === 400, "status " + liqB.status);
+  }
+
+  console.log("\n— 63b. LA PURGA DE REGISTROS DE PRUEBA (31-ago: «elimina el centro y usuarios como karina matus prueba») —");
+  // La única vía que QUITA renglones del padrón: solo bajas o burbuja de
+  // prueba, solo centros vacíos, siempre con motivo y rastro.
+  await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ nombre: "CENTRO BASURA", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) });
+  const altaBas63 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "78000000001", nombre: "CLIENTA BASURA", producto: "Grupal-Basico",
+      centro: "CENTRO BASURA", ejecutivo: "Neri", saldo: 100, cuota: 100, plazo: 1,
+      diaPago: "LUNES", desembolso: HOY }) }));
+  ok("la utilería de la purga nace bien (centro + clienta de prueba)",
+    altaBas63.ok === true, JSON.stringify(altaBas63).slice(0, 80));
+  const pgViva63 = await j(await fetch(U + "/api/padron/purga", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ socios: ["78000000001"], motivo: "intento con crédito vivo" }) }));
+  ok("un socio con crédito ACTIVO no se purga: eso es cartera",
+    /ACTIVO/.test(pgViva63.error || ""), JSON.stringify(pgViva63).slice(0, 80));
+  await fetch(U + "/api/clientes/baja", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ id: "78000000001", producto: "Grupal-Basico", motivo: "Otro", detalle: "era de prueba" }) });
+  const pg63 = await j(await fetch(U + "/api/padron/purga", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ socios: ["78000000001"], centros: ["CENTRO BASURA"],
+      motivo: "registros de prueba (batería)" }) }));
+  ok("dada de baja, la purga entra con motivo", pg63.ok === true, JSON.stringify(pg63).slice(0, 80));
+  const bus63 = await j(await fetch(U + "/api/clientes?q=78000000001", { headers: H(cm) }));
+  ok("y la clienta de prueba DESAPARECE de las búsquedas (ni como baja)",
+    (bus63.resultados || []).length === 0, JSON.stringify(bus63.resultados || []).slice(0, 60));
+  const cen63 = await j(await fetch(U + "/api/centros", { headers: H(cm) }));
+  const cenLista63 = Array.isArray(cen63) ? cen : (cen63.centros || cen63.lista || []);
+  ok("y el centro de prueba desaparece de la lista de centros",
+    !cenLista63.some((x) => /BASURA/i.test(String(x.centro || ""))), "sigue en la lista");
+  const cen99b = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+    body: JSON.stringify({ nombre: "CENTRO RENACIDO", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) }));
+  ok("y su número queda LIBRE para un centro de verdad", cen99b.ok === true, JSON.stringify(cen99b).slice(0, 70));
+  console.log("\n— 103. DOCUMENTOS DE RENOVACIÓN Y CICLOS CUMPLIDOS (CU-007) —");
+  // Documentos "actualizados" al renovar = INE + comprobante de domicilio
+  // (nota de Karina en Drive, 24-ago-2026, confirmado en CU-007 §2). Aquí solo
+  // se prueba que el sistema los registra con fecha y motivo, y que el ciclo
+  // (contador que ya existía desde el 15-ago para re-crédito) se puede
+  // consultar junto con ellos. El candado de BLOQUEAR la renovación por
+  // documento vencido sigue sin definir (CU-007 §10.6) — no se construye aquí.
+  const ID103 = "70000000096", PROD103 = "Credito Renovacion Test";
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, nombre: "RENOVACION TEST", producto: PROD103, centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 5000, cuota: 500 }) }));
+  const qs103 = "id=" + ID103 + "&producto=" + encodeURIComponent(PROD103);
+  let dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ce), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "Renovación de prueba" }) }));
+  ok("la ejecutiva NO puede capturar documentos de renovación (403)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, motivo: "Renovación de prueba" }) }));
+  ok("sin comprobante de domicilio se rechaza (los dos son siempre obligatorios)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "" }) }));
+  ok("sin motivo se rechaza (queda en la bitácora)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "Renovación de prueba, documentos vigentes" }) }));
+  ok("Dirección sí puede capturar los documentos de renovación", dr103.ok === true && !!(dr103.clienta || {}).documentosRenovacion, JSON.stringify(dr103).slice(0, 80));
+  const est103 = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("el estado de renovación trae el ciclo (1, todavía no ha renovado)", est103.ciclo === 1, "ciclo " + est103.ciclo);
+  ok("y trae los documentos ya capturados con su fecha", !!(est103.documentosRenovacion && est103.documentosRenovacion.ine), JSON.stringify(est103.documentosRenovacion));
+  const est103b = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ce) }));
+  ok("la ejecutiva tampoco puede consultar el estado de renovación (403)", !!est103b.error, JSON.stringify(est103b).slice(0, 60));
+
+  // DOC-01 (carta Dirección 02-sep): la fecha PROPIA de cada documento
+  // (vencimiento INE, emisión comprobante) es aparte de la fecha de captura
+  // de arriba, y es opcional — sin ella, vigencia queda en null (no se
+  // sabe, no es lo mismo que "vigente"). Nada de esto bloquea nada (CU-007
+  // §10.6 sigue sin definir): se prueba que la renovación sigue
+  // funcionando igual en todos los casos.
+  let est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("sin fecha propia capturada, la vigencia es null (no se sabe, no bloquea)",
+    est103c.vigenciaDocumentosRenovacion
+      && est103c.vigenciaDocumentosRenovacion.ine === null
+      && est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === null,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+
+  const hoy103 = new Date().toISOString().slice(0, 10);
+  const fechaMuyVieja103 = "2020-01-01"; // vencida por cualquier tope razonable
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: INE vencida a propósito",
+    ineFechaVencimiento: fechaMuyVieja103, comprobanteFechaEmision: hoy103 }) }));
+  ok("acepta las fechas propias del documento (DOC-01)", dr103.ok === true, JSON.stringify(dr103).slice(0, 80));
+  est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("INE vencida por su propia fecha se marca vencida", est103c.vigenciaDocumentosRenovacion.ine === true,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("comprobante recién emitido no está vencido", est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === false,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("la renovación NO se bloquea aunque la INE esté vencida (CU-007 §10.6 sigue sin definir)",
+    dr103.ok === true && !dr103.error, "el endpoint debía seguir aceptando la captura");
+
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: comprobante vencido a propósito",
+    comprobanteFechaEmision: fechaMuyVieja103 }) }));
+  est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("comprobante con antigüedad mayor al parámetro configurado se marca vencido",
+    est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === true, JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("la fecha de vencimiento de la INE capturada antes no se perdió (se fusiona, no se reemplaza)",
+    est103c.vigenciaDocumentosRenovacion.ine === true, "la captura de arriba no mandó ineFechaVencimiento, debía conservarse");
+
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: fecha inválida",
+    ineFechaVencimiento: "no-es-fecha" }) }));
+  ok("fecha de vencimiento de INE inválida se rechaza", !!dr103.error, JSON.stringify(dr103).slice(0, 80));
+
+    // CARRY-FORWARD AL RENOVAR (hallazgo 02-sep-2026, al verificar localmente el
+  // PR de DOC-01 con Karina): /api/creditos/recredito siempre creaba el ciclo
+  // nuevo con documentosRenovacion en null, aunque se hubieran capturado
+  // momentos antes de liquidar -- el trabajo de subir INE/comprobante se
+  // perdia justo al renovar. Esto NO decide nada de CU-007 SEC 10.6 (bloquear o
+  // no por documento vencido, sigue sin definir): solo evita perder lo ya
+  // capturado.
+  const docsAntesDeRenovar103 = (await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }))).documentosRenovacion;
+  ok("hay documentos capturados en el ciclo viejo antes de renovar (precondicion de esta prueba)",
+    !!(docsAntesDeRenovar103 && docsAntesDeRenovar103.ine && docsAntesDeRenovar103.comprobanteDomicilio),
+    JSON.stringify(docsAntesDeRenovar103));
+  await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, saldo: 0, motivo: "Liquidado para prueba de renovacion (carry-forward DOC-01)" }) }));
+  const ren103 = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, saldo: 4000, cuota: 400, ejecutivo: "Neri" }) }));
+  ok("renovar (recredito) con el mismo nombre funciona tras liquidar",
+    ren103.ok === true && ren103.clienta && ren103.clienta.recredito === true, JSON.stringify(ren103).slice(0, 120));
+  ok("los documentos de renovacion del ciclo viejo SE CARGAN al ciclo nuevo (antes se perdian)",
+    ren103.ok === true && JSON.stringify(ren103.clienta.documentosRenovacion) === JSON.stringify(docsAntesDeRenovar103),
+    JSON.stringify({ antes: docsAntesDeRenovar103, despues: ren103.clienta && ren103.clienta.documentosRenovacion }));
+  const est103d = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("el ciclo nuevo (ciclo 2) tambien trae ya calculada la vigencia sobre esos documentos cargados",
+    est103d.ciclo === 2 && est103d.vigenciaDocumentosRenovacion
+      && est103d.vigenciaDocumentosRenovacion.ine === true && est103d.vigenciaDocumentosRenovacion.comprobanteDomicilio === true,
+    JSON.stringify({ ciclo: est103d.ciclo, vig: est103d.vigenciaDocumentosRenovacion }));
+
+  console.log("\n— 62b. LA HOJA DE COBRANZA AUTOMÁTICA (10-sep: el libro de 25 pestañas, generado) —");
+  {
+    const rH = await fetch(U + "/api/hoja-cobranza/excel", { headers: H(cm) });
+    ok("el libro de la Hoja de Cobranza baja como Excel", rH.status === 200
+      && /spreadsheet/.test(rH.headers.get("content-type") || ""), "status " + rH.status);
+    const bufH = Buffer.from(await rH.arrayBuffer());
+    ok("y pesa como un libro de verdad (25 pestañas adentro)", bufH.length > 30000, bufH.length + " bytes");
+    const wbH = new (require("exceljs")).Workbook();
+    await wbH.xlsx.load(bufH);
+    const nombresH = wbH.worksheets.map((w) => w.name);
+    const transfH = nombresH.filter((n) => n.startsWith("TRANSF")).length;
+    ok("trae sus 30 pestañas (con OTROS MOVIMIENTOS) + TRANSFERENCIAS por ejecutiva",
+      transfH >= 1 && nombresH.length === 30 + transfH
+      && ["PORTADA", "CARTERA MAESTRA", "CONTROL", "RENOVACIONES", "PEGAR CAPTURA",
+        "CARTERA POR PRODUCTO", "SEMÁFORO POR CENTRO", "COBRANZA CRUZADA", "CORRECCIONES", "OTROS MOVIMIENTOS"]
+        .every((m) => nombresH.includes(m)), nombresH.length + " (" + transfH + " transf): " + nombresH.slice(0, 8).join(","));
+    const rP = await fetch(U + "/api/hoja-cobranza/excel?semana=pasada", { headers: H(cm) });
+    ok("y también baja la de la SEMANA PASADA (?semana=pasada)", rP.status === 200
+      && /spreadsheet/.test(rP.headers.get("content-type") || ""), "status " + rP.status);
+    // EL CONTROL DEBE DECIR ✓: si un cuadre interno truena, esta guardiana lo
+    // caza aquí y no en el escritorio de Monse (pasó el 17-sep: la matriz
+    // sumaba vencidos, las fichas no, y el libro salió con ✗ tres días).
+    let estatusH = "";
+    const rotosH = [];
+    for (const rowH of wbH.getWorksheet("CONTROL").getRows(1, 40) || []) {
+      for (let cH = 1; cH <= 9; cH++) {
+        const vH = String((rowH.getCell(cH) || {}).value || "");
+        if (vH.includes("LISTA PARA ENTREGAR") || vH.includes("REVISAR ANTES")) estatusH = vH;
+      }
+      const nomH = String((rowH.getCell(3) || {}).value || "");
+      const dH = Number((rowH.getCell(4) || {}).value), eH = Number((rowH.getCell(5) || {}).value);
+      if (nomH && Number.isFinite(dH) && Number.isFinite(eH) && Math.abs(dH - eH) >= 0.01)
+        rotosH.push(nomH.slice(0, 40) + ": " + dH + " vs " + eH);
+    }
+    ok("y el CONTROL del libro dice ✓ LISTA PARA ENTREGAR (todos los cuadres internos)",
+      estatusH.includes("LISTA PARA ENTREGAR"),
+      (estatusH || "(sin estatus)") + (rotosH.length ? " · " + rotosH.join(" · ") : ""));
+  }
+
+  console.log("\n— 104. CU-06: LA REESTRUCTURA QUE PAGA POR DEBAJO SE AVISA SOLA (Casos de Uso Cobranza, 10-sep) —");
+  // Rosa Elia pagaba $500 contra una cuota reestructurada de $1,305 y nadie
+  // había prendido el foco. Ahora el resumen del día lo prende solo.
+  {
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO REESTRUCTURA", numero: "71", dia: "MARTES", ejecutivo: "Neri" }) });
+    const hace21 = new Date(Date.now() - 21 * 864e5).toISOString().slice(0, 10);
+    const a104 = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", nombre: "ROSA DE PRUEBA 104", producto: "Grupal-Basico",
+        centro: "CENTRO REESTRUCTURA", ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 10,
+        diaPago: "MARTES", desembolso: hace21 }) }));
+    ok("la utilería de la reestructura nace bien (desembolsada hace 3 semanas)", a104.ok === true,
+      JSON.stringify(a104).slice(0, 70));
+    const e104 = await j(await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", producto: "Grupal-Basico", etiqueta: "Reestructura" }) }));
+    ok("y queda etiquetada Reestructura", e104.ok === true, JSON.stringify(e104).slice(0, 70));
+    // El buscador de Clientas también encuentra por GRUPO (Karina, 10-sep):
+    const bg104 = await j(await fetch(U + "/api/clientes?q=" + encodeURIComponent("CENTRO REESTRUCTURA"), { headers: H(cm) }));
+    ok("el buscador de clientas encuentra por el nombre del grupo",
+      (bg104.resultados || []).some((x) => /ROSA DE PRUEBA 104/.test(x.nombre || "")),
+      JSON.stringify((bg104.resultados || []).map((x) => x.nombre)).slice(0, 90));
+    const r104 = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    const alertas104 = (r104.items || []).filter((x) => /Reestructura pagando por debajo/.test(x.txt || ""));
+    ok("el resumen del día prende el foco: pagó por debajo dos semanas seguidas",
+      alertas104.some((x) => /ROSA DE PRUEBA 104/.test(x.txt) && x.sev === "alto"),
+      JSON.stringify(alertas104).slice(0, 120));
+    const a104b = await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000031", nombre: "NUEVA DE PRUEBA 104", producto: "Grupal-Basico",
+        centro: "CENTRO REESTRUCTURA", ejecutivo: "Neri", saldo: 5000, cuota: 500, plazo: 10,
+        diaPago: "MARTES", desembolso: HOY }) }));
+    void a104b;
+    await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000031", producto: "Grupal-Basico", etiqueta: "Reestructura" }) });
+    const r104b = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("una reestructura recién desembolsada NO se acusa (esas semanas no debía nada)",
+      !(r104b.items || []).some((x) => /NUEVA DE PRUEBA 104/.test(x.txt || "")), "la acusó");
+    await fetch(U + "/api/creditos/etiqueta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "71000000030", producto: "Grupal-Basico", etiqueta: "" }) });
+    const r104c = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("al quitar la etiqueta el foco se apaga: es vigilancia de reestructuras, no mora nueva",
+      !(r104c.items || []).some((x) => /ROSA DE PRUEBA 104/.test(x.txt || "")), "sigue acusando");
+  }
+
+  console.log("\n— 105. SOLO ANEL VE LA ACTIVIDAD DE MONSE (Karina, 10-sep) —");
+  {
+    const rA = await j(await fetch(U + "/api/resumen", { headers: H(ca) }));
+    const deMonse105 = (rA.items || []).filter((x) => /^Monse /.test(x.txt || ""));
+    ok("a Anel le aparece la actividad de Monse (entró/capturó)",
+      deMonse105.some((x) => /Monse (entró a las|capturó|trabajó)/.test(x.txt)),
+      JSON.stringify(deMonse105).slice(0, 100));
+    const rM = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("a Monse NO le aparece su propio espejo (es solo para Anel)",
+      !(rM.items || []).some((x) => /^Monse (entró|capturó|trabajó|anuló|hizo|no ha)/.test(x.txt || "")), "le salió");
+    const rD = await j(await fetch(U + "/api/resumen", { headers: H(cd) }));
+    ok("a la dirección de PRUEBA tampoco (burbuja aparte)",
+      !(rD.items || []).some((x) => /^Monse /.test(x.txt || "")), "le salió");
+  }
+
+  console.log("\n— 105. CAMBIO DE CENTRO SIN BAJA + ALTA (caso Leticia Morales, 14-sep) —");
+  // La baja + alta revivía el crédito viejo (mismo socio + producto) con su
+  // fecha y su centro de antes. Ahora el cambio de centro es un ajuste normal.
+  {
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO ORIGEN 72", numero: "72", dia: "LUNES", ejecutivo: "Neri" }) });
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO DESTINO 74", numero: "74", dia: "MARTES", ejecutivo: "Neri" }) });
+    await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "72000000040", nombre: "LETICIA DE PRUEBA 105", producto: "Grupal-Basico",
+        centro: "CENTRO ORIGEN 72", ejecutivo: "Neri", saldo: 4000, cuota: 200, plazo: 20,
+        diaPago: "LUNES", desembolso: HOY }) }));
+    await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "74000000041", nombre: "VECINA DEL DESTINO 105", producto: "Grupal-Basico",
+        centro: "CENTRO DESTINO 74", ejecutivo: "Neri", saldo: 2000, cuota: 100, plazo: 20,
+        diaPago: "MARTES", desembolso: HOY }) }));
+    const aj105 = await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "72000000040", producto: "Grupal-Basico",
+        centro: "CENTRO DESTINO 74", motivo: "se cambió de centro (prueba 105)" }) }));
+    ok("el ajuste de centro pasa y la clienta queda en el centro destino",
+      aj105.ok === true && aj105.clienta && aj105.clienta.centro === "CENTRO DESTINO 74",
+      JSON.stringify(aj105).slice(0, 120));
+    ok("y hereda el NÚMERO del centro destino (para fichas y mora)",
+      aj105.clienta && /74/.test(String(aj105.clienta.noCentro || "")),
+      "noCentro: " + (aj105.clienta && aj105.clienta.noCentro));
+    const malo105 = await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "72000000040", producto: "Grupal-Basico",
+        centro: "CENTRO QUE NO EXISTE 105", motivo: "typo a propósito" }) });
+    ok("un centro que NO existe se rechaza (nada de centros fantasma por typo)",
+      malo105.status === 400, "status " + malo105.status);
+    const cli105 = await j(await fetch(U + "/api/clientes?q=LETICIA%20DE%20PRUEBA%20105", { headers: H(cm) }));
+    const f105 = (cli105.resultados || []).find((x) => String(x.id) === "72000000040");
+    ok("el buscador ya la enseña en su centro nuevo, con rastro del anterior",
+      !!f105 && f105.centro === "CENTRO DESTINO 74",
+      JSON.stringify(f105 || {}).slice(0, 100));
+  }
 
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));

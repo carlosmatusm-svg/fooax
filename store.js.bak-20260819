@@ -16,24 +16,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;
-const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [],
-  solicitudes: [], config: {},
-  // Gestión de renovaciones: en qué va cada clienta que está por terminar
-  // (Pendiente, Contactada, Renovó, Solo recuperación…). Vivía en el
-  // localStorage del teléfono junto con la captura del día, así que al
-  // enviar el arqueo se borraba y había que remarcar todo al día siguiente
-  // (lo reportó Nery el 19-ago). Append-only, como los ajustes: cada marca
-  // se agrega encima y queda quién la puso y cuándo.
-  renov: [],
-  // REGISTROS APPEND-ONLY GENÉRICOS (11-sep-2026). Cada CU de cumplimiento
-  // (bitácora de riesgo CU-016, alertas PLD CU-017, ciclos limpios CU-019,
-  // solicitudes ARCO CU-015, expediente CU-009/010) necesita su propio rastro
-  // inmutable — mismo principio que padron_cambios: nunca se edita ni se
-  // borra una fila, el estado vigente se DERIVA de la última fila. En vez de
-  // una tabla y un archivo por CU, todos viven aquí: `registros[nombre]` es
-  // un arreglo de filas en orden de llegada. En archivos: data/registro_<nombre>.json;
-  // en Postgres: tabla `registros` (nombre, data, ts).
-  registros: {} };
+const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [] };
 
 // ¿ENTRA O SALE ESE DINERO? Desde el 6-ago el movimiento lo trae escrito
 // (`entrada`), porque el concepto se elige de un catálogo. Los ANTERIORES no lo
@@ -103,15 +86,6 @@ function aplicarCambios(base, cambios) {
           cl.motivo_baja = c.motivo || null; cl.fecha_baja = c.fecha || null; cl.baja_por = c.por || null;
         }
       }
-    } else if (c.tipo === "purga") {
-      // PURGA DE REGISTROS DE PRUEBA (31-ago, orden de Karina: «elimina el
-      // centro y usuarios como karina matus prueba»). Es la ÚNICA vía que
-      // QUITA renglones del padrón — y aún así no borra historia: la purga
-      // misma queda grabada como cambio, con autor, motivo y qué se llevó.
-      // El endpoint solo deja purgar bajas con saldo cero o burbuja de prueba.
-      const fuera = new Set((c.socios || []).map(String));
-      for (let i = arr.length - 1; i >= 0; i--)
-        if (fuera.has(String(arr[i].id))) arr.splice(i, 1);
     } else if (c.tipo === "ajuste") {
       // EDICIÓN de un crédito por dirección (Anel/Monse): ajuste de saldo/cuota o
       // marcar VENCIDA con su mora. Nunca borra; deja rastro (quién, cuándo, por
@@ -128,28 +102,12 @@ function aplicarCambios(base, cambios) {
         // venía: mover cartera deja huella (regla §6.1 del Complemento).
         if (k.ejecutivo) { cl.ejecutivo_anterior = cl.ejecutivo; cl.ejecutivo = k.ejecutivo; }
         if (k.centro) { cl.centro_anterior = cl.centro; cl.centro = k.centro; }
-        if (k.noCentro) cl.noCentro = k.noCentro;
         // FECHA DE DESEMBOLSO y DÍA DE PAGO (Karina, 15-ago). Son los dos datos
         // con los que el sistema decide si un crédito debe y bajo qué día. Sin
         // poder capturarlos DESPUÉS del alta, un crédito que nació sin ellos se
         // quedaba así para siempre.
         if (k.desembolso) { cl.desembolso_anterior = cl.desembolso || null; cl.desembolso = k.desembolso; }
         if (k.diaPago) { cl.diaPago_anterior = cl.diaPago || null; cl.diaPago = String(k.diaPago).toUpperCase(); }
-        // PLAZO (25-ago). El endpoint lo aceptaba desde el 19-ago pero este
-        // replay nunca lo aplicaba: quedaba en la bitácora sin efecto. Con esta
-        // línea, los capturados ese tiempo se aplican solos al re-reproducirse.
-        if (k.plazo != null && Number.isFinite(Number(k.plazo))) { cl.plazo_anterior = cl.plazo || null; cl.plazo = Number(k.plazo); }
-        // Documentos de renovación (CU-007, confirmado 25-ago: INE + comprobante
-        // de domicilio siempre). Solo se registra que se capturaron y cuándo — el
-        // sistema todavía no decide si un documento vencido debe bloquear la
-        // renovación (pendiente, CU-007 §10.6). Se fusiona, no se reemplaza: una
-        // segunda captura no borra la fecha del documento que no se volvió a tocar.
-        if (k.documentosRenovacion) cl.documentosRenovacion = Object.assign({}, cl.documentosRenovacion, k.documentosRenovacion);
-        // Vigencia de la garantía hipotecaria (21-sep-2026, audio de Karina +
-        // pedido de Carlos: avisar 3 días antes de que venza). Mismo criterio
-        // que documentosRenovacion: se fusiona, no se reemplaza, y una
-        // segunda captura no borra la fecha si esta vez no se volvió a mandar.
-        if (k.garantiaHipotecaria) cl.garantiaHipotecaria = Object.assign({}, cl.garantiaHipotecaria, k.garantiaHipotecaria);
         // Etiqueta (Recuperación, Renovación…). La cadena vacía SÍ cuenta: es
         // como se quita. Por eso se compara contra undefined y no con un if
         // truthy — con un truthy nunca se podría borrar.
@@ -157,13 +115,6 @@ function aplicarCambios(base, cambios) {
           cl.etiqueta = k.etiqueta || null;
           cl.etiqueta_por = c.por || null; cl.etiqueta_fecha = c.fecha || null;
         }
-        // ARCO (CU-015): la "cancelación" de datos personales es SUSTITUIR el
-        // nombre por un marcador, nunca quitar el renglón — saldos, historial y
-        // bitácora conservan su integridad. No se guarda el nombre anterior:
-        // eso anularía la anonimización. La fila del alta original sigue en
-        // esta misma bitácora como rastro regulatorio (LFPIORPI).
-        if (k.nombre) cl.nombre = String(k.nombre);
-        if (k.anonimizada) { cl.anonimizada = true; cl.anonimizada_fecha = c.fecha || null; cl.anonimizada_por = c.por || null; }
         cl.ajuste_motivo = c.motivo || null; cl.ajuste_por = c.por || null; cl.ajuste_fecha = c.fecha || null;
       }
     }
@@ -192,18 +143,6 @@ async function init() {
     // garantías, arqueo). Append-only: nunca se borra nada, se agrega la
     // corrección encima y queda quién la hizo y por qué.
     await pool.query("CREATE TABLE IF NOT EXISTS cobranza_ajustes (id serial PRIMARY KEY, data jsonb, ts bigint)");
-    // Gestión de renovaciones por crédito. Append-only: el estado vigente es
-    // el último de cada clave, y el historial queda para saber quién movió qué.
-    await pool.query("CREATE TABLE IF NOT EXISTS renov_gestion (id serial PRIMARY KEY, data jsonb, ts bigint)");
-    // Sobres/segregación de funciones (Regla K.2, CU-011/012/013, reconstruido
-    // 09-sep-2026): cada solicitud es un registro MUTABLE — folio fijo, estado
-    // que avanza (solicitada→autorizada→dispersada→entregada→en_custodia) y se
-    // ACTUALIZA en el mismo renglón (no se re-inserta), a diferencia de
-    // renov_gestion que es puro historial append-only.
-    await pool.query("CREATE TABLE IF NOT EXISTS solicitudes_credito (folio text PRIMARY KEY, data jsonb, ts bigint)");
-    // Configuración runtime (por ahora solo la escalera de autorización K.2,
-    // vacía por defecto — ver Regla K.2 y PENDIENTES §28, ESC-01 sin confirmar).
-    await pool.query("CREATE TABLE IF NOT EXISTS configuracion (clave text PRIMARY KEY, data jsonb)");
     // Historial de snapshots: cada vez que un sync REEMPLAZA la foto de un día,
     // la versión anterior se archiva aquí (append-only). Así una captura con
     // fecha equivocada nunca destruye cobranza real: siempre es recuperable.
@@ -211,10 +150,6 @@ async function init() {
     // Sesiones persistentes: un redespliegue NO desloguea a las ejecutivas a
     // media jornada (antes vivían solo en memoria y cada deploy las mataba).
     await pool.query("CREATE TABLE IF NOT EXISTS sesiones (sid text PRIMARY KEY, usuario text, creada bigint)");
-    // Registros append-only genéricos por CU (ver `mem.registros`).
-    await pool.query("CREATE TABLE IF NOT EXISTS registros (id serial PRIMARY KEY, nombre text, data jsonb, ts bigint)");
-    const rg = await pool.query("SELECT nombre, data FROM registros ORDER BY ts, id").catch(() => ({ rows: [] }));
-    for (const r of rg.rows) (mem.registros[r.nombre] = mem.registros[r.nombre] || []).push(r.data);
     const se = await pool.query("SELECT sid, usuario, creada FROM sesiones").catch(() => ({ rows: [] }));
     for (const r of se.rows) mem.sesiones[r.sid] = { usuario: r.usuario, creada: Number(r.creada) };
 
@@ -236,12 +171,6 @@ async function init() {
     // base y NUNCA tumba el arranque.
     const aj = await pool.query("SELECT data FROM cobranza_ajustes ORDER BY ts");
     mem.ajustes = aj.rows.map((r) => r.data);
-    const gr = await pool.query("SELECT data FROM renov_gestion ORDER BY ts");
-    mem.renov = gr.rows.map((r) => r.data);
-    const sc = await pool.query("SELECT data FROM solicitudes_credito ORDER BY ts");
-    mem.solicitudes = sc.rows.map((r) => r.data);
-    const cf = await pool.query("SELECT data FROM configuracion WHERE clave=$1", ["global"]).catch(() => ({ rows: [] }));
-    mem.config = (cf.rows[0] && cf.rows[0].data) || {};
     const cb = await pool.query("SELECT data FROM padron_cambios ORDER BY ts");
     mem.cambios = cb.rows.map((r) => r.data);
 
@@ -270,18 +199,7 @@ async function init() {
     try { mem.padronBase = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron.json"), "utf8")); } catch { mem.padronBase = []; }
     try { mem.cambios = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron_cambios.json"), "utf8")); } catch { mem.cambios = []; }
     try { mem.ajustes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "cobranza_ajustes.json"), "utf8")); } catch { mem.ajustes = []; }
-    try { mem.renov = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "renov_gestion.json"), "utf8")); } catch { mem.renov = []; }
-    try { mem.solicitudes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "solicitudes.json"), "utf8")); } catch { mem.solicitudes = []; }
-    try { mem.config = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "configuracion.json"), "utf8")); } catch { mem.config = {}; }
     try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
-    // Registros append-only genéricos: un archivo por nombre, data/registro_<nombre>.json.
-    try {
-      for (const f of fs.readdirSync(DATA_DIR)) {
-        const m = /^registro_([a-z0-9_]+)\.json$/.exec(f);
-        if (!m) continue;
-        try { mem.registros[m[1]] = JSON.parse(fs.readFileSync(path.join(DATA_DIR, f), "utf8")) || []; } catch { mem.registros[m[1]] = []; }
-      }
-    } catch { /* sin carpeta todavía: se crea al primer registro */ }
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     console.log(`[store] archivos locales · ${mem.padron.length} clientas (${mem.cambios.length} cambios)`);
   }
@@ -318,9 +236,6 @@ function conAjustes(snapsDelDia, fecha) {
         if (nodo[a.clave] && typeof nodo[a.clave] === "object") {
           const r = nodo[a.clave];
           if (a.anula) { r.pago = 0; r.garantia = 0; r.solidario = 0; r._anuladoPorDireccion = true; }
-          // La FORMA va primero: es un texto (E/T/D/M/CH), no un monto — la
-          // rama genérica la dejaría en 0 y el pago se perdería del cierre.
-          else if (a.campo === "forma" && a.valor) r.forma = String(a.valor);
           else if (a.campo) r[a.campo] = Number(a.monto) || 0;
           r._ajustadoPor = a.por || "Dirección";
           return true;
@@ -372,12 +287,6 @@ function persistCambio(c) {
       .catch((e) => console.error("[store] cambio padrón:", e.message));
   } else escribirJSON("padron_cambios.json", mem.cambios);
 }
-function persistRegistro(nombre, fila) {
-  if (usePg) {
-    pool.query("INSERT INTO registros (nombre, data, ts) VALUES ($1,$2,$3)", [nombre, fila, fila.ts || Date.now()])
-      .catch((e) => console.error("[store] registro " + nombre + ":", e.message));
-  } else escribirJSON("registro_" + nombre + ".json", mem.registros[nombre]);
-}
 function persistSesion(sid, s) {
   if (usePg) {
     pool.query("INSERT INTO sesiones (sid, usuario, creada) VALUES ($1,$2,$3) ON CONFLICT (sid) DO NOTHING",
@@ -390,18 +299,7 @@ function eliminarSesion(sid) {
   } else escribirJSON("sesiones.json", mem.sesiones);
 }
 
-// REVISIÓN DE DATOS (27-ago: «el tablero se traba al cambiar de fechas»).
-// Sube en cada escritura que pueda mover la cartera; el servidor la usa para
-// cachear carteraViva sin riesgo de servir datos viejos: si nadie escribió,
-// la cartera es la misma y no hay nada que recalcular.
-let rev = 1;
-function toco() { rev++; }
-
 module.exports = {
-  revision() { return rev; },
-  // Nombres de los registros append-only cargados (ARCO exporta todos los que
-  // mencionen a la persona, sin tener que conocerlos por nombre).
-  nombresRegistros() { return Object.keys(mem.registros); },
   init,
   // Para que el servidor use EXACTAMENTE la misma regla al guardar un
   // movimiento que la que se usa al leerlo. Tenerla en dos lados fue justo lo
@@ -424,7 +322,6 @@ module.exports = {
   // equivocada (teléfono pegado en el día viejo) ya no puede destruir la
   // cobranza real de ese día — siempre se puede recuperar.
   guardarSnapshot(ejecutivo, fecha, snapshot) {
-    toco();
     mem.snapshots[ejecutivo] = mem.snapshots[ejecutivo] || {};
     const previo = mem.snapshots[ejecutivo][fecha];
     if (previo && previo.ts > snapshot.ts) return previo;
@@ -465,69 +362,7 @@ module.exports = {
   // habría que acordarse de aplicarla en cada cálculo — y tarde o temprano se
   // olvida uno. Así, TODO lo que lea un snapshot ya lo lee corregido.
   ajustesCobranza() { return mem.ajustes; },
-
-  // ---- GESTIÓN DE RENOVACIONES ----
-  // El estado VIGENTE de cada crédito es el último que se guardó. Se devuelve
-  // ya resuelto en un mapa clave→estado para que nadie tenga que recorrer el
-  // historial: quien pregunta quiere saber en qué va la clienta HOY.
-  gestionRenovaciones() {
-    const out = {};
-    for (const g of mem.renov) if (g && g.clave) out[g.clave] = g;
-    return out;
-  },
-  // Historial completo de una clave (para auditar quién la movió y cuándo).
-  historialRenovacion(clave) { return mem.renov.filter((g) => g && g.clave === clave); },
-  setGestionRenovacion(g) {
-    toco();
-    mem.renov.push(g);
-    if (usePg) {
-      pool.query("INSERT INTO renov_gestion (data, ts) VALUES ($1,$2)", [g, g.ts])
-        .catch((e) => console.error("[store] renov:", e.message));
-    } else escribirJSON("renov_gestion.json", mem.renov);
-    return g;
-  },
-
-  // ---------- Sobres / segregación de funciones (K.2) ----------
-  // Lista completa (para listados/filtros del lado del servidor).
-  solicitudes() { return mem.solicitudes; },
-  agregarSolicitud(s) {
-    toco();
-    mem.solicitudes.push(s);
-    if (usePg) {
-      pool.query("INSERT INTO solicitudes_credito (folio, data, ts) VALUES ($1,$2,$3)", [s.folio, s, s.solicitadaTs || Date.now()])
-        .catch((e) => console.error("[store] solicitud:", e.message));
-    } else escribirJSON("solicitudes.json", mem.solicitudes);
-    return s;
-  },
-  // Fusiona `patch` sobre la solicitud existente (folio fijo) y persiste el
-  // renglón completo — igual que corregirMovimiento/setMovimientoAnulado.
-  actualizarSolicitud(folio, patch) {
-    toco();
-    const s = mem.solicitudes.find((x) => x.folio === folio);
-    if (!s) return null;
-    Object.assign(s, patch);
-    if (usePg) {
-      pool.query("UPDATE solicitudes_credito SET data=$2 WHERE folio=$1", [folio, s])
-        .catch((e) => console.error("[store] actualizar solicitud:", e.message));
-    } else escribirJSON("solicitudes.json", mem.solicitudes);
-    return s;
-  },
-  // Configuración runtime (hoy solo la escalera de autorización K.2).
-  configuracion() { return mem.config; },
-  guardarConfiguracion(cfg) {
-    toco();
-    mem.config = cfg || {};
-    if (usePg) {
-      pool.query(
-        "INSERT INTO configuracion (clave, data) VALUES ('global',$1) ON CONFLICT (clave) DO UPDATE SET data=$1",
-        [mem.config]
-      ).catch((e) => console.error("[store] configuracion:", e.message));
-    } else escribirJSON("configuracion.json", mem.config);
-    return mem.config;
-  },
-
   agregarAjusteCobranza(a) {
-    toco();
     mem.ajustes.push(a);
     persistAjuste(a);
     return a;
@@ -587,7 +422,6 @@ module.exports = {
 
   // Append-only: nunca se borra ni se edita un movimiento (rastro auditable).
   agregarMovimiento(mov) {
-    toco();
     // Idempotente por folio. Las ejecutivas sincronizan muchas veces al día y
     // cada sincronización reenvía TODOS sus movimientos; sin esto, el mismo
     // gasto se contaba una vez por sincronización y el efectivo a entregar
@@ -603,14 +437,10 @@ module.exports = {
     return mem.movimientos.filter((m) => m.fecha === fecha).map(conEntrada);
   },
   todosMovimientos() { return mem.movimientos.map(conEntrada); },
-  // La capa de cambios del padrón (altas/bajas/ajustes), para reportes que
-  // listan correcciones (CU-11). Copia: nadie muta la capa desde fuera.
-  todosCambios() { return mem.cambios.slice(); },
   // Marca la hora en que la ejecutiva CERRÓ su día (botón "Enviar arqueo y
   // cerrar captura" o "Cerrar día"). Vive dentro del registro del snapshot,
   // así que persiste y sobrevive reinicios. Monse ve quién cerró y quién no.
   marcarCierre(ejecutivo, fecha, confirmado) {
-    toco();
     mem.snapshots[ejecutivo] = mem.snapshots[ejecutivo] || {};
     let rec = mem.snapshots[ejecutivo][fecha];
     // UN DÍA SIN COBRANZA TAMBIÉN SE CIERRA. Antes, si no había snapshot de ese
@@ -638,7 +468,6 @@ module.exports = {
   // cierre y su foto congelada, para que la siguiente sincronización REEMPLACE
   // el día en lugar de fusionarse (sumarse) con lo anterior.
   reiniciarDia(ejecutivo, fecha) {
-    toco();
     const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
     if (!rec) return false;
     const copia = Object.assign({}, rec, { archivado: Date.now(), motivo: "reinicio" });
@@ -662,7 +491,6 @@ module.exports = {
   // Se usa cuando una captura estaba MAL FECHADA y ya se re-etiquetó al día
   // correcto: sin esto, la semana contaba ese dinero dos veces (una por fecha).
   retirarSnapshot(ejecutivo, fecha) {
-    toco();
     const rec = mem.snapshots[ejecutivo] && mem.snapshots[ejecutivo][fecha];
     if (!rec) return false;
     const copia = Object.assign({}, rec, { archivado: Date.now(), motivo: "reetiquetado" });
@@ -688,7 +516,6 @@ module.exports = {
   // cheque) sin tocar monto, concepto ni anulado. Nació para los cheques que
   // se guardaban como "efectivo" y descuadraban el arqueo (faltante 25-jul).
   corregirMovimiento(folio, campos) {
-    toco();
     const m = mem.movimientos.find((x) => x.folio === folio);
     if (!m) return false;
     if ("metodo" in campos && campos.metodo) m.metodo = campos.metodo;
@@ -697,16 +524,6 @@ module.exports = {
     // movimientos anteriores al 8-ago-2026 no lo traen: se guardaba sólo el
     // socio y el abono acababa en el crédito equivocado. Queda con quién y por
     // qué lo corrigió — el monto no se toca, sólo se dice a dónde pertenece.
-    // EL MONTO ENTREGADO se puede corregir (hoja CORRECCIONES de la Ing.
-    // Karina, 24-ago): debe decir exactamente lo que se le entregó a la
-    // clienta. Con rastro — cuánto decía, quién y por qué.
-    if ("monto" in campos && Number(campos.monto) > 0) {
-      m.montoAnterior = m.monto;
-      m.monto = Number(campos.monto);
-      m.montoCorrigioPor = campos.montoPor || null;
-      m.montoCorrigioMotivo = campos.montoMotivo || null;
-      m.montoCorrigioTs = Date.now();
-    }
     if ("producto" in campos) {
       m.productoAnterior = m.producto || null;
       m.producto = campos.producto || null;
@@ -726,7 +543,6 @@ module.exports = {
   // queda escrito QUIÉN y POR QUÉ — un movimiento de caja que desaparece sin
   // explicación es justo lo que no puede pasar en una SOFOM.
   setMovimientoAnulado(folio, anulado, por, motivo) {
-    toco();
     const m = mem.movimientos.find((x) => x.folio === folio);
     if (!m || !!m.anulado === !!anulado) return;
     m.anulado = !!anulado;
@@ -743,27 +559,12 @@ module.exports = {
   // Se re-aplica en vivo para que el buscador y la cartera reflejen el cambio al
   // instante, y persiste para sobrevivir cualquier redespliegue.
   agregarCambioPadron(cambio) {
-    toco();
     mem.cambios.push(cambio);
     mem.padron = aplicarCambios(mem.padronBase, mem.cambios);
     persistCambio(cambio);
     return cambio;
   },
   cambiosPadron() { return mem.cambios; },
-
-  // Registros append-only genéricos (ver `mem.registros`). `registro(nombre)`
-  // devuelve las filas tal cual se agregaron (orden de llegada); nunca hay
-  // editar/borrar: el estado vigente se deriva de la última fila, igual que
-  // el padrón se deriva de padron_cambios.
-  registro(nombre) { return mem.registros[nombre] || []; },
-  agregarRegistro(nombre, fila) {
-    if (!/^[a-z0-9_]+$/.test(String(nombre))) throw new Error("nombre de registro inválido: " + nombre);
-    toco();
-    const f = Object.assign({ ts: Date.now() }, fila);
-    (mem.registros[nombre] = mem.registros[nombre] || []).push(f);
-    persistRegistro(nombre, f);
-    return f;
-  },
 
   // Sesiones persistentes (sobreviven redespliegues).
   sesiones() { return mem.sesiones; },

@@ -196,8 +196,230 @@ for (const f of ["sync.js", "captura-agil.js", "vivos.js"]) {
   ok("vivos.js vuelve a preguntar solo (setInterval)", /setInterval\(/.test(v), "sin sondeo");
   ok("vivos.js no pisa el plazo que capturó la ejecutiva",
     /!d\.plazo/.test(v), "podría estar sobrescribiéndolo");
+  // El vigilante del día: una PWA abierta al pasar medianoche fechaba las
+  // capturas en el día viejo (los pagos de GUIE XHUUBA, 12-ago). Si esto
+  // desaparece, el hueco regresa en silencio.
+  ok("vivos.js vigila que el día en pantalla siga siendo hoy",
+    /__vigilaDia/.test(v) && /inpFecha/.test(v) && /reload\(\)/.test(v), "se quitó el vigilante");
+  ok("y respeta el bloqueo del día anterior (sin ciclo de recargas)",
+    /fooax_fecha_ok/.test(v), "no revisa la fecha sancionada");
+  // El repintado que le borraba la pantalla a Christopher (12-ago): si estos
+  // tres candados se caen, el "se me reinicia cada minuto" regresa.
+  ok("vivos.js NO repinta mientras la ejecutiva está escribiendo",
+    /estaEscribiendo/.test(v) && /activeElement/.test(v), "se quitó el candado del foco");
+  ok("y conserva el centro elegido al repintar",
+    /centroElegido/.test(v) && /selCentro/.test(v), "ya no repone el selector");
+  ok("y una corrección de Dirección se aplica UNA sola vez",
+    /fooax_corr_/.test(v), "se quitó la firma de correcciones");
+  // El vigilante compara SOLO contra la fecha del SERVIDOR. Contra el reloj
+  // del teléfono recargaba cada minuto cuando ese reloj andaba mal — el
+  // "se me reinicia a cada rato" de Christopher (12-ago).
+  ok("el vigilante usa la fecha del SERVIDOR, no el reloj del teléfono",
+    /__hoyServidor/.test(v) && !/hoyMXcliente/.test(v), "volvió el reloj del teléfono");
+  ok("y recarga UNA sola vez por fecha (sin ciclo)",
+    /fooax_vigilo_/.test(v), "se quitó el candado de una-sola-recarga");
 }
 
+// LA TARJETA DE RENOVACIONES PINTA DE VERDAD (Karina, 14-ago). No basta con
+// que el JavaScript compile: esta tarjeta arma HTML con comillas dentro de
+// comillas, que es justo donde se rompe y deja la tarjeta en "Cargando…".
+// Aquí se le da una respuesta de mentiras y se revisa lo que escribió.
+// LA CLIENTA NUEVA ATERRIZA EN SU TELÉFONO (Karina, 15-ago). El servidor ya la
+// manda —eso lo prueba la batería—; esto prueba el otro lado: que la app la
+// meta a su centro con TODOS sus datos, que es donde la ejecutiva la ve.
+console.log("\n═══ LA CLIENTA NUEVA LLEGA A LA APP ═══\n");
+{
+  const src2 = fs.readFileSync(path.join(__dirname, "..", "public", "vivos.js"), "utf8");
+  const CENTROS = { "C-12 · GHANIMA": [] };
+  const win2 = { addEventListener() {}, sessionStorage: { getItem: () => null, setItem() {} },
+    location: { reload() {} } };
+  const ctx2 = { CENTROS, INDIVIDUALES: [], datosCli: {}, reg: {}, regI: {},
+    guardar() {}, guardarDatosCli() {}, repintar() {},
+    document: { getElementById: () => null, querySelector: () => null, addEventListener() {},
+      createElement: () => ({ style: {}, setAttribute() {}, getAttribute: () => null, appendChild() {} }) },
+    window: win2, navigator: { onLine: false }, setInterval() {}, setTimeout() {},
+    fetch: () => Promise.resolve({ ok: false }), console: { log() {}, error() {} } };
+  ctx2.globalThis = ctx2;
+  let ok2 = true, e2 = "";
+  try { vm.createContext(ctx2); new vm.Script(src2).runInContext(ctx2); }
+  catch (e) { ok2 = false; e2 = e.message; }
+  ok("vivos.js corre con las listas de la app", ok2 && typeof win2.__aplicarVivos === "function", e2);
+  if (ok2 && typeof win2.__aplicarVivos === "function") {
+    win2.__aplicarVivos({
+      hoy: "2026-08-16",
+      altas: [{ id: "70000009100", nombre: "NUEVA PARA NERI", producto: "Grupal-Basico",
+                centro: "GHANIMA", saldo: 7200, cuota: 600 }],
+      centros: { ghanima: "C-12 · GHANIMA" }, quitar: [],
+      vivos: [{ id: "70000009100", producto: "Grupal-Basico", saldo: 7200, cuota: 600, plazo: 12,
+                unidad: "", dia: "MARTES", importe: 0, mora: 0, etiqueta: "", desembolso: "2026-08-14" }],
+      correcciones: [], mora: null,
+    });
+    const lista = CENTROS["C-12 · GHANIMA"];
+    const cl = lista[0] || {};
+    ok("la clienta nueva entra a SU centro, una sola vez", lista.length === 1, "quedaron " + lista.length);
+    ok("con su nombre, socio y producto",
+      cl.n === "NUEVA PARA NERI" && String(cl.f) === "70000009100" && cl.sub === "Grupal-Basico",
+      JSON.stringify(cl));
+    ok("con el saldo, la cuota y el plazo que se capturaron",
+      cl.saldo === 7200 && cl.esp === 600 && cl.plazo === 12, JSON.stringify(cl));
+    ok("y con su día de cobro y su fecha de desembolso",
+      cl.dia === "MARTES" && cl.des === "2026-08-14", JSON.stringify(cl));
+    // Segundo sondeo: no la duplica.
+    win2.__aplicarVivos({ hoy: "2026-08-16",
+      altas: [{ id: "70000009100", nombre: "NUEVA PARA NERI", producto: "Grupal-Basico",
+                centro: "GHANIMA", saldo: 7200, cuota: 600 }],
+      centros: { ghanima: "C-12 · GHANIMA" }, quitar: [], vivos: [], correcciones: [], mora: null });
+    ok("y en el siguiente sondeo no se duplica",
+      CENTROS["C-12 · GHANIMA"].length === 1, "quedaron " + CENTROS["C-12 · GHANIMA"].length);
+  }
+}
+
+// LA MORA EN EL TELÉFONO DE LA EJECUTIVA (Karina, 15-ago). Se corre el
+// pintado de verdad: si se rompe, ella se queda sin ver a quién ir a cobrar.
+console.log("\n═══ LA MORA EN LA APP DE LA EJECUTIVA ═══\n");
+{
+  const src = fs.readFileSync(path.join(__dirname, "..", "public", "vivos.js"), "utf8");
+  const doc = { _n: {}, getElementById(id) { return this._n[id] || null; },
+    querySelector() { return this.host; },
+    createElement() { return { style: {}, setAttribute(k, v) { this[k] = v; },
+      getAttribute(k) { return this[k] || null; }, appendChild() {} }; },
+    addEventListener() {},
+    host: { firstChild: null, insertBefore(a2) { this.kid = a2; }, appendChild(a2) { this.kid = a2; } } };
+  const guardado = {};
+  const win = { addEventListener() {},
+    sessionStorage: { getItem(k) { return guardado[k] || null; }, setItem(k, v) { guardado[k] = v; } },
+    location: { reload() {} } };
+  const ctx = { document: doc, window: win, navigator: { onLine: false },
+    sessionStorage: win.sessionStorage,
+    setInterval() {}, setTimeout() {}, fetch: () => Promise.resolve({ ok: false }),
+    console: { log() {}, error() {} } };
+  ctx.globalThis = ctx;
+  let corre = true, err2 = "";
+  try { vm.createContext(ctx); new vm.Script(src).runInContext(ctx); }
+  catch (e) { corre = false; err2 = e.message; }
+  ok("vivos.js corre y expone el pintado de la mora",
+    corre && typeof win.__pintarMora === "function", err2 || "no expone __pintarMora");
+  if (corre && typeof win.__pintarMora === "function") {
+    win.__pintarMora({ lunes: "2026-08-10", total: 1440, clientas: 3,
+      porCentro: [{ centro: "LA CONSENTIDA", falta: 960 }, { centro: "GHANIMA", falta: 480 }],
+      filas: [{ clienta: "ANA VICTORIA", centro: "LA CONSENTIDA", dia: "JUEVES",
+                producto: "Grupal-Micro", cuota: 480, pagado: 0, falta: 480 },
+              { clienta: "MARIA DEL ROSARIO", centro: "GHANIMA", dia: "LUNES",
+                producto: "Grupal-Basico 2", cuota: 576, pagado: 88, falta: 488 }] });
+    // NACE CERRADA (Karina, 15-ago: «que aparezca pero que no les bloquee la
+    // vista»). Un renglón con el número; el detalle solo si lo toca.
+    const h2 = (doc.host.kid || {}).innerHTML || "";
+    ok("la ejecutiva ve su TOTAL de mora de un vistazo", /1,440/.test(h2), h2.slice(0, 120));
+    ok("y NACE CERRADA: un solo renglón, sin taparle la captura",
+      (h2.match(/<div/g) || []).length === 1 && !/ANA VICTORIA/.test(h2),
+      (h2.match(/<div/g) || []).length + " bloques");
+    ok("el renglón invita a abrirla", /ver</.test(h2), h2.slice(-80));
+    // Al tocarla se abre con todo el detalle.
+    win.__moraToggle();
+    const h2b = (doc.host.kid || {}).innerHTML || "";
+    ok("al tocarla se abre con el NOMBRE de cada clienta y lo que le falta",
+      /ANA VICTORIA/.test(h2b) && /MARIA DEL ROSARIO/.test(h2b) && /488/.test(h2b), h2b.slice(0, 200));
+    ok("de la que pagó a medias dice cuánto abonó",
+      /abonó/.test(h2b) && /88/.test(h2b), h2b.slice(0, 240));
+    ok("y el desglose por centro, para ordenar el día",
+      /LA CONSENTIDA/.test(h2b) && /GHANIMA/.test(h2b), h2b.slice(0, 200));
+    ok("sin etiquetas rotas",
+      (h2b.match(/<div/g) || []).length === (h2b.match(/<\/div>/g) || []).length, "desbalanceadas");
+    // Y al tocarla otra vez se cierra: la ejecutiva decide.
+    win.__moraToggle();
+    ok("y al tocarla de nuevo se cierra",
+      ((doc.host.kid || {}).innerHTML || "").length === h2.length, "no volvió a cerrarse");
+    // Al corriente: mensaje distinto, no una tarjeta vacía.
+    win.__pintarMora({ lunes: "2026-08-10", total: 0, clientas: 0, porCentro: [], filas: [] });
+    const h3 = (doc.host.kid || {}).innerHTML || "";
+    ok("y si no debe nadie, se lo dice en verde en vez de dejar el hueco",
+      /al corriente/i.test(h3), h3.slice(0, 120));
+  }
+}
+
+console.log("\n═══ LA TARJETA DE RENOVACIONES PINTA ═══\n");
+{
+  // Se corre SOLO la función que pinta esta tarjeta, con sus dos ayudantes.
+  // Correr el tablero entero aquí es imposible (necesitaría un navegador de
+  // verdad) y tampoco es lo que interesa: lo que se rompe es el HTML que arma.
+  // Se recorta contando llaves hasta cerrar la función (sirve igual para las
+  // de un solo renglón, como hesc, que para las largas).
+  const trozo = (nombre) => {
+    let i = js.indexOf("function " + nombre + "(");
+    if (i < 0) return "";
+    // Si es `async function`, el async va incluido: sin él, el await de adentro
+    // no compila y la prueba culpa a la tarjeta de un error que no tiene.
+    if (js.slice(Math.max(0, i - 6), i) === "async ") i -= 6;
+    let prof = 0, visto = false;
+    for (let k = i; k < js.length; k++) {
+      if (js[k] === "{") { prof++; visto = true; }
+      else if (js[k] === "}") { prof--; if (visto && prof === 0) return js.slice(i, k + 1); }
+    }
+    return "";
+  };
+  const dineroSrc = (js.match(/const dinero = [^\n]+/) || [""])[0];
+  const src = [dineroSrc, trozo("hesc"), trozo("semanasRenUI"), trozo("cargarRenovaciones"),
+    "globalThis.__pintar = cargarRenovaciones;"].join("\n");
+  const caja = { innerHTML: "", textContent: "" };
+  const elems = { renResumen: caja, renSemanas: { value: "3" } };
+  const respuesta = {
+    hoy: "2026-08-14", semanasAviso: 3,
+    sinRenovar: [{ ejecutivo: "Julio", centro: "PEÑITAS", clienta: "ROSA PRUEBA", socio: "1",
+      producto: "Grupal-Basico", monto: 6000, fechaFin: "2026-07-01", dias: 44, eraVencido: false }],
+    porTerminar: [{ ejecutivo: "Neri", centro: "ADNACHIEL", clienta: "MARIA PRUEBA", socio: "2",
+      producto: "Grupal-Basico", saldoActual: 1000, cuota: 500, semanas: 2, diaPago: "MARTES" }],
+    porEjecutivo: [{ ejecutivo: "Julio", renovaron: 3, montoRenovado: 18000, terminaronEnElMes: 1,
+      tasa: 75, sinRenovar: 1, montoSinRenovar: 6000, porTerminar: 1, montoPorTerminar: 4000 }],
+    totales: { sinRenovar: 1, montoSinRenovar: 6000, porTerminar: 1, montoPorTerminar: 4000 },
+    mes: "2026-08",
+    delMes: { mes: "2026-08", renovaron: 3, montoRenovado: 18000, terminaronSinRenovar: 1,
+      montoTerminaronSinRenovar: 6000, cerraronCiclo: 4, tasa: 75, terminanEnElMes: 2,
+      montoTerminanEnElMes: 1000, antesDelCorte: false, corte: "2026-08-05", sinMovimiento: false },
+    fuera: { vencidos: 3, cuotaVariable: 1, sinCuota: 0 },
+  };
+  const ctx = {
+    document: { getElementById: (id) => elems[id] || null },
+    fetch: () => Promise.resolve({ json: () => Promise.resolve(respuesta) }),
+    console: { log() {}, error() {} },
+  };
+  ctx.globalThis = ctx;
+  let corrio = true, motivo = "";
+  try { vm.createContext(ctx); new vm.Script(src).runInContext(ctx); }
+  catch (e) { corrio = false; motivo = e.message; }
+  ok("la tarjeta de renovaciones y sus ayudantes compilan solos", corrio, motivo);
+  if (corrio && typeof ctx.__pintar === "function") {
+    ctx.__pintar().then(() => {
+      const h = caja.innerHTML;
+      // El corte del MES es lo que se reporta: si esto se cae, la tarjeta
+      // pierde justo el número que Karina pidió el 14-ago.
+      ok("abre con el corte del MES: cuántas renovaron y la tasa",
+        /2026-08/.test(h) && /renovaron/.test(h) && /75%/.test(h) && /\$18,000/.test(h), h.slice(0, 260));
+      ok("cada conteo trae su dinero: colocado, enfriado y por cobrar",
+        /\$18,000/.test(h) && /se enfriaron/.test(h) && /les falta \$1,000 por pagar/.test(h), h.slice(0, 700));
+      ok("y desglosa el mes por ejecutivo",
+        /Julio/.test(h) && /renov[oó] 3/.test(h), h.slice(0, 400));
+      ok("dice quién NO renovó, con sus días y su dinero",
+        /ROSA PRUEBA/.test(h) && /44 d/.test(h) && /\$6,000/.test(h), h.slice(0, 220));
+      ok("dice quién está POR TERMINAR y cuántas cuotas le faltan",
+        /MARIA PRUEBA/.test(h) && /2 cuotas/.test(h), h.slice(0, 220));
+      ok("y no se calla lo que dejó fuera (vencidos y cuota variable)",
+        /3 vencidos/.test(h) && /cuota variable/.test(h), h.slice(-180));
+      // Comillas rotas: es EL error de armar HTML dentro de una cadena. El
+      // síntoma es una barra invertida suelta o una etiqueta sin cerrar.
+      ok("el HTML que arma no trae comillas ni etiquetas rotas",
+        !/\\"/.test(h) && (h.match(/<b[\s>]/g) || []).length === (h.match(/<\/b>/g) || []).length
+          && (h.match(/<span[\s>]/g) || []).length === (h.match(/<\/span>/g) || []).length,
+        h.slice(0, 220));
+      cerrar();
+    }).catch((e) => { ok("la tarjeta de renovaciones se pinta sin error", false, e.message); cerrar(); });
+  } else {
+    ok("la tarjeta de renovaciones existe y es una función", false, "no se pudo aislar");
+    cerrar();
+  }
+}
+
+function cerrar() {
 console.log("\n══════════════════════════════════");
 console.log(FALLA === 0 ? "✅✅ TODO PASÓ: " + PASA + " verificaciones" : "❌ FALLARON " + FALLA + " de " + (PASA + FALLA));
 process.exit(FALLA === 0 ? 0 : 1);
+}

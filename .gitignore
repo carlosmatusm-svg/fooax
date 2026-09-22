@@ -29,3 +29,6 @@ data/*.bak3-*
 data/sesiones.json
 data/padron_cambios.json
 data/snapshots_hist.jsonl
+
+# la base de PRUEBAS para desarrollar (se regenera con ./base-de-pruebas.sh)
+data-pruebas/

@@ -29,6 +29,13 @@ const USUARIOS = {
   prueba:      { nombre: "Prueba",      rol: "ejecutivo", test: true, app: "App_Cobranza_PRUEBA.html", pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
   pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", test: true, pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
 };
+// EL EJECUTIVO DE PRUEBA NO EXISTE EN PRODUCCIÓN (orden de Karina, 31-ago:
+// «elimina el ejecutivo prueba»). Era la ejecutiva de la burbuja para probar
+// la app; en el servidor real ya nadie puede entrar con esa cuenta. La
+// batería y el desarrollo local (sin DATABASE_URL) la siguen usando, y la
+// cuenta de dirección de prueba (pruebadir) se queda: es con la que se
+// verifica producción sin tocar contraseñas reales.
+if (process.env.DATABASE_URL) delete USUARIOS.prueba;
 
 // Quiénes cuentan como ejecutivas para consolidado/arqueo/resumen.
 // Se deriva de USUARIOS: si mañana entra una ejecutiva nueva (sucursales),
@@ -46,8 +53,17 @@ function idsEjecutivos(usuario) {
 
 // Fecha de HOY en horario de México (no UTC). Evita que el "día" cambie a las
 // 6 PM y la cobranza de la tarde se parta o desaparezca del tablero.
+// CACHÉ DE 1 SEGUNDO (27-ago: «el tablero se traba al cambiar de fechas»).
+// toLocaleDateString con zona horaria pasa por Intl y es caro, y desde la
+// vencida por plazo esta función se consulta POR CRÉDITO — cientos de veces
+// por petición. El día cambia una vez por noche: un segundo de caché no
+// miente y quita todo ese costo.
+let _hoyCache = { t: 0, v: "" };
 function hoyMX() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+  const ahora = Date.now();
+  if (ahora - _hoyCache.t > 1000)
+    _hoyCache = { t: ahora, v: new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" }) };
+  return _hoyCache.v;
 }
 
 // ---------- sesiones (cookie httpOnly) ----------
@@ -73,7 +89,15 @@ function usuarioDe(req) {
   if (!ses) return null;
   if (Date.now() - (ses.creada || 0) > SESION_MAX_MS) { store.borrarSesion(sid); return null; }
   if ((ses.creada || 0) < SESIONES_VALIDAS_DESDE) { store.borrarSesion(sid); return null; }
-  return { id: ses.usuario, ...USUARIOS[ses.usuario] };
+  // Última actividad de la gente de Dirección (freno de 10 min para no
+  // escribir a cada request): es lo que Anel ve en su resumen del día.
+  const uSes = USUARIOS[ses.usuario];
+  if (uSes && (uSes.rol === "direccion" || uSes.rol === "admin")
+      && Date.now() - (ses.ultimaVez || ses.creada || 0) > 10 * 60 * 1000) {
+    ses.ultimaVez = Date.now();
+    store.guardarSesion(sid, ses);
+  }
+  return { id: ses.usuario, ...uSes };
 }
 function requiere(...roles) {
   return (req, res, next) => {
@@ -265,8 +289,9 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
   // La app manda su lista completa de la sesión. Si un folio ya guardado no
   // viene, la ejecutiva lo BORRÓ → se marca ANULADO (nunca se borra; queda el
   // rastro y deja de contar); si vuelve a venir, revive.
-  if (!Array.isArray(snapshot && snapshot.movs)) return;
+  if (!Array.isArray(snapshot && snapshot.movs)) return [];
   const lista = snapshot.movs;
+  const rechazados = [];
   const prefijo = "EJE-" + usuario.id.toUpperCase() + "-";
   const presentes = new Set(lista.filter((m) => Number(m && m.monto) > 0)
     .map((m) => prefijo + (m.folio || Math.abs(Number(m.monto)) + "-" + String(m.concepto || "").toUpperCase())));
@@ -279,13 +304,40 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
     for (const viejo of store.movimientosDeFecha(fecha)) {
       if (!String(viejo.folio).startsWith(prefijo)) continue;   // solo los SUYOS
       if (!presentes.has(viejo.folio) && !viejo.anulado) store.setMovimientoAnulado(viejo.folio, true);
-      if (presentes.has(viejo.folio) && viejo.anulado) store.setMovimientoAnulado(viejo.folio, false);
+      // REVIVIR SOLO LO QUE ANULÓ LA PROPIA SINCRONIZACIÓN (Karina, 19-ago).
+      //
+      // Antes esta línea revivía CUALQUIER anulado que la app volviera a mandar,
+      // y con eso deshacía las decisiones de Dirección: Monse anulaba dos
+      // liquidaciones de Julio por error de captura, la app de Julio seguía
+      // trayéndolas en su lista y al siguiente sync el servidor las revivía
+      // solo. Los créditos volvían a quedar liquidados y el arqueo le pedía a
+      // Julio el DOBLE ($324,999.94 por $162,499.97 de cobranza), porque el
+      // mismo dinero contaba como su efectivo y otra vez como "otros".
+      //
+      // La diferencia está en `anuladoPor`: cuando anula una PERSONA desde el
+      // tablero se guarda su nombre y su motivo; cuando lo anula esta misma
+      // función (porque la ejecutiva lo quitó de su app) va sin nombre. Solo se
+      // revive lo segundo. Una anulación de Dirección se deshace a mano, con el
+      // botón «Reactivar» — que para eso existe.
+      if (presentes.has(viejo.folio) && viejo.anulado && !viejo.anuladoPor)
+        store.setMovimientoAnulado(viejo.folio, false);
     }
   }
   for (const m of lista) {
     const monto = Number(m && m.monto);
     if (!(monto > 0)) continue;
     const cve = String(m.concepto || "").toUpperCase();
+    // MÓDULOS QUE NO EXISTEN NO ENTRAN POR LA CAJA (Karina, 19-ago). Si llega
+    // un desembolso o una devolución de garantía, NO se guarda: se anota como
+    // rechazado para que Dirección lo vea y sepa que ese dinero no está
+    // registrado en ningún lado. Callarlo sería peor: el arqueo cuadraría
+    // mintiendo.
+    const veto = conceptoProhibido(cve, [m.concepto, m.nota, m.tipoGasto].filter(Boolean).join(" "));
+    if (veto) {
+      rechazados.push({ concepto: m.concepto || "", nota: m.nota || "", monto,
+        clienta: m.clienta || null, socio: m.socio ? String(m.socio) : null, motivo: veto });
+      continue;
+    }
     const def = CONCEPTOS_EJEC[cve] || { etiqueta: m.concepto || "Otro", categoria: "Otro", entrada: false };
     const quien = [m.clienta, m.socio].filter(Boolean).join(" · ");
     const nuevo = {
@@ -313,6 +365,13 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
       // socio: para poder ligar una LIQUIDACIÓN al crédito de esa clienta y
       // bajarle el saldo. Antes sólo iba dentro del texto del concepto.
       socio: m.socio ? String(m.socio) : null,
+      // producto: CUÁL de sus créditos. La llave de un crédito es socio+producto
+      // y ~146 socias tienen más de uno. La app SIEMPRE mostró el crédito en el
+      // selector ("NOMBRE (Grupal-Micro)"), pero al guardar se quedaba solo con
+      // el socio y tiraba `sub`: la liquidación se repartía al primer crédito en
+      // orden alfabético, no al que la clienta liquidó. El sábado 8-ago entraron
+      // así y le bajaron el saldo al crédito equivocado (lo cachó Karina).
+      producto: m.producto ? String(m.producto) : null,
       autorizadoA: m.clienta || null,
       registradoPor: usuario.nombre, rol: usuario.rol, usuario: usuario.id, ts: Date.now(),
     };
@@ -339,6 +398,7 @@ function guardarMovimientosDeEjecutiva(usuario, fecha, snapshot, permitirAnular)
     }
     store.agregarMovimiento(nuevo);
   }
+  return rechazados;
 }
 
 // ---------- fusión post-cierre ----------
@@ -628,6 +688,9 @@ app.get("/api/semana", requiere("direccion", "admin"), (req, res) => {
 // Respaldo en EXCEL de verdad (.xlsx): cobranza detallada + movimientos de caja.
 // Lo que Monse puede abrir y usar directo, sin depender de Drive ni nada externo.
 const ExcelJS = require("exceljs");
+// El motor de reglas: los intereses se calculan con lo que Dirección escribe en
+// data/reglas-productos.json, no con números metidos en este archivo.
+const motor = require("./motor-reglas");
 
 function filasCobranza(snaps) {
   const filas = [];
@@ -745,6 +808,12 @@ catch { DIAS_COBRO = {}; }
 const DIAS_SEMANA = { LUNES: 1, MARTES: 2, MIERCOLES: 3, "MIÉRCOLES": 3, JUEVES: 4, VIERNES: 5, SABADO: 6, "SÁBADO": 6, DOMINGO: 7 };
 // Lunes = 1 … domingo = 7, para poder comparar "ya pasó su día" con un número.
 function idxDia(d) { return DIAS_SEMANA[String(d || "").trim().toUpperCase()] || 0; }
+// El día SIEMPRE en su forma canónica (mayúsculas, sin acento): unas altas
+// guardaron "MIÉRCOLES" con acento y la mora semanal mostraba DOS miércoles
+// (Karina, 10-sep: "cómo podemos dejar en un miércoles los dos").
+function diaCanon(d) {
+  return String(d || "").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 function idxHoy() { const n = new Date(hoyMX() + "T12:00:00").getDay(); return n === 0 ? 7 : n; }
 function refrescarPadron() {
   PADRON = store.padron();
@@ -840,12 +909,30 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
   const pago = {}, gar = {}, detalle = {}, porFecha = {};
   const permitidas = new Set(idsEjecutivos(usuario));
   const snaps = store.respaldo().snapshots || {};
-  const sumar = (nodo, key, ej, fecha) => {
+  // MISMO CRÉDITO CAPTURADO EN DOS LUGARES EL MISMO DÍA (Karina, 15-ago: «pagó
+  // 88 pero le pone que pagó 588»). Si la clienta quedó listada en dos centros,
+  // o en un centro Y como individual, cada renglón traía su monto y el sistema
+  // los SUMABA: pagó $88 en uno y arrastraba $500 del otro, y aparecía pagando
+  // su cuota completa. Se guarda cada captura con su ORIGEN para poder decidir
+  // cuál vale, en vez de sumarlas a ciegas.
+  const crudo = {};      // clave → fecha → origen → { p, g }
+  const sumar = (nodo, key, ej, fecha, origen) => {
     if (!nodo || typeof nodo !== "object") return;
-    const p = nodo.pago || 0, g = nodo.garantia || 0;
+    // EL SOLIDARIO CUENTA COMO PAGO (Monse, 4-sep: «cuando es solidario, el
+    // pago sí se le descuenta al crédito, se marca como solidario y se sale
+    // de la mora — el centro lo está cubriendo y ese dinero sí entró»). Antes
+    // el solidario era invisible para la cartera: no bajaba saldo ni cubría
+    // la cuota, y el crédito caía en mora aunque el pagaré estuviera pagado.
+    // La MARCA no se pierde: el arqueo, el historial y los reportes lo siguen
+    // enseñando en su propia columna «Solidario».
+    const p = (nodo.pago || 0) + (nodo.solidario || 0), g = nodo.garantia || 0;
     if (p <= 0 && g <= 0) return;
     const partes = String(key).split("|");
     const clave = claveDelPago(partes[0], partes[1]);
+    const porF = crudo[clave] || (crudo[clave] = {});
+    const porO = porF[fecha] || (porF[fecha] = {});
+    const o = porO[origen] || (porO[origen] = { p: 0, g: 0 });
+    o.p += p; o.g += g;
     if (p > 0) pago[clave] = (pago[clave] || 0) + p;
     if (g > 0) gar[clave] = (gar[clave] || 0) + g;
     // Desglose por DÍA: lo necesitan las renovaciones. Como la llave es
@@ -867,18 +954,62 @@ function pagosDeLaSemana(usuario, desde, hastaOpt) {
       if (fecha < lunes || fecha > hoy) continue;
       let data = snaps[ej][fecha].snapshot;
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { continue; } }
-      const rec = (st) => {
+      const rec = (st, origenFijo) => {
         if (!st || typeof st !== "object") return;
         for (const k in st) {
           const nd = st[k];
-          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd)) sumar(nd, k, ej, fecha);
-          else if (nd && typeof nd === "object") for (const kk in nd) sumar(nd[kk], kk, ej, fecha);
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd))
+            sumar(nd, k, ej, fecha, origenFijo || "individual");
+          // Un nivel más abajo: la llave de arriba es el CENTRO.
+          else if (nd && typeof nd === "object")
+            for (const kk in nd) sumar(nd[kk], kk, ej, fecha, origenFijo || String(k));
         }
       };
-      rec(data.reg); rec(data.regI);
+      rec(data.reg, null); rec(data.regI, "individual");
     }
   }
-  return { pago, gar, detalle, porFecha };
+
+  // RESOLVER LOS DUPLICADOS. Manda el padrón: la captura que viene del centro
+  // donde la clienta está registrada es la buena; la de otro lado es un
+  // remanente (la movieron de centro y quedó en los dos). No se suman: se
+  // elige, y la descartada se reporta para que Dirección la vea.
+  const duplicados = [];
+  for (const clave in crudo) {
+    for (const fecha in crudo[clave]) {
+      const orig = crudo[clave][fecha];
+      const nombres = Object.keys(orig);
+      if (nombres.length < 2) continue;
+      const c = PADRON.find((x) => x.activa !== false && x.estatus !== "BAJA"
+        && claveCredito(x.id, x.producto) === clave);
+      const suyo = c ? (/^c-?0$/i.test(String(c.centro || "")) ? "individual" : String(c.centro || "")) : null;
+      let bueno = suyo && nombres.find((n) => norm(n) === norm(suyo));
+      if (!bueno) bueno = nombres.reduce((a3, b3) => (orig[b3].p > orig[a3].p ? b3 : a3));
+      let quitadoP = 0, quitadoG = 0;
+      for (const n of nombres) {
+        if (n === bueno) continue;
+        quitadoP += orig[n].p; quitadoG += orig[n].g;
+      }
+      if (quitadoP <= 0 && quitadoG <= 0) continue;
+      pago[clave] = Math.round(((pago[clave] || 0) - quitadoP) * 100) / 100;
+      gar[clave] = Math.round(((gar[clave] || 0) - quitadoG) * 100) / 100;
+      const pf = porFecha[clave];
+      if (pf && pf[fecha]) {
+        pf[fecha].p = Math.round((pf[fecha].p - quitadoP) * 100) / 100;
+        pf[fecha].g = Math.round((pf[fecha].g - quitadoG) * 100) / 100;
+      }
+      if (detalle[clave]) {
+        detalle[clave].pago = Math.round((detalle[clave].pago - quitadoP) * 100) / 100;
+        detalle[clave].gar = Math.round((detalle[clave].gar - quitadoG) * 100) / 100;
+      }
+      duplicados.push({ clave, fecha, socio: c ? String(c.id) : String(clave).split("|")[0],
+        clienta: c ? c.nombre : "(sin identificar)", producto: c ? c.producto : "",
+        ejecutivo: c ? c.ejecutivo : "", centroPadron: suyo || "(sin centro)",
+        seTomo: bueno, seTomoMonto: Math.round(orig[bueno].p * 100) / 100,
+        seIgnoro: nombres.filter((n) => n !== bueno).map((n) => ({ origen: n, monto: Math.round(orig[n].p * 100) / 100 })),
+        montoIgnorado: Math.round(quitadoP * 100) / 100 });
+    }
+  }
+  return { pago, gar, detalle, porFecha, duplicados };
 }
 
 // Liquidaciones y recuperaciones de la semana, por socio: abonos al crédito
@@ -942,7 +1073,7 @@ function liquidacionesSinClienta(usuario, desde) {
     if (fISO > hoy) break;
     for (const m of movsDeFecha(fISO, usuario)) {
       const tipo = tipoDeMov(m);
-      if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) continue;
       if (socioDeMov(m)) continue;
       out.push({ folio: m.folio, fecha: m.fecha, monto: m.monto, concepto: m.concepto,
         registradoPor: m.registradoPor || m.usuario || "" });
@@ -955,7 +1086,7 @@ function liquidacionesDeLaSemana(usuario, desde, fechasOut) {
   const liqPorSocio = {};
   const sumar = (m, fISO) => {
     const tipo = tipoDeMov(m) || "Otro";
-    if (!/^(liquidaci|recuperaci)/i.test(tipo)) return;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) return;
     const soc = socioDeMov(m);
     if (!soc) return;
     liqPorSocio[soc] = (liqPorSocio[soc] || 0) + m.monto;
@@ -1065,16 +1196,175 @@ function aplicarCorteDeLaPlantilla() {
 // Con hora no se puede y no hace falta: las capturas guardan fecha, no hora, y
 // nadie captura después de cerrar su día.
 
+// CUÁNTO DEL CICLO CERRADO SIGUE VISIBLE BAJO EL CORTE DE HOY.
+//
+// Al renovar, el ciclo nuevo hereda la MISMA llave (socio+producto), así que los
+// abonos del ciclo viejo se le cargarían al nuevo. Por eso el recrédito anota en
+// `previo` cuánto llevaba abonado el que se cerró, para descontarlo.
+//
+// El problema era que ese apunte venía sellado con el corte de ese día: al mover
+// el corte dejaba de valer y el crédito nuevo amanecía con los abonos del viejo
+// encima (le pasó a doña Alma Rosario el 10-ago: $5,440 de más).
+//
+// Aquí se recalcula contra el corte de HOY, y la regla es la que sí se sostiene:
+// los abonos del ciclo cerrado son los que tienen FECHA ANTERIOR O IGUAL al día
+// de la renovación. Se recorren de más viejo a más nuevo y se toman hasta
+// completar lo que `previo` dice — nunca más, así que si el corte tapó parte de
+// esos abonos, tampoco se descuenta de más.
+function previoVigente(c, corte, porFecha, fechasLiq) {
+  const p = c && c.previo;
+  if (!p) return null;
+  const hasta = p.fecha || c.alta_fecha || null;
+  const tomar = (mapa, tope, leer) => {
+    if (!(tope > 0) || !mapa) return 0;
+    let queda = tope, suma = 0;
+    for (const f of Object.keys(mapa).sort()) {
+      if (queda <= 0) break;
+      if (f < corte) continue;              // ese día ya lo trae descontado la plantilla
+      if (hasta && f > hasta) break;        // de aquí en adelante ya es del ciclo NUEVO
+      const v = leer(mapa[f]);
+      const usa = Math.min(queda, v);
+      suma += usa; queda -= usa;
+    }
+    return Math.round(suma * 100) / 100;
+  };
+  // Con desglose por día no hay que adivinar: se suma lo que quedó dentro del
+  // corte de hoy.
+  //
+  // Y se COTEJA contra los abonos de verdad de esa llave hasta el día de la
+  // renovación, quedándose con el mayor de cada día. Dos razones: (1) repara
+  // los desgloses que quedaron mal escritos el 10-ago —le pegaban el monto a
+  // una fecha anterior al corte, que después se ignora, y por eso a SOCORRO
+  // MIGUEL se le volvieron a restar sus $320—, y (2) todo abono con fecha
+  // anterior o igual a la renovación es, por definición, del ciclo que se
+  // cerró: el nuevo nació ese día.
+  if (p.dias || p.diasLiq) {
+    const clave0 = claveCredito(c.id, c.producto);
+    const real = porFecha[clave0] || {};
+    // El cotejo solo alcanza a los días ESTRICTAMENTE ANTERIORES a la renovación.
+    // El día mismo manda el desglose guardado y nada más: ahí conviven el último
+    // abono del ciclo viejo y el primero del nuevo, y si se cotejara también ese
+    // día, el primer pago del crédito nuevo se tomaría por del viejo y dejaría de
+    // bajarle el saldo. Lo cachó la prueba de la sección 53.
+    const suma = (mapa, leerReal) => {
+      let t = 0;
+      const fechas = new Set(Object.keys(mapa || {}));
+      if (leerReal) for (const f in real) if (!hasta || f < hasta) fechas.add(f);
+      for (const f of fechas) {
+        if (f < corte) continue;                 // ya viene descontado en la plantilla
+        if (hasta && f > hasta) continue;        // de ahí en adelante es del ciclo NUEVO
+        const guardado = (mapa || {})[f] || 0;
+        const cotejo = (leerReal && hasta && f < hasta) ? leerReal(real[f] || {}) : 0;
+        t += Math.max(guardado, cotejo);
+      }
+      return Math.round(t * 100) / 100;
+    };
+    return {
+      pago: suma(p.dias, (x) => x.p || 0),
+      gar: suma(p.diasGar, (x) => x.g || 0),
+      liq: suma(p.diasLiq, null),   // van por socio: solo vale lo que se apartó
+    };
+  }
+  // Apuntes viejos (sin desglose): se deduce por fecha. No es exacto el día de
+  // la renovación, pero es muchísimo mejor que perder la protección entera.
+  const clave = claveCredito(c.id, c.producto);
+  return {
+    pago: tomar(porFecha[clave], p.pago || 0, (x) => x.p || 0),
+    gar: tomar(porFecha[clave], p.gar || 0, (x) => x.g || 0),
+    liq: tomar(fechasLiq[String(c.id)], p.liq || 0, (x) => x || 0),
+  };
+}
+
+// CACHÉ DE LA CARTERA (27-ago: «se traba al cambiar de fechas»). Un clic del
+// tablero dispara SEIS peticiones y cada una recalculaba la cartera completa
+// desde los snapshots — en un solo hilo, se forman en fila y el tablero se
+// queda pensando. La cartera solo cambia cuando se ESCRIBE algo (la revisión
+// del store sube) o cuando cambia el día; si no, se sirve la misma. Una caché
+// por burbuja: la de prueba y la real nunca se mezclan.
+let _cvCache = { rev: -1, dia: "", real: null, prueba: null };
 function carteraViva(usuario) {
+  const burbuja = usuario && usuario.test ? "prueba" : "real";
+  const r = store.revision(), d = hoyMX();
+  if (_cvCache.rev !== r || _cvCache.dia !== d)
+    _cvCache = { rev: r, dia: d, real: null, prueba: null };
+  if (!_cvCache[burbuja]) _cvCache[burbuja] = carteraVivaCalcular(usuario);
+  return _cvCache[burbuja];
+}
+function carteraVivaCalcular(usuario) {
   // Saldos = saldo de plantilla − TODO lo abonado desde el corte (no solo la
   // semana: los lunes la ventana semanal se vacía y los saldos "rebotaban").
   const corte = corteSaldos();
   const { pago: pagos, gar: garantias, porFecha } = pagosDeLaSemana(usuario, corte);
   const fechasLiq = {};   // socio → día → monto liquidado/recuperado
   const liqRestante = Object.assign({}, liquidacionesDeLaSemana(usuario, corte, fechasLiq));
+  // LO QUE YA DICE A QUÉ CRÉDITO VA. Desde el 8-ago-2026 el movimiento guarda el
+  // producto, así que la liquidación le baja al crédito que la clienta liquidó y
+  // no al primero de la lista. Lo de antes (sin producto) se sigue repartiendo
+  // igual que siempre: cambiarles la regla movería saldos de toda la cartera.
+  const ligadas = liquidacionesLigadas(usuario, corte);
   const activos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA")
     .sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo)) ||
       String(a.centro).localeCompare(String(b.centro)) || String(a.nombre).localeCompare(String(b.nombre)));
+  // Entregas de garantía por crédito (tesorería, desde el corte). Si el
+  // movimiento no dice producto y la socia tiene UN crédito activo, es ese —
+  // la misma regla de las liquidaciones.
+  const entregasGar = {}, cobrosGarMov = {}, cobrosGarA = {}, entregasGarA = {};
+  const esGarA = (t2) => /^garant[íi]a a\b/i.test(t2);
+  for (const mg of (store.respaldo().movimientos || [])) {
+    if (mg.anulado) continue;
+    const tG = tipoDeMov(mg) || "";
+    // GARANTÍA A: su propio guardado, separado del de la líquida (Karina,
+    // 24-ago: la de ahorro, que no se puede llamar así oficialmente).
+    if (esGarA(tG)) {
+      if ((mg.fecha || "") < corte) continue;
+      const sA = socioDeMov(mg); if (!sA) continue;
+      let pA = productoDeMov(mg);
+      if (!pA) {
+        const suA = PADRON.filter((x) => String(x.id) === String(sA)
+          && x.activa !== false && x.estatus !== "BAJA");
+        if (suA.length === 1) pA = suA[0].producto;
+      }
+      if (!pA) continue;
+      const kA = claveCredito(sA, pA);
+      const destinoA = mg.entrada ? cobrosGarA : entregasGarA;
+      destinoA[kA] = (destinoA[kA] || 0) + (Number(mg.monto) || 0);
+      continue;
+    }
+    // GARANTÍA COBRADA por Dirección (entrada): suma al guardado de la clienta.
+    // Entraba a la caja pero no le llegaba al perfil (Karina, 24-ago).
+    // Entrada de garantía que NO es A → al bucket de la líquida («Garantía»
+    // vieja y «Garantía líquida» nueva cuentan igual). Las ENTREGADAS ya se
+    // filtraron arriba por su palabra.
+    if (mg.entrada && /^garant/i.test(tG) && !/entregada/i.test(tG)) {
+      if ((mg.fecha || "") >= corte) {
+        const sG = socioDeMov(mg);
+        if (sG) {
+          let pG = productoDeMov(mg);
+          if (!pG) {
+            const su = PADRON.filter((x) => String(x.id) === String(sG)
+              && x.activa !== false && x.estatus !== "BAJA");
+            if (su.length === 1) pG = su[0].producto;
+          }
+          if (pG) { const kC = claveCredito(sG, pG);
+            cobrosGarMov[kC] = (cobrosGarMov[kC] || 0) + (Number(mg.monto) || 0); }
+        }
+      }
+      continue;
+    }
+    if (mg.entrada) continue;
+    if (!/garantía líquida|garantia liquida/i.test(tG)) continue;
+    if ((mg.fecha || "") < corte) continue;
+    const socG = socioDeMov(mg); if (!socG) continue;
+    let prodG = productoDeMov(mg);
+    if (!prodG) {
+      const suyos = PADRON.filter((x) => String(x.id) === String(socG)
+        && x.activa !== false && x.estatus !== "BAJA");
+      if (suyos.length === 1) prodG = suyos[0].producto;
+    }
+    if (!prodG) continue;
+    const kG = claveCredito(socG, prodG);
+    entregasGar[kG] = (entregasGar[kG] || 0) + (Number(mg.monto) || 0);
+  }
   const porCredito = new Map();
   for (const c of activos) {
     const clave = claveCredito(c.id, c.producto);
@@ -1086,24 +1376,66 @@ function carteraViva(usuario) {
     // NO se resuelve por fecha: la clienta suele liquidar y renovar el MISMO día, y
     // las capturas solo guardan fecha, no hora. Se resuelve con lo exacto: al hacer
     // el recrédito se anota cuánto llevaba abonado el ciclo que se cerró (`previo`),
-    // y ese monto se descuenta aquí. Solo vale mientras no se mueva el corte —
-    // cuando se mueve, los acumulados arrancan de cero y el descuento ya no aplica.
-    const prev = (c.previo && c.previo.corte === corte) ? c.previo : null;
+    // y ese monto se descuenta aquí.
+    //
+    // ANTES ESTO SE CAÍA AL MOVER EL CORTE (`previo.corte === corte`), y el 7-ago
+    // pasó de verdad: Monse renovó a doña Alma Rosario por $29,184, después movió
+    // el corte al lunes, y el crédito NUEVO amaneció con $5,440 descontados — los
+    // del ciclo que ya había liquidado. Ahora el descuento se vuelve a calcular
+    // contra el corte de hoy, así que moverlo ya no lo desactiva.
+    const prev = previoVigente(c, corte, porFecha, fechasLiq);
     const pagado = Math.max(0, (pagos[clave] || 0) - (prev ? (prev.pago || 0) : 0));
-    const garan = Math.max(0, (garantias[clave] || 0) - (prev ? (prev.gar || 0) : 0));
+    // LA GARANTÍA SE NETEA (Karina, 24-ago): lo que Dirección le ENTREGÓ a la
+    // clienta se resta de lo guardado — el Excel de saldos y el desglose dicen
+    // la garantía que de verdad queda, no la histórica.
+    const garan = Math.max(0, (garantias[clave] || 0) + (cobrosGarMov[clave] || 0)
+      - (prev ? (prev.gar || 0) : 0) - (entregasGar[clave] || 0));
+    const garanA = Math.max(0, (cobrosGarA[clave] || 0) - (entregasGarA[clave] || 0));
     // Las liquidaciones son por SOCIO y se reparten entre sus créditos en orden
     // fijo. Lo que ya consumió el ciclo cerrado se aparta antes de repartir.
     const usado = liqRestante["__usado__" + soc] || (liqRestante["__usado__" + soc] = 0);
     const bolsa = Object.values(fechasLiq[soc] || {}).reduce((a, b) => a + b, 0);
-    const disp = Math.max(0, bolsa - usado - (prev ? (prev.liq || 0) : 0));
-    const liquidado = Math.min(disp, Math.max(0, (c.saldo || 0) - pagado));
-    if (liquidado > 0) liqRestante["__usado__" + soc] = usado + liquidado;
-    porCredito.set(clave, { pagado, liquidado, garantia: garan,
+    // Lo que ya tiene crédito escrito sale del reparto: es de ESE crédito. Sin
+    // apartarlo se contaría dos veces (una en su crédito y otra en la bolsa).
+    const bolsaLibre = Math.max(0, bolsa - (ligadas.porSocio[soc] || 0));
+    const suyosVivos = activos.filter((x) => String(x.id) === soc).length;
+    const tope = Math.max(0, (c.saldo || 0) - pagado);
+    // RENOVAR DESPUÉS DE LIQUIDAR. El ciclo nuevo hereda la MISMA llave
+    // (socio+producto), así que la liquidación con la que se cerró el ANTERIOR
+    // le caería encima y nacería liquidado. `prev.liq` dice cuánto se llevó ese
+    // ciclo; se descuenta PRIMERO de lo que está ligado a esta llave y sólo el
+    // resto se le pide a la bolsa del reparto. Sin esto, una clienta que liquidó
+    // $2,000 y renovó por $5,000 aparecía con $3,000 y se le caía de la app
+    // (lo reportó Karina el 9-ago, y era regresión del cambio del 8-ago).
+    const prevLiq = prev ? (prev.liq || 0) : 0;
+    const ligadoAqui = ligadas.porClave[clave] || 0;
+    const exacto = Math.min(Math.max(0, ligadoAqui - prevLiq), tope);
+    const prevRestante = Math.max(0, prevLiq - ligadoAqui);
+    // UNA LIQUIDACIÓN ES EXCLUSIVAMENTE DEL CRÉDITO QUE LIQUIDAN (Karina, 10-ago:
+    // «sin afectar los demás activos»). Si la socia tiene MÁS DE UN crédito vivo
+    // y el abono no dice cuál, ya no se reparte: repartir era adivinar, y
+    // adivinaba mal — le bajaba el saldo al que no era. Se queda sin aplicar y
+    // sale en el aviso de «liquidaciones sin crédito» del tablero, donde Monse
+    // le pone el crédito y entonces sí le baja al que debe.
+    //
+    // Con UN SOLO crédito activo no hay a quién equivocarle: ahí sí se aplica.
+    const disp = suyosVivos > 1 ? 0 : Math.max(0, bolsaLibre - usado - prevRestante);
+    const repartido = Math.min(disp, Math.max(0, tope - exacto));
+    const liquidado = exacto + repartido;
+    if (repartido > 0) liqRestante["__usado__" + soc] = usado + repartido;
+    porCredito.set(clave, { pagado, liquidado, garantia: garan, garantiaA: garanA,
       saldoActual: Math.max(0, (c.saldo || 0) - pagado - liquidado),
       // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo.
       fechasLiq: liquidado > 0 ? Object.keys(fechasLiq[soc] || {}) : [] });
   }
-  return { porCredito, pagos, garantias };
+  // cobrosGarMov y entregasGar se exponen para el candado de Garantía Líquida
+  // (CU-006): un crédito de BAJA no entra a porCredito, pero su guardado por
+  // clave sí vive aquí y es lo que se le devuelve a la clienta que se va.
+  // cobrosGarA/entregasGarA: mismo motivo pero para Garantía A (20-sep-2026,
+  // hallazgo de validación — antes solo se usaban para calcular garantiaA en
+  // porCredito, sin exponerse, así que garantiaADisponible() no tenía cómo
+  // calcular el guardado de una clienta cuyo crédito ya no está en cartera viva).
+  return { porCredito, pagos, garantias, cobrosGarMov, entregasGar, cobrosGarA, entregasGarA };
 }
 // CONCILIACIÓN: ¿todo lo que se cobró bajó de algún saldo?
 // Es el control que sustituye al "pedirle el Excel a Monse para comparar". Si
@@ -1230,9 +1562,15 @@ function movimientoDelPeriodo(usuario, desde, hasta) {
   const otros = [];
   for (let f = new Date(desde + "T12:00:00"); f.toISOString().slice(0, 10) <= hasta; f.setDate(f.getDate() + 1)) {
     const fISO = f.toISOString().slice(0, 10);
-    for (const m of movsDeFecha(fISO, usuario)) {
+    // CON ANULADOS. El 12-ago se buscó una liquidación de YOALI KAREN que la
+    // ejecutiva sí registró el lunes y ya no estaba: un re-sync de su app la
+    // anuló, y como los anulados no salían en este reporte, era INVISIBLE —
+    // parecía que nunca se registró. Ahora salen marcados ANULADO (sin contar
+    // en ningún total), para poder ver qué pasó.
+    for (const m of movsDeFecha(fISO, usuario, true)) {
       otros.push({
         fecha: fISO, folio: m.folio, tipo: tipoDeMov(m) || m.categoria || "Otro",
+        anulado: !!m.anulado, producto: m.producto || "",
         entrada: !!m.entrada, concepto: m.concepto || "", monto: Number(m.monto) || 0,
         metodo: m.metodo || "efectivo", socio: socioDeMov(m) || "",
         clienta: (porClave[claveCredito(socioDeMov(m) || "", "")] || {}).nombre
@@ -1252,7 +1590,7 @@ function movimientoDelPeriodo(usuario, desde, hasta) {
     d.pago += c.pago; d.garantia += c.garantia; d.solidario += c.solidario;
     if (c.total > 0) d.clientas.add(c.socio);
   }
-  for (const m of otros) { const d = dia(m.fecha); if (m.entrada) d.entradas += m.monto; else d.salidas += m.monto; }
+  for (const m of otros) { if (m.anulado) continue; const d = dia(m.fecha); if (m.entrada) d.entradas += m.monto; else d.salidas += m.monto; }
   const porDia = Object.values(dias).sort((a, b) => a.fecha.localeCompare(b.fecha)).map((d) => ({
     fecha: d.fecha, pago: d.pago, garantia: d.garantia, solidario: d.solidario,
     entradas: d.entradas, salidas: d.salidas, clientas: d.clientas.size,
@@ -1265,8 +1603,8 @@ function movimientoDelPeriodo(usuario, desde, hasta) {
   return { desde, hasta, cobranza, otros, porDia, total: {
     pago: suma(cobranza, (x) => x.pago), garantia: suma(cobranza, (x) => x.garantia),
     solidario: suma(cobranza, (x) => x.solidario),
-    entradas: suma(otros.filter((x) => x.entrada), (x) => x.monto),
-    salidas: suma(otros.filter((x) => !x.entrada), (x) => x.monto),
+    entradas: suma(otros.filter((x) => x.entrada && !x.anulado), (x) => x.monto),
+    salidas: suma(otros.filter((x) => !x.entrada && !x.anulado), (x) => x.monto),
   } };
 }
 
@@ -1283,6 +1621,1479 @@ function rangoPeriodo(q) {
   if (hasta < desde) { const t = desde; desde = hasta; hasta = t; }
   return { desde, hasta };
 }
+
+// ===================================================================
+// MORA DE LA SEMANA, POR DÍA DE COBRO — el método de la Ing. Monse.
+//
+// Pedido por Karina el 10-ago con el archivo «MORA SEMANA 03 AL 07 DE AGOSTO»:
+// «la mora no nos dio la semana pasada; ves que dice día lunes, martes, etc.,
+// de las plantillas, así quiero que lo saques por ese approach».
+//
+// Su regla, sacada de cotejar SUS números contra las cuotas del padrón:
+//
+//     faltante = cuota − lo que pagó esa semana
+//
+// y las clientas se agrupan por el DÍA DE COBRO que trae la plantilla. Se
+// comprobó en los casos donde el faltante NO era la cuota entera: MARIA DEL
+// ROSARIO (cuota $576, faltante $126 → pagó $450) y LUCIA CASTRO (cuota $432,
+// faltante $132 → pagó $300). En los demás, faltante = cuota exacta = no pagó.
+//
+// NO MIRA EL CORTE. Es de la semana: lo que se abonó entre lunes y domingo. Por
+// eso da un número distinto al del semáforo de cartera, que mide otra cosa
+// (el acumulado desde el corte) — y por eso «no nos dio».
+// ===================================================================
+const NOMBRE_DIA = ["DOMINGO", "LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO"];
+// Cuántas veces cae el día de cobro de una clienta entre dos fechas (ambas
+// incluidas). Es la pieza del método de la Ing. Monse (14-ago): cada día de
+// cobro vencido desde el corte exige una cuota.
+// ¿Cuándo NACIÓ el crédito vigente de esta clave? (alta o re-crédito). Es el
+// respaldo cuando no capturaron desembolso: un crédito dado de alta el jueves
+// no puede deber la cuota del lunes anterior. Solo cuenta el ÚLTIMO nacimiento
+// (una renovación reinicia las obligaciones).
+function fechaNacimientoCredito(id, producto) {
+  let f = null;
+  for (const cb of store.cambiosPadron()) {
+    if ((cb.tipo === "alta" || cb.tipo === "recredito") &&
+        String(cb.id) === String(id) && nprod(cb.producto) === nprod(producto) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(cb.fecha || "")) f = cb.fecha;
+  }
+  return f;
+}
+
+// El arranque real de las obligaciones: SOLO la fecha de desembolso. Devuelve
+// el día SIGUIENTE (la primera cuota es el primer día de cobro DESPUÉS de
+// recibir el dinero), o null si no se capturó.
+//
+// NO se usa la fecha del alta como respaldo (se intentó el 14-ago y salió
+// caro): Monse da de alta en el sistema clientas que YA traían su crédito
+// corriendo desde antes, y tratarlas como créditos recién nacidos las dejaba
+// EXENTAS de mora. El 15-ago eso sacó del reporte a NUBIA, HILARIA, SILVIA y
+// varias más que no habían abonado un peso desde el corte. Si falta el
+// desembolso, se mide desde el corte como todas: es lo conservador.
+// EN QUÉ CICLO VA ESE PRODUCTO CON ESA CLIENTA. Se cuentan sus altas
+// anteriores del mismo producto: la primera es el ciclo 1, la renovación el 2…
+// Sirve para contestar «¿cuántos Grupal-Básico ha renovado con nosotros?».
+function cicloSiguiente(id, producto) {
+  let n = 0;
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "alta" && String(cb.id) === String(id) && nprod(cb.producto) === nprod(producto)) n++;
+  // Si no hay ninguna alta registrada, el crédito venía de la plantilla: ese es
+  // el ciclo 1 y el que se está abriendo es el 2.
+  return n === 0 ? 2 : n + 1;
+}
+
+// CUÁNDO TERMINÓ DE PAGAR (Karina, 15-ago: «cuando alguien liquida, ponerle la
+// fecha de liquidación que se hizo, para llevar mejor orden»). Es la fecha del
+// último abono que la dejó en cero — de ficha o de caja.
+function fechaDeLiquidacion(c, cv, pfTodo) {
+  const info = infoCredito(cv, c);
+  if (info.saldoActual > 0.009) return null;
+  const clave = claveCredito(c.id, c.producto);
+  let ultima = "";
+  for (const f in ((pfTodo || {})[clave] || {}))
+    if ((pfTodo[clave][f].p || 0) > 0 && f > ultima) ultima = f;
+  for (const m of (store.respaldo().movimientos || [])) {
+    if (m.anulado || !/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
+    if (String(socioDeMov(m)) !== String(c.id)) continue;
+    const prod = productoDeMov(m);
+    if (prod && nprod(prod) !== nprod(c.producto)) continue;
+    const f = String(m.fecha || "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(f) && f > ultima) ultima = f;
+  }
+  return ultima || null;
+}
+
+function inicioObligaciones(c) {
+  const des = String(c.desembolso || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(des)) return null;
+  const dv = new Date(des + "T12:00:00"); dv.setDate(dv.getDate() + 1);
+  return dv.toISOString().slice(0, 10);
+}
+
+// EL ARRANQUE DE LA CUENTA: el día siguiente al corte. Desde ahí se cuentan
+// las cuotas que vencen Y los abonos que entran — las dos con LA MISMA VARA.
+//
+// Que sea la misma es lo que importa. El 15-ago las cuotas empezaban después
+// del corte pero los abonos se contaban DESDE el corte, y esa asimetría
+// regalaba una cuota: quien pagó EL DÍA DEL CORTE estaba liquidando su cuota
+// ANTERIOR (la plantilla ya la traía pendiente en el saldo) y el sistema se la
+// acreditaba a la cuota de esta semana. Así se cayeron del reporte ELVIRA,
+// GUIE y ARELI, que sí debían.
+// Pesos con formato, para los mensajes que lee Dirección.
+function pesosMX(n) {
+  return "$" + Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function diaAnterior(fISO) {
+  const d = new Date(fISO + "T12:00:00"); d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function diaSiguiente(fISO) {
+  const d = new Date(fISO + "T12:00:00"); d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// EL CALENDARIO DEL CRÉDITO (el método real de Monse, 15-ago). Ella valida la
+// mora comparando el SALDO contra dónde debería ir el crédito: desembolsado el
+// día D con N pagos semanales, para la fecha F ya debió pagar tantas cuotas y
+// deberle quedar tanto. Lo que el saldo real exceda a eso es su atraso.
+//
+// Este método reemplaza al arrastre "desde el corte", que era un remiendo tras
+// otro: la ventana acreditaba al lunes 10 pagos que eran de la cuota atrasada
+// del lunes 3 (el "$288 de mora en lunes" del 15-ago), y cada caso especial
+// pedía su parche. Contra el calendario no hay ventana que ajustar.
+//
+// Devuelve null cuando no hay calendario confiable (sin desembolso o sin
+// plazo): ahí se usa el arrastre desde el corte, que es lo conservador.
+function calendarioDelCredito(c, diaIdx, fechaISO) {
+  const des = String(c.desembolso || "").slice(0, 10);
+  const plazo = Number(c.plazo) || 0;
+  const cuota = Number(c.cuota) || 0;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(des) || plazo <= 0 || cuota <= 0 || !diaIdx) return null;
+  const venc = vencimientosEntre(diaIdx, diaSiguiente(des), fechaISO);
+  return {
+    venc,
+    // Lo que DEBERÍA quedarle de saldo si fuera al corriente.
+    restante: Math.round(Math.max(0, cuota * (plazo - venc)) * 100) / 100,
+    termino: venc >= plazo,
+  };
+}
+
+function vencimientosEntre(diaIdx, desdeISO, hastaISO) {
+  if (!diaIdx || !desdeISO || !hastaISO || hastaISO < desdeISO) return 0;
+  let n = 0;
+  const d = new Date(desdeISO + "T12:00:00");
+  const fin = new Date(hastaISO + "T12:00:00");
+  while (d <= fin) {
+    const g = d.getDay();
+    if ((g === 0 ? 7 : g) === diaIdx) n++;
+    d.setDate(d.getDate() + 1);
+  }
+  return n;
+}
+function nombreDia(fechaISO) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fechaISO || ""))) return "";
+  return NOMBRE_DIA[new Date(fechaISO + "T12:00:00").getDay()] || "";
+}
+function moraDeLaSemana(usuario, lunesOpt) {
+  const lunes = /^\d{4}-\d{2}-\d{2}$/.test(String(lunesOpt || "")) ? lunesOpt : lunesDeLaSemana(hoyMX());
+  const dom = new Date(lunes + "T12:00:00"); dom.setDate(dom.getDate() + 6);
+  const domingo = dom.toISOString().slice(0, 10);
+  // Lo abonado ESA semana, crédito por crédito. Solo el pago: la garantía y el
+  // solidario no cubren la cuota.
+  const { porFecha } = pagosDeLaSemana(usuario, lunes, domingo);
+  // DOS MEDIDAS, NO UNA. `pagoSemana` es todo lo que abonó de lunes a domingo;
+  // `pagoDelDia` es lo que abonó EL DÍA QUE LE TOCA. Sin las dos no se puede
+  // contestar «¿cuántos pagaron el lunes?»: una clienta de lunes que paga el
+  // miércoles está al corriente en la semana pero NO pagó su día, y meterlas en
+  // el mismo saco esconde a las que van tarde aunque acaben pagando.
+  const pagoSemana = {}, porClaveFecha = {};
+  for (const clave in porFecha) {
+    porClaveFecha[clave] = porFecha[clave];
+    for (const f in porFecha[clave])
+      if (f >= lunes && f <= domingo) pagoSemana[clave] = (pagoSemana[clave] || 0) + (porFecha[clave][f].p || 0);
+  }
+  // TODOS los abonos desde el corte, clave por clave y FECHA por fecha: fichas
+  // de las ejecutivas y dinero entregado en oficina. Se guarda con su fecha
+  // para poder sumar desde el arranque propio de cada crédito (su primer día
+  // de cobro después del corte) y no desde el corte a secas.
+  const corteM = corteSaldos();
+  const abonoPorFecha = {};
+  {
+    const { porFecha: pfC } = pagosDeLaSemana(usuario, corteM, domingo);
+    for (const clave in pfC)
+      for (const f in pfC[clave])
+        (abonoPorFecha[clave] = abonoPorFecha[clave] || {})[f] =
+          ((abonoPorFecha[clave] || {})[f] || 0) + (pfC[clave][f].p || 0);
+    const d0 = new Date(corteM + "T12:00:00");
+    for (let k = 0; k < 400; k++) {
+      const dd = new Date(d0); dd.setDate(d0.getDate() + k);
+      const fISO = dd.toISOString().slice(0, 10);
+      if (fISO > domingo) break;
+      for (const m of movsDeFecha(fISO, usuario)) {
+        if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
+        const soc = socioDeMov(m); if (!soc) continue;
+        let prod = productoDeMov(m);
+        if (!prod) {
+          const suyos = PADRON.filter((x) => x.activa !== false && x.estatus !== "BAJA" && String(x.id) === String(soc));
+          if (suyos.length === 1) prod = suyos[0].producto;
+        }
+        if (!prod) continue;
+        const cl = claveCredito(soc, prod);
+        (abonoPorFecha[cl] = abonoPorFecha[cl] || {})[fISO] =
+          ((abonoPorFecha[cl] || {})[fISO] || 0) + (Number(m.monto) || 0);
+      }
+    }
+  }
+  const abonadoDesde = (clave, desdeISO) => {
+    let t = 0;
+    for (const f in (abonoPorFecha[clave] || {})) if (f >= desdeISO) t += abonoPorFecha[clave][f];
+    return Math.round(t * 100) / 100;
+  };
+  const fechaDelDia = (dia) => {
+    const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + (idxDia(dia) - 1));
+    return d.toISOString().slice(0, 10);
+  };
+  // LO QUE LA CLIENTA ENTREGÓ POR CAJA ESA SEMANA TAMBIÉN CUBRE SU CUOTA.
+  // (12-ago, al cotejar contra el archivo rectificado de Monse.) Si paga en la
+  // oficina y Dirección lo registra como liquidación o recuperación, ese dinero
+  // le bajaba el saldo pero la mora NO lo contaba — solo contaba las fichas de
+  // las ejecutivas, y la clienta salía debiendo una cuota que ya entregó.
+  // Con varios créditos y sin decir cuál, no se adivina: queda en el aviso.
+  for (let f = new Date(lunes + "T12:00:00"); ; f.setDate(f.getDate() + 1)) {
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > domingo || fISO > hoyMX()) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
+      const soc = socioDeMov(m); if (!soc) continue;
+      let prod = productoDeMov(m);
+      if (!prod) {
+        const suyos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === String(soc));
+        if (suyos.length === 1) prod = suyos[0].producto;
+      }
+      if (!prod) continue;
+      const clave = claveCredito(soc, prod);
+      pagoSemana[clave] = (pagoSemana[clave] || 0) + (Number(m.monto) || 0);
+      const pf = porClaveFecha[clave] || (porClaveFecha[clave] = {});
+      const b = pf[fISO] || (pf[fISO] = { p: 0, g: 0 });
+      b.p += Number(m.monto) || 0;
+    }
+  }
+
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const dias = {};
+  const fueraDeCuenta = { sinCuota: 0, cuotaVariable: 0, sinDia: 0, liquidados: 0, sinDesembolsar: 0, vencidos: 0 };
+  // CON QUÉ SE MIDIÓ CADA UNO. El calendario (saldo contra dónde debería ir el
+  // crédito) es el bueno; el arrastre desde el corte es el respaldo para los
+  // que no traen desembolso o plazo confiable. Se cuenta y se dice: si un día
+  // el número se ve raro, lo primero es ver cuántos cayeron al respaldo.
+  // Cuántas traían adelanto: es la única corrección que se aplica al número,
+  // así que se cuenta y se dice.
+  const medidoCon = { conAdelanto: 0 };
+  // QUIÉNES traían adelanto y de cuánto. El adelanto es lo ÚNICO que puede
+  // sacar a una clienta de la mora sin que se vea el motivo en su renglón —
+  // así que no se calla: se lista con nombre y monto para que Monse lo pueda
+  // verificar una por una.
+  const adelantos = [];
+  const vencidasPlazo = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    // Un crédito ya liquidado no debe nada esa semana.
+    if (infoCredito(cv, c).saldoActual <= 0.009) { fueraDeCuenta.liquidados++; continue; }
+    // MAGNUS y los de cuota decreciente quedan fuera: su cuota cambia cada
+    // periodo y la del padrón deja de servir al primer pago. Marcarles mora con
+    // ella sería inventarla. Se cuentan aparte para que no desaparezcan en silencio.
+    if (esCuotaVariable(c.producto)) { fueraDeCuenta.cuotaVariable++; continue; }
+    // UN VENCIDO NO VA EN LA MORA SEMANAL. Es la regla que la Ing. Monse dictó
+    // el 4-ago: el dinero de un crédito vencido cuenta SOLO como recuperación.
+    // Y su archivo lo confirma (12-ago): DAFNE SINAI está VENCIDA en su propia
+    // plantilla y por eso no la lista en la mora de la semana — nosotros sí la
+    // listábamos, y era una de las diferencias.
+    if (/vencid/i.test(String(c.estatus || ""))) { fueraDeCuenta.vencidos++; continue; }
+    // TERMINÓ SU PLAZO Y SIGUE DEBIENDO (25-ago): vencida derivada. Sale de la
+    // mora semanal —la misma regla de Monse: un vencido cuenta solo como
+    // recuperación— pero NO en silencio: viaja aparte, con su fecha de término
+    // y su saldo, para que la app de la ejecutiva y el tablero la enseñen.
+    const infoVP = infoCredito(cv, c);
+    // Contra el LUNES de la semana medida: si su calendario aún vivía esa
+    // semana, esa semana le tocaba mora, aunque hoy ya esté vencida.
+    if (vencidaPorPlazo(c, infoVP, lunes)) {
+      fueraDeCuenta.vencidos++;
+      vencidasPlazo.push({ ejecutivo: c.ejecutivo, centro: c.centro, clienta: c.nombre,
+        socio: String(c.id), producto: c.producto, cuota: Number(c.cuota) || 0,
+        saldo: Math.round(infoVP.saldoActual * 100) / 100, fin: finDelPlazo(c) });
+      continue;
+    }
+    const cuota = Number(c.cuota) || 0;
+    if (cuota <= 0) { fueraDeCuenta.sinCuota++; continue; }
+    // TODAVÍA NO LE HAN DADO EL DINERO: no puede deber. Si el desembolso es
+    // POSTERIOR a la semana que se está midiendo, el crédito no existía. Sin
+    // esto se les cobraba mora a clientas que aún no reciben su préstamo — hay
+    // 3 en el padrón con fecha de desembolso adelantada.
+    const dia = diaCanon(c.diaPago);
+    if (!idxDia(dia)) { fueraDeCuenta.sinDia++; continue; }
+    const suFecha = fechaDelDia(dia);
+    const desem = String(c.desembolso || "").slice(0, 10);
+    // Se compara contra SU DÍA de esa semana, no contra el domingo. Una clienta
+    // desembolsada el MARTES no podía deber el LUNES: comparando contra el
+    // domingo se colaba y se le marcaba mora de un día en que su crédito ni
+    // existía. Lo destapó Karina el 12-ago al ver que el arqueo del lunes y
+    // esta mora no cuadraban ($700 de diferencia en la batería).
+    if (/^\d{4}-\d{2}-\d{2}$/.test(desem) && desem > suFecha) { fueraDeCuenta.sinDesembolsar++; continue; }
+    const clave = claveCredito(c.id, c.producto);
+    const pagado = Math.round((pagoSemana[clave] || 0) * 100) / 100;
+    const pagadoSuDia = Math.round((((porClaveFecha[clave] || {})[suFecha] || {}).p || 0) * 100) / 100;
+    // EL MÉTODO DE MONSE, COMPLETO (validado por ella el 14-ago con ARIELA,
+    // LUCIA y LA CONSENTIDA). "Cuota − lo pagado esta semana" se quedaba corto
+    // en tres casos: la que ADELANTÓ la semana pasada salía debiendo (ARIELA),
+    // la que pagó ANTES de su día en la misma semana también, y a la que le
+    // queda menos saldo que una cuota se le exigía la cuota entera (LUCIA, a
+    // la que le quedan $442).
+    //
+    // Regla completa: desde el corte, cada día de cobro vencido exige una
+    // cuota; TODO lo abonado desde el corte cuenta, venga del día que venga;
+    // lo que falta se acota a UNA cuota (los atrasos viejos no inflan la
+    // semana) y NUNCA pasa del saldo que le queda.
+    const infoM = infoCredito(cv, c);
+    // LA REGLA, DICHA POR KARINA (15-ago): «cuando alguien no pagó el lunes se
+    // le pone, y se sale cuando se hace recuperación».
+    //
+    //   falta = su CUOTA − lo que abonó en la semana
+    //
+    // Nada más. Entra quien no cubrió su cuota; sale en cuanto el dinero entra.
+    // Se acabaron las ventanas del corte y sus parches: no hay nada que
+    // interpretar, se lee igual que su archivo de siempre.
+    //
+    // UNA sola excepción, la que pidió la Ing. Monse el 14-ago: si la clienta
+    // trae ADELANTO de antes —su saldo va por debajo de donde debería ir según
+    // su calendario— ese adelanto se le abona, porque ya pagó ese dinero
+    // (ARIELA de PEÑITAS). El calendario se usa SOLO para medir el adelanto,
+    // nunca para calcular lo que debe.
+    // EL SALDO ANTES DE LA SEMANA. Ojo con el corte: si la semana lo cruza, los
+    // pagos ANTERIORES al corte ya vienen descontados en el saldo de la
+    // plantilla y los POSTERIORES no. Sumar todos otra vez cobraba doble — así
+    // salió BEATRIZ CRESPO en mora habiendo pagado su lunes (15-ago), porque su
+    // pago del 10 ya estaba dentro del saldo del corte del 13.
+    let pagadoPostCorte = 0;
+    for (const fx in (porClaveFecha[clave] || {}))
+      if (fx >= corteM && fx >= lunes && fx <= domingo) pagadoPostCorte += porClaveFecha[clave][fx].p || 0;
+    const saldoAntes = Math.round((infoM.saldoActual + pagadoPostCorte) * 100) / 100;
+    // El adelanto se mide ANTES de que caiga la cuota de esta semana: cuánto
+    // traía a favor al cerrar la semana pasada. Medirlo contra el calendario de
+    // HOY daría cero siempre (la cuota de esta semana ya está contada) y el
+    // adelanto de ARIELA se perdería.
+    const calAnt = calendarioDelCredito(c, idxDia(dia), diaAnterior(suFecha));
+    const aFavor = (calAnt && !calAnt.termino)
+      ? Math.max(0, Math.round((calAnt.restante - saldoAntes) * 100) / 100) : 0;
+    if (aFavor > 0) {
+      medidoCon.conAdelanto++;
+      adelantos.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
+        socio: String(c.id), clienta: c.nombre, producto: c.producto, diaPago: dia,
+        cuota, adelanto: aFavor, cuotasAdelanto: Math.round((aFavor / cuota) * 100) / 100,
+        saldo: infoM.saldoActual, deberia: calAnt ? calAnt.restante : null });
+    }
+    // El tope es su cuota, salvo que sea su ÚLTIMO pago: ahí se le pide todo lo
+    // que queda, que puede ser un poco más (el cierre de LUCIA, $442).
+    const calHoy = calendarioDelCredito(c, idxDia(dia), suFecha);
+    const ultimo = !!(calHoy && calHoy.termino && saldoAntes < cuota * 2);
+    const exigible = ultimo ? saldoAntes : Math.min(cuota, saldoAntes);
+    const faltante = Math.round(
+      Math.min(Math.max(0, exigible - pagado - aFavor), infoM.saldoActual) * 100) / 100;
+    // El día se abre SIEMPRE, pague o no: hace falta saber cuántas SÍ pagaron
+    // para leer la mora. «$34,040 de mora» no dice nada sin «de 90 créditos».
+    const g = dias[dia] || (dias[dia] = { dia, fecha: null, filas: [], total: 0,
+      creditos: 0, alCorriente: 0, alCorrienteSuDia: 0, pagaronAlgo: 0,
+      cobrado: 0, cobradoSuDia: 0 });
+    g.creditos++;
+    g.cobrado = Math.round((g.cobrado + pagado) * 100) / 100;
+    g.cobradoSuDia = Math.round((g.cobradoSuDia + pagadoSuDia) * 100) / 100;
+    if (pagado > 0) g.pagaronAlgo++;
+    // Pagó COMPLETO el día que le tocaba: es el número que de verdad mide la
+    // disciplina del centro. Los que completan después también cuentan, pero
+    // aparte, porque no es lo mismo.
+    if (pagadoSuDia >= cuota - 0.009) g.alCorrienteSuDia++;
+    if (faltante <= 0) { g.alCorriente++; continue; }
+    g.filas.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
+      socio: String(c.id), clienta: c.nombre, producto: c.producto,
+      cuota, pagado, pagadoSuDia, suFecha, faltante,
+      desembolso: desem || null,
+      // El día de la semana en que se desembolsó. Karina lo pidió así porque en
+      // las plantillas los días vienen por nombre, no por fecha. NO es el que
+      // agrupa —eso lo manda el DÍA DE PAGO— y en 3 de cada 11 no coinciden:
+      // hay quien desembolsó en miércoles y cobra los lunes.
+      diaDesembolso: nombreDia(desem),
+      diaPago: dia,
+      saldo: infoCredito(cv, c).saldoActual });
+    g.total = Math.round((g.total + faltante) * 100) / 100;
+  }
+  // La fecha real de cada día dentro de esa semana, como la pone Monse.
+  const lista = Object.values(dias).sort((a, b) => idxDia(a.dia) - idxDia(b.dia));
+  const hoy = hoyMX();
+  for (const g of lista) {
+    const d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + (idxDia(g.dia) - 1));
+    g.fecha = d.toISOString().slice(0, 10);
+    // MORA vs POR VENCER (12-ago, al cotejar contra el archivo de Monse de la
+    // semana 10-14: el suyo solo trae los días que YA PASARON). Un día cuyo
+    // cobro todavía no llega no es mora — es cobranza por venir. Sumarlo al
+    // total era justo lo que hacía que "no cuadrara" contra el de ella: el
+    // miércoles nuestro reporte ya cargaba jueves y viernes completos.
+    g.vencido = g.fecha <= hoy;
+    g.filas.sort((a, b) => String(a.centro).localeCompare(String(b.centro))
+      || String(a.clienta).localeCompare(String(b.clienta)));
+  }
+  const sum = (f) => Math.round(lista.reduce((s, g) => s + f(g), 0) * 100) / 100;
+  const sumV = (f) => Math.round(lista.filter((g) => g.vencido).reduce((s, g) => s + f(g), 0) * 100) / 100;
+  adelantos.sort((x, y) => y.adelanto - x.adelanto);
+  return { lunes, domingo, dias: lista, medidoCon, adelantos,
+    total: sum((g) => g.total),
+    // Lo VENCIDO a hoy es el número comparable con el archivo de Monse: solo
+    // los días cuyo cobro ya pasó. Lo demás es "por vencer", no mora.
+    totalVencido: sumV((g) => g.total),
+    totalPorVencer: Math.round((sum((g) => g.total) - sumV((g) => g.total)) * 100) / 100,
+    clientas: new Set(lista.flatMap((g) => g.filas.map((f) => f.socio))).size,
+    creditos: sum((g) => g.creditos),
+    alCorriente: sum((g) => g.alCorriente),
+    alCorrienteSuDia: sum((g) => g.alCorrienteSuDia),
+    cobradoSuDia: sum((g) => g.cobradoSuDia),
+    pagaronAlgo: sum((g) => g.pagaronAlgo),
+    cobrado: sum((g) => g.cobrado),
+    fueraDeCuenta,
+    // La que más debe primero: es por donde se empieza la recuperación.
+    vencidasPlazo: vencidasPlazo.sort((x, y) => y.saldo - x.saldo) };
+}
+
+app.get("/api/mora", requiere("direccion", "admin"), (req, res) => {
+  // ?porQue=<socio> dice POR QUÉ un crédito no aparece en la mora. Nació el
+  // 12-ago persiguiendo una diferencia de $700 entre este reporte y el arqueo:
+  // sin esto, un total que no cuadra no se puede perseguir.
+  const soc = String(req.query.porQue || "").trim();
+  if (soc) {
+    const m = moraDeLaSemana(req.usuario, req.query.lunes);
+    const cv = carteraViva(req.usuario);
+    const mios = new Set(idsEjecutivos(req.usuario).map((id) => USUARIOS[id].nombre).map(norm));
+    const out = [];
+    for (const c of PADRON) {
+      if (String(c.id) !== soc) continue;
+      const r = { producto: c.producto, ejecutivo: c.ejecutivo, estatus: c.estatus,
+        activa: c.activa, cuota: c.cuota, diaPago: c.diaPago, desembolso: c.desembolso,
+        saldoActual: infoCredito(cv, c).saldoActual };
+      // Los abonos que el sistema le está viendo, día por día, en la ventana
+      // de la semana: es lo que decide si sale o no en la mora.
+      {
+        const lunesD = m.lunes;
+        const fin = new Date(lunesD + "T12:00:00"); fin.setDate(fin.getDate() + 6);
+        const { porFecha: pf } = pagosDeLaSemana(req.usuario, lunesD, fin.toISOString().slice(0, 10));
+        const cl = claveCredito(c.id, c.producto);
+        r.clave = cl;
+        r.abonos = pf[cl] || {};
+        r.pagoSemana = Object.values(r.abonos).reduce((t, x) => t + (x.p || 0), 0);
+      }
+      r.motivo =
+        (c.activa === false || c.estatus === "BAJA") ? "dado de baja"
+        : !mios.has(norm(c.ejecutivo)) ? "su ejecutivo no está en esta burbuja: " + c.ejecutivo
+        : infoCredito(cv, c).saldoActual <= 0.009 ? "ya liquidado (saldo 0)"
+        : /vencid/i.test(String(c.estatus || "")) ? "vencido (va en recuperación)"
+        : esCuotaVariable(c.producto) ? "cuota variable"
+        : !(Number(c.cuota) > 0) ? "sin cuota capturada"
+        : !idxDia(String(c.diaPago || "").trim().toUpperCase()) ? "sin día de cobro"
+        : "sí entra";
+      out.push(r);
+    }
+    return res.json({ socio: soc, lunes: m.lunes, creditos: out });
+  }
+  res.json(moraDeLaSemana(req.usuario, req.query.lunes));
+});
+
+// El Excel con el MISMO acomodo que usa la Ing. Monse: un bloque por día, con
+// EJECUTIVO · CENTRO · ID · CLIENTE · PRODUCTO · FALTANTE DE PAGO, y su total.
+app.get("/api/mora/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = moraDeLaSemana(req.usuario, req.query.lunes);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const s = wb.addWorksheet("Mora de la semana");
+  const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019", LAV = "FFF3F0FA";
+  const MONEDA = '"$"#,##0.00';
+  [14, 22, 15, 34, 18, 18, 18, 13, 16, 13, 15, 17].forEach((w, i) => (s.getColumn(i + 1).width = w));
+  s.mergeCells("A1:L1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · MORA DE LA SEMANA · del " + d.lunes + " al " + d.domingo;
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center", vertical: "middle" };
+  s.getRow(1).height = 24;
+  let f = 3;
+  for (const g of d.dias) {
+    // Renglón del día, como su archivo: DIA · LUNES · (fecha)
+    const rd = s.getRow(f++);
+    rd.getCell(1).value = "DIA";
+    rd.getCell(2).value = g.dia;
+    rd.getCell(3).value = g.fecha;
+    if (!g.vencido) rd.getCell(4).value = "AÚN NO VENCE — cobranza por venir, no es mora";
+    for (let i = 1; i <= 12; i++) {
+      rd.getCell(i).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      rd.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    }
+    const rh = s.getRow(f++);
+    ["EJECUTIVO", "CENTRO", "ID", "CLIENTE", "PRODUCTO", "DÍA DEL DESEMBOLSO", "FECHA DE DESEMBOLSO",
+     "DÍA DE COBRO", "FALTANTE DE PAGO", "Cuota", "Pagó ese día", "Pagó en la semana"]
+      .forEach((h, i) => { const c = rh.getCell(i + 1); c.value = h;
+        c.font = { bold: true }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } }; });
+    // LA LÍNEA INDIVIDUAL VA APARTE (Observación de Dirección, 11-sep, casos
+    // Rosa Elia/Odette/Alejandra/Magda): una reestructura o individual
+    // pertenece a un centro, pero su mora NO es mora del grupo. Se listan al
+    // final del día con su letrero y el total sale desglosado.
+    const esIndM = (x) => !/^grupal/i.test(String(x.producto || ""))
+      && !(/reestructura/i.test(String(x.producto || "")) && x.centro
+        && String(x.centro).trim().toUpperCase() !== "INDIVIDUAL"
+        && !/^C-?0$/i.test(String(x.centro).trim()));
+    const pintaFilaM = (x) => {
+      const r = s.getRow(f++);
+      [x.ejecutivo, x.centro, x.socio, x.clienta, x.producto,
+       x.diaDesembolso || "—", x.desembolso || "—", x.diaPago]
+        .forEach((v, i) => (r.getCell(i + 1).value = v));
+      // Si desembolsó en un día y cobra en otro, se marca: es lo que explica
+      // que su día de cobro no sea el que uno esperaría por el desembolso.
+      if (x.diaDesembolso && x.diaDesembolso !== x.diaPago)
+        r.getCell(6).font = { color: { argb: ROJO } };
+      const cf = r.getCell(9); cf.value = x.faltante; cf.numFmt = MONEDA;
+      cf.font = { bold: true, color: { argb: ROJO } };
+      const cc = r.getCell(10); cc.value = x.cuota; cc.numFmt = MONEDA;
+      const cd = r.getCell(11); cd.value = x.pagadoSuDia; cd.numFmt = MONEDA;
+      const cp = r.getCell(12); cp.value = x.pagado; cp.numFmt = MONEDA;
+    };
+    const grupalesM = g.filas.filter((x) => !esIndM(x));
+    const individualesM = g.filas.filter(esIndM);
+    for (const x of grupalesM) pintaFilaM(x);
+    if (individualesM.length) {
+      const ri = s.getRow(f++);
+      ri.getCell(2).value = "LÍNEA INDIVIDUAL · REESTRUCTURAS — pertenecen al centro pero NO son mora del grupo";
+      ri.getCell(2).font = { bold: true, italic: true, color: { argb: "FF7A3EA8" } };
+      for (const x of individualesM) pintaFilaM(x);
+    }
+    const tGr = Math.round(grupalesM.reduce((t2, x) => t2 + (x.faltante || 0), 0) * 100) / 100;
+    const tIn = Math.round(individualesM.reduce((t2, x) => t2 + (x.faltante || 0), 0) * 100) / 100;
+    const rt = s.getRow(f++);
+    rt.getCell(4).value = "TOTAL " + g.dia + "  ·  " + g.alCorrienteSuDia + " de " + g.creditos
+      + " pagaron ESE DÍA"
+      + (g.alCorriente > g.alCorrienteSuDia ? "  (+" + (g.alCorriente - g.alCorrienteSuDia) + " completaron después)" : "")
+      + "  ·  cobrado ese día " + g.cobradoSuDia.toFixed(2)
+      + (tIn > 0.009 ? "  ·  grupal $" + tGr.toFixed(2) + " · línea individual $" + tIn.toFixed(2) : "");
+    rt.getCell(4).font = { bold: true };
+    const ct = rt.getCell(9); ct.value = g.total; ct.numFmt = MONEDA;
+    ct.font = { bold: true, color: { argb: ROJO } };
+    f++;
+  }
+  const rg = s.getRow(f++);
+  rg.getCell(4).value = "MORA VENCIDA A HOY (días que ya pasaron)";
+  rg.getCell(4).font = { bold: true, size: 12 };
+  const cg = rg.getCell(9); cg.value = d.totalVencido; cg.numFmt = MONEDA;
+  cg.font = { bold: true, size: 12, color: { argb: ROJO } };
+  const rg2 = s.getRow(f++);
+  rg2.getCell(4).value = "Por vencer en la semana (días que faltan)";
+  rg2.getCell(4).font = { bold: true };
+  const cg2 = rg2.getCell(9); cg2.value = d.totalPorVencer; cg2.numFmt = MONEDA;
+  cg2.font = { bold: true };
+  // Lo que NO entró en la cuenta, dicho con todas sus letras: un reporte de mora
+  // que calla lo que dejó fuera se lee como si hubiera medido todo.
+  f++;
+  const fc = d.fueraDeCuenta;
+  const notas = [
+    "Fuera de esta cuenta:",
+    "· " + fc.cuotaVariable + " créditos de cuota variable (MAGNUS): su cuota cambia cada periodo y la del padrón deja de servir al primer pago.",
+    "· " + fc.sinCuota + " créditos sin cuota capturada en el padrón.",
+    "· " + fc.sinDia + " créditos sin día de cobro.",
+    "· " + fc.liquidados + " créditos ya liquidados (no deben nada esta semana).",
+    "· La cuenta es: su CUOTA menos lo que abonó en la semana. A "
+      + ((d.medidoCon || {}).conAdelanto || 0) + " clientas se les abonó además el ADELANTO que "
+      + "traían de antes (su saldo va por debajo de su calendario).",
+    "· " + fc.sinDesembolsar + " créditos cuya fecha de desembolso es POSTERIOR a esta semana: todavía no reciben el dinero, no pueden deber.",
+    "· " + fc.vencidos + " créditos VENCIDOS: van en recuperación, no en la mora semanal (regla de la Ing. Monse, 4-ago).",
+    "Faltante = cuota − lo que abonó entre el " + d.lunes + " y el " + d.domingo + ". No depende del corte.",
+    "Los bloques se agrupan por el DÍA DE COBRO de la plantilla, no por el día en que se desembolsó: "
+      + "se comprobó contra el archivo de la Ing. Monse y empata en 11 de 11, mientras que el día del desembolso "
+      + "solo empata en 8 de 11 (hay quien desembolsó en miércoles y cobra los lunes). "
+      + "Cuando los dos días NO coinciden, el del desembolso va marcado en rojo.",
+    "Los pagos por CAJA (liquidaciones y recuperaciones registradas por Dirección) también cubren la cuota de la semana.",
+    "«Pagó ese día» es lo que abonó EL DÍA que le toca; «pagó en la semana» incluye lo que completó después. "
+      + "El faltante se calcula con la SEMANA: si completó el jueves, ya no debe. La columna del día es para ver quién va tarde aunque acabe pagando.",
+  ];
+  for (const n of notas) {
+    const r = s.getRow(f++);
+    s.mergeCells("A" + r.number + ":L" + r.number);
+    r.getCell(1).value = n;
+    r.getCell(1).font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
+  }
+  // HOJA 2 · LOS ADELANTOS. Es la única razón por la que una clienta puede
+  // desaparecer de la mora sin que su renglón lo explique, así que va con
+  // nombre, monto y a cuántas cuotas equivale. Si esta hoja crece de más, ahí
+  // está lo que hay que revisar.
+  if ((d.adelantos || []).length) {
+    const sa = wb.addWorksheet("Adelantos abonados");
+    sa.mergeCells("A1:J1");
+    const ta = sa.getCell("A1");
+    ta.value = "FOOAX · ADELANTOS ABONADOS EN LA SEMANA · " + d.adelantos.length + " clientas"
+      + " — traían pagado de más al cerrar la semana pasada, por eso no se les cobra mora";
+    ta.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    ta.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    ta.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    sa.getRow(1).height = 30;
+    const ha = [["Ejecutivo", 14], ["Centro", 20], ["Clienta", 30], ["Socio", 15], ["Producto", 17],
+      ["Día de cobro", 12], ["Cuota", 12], ["Adelanto abonado", 15], ["Equivale a (cuotas)", 14],
+      ["Saldo hoy", 13]];
+    const hra = sa.getRow(2);
+    ha.forEach(([h, w], i) => { const cc = hra.getCell(i + 1); cc.value = h; sa.getColumn(i + 1).width = w;
+      cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      cc.alignment = { horizontal: "center", wrapText: true }; });
+    let fa = 3;
+    for (const x of d.adelantos) {
+      const r = sa.getRow(fa++);
+      [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto, x.diaPago]
+        .forEach((v, i) => (r.getCell(i + 1).value = v));
+      r.getCell(7).value = x.cuota; r.getCell(7).numFmt = MONEDA;
+      r.getCell(8).value = x.adelanto; r.getCell(8).numFmt = MONEDA;
+      r.getCell(9).value = x.cuotasAdelanto;
+      r.getCell(10).value = x.saldo; r.getCell(10).numFmt = MONEDA;
+    }
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Mora FOOAX ${d.lunes} al ${d.domingo}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// RENOVACIONES — la pregunta de Karina (14-ago): «las renovaciones pendientes
+// o las que NO renovaron, de los ejecutivos, en el de Anel».
+//
+// Son dos preguntas distintas y por eso van en dos listas:
+//   · YA TERMINARON Y NO HAN RENOVADO — pagaron todo y siguen sin crédito
+//     nuevo. Cada día que pasa es cartera que se enfría (y clienta que la
+//     competencia puede levantar). El dato que manda es CUÁNTOS DÍAS llevan.
+//   · ESTÁN POR TERMINAR — les quedan 3 cuotas o menos. Es la lista de
+//     trabajo: a estas hay que ofrecerles la renovación ANTES de que cierren.
+//
+// Lo que NO entra se cuenta y se dice, nunca se calla: un VENCIDO no es
+// renovación (va a recuperación, regla de la Ing. Monse del 4-ago), y los de
+// cuota variable (MAGNUS) no se pueden proyectar con la cuota del padrón.
+// LOS ESTADOS DE LA GESTIÓN DE RENOVACIÓN. Viven aquí, en el servidor, para
+// que la app y el tablero hablen el mismo idioma: si cada uno tuviera su lista,
+// una marca puesta en el teléfono no se entendería en Dirección.
+//
+// «Solo recuperación» lo pidió Nery (19-ago, y ya lo había pedido antes): son
+// las clientas que YA NO van a renovar y a las que nada más se les está
+// cobrando el saldo. Sin ese estado, la lista de «por terminar» mezclaba a las
+// que sí van a renovar con las que no, y el número no servía para planear.
+const ESTADOS_RENOV = ["Pendiente", "Contactada", "Interesada", "Renovó", "No quiso", "Solo recuperación"];
+// Las que ya NO cuentan como renovación por venir.
+const RENOV_FUERA = new Set(["No quiso", "Solo recuperación"]);
+
+function reporteRenovaciones(usuario, avisoSemanas, mesPedido) {
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const hoy = hoyMX();
+  const corte = corteSaldos();
+  const semanasAviso = Number(avisoSemanas) > 0 ? Number(avisoSemanas) : 3;
+  // EL MES (Karina, 14-ago: «si de las renovaciones quiero ver de todo el
+  // mes»). El mes NO recorta la lista de pendientes —la que terminó en junio y
+  // no ha vuelto sigue urgiendo en agosto— sino que arma el CORTE DEL MES:
+  // cuántas cerraron ciclo y cuántas volvieron a salir.
+  const mes = /^\d{4}-\d{2}$/.test(String(mesPedido || "")) ? String(mesPedido) : hoy.slice(0, 7);
+
+  // FECHA EN QUE LE CAERÁ SU ÚLTIMA CUOTA: se cuentan sus días de cobro hacia
+  // adelante. Es lo que permite preguntar "¿quiénes terminan en septiembre?".
+  const fechaDeLaUltima = (diaPago, cuotasFaltan) => {
+    const idx = idxDia(String(diaPago || "").trim().toUpperCase());
+    if (!idx || !(cuotasFaltan > 0)) return null;
+    const d = new Date(hoy + "T12:00:00");
+    let vistos = 0;
+    for (let k = 0; k < 800 && vistos < cuotasFaltan; k++) {
+      d.setDate(d.getDate() + 1);
+      const g = d.getDay();
+      if ((g === 0 ? 7 : g) === idx) vistos++;
+    }
+    return vistos === cuotasFaltan ? d.toISOString().slice(0, 10) : null;
+  };
+
+  // ¿Qué socias tienen HOY dinero prestado vivo? Si una terminó su crédito
+  // pero ya trae otro corriendo, NO está sin renovar — ya se le volvió a dar.
+  const conCreditoVivo = new Set();
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (infoCredito(cv, c).saldoActual > 0.009) conCreditoVivo.add(String(c.id));
+  }
+
+  // ÚLTIMO DÍA EN QUE ABONÓ: es la fecha en que terminó de pagar. Sale de los
+  // mismos pagos que usa el saldo (desde el corte) más las liquidaciones de
+  // caja, para que el número de días no dependa de dónde se capturó.
+  const pf = pagosDeLaSemana(usuario, corte).porFecha || {};
+  const ultimoAbono = {};
+  for (const clave in pf)
+    for (const f in pf[clave])
+      if (((pf[clave][f] || {}).p || 0) > 0 && (!ultimoAbono[clave] || f > ultimoAbono[clave]))
+        ultimoAbono[clave] = f;
+  const ultimaLiq = {};
+  for (const m of (store.respaldo().movimientos || [])) {
+    if (m.anulado || !/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m))) continue;
+    const soc = socioDeMov(m);
+    if (!soc || !/^\d{4}-\d{2}-\d{2}$/.test(String(m.fecha || ""))) continue;
+    if (!ultimaLiq[soc] || m.fecha > ultimaLiq[soc]) ultimaLiq[soc] = m.fecha;
+  }
+  const diasEntre = (a, b) => Math.max(0, Math.round(
+    (new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000));
+
+  const sinRenovar = [], porTerminar = [];
+  const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0 };
+  // En qué va cada clienta según la marcó su ejecutiva. Se lee del store, no
+  // del teléfono: antes vivía en el localStorage del aparato y se borraba al
+  // enviar el arqueo.
+  const gestionCruda = store.gestionRenovaciones();
+  // Solo vale la marca puesta en el ciclo que la clienta trae HOY. La de un
+  // ciclo anterior se ignora (queda en el historial, pero no manda).
+  const gestionDe = (clave, c) => {
+    const g = gestionCruda[clave];
+    if (!g) return null;
+    const cicloHoy = Number(c.ciclo) || 1;
+    return (Number(g.ciclo) || 1) === cicloHoy ? g : null;
+  };
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    const info = infoCredito(cv, c);
+    const clave = claveCredito(c.id, c.producto);
+    const comun = { ejecutivo: c.ejecutivo, centro: c.centro, clienta: c.nombre,
+      socio: String(c.id), producto: c.producto, diaPago: c.diaPago || null };
+
+    if ((c.saldo || 0) > 0 && info.saldoActual <= 0.009) {
+      // TERMINÓ DE PAGAR. Si ya trae otro crédito vivo, no está pendiente.
+      if (conCreditoVivo.has(String(c.id))) continue;
+      // Un vencido que se liquidó fue RECUPERACIÓN, no una renovación normal:
+      // se marca para que Dirección lo trate distinto, pero no se esconde.
+      const venc = esVencido(c);
+      const fin = [ultimoAbono[clave] || "", ultimaLiq[String(c.id)] || ""].sort().pop() || null;
+      sinRenovar.push({ ...comun, monto: Number(c.saldo) || 0,
+        fechaFin: fin, dias: fin ? diasEntre(fin, hoy) : null,
+        eraVencido: venc, cuota: Number(c.cuota) || 0,
+        gestion: gestionDe(clave, c), estado: (gestionDe(clave, c) || {}).estado || "Pendiente" });
+      continue;
+    }
+    if (info.saldoActual <= 0.009) continue;          // sin saldo original: nada que renovar
+    if (esVencido(c)) { fuera.vencidos++; continue; }  // va a recuperación, no a renovación
+    if (esCuotaVariable(c.producto)) { fuera.cuotaVariable++; continue; }
+    const cuota = Number(c.cuota) || 0;
+    if (cuota <= 0) { fuera.sinCuota++; continue; }
+    const faltan = Math.ceil((info.saldoActual - 0.009) / cuota);
+    if (faltan > semanasAviso) continue;
+    const fEstimada = fechaDeLaUltima(c.diaPago, faltan);
+    const gAct = gestionDe(clave, c);
+    const gEst = (gAct || {}).estado || "Pendiente";
+    porTerminar.push({ ...comun, saldoActual: Math.round(info.saldoActual * 100) / 100,
+      cuota, semanas: faltan, monto: Number(c.saldo) || 0,
+      fechaEstimada: fEstimada, terminaEnElMes: !!fEstimada && fEstimada.slice(0, 7) === mes,
+      gestion: gAct, estado: gEst,
+      // ¿Sigue contando como renovación por venir? Una marcada «Solo
+      // recuperación» o «No quiso» ya no: se le está cobrando el saldo y ya.
+      esRenovacion: !RENOV_FUERA.has(gEst) });
+  }
+
+  // La que lleva MÁS tiempo sin renovar va primero: es la que más urge.
+  sinRenovar.sort((a, b) => (b.dias || 0) - (a.dias || 0) || String(a.clienta).localeCompare(String(b.clienta), "es"));
+  porTerminar.sort((a, b) => a.semanas - b.semanas || String(a.clienta).localeCompare(String(b.clienta), "es"));
+
+  // LAS QUE SÍ RENOVARON EN EL MES: cada re-crédito queda asentado en la
+  // bitácora del padrón con su fecha, así que el dato ya existe — solo hay que
+  // leerlo. Sin esto, el mes solo enseñaría lo malo y no la tasa.
+  const renovaron = [];
+  for (const cb of store.cambiosPadron()) {
+    if (cb.tipo !== "alta" || !cb.recredito) continue;
+    if (String(cb.fecha || "").slice(0, 7) !== mes) continue;
+    const cl = cb.clienta || {};
+    if (!mios.has(norm(cl.ejecutivo))) continue;
+    renovaron.push({ ejecutivo: cl.ejecutivo, centro: cl.centro, clienta: cl.nombre,
+      socio: String(cl.id || cb.id), producto: cl.producto || cb.producto,
+      monto: Number(cl.saldo) || 0, fecha: cb.fecha });
+  }
+  renovaron.sort((a2, b2) => String(b2.fecha).localeCompare(String(a2.fecha)));
+
+  // Las que TERMINARON dentro del mes y siguen sin volver. La tasa compara
+  // esas dos: de las que cerraron ciclo en el mes, cuántas volvieron a salir.
+  const terminaronEnElMes = sinRenovar.filter((x) => String(x.fechaFin || "").slice(0, 7) === mes);
+  const cerraronCiclo = renovaron.length + terminaronEnElMes.length;
+  // HASTA DÓNDE ALCANZA LA VISTA. El saldo de cada clienta es la foto del día
+  // del corte: quien terminó de pagar ANTES ya venía en cero, así que el
+  // sistema no puede saber que cerró ciclo ese mes. Pedir julio con el corte
+  // en agosto daba «0 cerraron ciclo» y una tasa de 100% que no significa
+  // nada. Se dice, y NO se calcula tasa: un porcentaje falso es peor que
+  // ninguno, porque se toman decisiones con él.
+  const mesDelCorte = corte.slice(0, 7);
+  const antesDelCorte = mes < mesDelCorte;
+  const esFuturo = mes > hoy.slice(0, 7);
+
+  const porEjecutivo = {};
+  const cuenta = (lista, campo, montoCampo) => {
+    for (const x of lista) {
+      const e = x.ejecutivo || "—";
+      porEjecutivo[e] = porEjecutivo[e] || { ejecutivo: e, sinRenovar: 0, montoSinRenovar: 0,
+        porTerminar: 0, montoPorTerminar: 0, renovaron: 0, montoRenovado: 0, terminaronEnElMes: 0,
+        // SEGUIMIENTO: en qué va cada ejecutiva con su propia lista. Es lo que
+        // Dirección preguntó — no solo cuántas hay, sino quién las está
+        // trabajando y a quién le falta.
+        marcadas: 0, sinMarcar: 0, soloRecuperacion: 0, renovacionReal: 0 };
+      porEjecutivo[e][campo]++;
+      porEjecutivo[e][montoCampo] = Math.round((porEjecutivo[e][montoCampo] + (x.monto || 0)) * 100) / 100;
+    }
+  };
+  // El seguimiento se cuenta sobre las que están POR TERMINAR: son las que
+  // todavía se pueden trabajar. Las que ya cerraron sin renovar son historia.
+  const seguimiento = (x) => {
+    const e = x.ejecutivo || "—";
+    if (!porEjecutivo[e]) return;
+    if ((x.estado || "Pendiente") === "Pendiente") porEjecutivo[e].sinMarcar++;
+    else porEjecutivo[e].marcadas++;
+    if (x.estado === "Solo recuperación") porEjecutivo[e].soloRecuperacion++;
+    if (x.esRenovacion) porEjecutivo[e].renovacionReal++;
+  };
+  cuenta(sinRenovar, "sinRenovar", "montoSinRenovar");
+  cuenta(porTerminar, "porTerminar", "montoPorTerminar");
+  cuenta(renovaron, "renovaron", "montoRenovado");
+  cuenta(terminaronEnElMes, "terminaronEnElMes", "montoSinRenovarDelMes");
+  // La tasa por ejecutivo se calcula al final, ya con las dos cuentas hechas.
+  for (const x of porTerminar) seguimiento(x);
+  for (const g of Object.values(porEjecutivo)) {
+    const cierra = g.renovaron + g.terminaronEnElMes;
+    g.tasa = (!antesDelCorte && cierra > 0) ? Math.round((g.renovaron / cierra) * 100) : null;
+    // Qué tanto de SU lista ya trabajó. Sin esto, "tiene 20 por terminar" no
+    // dice si ya las visitó o si no las ha tocado.
+    g.avanceGestion = g.porTerminar > 0 ? Math.round((g.marcadas / g.porTerminar) * 100) : null;
+  }
+
+  const suma = (l) => Math.round(l.reduce((a, x) => a + (x.monto || 0), 0) * 100) / 100;
+  return {
+    hoy, corte, semanasAviso, mes,
+    sinRenovar, porTerminar, renovaron,
+    delMes: {
+      mes,
+      renovaron: renovaron.length,
+      montoRenovado: Math.round(renovaron.reduce((a2, x) => a2 + (x.monto || 0), 0) * 100) / 100,
+      // Antes del corte no se puede afirmar quién cerró ciclo: va en null, no
+      // en cero. Cero significa «no hubo»; null significa «no se puede saber».
+      terminaronSinRenovar: antesDelCorte ? null : terminaronEnElMes.length,
+      montoTerminaronSinRenovar: antesDelCorte ? null
+        : Math.round(terminaronEnElMes.reduce((a2, x) => a2 + (x.monto || 0), 0) * 100) / 100,
+      cerraronCiclo: antesDelCorte ? null : cerraronCiclo,
+      tasa: (!antesDelCorte && cerraronCiclo > 0) ? Math.round((renovaron.length / cerraronCiclo) * 100) : null,
+      // La proyección mira hacia adelante: en un mes que ya pasó no aplica.
+      terminanEnElMes: mes < hoy.slice(0, 7) ? null : porTerminar.filter((x) => x.terminaEnElMes).length,
+      // Lo que les FALTA POR PAGAR a las que terminan en el mes: es la cobranza
+      // que está por cerrarse — y cada una, una renovación por ofrecer.
+      montoTerminanEnElMes: mes < hoy.slice(0, 7) ? null
+        : Math.round(porTerminar.filter((x) => x.terminaEnElMes)
+            .reduce((a2, x) => a2 + (x.saldoActual || 0), 0) * 100) / 100,
+      antesDelCorte, esFuturo, corte,
+      sinMovimiento: renovaron.length === 0 && (antesDelCorte || terminaronEnElMes.length === 0),
+    },
+    porEjecutivo: Object.values(porEjecutivo).sort((a, b) => String(a.ejecutivo).localeCompare(String(b.ejecutivo), "es")),
+    estados: ESTADOS_RENOV,
+    totales: {
+      sinRenovar: sinRenovar.length, montoSinRenovar: suma(sinRenovar),
+      porTerminar: porTerminar.length, montoPorTerminar: suma(porTerminar),
+      // «Hoy tengo 53 clientas por terminar y no puedo saber cuántas son
+      // renovación real» (19-ago). Estas dos líneas son esa respuesta.
+      porTerminarRenovacion: porTerminar.filter((x) => x.esRenovacion).length,
+      porTerminarSoloRecuperacion: porTerminar.filter((x) => x.estado === "Solo recuperación").length,
+      porTerminarNoQuiso: porTerminar.filter((x) => x.estado === "No quiso").length,
+      porTerminarSinMarcar: porTerminar.filter((x) => x.estado === "Pendiente").length,
+      montoPorTerminarRenovacion: suma(porTerminar.filter((x) => x.esRenovacion)),
+    },
+    fuera,
+  };
+}
+
+// CRÉDITOS SIN FECHA DE DESEMBOLSO (Karina, 15-ago: «dile a Monse lo de la
+// fecha de desembolso y mándale las que faltan»).
+//
+// Por qué importa: sin esa fecha el sistema NO puede saber si un crédito es
+// nuevo —y por lo tanto todavía no debe— o si ya venía corriendo. Se asume lo
+// segundo, que es lo conservador: se le mide mora desde el corte. Un crédito
+// nuevo de verdad, sin su fecha, aparece debiendo lo que no debe.
+//
+// La plantilla trae la fecha para todos; los que faltan son los que se dan de
+// alta o se re-acreditan a mano. Por eso esta lista suele ser corta y hay que
+// vaciarla seguido.
+function sinFechaDesembolso(usuario) {
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const filas = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(c.desembolso || "").slice(0, 10))) continue;
+    const info = infoCredito(cv, c);
+    if (info.saldoActual <= 0.009) continue;      // ya liquidado: no afecta la mora
+    filas.push({ ejecutivo: c.ejecutivo || "—", centro: c.centro || "Individual",
+      clienta: c.nombre, socio: String(c.id), producto: c.producto,
+      saldoActual: Math.round(info.saldoActual * 100) / 100,
+      cuota: Number(c.cuota) || 0, diaPago: c.diaPago || null,
+      estatus: c.estatus || "", alta: fechaNacimientoCredito(c.id, c.producto) });
+  }
+  filas.sort((a2, b2) => String(a2.ejecutivo).localeCompare(String(b2.ejecutivo), "es")
+    || b2.saldoActual - a2.saldoActual);
+  const porEjec = {};
+  for (const x of filas) porEjec[x.ejecutivo] = (porEjec[x.ejecutivo] || 0) + 1;
+  return { hoy: hoyMX(), total: filas.length,
+    saldo: Math.round(filas.reduce((a2, x) => a2 + x.saldoActual, 0) * 100) / 100,
+    porEjecutivo: porEjec, filas };
+}
+
+app.get("/api/sin-desembolso", requiere("direccion", "admin"), (req, res) => {
+  res.json(sinFechaDesembolso(req.usuario));
+});
+
+// ---------- CRÉDITOS QUE NO ENGANCHAN CON EL CATÁLOGO ----------
+// El motor ya sabe calcular los 16 productos, pero un crédito solo se puede
+// calcular si se sabe QUÉ producto es. El puente
+// (data/equivalencias-productos.json) resuelve el nombre usando el plazo que el
+// propio crédito trae; los que no traen plazo se quedan fuera y hay que
+// completarlos a mano. Esta lista es esa tarea, y se vacía sola.
+function sinCatalogo(usuario) {
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const cv = carteraViva(usuario);
+  const filas = [], fuera = [];
+  let listos = 0;
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    if (infoCredito(cv, c).saldoActual <= 0.009) continue;   // ya liquidado
+    const r = motor.resolverCredito(c);
+    if (r.ok) { listos++; continue; }
+    const renglon = { ejecutivo: c.ejecutivo, centro: c.centro, clienta: c.nombre,
+      socio: String(c.id), producto: c.producto, plazo: c.plazo || null,
+      cuota: Number(c.cuota) || 0, saldo: Math.round(infoCredito(cv, c).saldoActual * 100) / 100,
+      motivo: r.motivo, falta: r.faltaPlazo ? "plazo" : (r.sinEquivalencia ? "equivalencia" : "otro"),
+      opciones: r.equivalencia && r.equivalencia.porPlazo ? Object.keys(r.equivalencia.porPlazo).join(" / ") : "" };
+    // Las reestructuras y los especiales NO son un pendiente de nadie: van
+    // aparte para que no se lean como trabajo por hacer.
+    if (r.fueraDeCatalogo) fuera.push(renglon); else filas.push(renglon);
+  }
+  filas.sort((a2, b2) => String(a2.ejecutivo).localeCompare(String(b2.ejecutivo), "es")
+    || b2.saldo - a2.saldo);
+  return { hoy: hoyMX(), listos, total: filas.length,
+    saldo: Math.round(filas.reduce((t, x) => t + x.saldo, 0) * 100) / 100,
+    filas, fueraDeCatalogo: fuera };
+}
+
+app.get("/api/sin-catalogo", requiere("direccion", "admin"), (req, res) => {
+  res.json(sinCatalogo(req.usuario));
+});
+
+app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = sinCatalogo(req.usuario);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", AMBAR = "FFFFF3CD", MONEDA = '"$"#,##0.00';
+  const s = wb.addWorksheet("Falta el plazo");
+  s.mergeCells("A1:J1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · CRÉDITOS QUE NO SE PUEDEN CALCULAR · al " + d.hoy;
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center" }; s.getRow(1).height = 22;
+  s.mergeCells("A2:J2");
+  const t2 = s.getCell("A2");
+  t2.value = "Al día de hoy " + d.listos + " créditos ya calculan solos. Estos " + d.total
+    + " no, y casi siempre es porque falta el PLAZO: sin él no se sabe si un Grupal Básico es de 18 "
+    + "semanas (5.67%) o de 24 (6.32%). Llena la columna en amarillo y la lista se vacía sola.";
+  t2.font = { italic: true, size: 10, color: { argb: "FF6B6480" } };
+  t2.alignment = { wrapText: true, vertical: "top" }; s.getRow(2).height = 34;
+  const cols = [["Ejecutivo", 14], ["Centro", 20], ["Clienta", 30], ["Socio", 15], ["Producto", 20],
+    ["Cuota", 12], ["Saldo", 14], ["Qué falta", 40], ["Plazos válidos", 14], ["PLAZO (llenar)", 15]];
+  const hr = s.getRow(3);
+  cols.forEach(([h, w], i) => { const cc = hr.getCell(i + 1); cc.value = h;
+    s.getColumn(i + 1).width = w;
+    cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } }; });
+  let f = 4;
+  for (const x of d.filas) {
+    const r = s.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(6).value = x.cuota; r.getCell(6).numFmt = MONEDA;
+    r.getCell(7).value = x.saldo; r.getCell(7).numFmt = MONEDA;
+    r.getCell(8).value = x.motivo;
+    r.getCell(9).value = x.opciones || "—";
+    // La columna que hay que llenar, en amarillo, como la de fecha de desembolso.
+    r.getCell(10).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+  }
+  const tt = s.getRow(f++);
+  tt.getCell(5).value = "TOTAL · " + d.total + " créditos";
+  tt.getCell(7).value = d.saldo; tt.getCell(7).numFmt = MONEDA;
+  [5, 7].forEach((i) => (tt.getCell(i).font = { bold: true }));
+
+  // Los que están fuera del catálogo a propósito: no son tarea de nadie.
+  if (d.fueraDeCatalogo.length) {
+    const s2 = wb.addWorksheet("Fuera del catálogo");
+    s2.mergeCells("A1:F1");
+    const u = s2.getCell("A1");
+    u.value = "FOOAX · FUERA DEL CATÁLOGO A PROPÓSITO — no son un pendiente";
+    u.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    u.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    const h2 = s2.getRow(2);
+    [["Ejecutivo", 14], ["Clienta", 30], ["Socio", 15], ["Producto", 20], ["Saldo", 14], ["Por qué", 60]]
+      .forEach(([h, w], i) => { const cc = h2.getCell(i + 1); cc.value = h;
+        s2.getColumn(i + 1).width = w; cc.font = { bold: true }; });
+    let g = 3;
+    for (const x of d.fueraDeCatalogo) {
+      const r = s2.getRow(g++);
+      [x.ejecutivo, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+      r.getCell(5).value = x.saldo; r.getCell(5).numFmt = MONEDA;
+      r.getCell(6).value = x.motivo;
+    }
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Creditos sin catalogo FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
+// ---------- LA HOJA DE COBRANZA AUTOMÁTICA ----------
+// El libro completo (29 pestañas) que Dirección armaba a mano cada semana
+// (HOJA COBRANZA v4), generado desde los datos vivos: capturas de las apps,
+// cartera, mora, motor de intereses, renovaciones y correcciones. Contrato de
+// la Hoja de Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su
+// contexto. A producción con OK de Karina, 10-sep-2026.
+const hojaCobranza = require("./hoja-cobranza");
+// Vista imprimible del ticket de liberación de garantías (CU-006, 21-sep-2026)
+// — mismo criterio que hojaCobranza: módulo de renderizado aparte, server.js
+// solo lo llama y decide cómo servir su resultado.
+const ticketLiberacionGarantiaHtml = require("./ticket-liberacion-garantia");
+app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, res) => {
+  try {
+    // "Intentemos con el de la semana pasada y de este" (Karina, 10-sep):
+    // ?semana=pasada baja el libro de la semana anterior; ?lunes=YYYY-MM-DD
+    // baja cualquier semana exacta; sin nada, la semana en curso.
+    // Cualquier fecha vale: se normaliza al LUNES de su semana, para que el
+    // selector del tablero acepte "el miércoles de esa semana" sin pensarlo.
+    let lunesQ = req.query.lunes;
+    if (lunesQ && /^\d{4}-\d{2}-\d{2}$/.test(String(lunesQ))) lunesQ = lunesDeLaSemana(String(lunesQ));
+    if (req.query.semana === "pasada") {
+      const d = new Date(lunesDeLaSemana(hoyMX()) + "T12:00:00");
+      d.setDate(d.getDate() - 7);
+      lunesQ = d.toISOString().slice(0, 10);
+    }
+    const ctx = { PADRON, USUARIOS, idsEjecutivos, carteraViva, infoCredito, moraDeLaSemana,
+      movsDeFecha, tipoDeMov, motor, corteSaldos, hoyMX, lunesDeLaSemana, norm,
+      numeroDePago, vencidaPorPlazo, esVencido, esCuotaVariable, store };
+    const { wb, semanaTxt } = await hojaCobranza.generar(ctx, ExcelJS, req.usuario, lunesQ);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition",
+      "attachment; filename=\"HOJA COBRANZA FOOAX " + semanaTxt.replace(/[^0-9a-zA-Záéíóúñ ]/gi, "") + ".xlsx\"");
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (e) {
+    console.error("[hoja-cobranza]", e.message);
+    res.status(500).json({ error: "No se pudo generar la hoja: " + e.message });
+  }
+});
+
+app.get("/api/sin-desembolso/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = sinFechaDesembolso(req.usuario);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", AMBAR = "FFFFF3CD";
+  const s = wb.addWorksheet("Sin fecha de desembolso");
+  s.mergeCells("A1:J1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · CRÉDITOS SIN FECHA DE DESEMBOLSO · al " + d.hoy + " · " + d.total + " créditos";
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center", vertical: "middle" };
+  s.getRow(1).height = 24;
+  s.mergeCells("A2:J2");
+  const n = s.getCell("A2");
+  n.value = "Sin esta fecha el sistema no puede saber si el crédito es NUEVO (y todavía no debe) o si ya venía "
+    + "corriendo. Asume lo segundo y le mide mora desde el corte. Llena la última columna y pásala a Dirección.";
+  n.font = { italic: true, size: 10 };
+  n.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+  n.alignment = { wrapText: true, vertical: "middle" };
+  s.getRow(2).height = 30;
+  const head = [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+    ["Saldo que le queda", 16], ["Cuota", 12], ["Día de cobro", 13], ["Estatus", 22],
+    ["FECHA DE DESEMBOLSO (llenar)", 26]];
+  const hr = s.getRow(3);
+  head.forEach(([h, w], i) => { const c = hr.getCell(i + 1); c.value = h; s.getColumn(i + 1).width = w;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    c.alignment = { horizontal: "center", wrapText: true }; });
+  let f = 4;
+  for (const x of d.filas) {
+    const r = s.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(6).value = x.saldoActual; r.getCell(6).numFmt = '"$"#,##0.00';
+    r.getCell(7).value = x.cuota; r.getCell(7).numFmt = '"$"#,##0.00';
+    r.getCell(8).value = x.diaPago || "sin día";
+    r.getCell(9).value = x.estatus;
+    r.getCell(10).fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+    r.getCell(10).border = { bottom: { style: "thin" }, left: { style: "thin" },
+      right: { style: "thin" }, top: { style: "thin" } };
+  }
+  const tr = s.getRow(f + 1);
+  tr.getCell(3).value = "TOTAL · " + d.total + " créditos";
+  tr.getCell(6).value = d.saldo; tr.getCell(6).numFmt = '"$"#,##0.00';
+  [3, 6].forEach((i) => (tr.getCell(i).font = { bold: true }));
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Sin fecha de desembolso FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
+// PADRÓN POR EJECUTIVO (Karina, 15-ago): «déjales un Excel donde se vean las
+// bajas de padrón por ejecutivo... y si agregan una clienta nueva, esa clienta
+// tiene que aparecer en el padrón de ese ejecutivo, como de las plantillas que
+// nos mandaban».
+//
+// Es el reemplazo del corte: en vez de mover fechas, cada ejecutiva tiene su
+// hoja con SU gente. Las altas salen marcadas —una clienta nueva aparece en el
+// padrón de su ejecutiva desde el momento en que se da de alta— y las bajas van
+// en su propia hoja, con fecha, motivo y quién.
+function padronPorEjecutivo(usuario) {
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  // LAS BAJAS. El padrón las conserva marcadas (activa:false) con su motivo,
+  // su fecha y quién la dio de baja: eso es justo lo que hay que poder ver.
+  const bajas = [];
+  for (const c of PADRON) {
+    if (!(c.activa === false || c.estatus === "BAJA")) continue;
+    const ejec = c.ejecutivo || "—";
+    if (!mios.has(norm(ejec))) continue;
+    bajas.push({ ejecutivo: ejec, centro: c.centro || "", socio: String(c.id),
+      clienta: c.nombre, producto: c.producto || "",
+      fecha: c.fecha_baja || "", motivo: c.motivo_baja || "",
+      por: c.baja_por || "", saldoAlDarDeBaja: Number(c.saldo) || 0 });
+  }
+  bajas.sort((a2, b2) => String(b2.fecha).localeCompare(String(a2.fecha)));
+
+  // Fecha de alta de cada crédito, para marcar a las que entraron.
+  const altaDe = {};
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "alta" && /^\d{4}-\d{2}-\d{2}$/.test(cb.fecha || ""))
+      altaDe[claveCredito(cb.id, cb.producto)] = { fecha: cb.fecha, por: cb.por || "", recredito: !!cb.recredito };
+
+  const porEjec = {};
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const ejec = c.ejecutivo || "—";
+    if (!mios.has(norm(ejec))) continue;
+    const info = infoCredito(cv, c);
+    const alta = altaDe[claveCredito(c.id, c.producto)] || null;
+    (porEjec[ejec] = porEjec[ejec] || []).push({
+      centro: c.centro || "Individual", socio: String(c.id), clienta: c.nombre,
+      producto: c.producto, saldo: Number(c.saldo) || 0, abonado: Math.round(((info.pagado || 0) + (info.liquidado || 0)) * 100) / 100,
+      saldoActual: info.saldoActual, cuota: Number(c.cuota) || 0, plazo: Number(c.plazo) || 0,
+      diaPago: c.diaPago || null, desembolso: c.desembolso || null, estatus: c.estatus || "",
+      alta: alta ? alta.fecha : null, esAlta: !!alta, esRecredito: !!(alta && alta.recredito),
+      altaPor: alta ? alta.por : "",
+      ciclo: Number(c.ciclo) || 1,
+    });
+  }
+  for (const e in porEjec)
+    porEjec[e].sort((a2, b2) => String(a2.centro).localeCompare(String(b2.centro), "es")
+      || String(a2.clienta).localeCompare(String(b2.clienta), "es"));
+
+  const bajasPorEjec = {};
+  for (const b2 of bajas) (bajasPorEjec[b2.ejecutivo] = bajasPorEjec[b2.ejecutivo] || []).push(b2);
+  return { hoy: hoyMX(), corte: corteSaldos(), porEjec, bajasPorEjec,
+    ejecutivos: Object.keys(porEjec).sort((a2, b3) => a2.localeCompare(b3, "es")),
+    totalClientas: Object.values(porEjec).reduce((n, l) => n + l.length, 0),
+    totalBajas: bajas.length };
+}
+
+app.get("/api/padron", requiere("direccion", "admin"), (req, res) => {
+  res.json(padronPorEjecutivo(req.usuario));
+});
+
+app.get("/api/padron/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = padronPorEjecutivo(req.usuario);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF0B7247", ROJO = "FF8E0019",
+        LAV = "FFF3F0FA", AMBAR = "FFFFF3CD";
+  const MONEDA = '"$"#,##0.00';
+  const encabezar = (s2, titulo, cols, color) => {
+    const ultima = String.fromCharCode(64 + cols.length);
+    s2.mergeCells("A1:" + ultima + "1");
+    const t = s2.getCell("A1");
+    t.value = titulo;
+    t.font = { bold: true, size: 12.5, color: { argb: "FFFFFFFF" } };
+    t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color || AURORA } };
+    t.alignment = { horizontal: "center", vertical: "middle" };
+    s2.getRow(1).height = 24;
+    const hr = s2.getRow(2);
+    cols.forEach(([h, w], i) => { const cc = hr.getCell(i + 1); cc.value = h; s2.getColumn(i + 1).width = w;
+      cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      cc.alignment = { horizontal: "center", wrapText: true }; });
+  };
+
+  for (const ejec of d.ejecutivos) {
+    const filas = d.porEjec[ejec] || [];
+    const s2 = wb.addWorksheet(String(ejec).slice(0, 28));
+    encabezar(s2, "PADRÓN DE " + String(ejec).toUpperCase() + " · " + filas.length
+      + " clientas · al " + d.hoy,
+      [["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18], ["Ciclo", 7],
+       ["Saldo original", 14], ["Abonado", 13], ["Saldo actual", 14], ["Cuota", 12], ["Plazo", 8],
+       ["Día de cobro", 12], ["Desembolso", 13], ["Estatus", 20], ["ALTA", 13]]);
+    let f = 3;
+    for (const x of filas) {
+      const r = s2.getRow(f++);
+      [x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+      // CICLO: en cuál va de ese producto con nosotros (02 = su primera
+      // renovación). Es folio interno, no cambia el nombre del crédito.
+      r.getCell(5).value = String(x.ciclo || 1).padStart(2, "0");
+      r.getCell(6).value = x.saldo; r.getCell(6).numFmt = MONEDA;
+      r.getCell(7).value = x.abonado || null; r.getCell(7).numFmt = MONEDA;
+      r.getCell(8).value = x.saldoActual; r.getCell(8).numFmt = MONEDA;
+      r.getCell(9).value = x.cuota; r.getCell(9).numFmt = MONEDA;
+      r.getCell(10).value = x.plazo || null;
+      r.getCell(11).value = x.diaPago || "SIN DÍA";
+      r.getCell(12).value = x.desembolso || "FALTA";
+      r.getCell(13).value = x.estatus;
+      // LA CLIENTA NUEVA SE VE. Es lo que pidió Karina: si la dan de alta, sale
+      // en el padrón de su ejecutiva y se distingue de las que ya venían.
+      if (x.esAlta) {
+        r.getCell(14).value = (x.esRecredito ? "RE-CRÉDITO " : "ALTA ") + x.alta;
+        r.getCell(14).font = { bold: true, color: { argb: VERDE } };
+        for (let i = 1; i <= 14; i++)
+          r.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: LAV } };
+      }
+      if ((x.ciclo || 1) > 1) r.getCell(5).font = { bold: true, color: { argb: RIO } };
+      if (!x.diaPago) r.getCell(11).font = { bold: true, color: { argb: ROJO } };
+      if (!x.desembolso) r.getCell(12).font = { bold: true, color: { argb: ROJO } };
+      if (/vencid/i.test(x.estatus)) r.getCell(13).font = { bold: true, color: { argb: ROJO } };
+    }
+    const tr = s2.getRow(f++);
+    tr.getCell(2).value = "TOTAL · " + filas.length + " clientas";
+    tr.getCell(8).value = Math.round(filas.reduce((a2, x) => a2 + x.saldoActual, 0) * 100) / 100;
+    tr.getCell(8).numFmt = MONEDA;
+    [2, 8].forEach((i) => (tr.getCell(i).font = { bold: true }));
+  }
+
+  // LAS BAJAS, una hoja para todas: es lo que se pierde de vista si no se lista.
+  const sb = wb.addWorksheet("BAJAS del padrón");
+  encabezar(sb, "BAJAS DEL PADRÓN · " + d.totalBajas + " en total · al " + d.hoy,
+    [["Ejecutivo", 15], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+     ["Saldo al darla de baja", 16], ["Fecha de la baja", 14], ["Motivo", 34], ["Quién la dio de baja", 18]],
+    ROJO);
+  let fb = 3;
+  for (const ejec of d.ejecutivos.concat(Object.keys(d.bajasPorEjec).filter((e) => !d.ejecutivos.includes(e)))) {
+    for (const x of (d.bajasPorEjec[ejec] || [])) {
+      const r = sb.getRow(fb++);
+      [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+      r.getCell(6).value = x.saldoAlDarDeBaja; r.getCell(6).numFmt = MONEDA;
+      r.getCell(7).value = x.fecha;
+      r.getCell(8).value = x.motivo;
+      r.getCell(9).value = x.por;
+    }
+  }
+  if (fb === 3) {
+    const r = sb.getRow(3);
+    r.getCell(1).value = "No hay bajas registradas.";
+    r.getCell(1).font = { italic: true };
+  }
+  const nb = sb.getRow(fb + 1);
+  nb.getCell(1).value = "Una BAJA sale del padrón vivo: deja de contar en cartera, en la mora y en el arqueo. "
+    + "Las que dicen «Liquidó y renovó» no son bajas de verdad: es el ciclo anterior que se cerró al re-dar el crédito.";
+  nb.font = { italic: true };
+  nb.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AMBAR } };
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Padron por ejecutivo FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
+app.get("/api/renovaciones", requiere("direccion", "admin"), (req, res) => {
+  res.json(reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes));
+});
+
+// LA GESTIÓN DE RENOVACIONES · leer y marcar
+//
+// La ejecutiva ve y marca LO SUYO; Dirección ve y marca todo. El estado se
+// guarda por CRÉDITO (socio + producto), no por día: es una decisión sobre la
+// clienta, no una captura de la jornada. Por eso sobrevive al cierre del día,
+// al cambio de teléfono y a que la app se reinstale.
+app.get("/api/renovaciones/gestion", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const mias = new Set(idsEjecutivos(req.usuario).map((id) => norm(USUARIOS[id].nombre)));
+  const todo = store.gestionRenovaciones();
+  const out = {};
+  for (const clave in todo) {
+    const c = PADRON.find((x) => claveCredito(x.id, x.producto) === clave);
+    // Sin clienta en el padrón no se puede saber de quién es: se omite en vez
+    // de enseñársela a quien no le toca.
+    if (c && mias.has(norm(c.ejecutivo))) out[clave] = todo[clave];
+  }
+  res.json({ estados: ESTADOS_RENOV, gestion: out });
+});
+
+app.post("/api/renovaciones/gestion", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const b2 = req.body || {};
+  // La app manda socio + producto y el servidor arma la clave: así el teléfono
+  // no tiene que reproducir la normalización ("Foxi Plus - 2" vs "Foxi Plus 2")
+  // y no hay dos versiones de la misma regla que se puedan desincronizar.
+  const clave = b2.socio
+    ? claveCredito(String(b2.socio), String(b2.producto || ""))
+    : String(b2.clave || "").trim();
+  const estado = String(b2.estado || "").trim();
+  if (!clave) return res.status(400).json({ error: "Falta de qué crédito es." });
+  if (!ESTADOS_RENOV.includes(estado))
+    return res.status(400).json({ error: "Ese estado no existe. Válidos: " + ESTADOS_RENOV.join(", ") });
+  const c = PADRON.find((x) => claveCredito(x.id, x.producto) === clave);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito en el padrón." });
+  // Una ejecutiva no marca la cartera de otra. Dirección sí, porque a veces
+  // corrige lo que la ejecutiva dejó mal.
+  const mias = new Set(idsEjecutivos(req.usuario).map((id) => norm(USUARIOS[id].nombre)));
+  if (!mias.has(norm(c.ejecutivo)))
+    return res.status(403).json({ error: "Esa clienta no es de tu cartera." });
+  const g = store.setGestionRenovacion({
+    clave, estado, por: req.usuario.nombre, rol: req.usuario.rol,
+    clienta: c.nombre, socio: String(c.id), producto: c.producto,
+    // EL CICLO ES PARTE DE LA MARCA. La clave es socio+producto, así que una
+    // clienta que renueva el MISMO producto conserva la clave — y sin esto
+    // arrastraría el "Renovó" del ciclo anterior a su crédito nuevo, y llegaría
+    // al final del ciclo siguiente ya marcada como trabajada sin que nadie la
+    // haya tocado. Al abrirse un ciclo nuevo, la marca vieja deja de aplicar y
+    // la clienta vuelve a Pendiente, que es lo correcto: es otro crédito.
+    ciclo: Number(c.ciclo) || 1,
+    ejecutivo: c.ejecutivo, fecha: hoyMX(), ts: Date.now(),
+  });
+  res.json({ ok: true, gestion: g });
+});
+
+app.get("/api/renovaciones/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = reporteRenovaciones(req.usuario, req.query.semanas, req.query.mes);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", ROJO = "FF8E0019";
+  const MONEDA = '"$"#,##0.00';
+  const hoja = (nombre, titulo, cols) => {
+    const s = wb.addWorksheet(nombre);
+    const ultima = String.fromCharCode(64 + cols.length);
+    s.mergeCells("A1:" + ultima + "1");
+    const t = s.getCell("A1");
+    t.value = titulo;
+    t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+    t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+    t.alignment = { horizontal: "center", vertical: "middle" };
+    s.getRow(1).height = 24;
+    const hr = s.getRow(2);
+    cols.forEach(([h, w], i) => {
+      const cc = hr.getCell(i + 1); cc.value = h; s.getColumn(i + 1).width = w;
+      cc.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      cc.alignment = { horizontal: "center", wrapText: true };
+    });
+    return s;
+  };
+
+  const s1 = hoja("No renovaron", "FOOAX · YA TERMINARON Y NO HAN RENOVADO (todas, sin importar el mes) · al " + d.hoy,
+    [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+     ["Monto del crédito que terminó", 18], ["Terminó de pagar el", 16], ["Días sin renovar", 14],
+     ["Gestión", 17], ["Marcó", 14], ["Nota", 26]]);
+  let f = 3;
+  for (const x of d.sinRenovar) {
+    const r = s1.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto].forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(6).value = x.monto; r.getCell(6).numFmt = MONEDA;
+    r.getCell(7).value = x.fechaFin || "—";
+    r.getCell(8).value = x.dias == null ? "—" : x.dias;
+    r.getCell(9).value = x.estado || "Pendiente";
+    r.getCell(10).value = (x.gestion && x.gestion.por) || "—";
+    r.getCell(11).value = x.eraVencido ? "Era crédito VENCIDO: fue recuperación" : "";
+    // Más de un mes sin renovar se ve en rojo: es la que se está enfriando.
+    if ((x.dias || 0) >= 30) r.getCell(8).font = { bold: true, color: { argb: ROJO } };
+  }
+  const t1 = s1.getRow(f++);
+  t1.getCell(5).value = "TOTAL · " + d.totales.sinRenovar + " clientas";
+  t1.getCell(6).value = d.totales.montoSinRenovar; t1.getCell(6).numFmt = MONEDA;
+  [5, 6].forEach((i) => (t1.getCell(i).font = { bold: true }));
+
+  const s2 = hoja("Por terminar", "FOOAX · POR TERMINAR — RENOVACIÓN PENDIENTE (" + d.semanasAviso + " cuotas o menos) · al " + d.hoy,
+    [["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15], ["Producto", 18],
+     ["Día de cobro", 13], ["Saldo que le queda", 16], ["Cuota", 12], ["Cuotas que le faltan", 14],
+     ["Termina (estimado)", 15], ["Gestión", 17], ["¿Renovación?", 13], ["Marcó", 14]]);
+  f = 3;
+  for (const x of d.porTerminar) {
+    const r = s2.getRow(f++);
+    [x.ejecutivo, x.centro, x.clienta, x.socio, x.producto, x.diaPago || "—"]
+      .forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(7).value = x.saldoActual; r.getCell(7).numFmt = MONEDA;
+    r.getCell(8).value = x.cuota; r.getCell(8).numFmt = MONEDA;
+    r.getCell(9).value = x.semanas;
+    r.getCell(10).value = x.fechaEstimada || "—";
+    r.getCell(11).value = x.estado || "Pendiente";
+    // La columna que contesta «¿cuántas son renovación real?» de un vistazo.
+    r.getCell(12).value = x.esRenovacion ? "Sí" : "No";
+    r.getCell(13).value = (x.gestion && x.gestion.por) || "—";
+    if (x.semanas <= 1) r.getCell(9).font = { bold: true, color: { argb: ROJO } };
+    if (x.terminaEnElMes) r.getCell(10).font = { bold: true, color: { argb: RIO } };
+    if (!x.esRenovacion) r.getCell(12).font = { bold: true, color: { argb: ROJO } };
+  }
+  const t2 = s2.getRow(f++);
+  t2.getCell(5).value = "TOTAL · " + d.totales.porTerminar + " clientas";
+  // El desglose que pidió Dirección: de las que están por terminar, cuántas
+  // son renovación de verdad y cuántas solo se están recuperando.
+  t2.getCell(11).value = d.totales.porTerminarRenovacion + " renovación · "
+    + d.totales.porTerminarSoloRecuperacion + " solo recuperación · "
+    + d.totales.porTerminarNoQuiso + " no quiso · "
+    + d.totales.porTerminarSinMarcar + " sin marcar";
+  t2.getCell(11).font = { bold: true };
+  t2.getCell(7).value = Math.round(d.porTerminar.reduce((a2, x) => a2 + (x.saldoActual || 0), 0) * 100) / 100;
+  t2.getCell(7).numFmt = MONEDA;
+  [5, 7].forEach((i) => (t2.getCell(i).font = { bold: true }));
+
+  // EL MES: quién renovó, cuándo y por cuánto. Es la hoja que contesta
+  // «¿cómo nos fue este mes?» sin tener que contar a mano.
+  const sm = hoja("Renovaciones del mes", "FOOAX · RENOVACIONES DADAS EN " + d.mes,
+    [["Fecha", 12], ["Ejecutivo", 14], ["Centro", 22], ["Clienta", 32], ["Socio", 15],
+     ["Producto", 18], ["Monto del crédito nuevo", 18]]);
+  f = 3;
+  for (const x of d.renovaron) {
+    const r = sm.getRow(f++);
+    [x.fecha, x.ejecutivo, x.centro, x.clienta, x.socio, x.producto]
+      .forEach((v, i) => (r.getCell(i + 1).value = v));
+    r.getCell(7).value = x.monto; r.getCell(7).numFmt = MONEDA;
+  }
+  const tm = sm.getRow(f++);
+  tm.getCell(4).value = "TOTAL · " + d.delMes.renovaron + " renovaciones";
+  tm.getCell(7).value = d.delMes.montoRenovado; tm.getCell(7).numFmt = MONEDA;
+  [4, 7].forEach((i) => (tm.getCell(i).font = { bold: true }));
+  const tr = sm.getRow(f + 1);
+  tr.getCell(1).value = "De los " + d.delMes.cerraronCiclo + " créditos que cerraron ciclo en " + d.mes
+    + ", renovaron " + d.delMes.renovaron + " y siguen sin volver " + d.delMes.terminaronSinRenovar
+    + (d.delMes.tasa == null ? "." : " — tasa de renovación " + d.delMes.tasa + "%.");
+  tr.font = { bold: true, color: { argb: RIO } };
+
+  const s3 = hoja("Por ejecutivo", "FOOAX · RENOVACIONES POR EJECUTIVO · " + d.mes + " · al " + d.hoy,
+    [["Ejecutivo", 16], ["Renovó en el mes", 14], ["Monto renovado", 16], ["Cerró y no volvió (mes)", 15],
+     ["Tasa de renovación", 14], ["No renovaron (todas)", 15], ["Monto que terminó", 17],
+     ["Por terminar", 13], ["Monto por terminar", 17],
+     // SEGUIMIENTO: lo que Dirección preguntó — no cuántas tiene, sino cuántas
+     // ya trabajó y cuántas ni ha tocado.
+     ["Ya marcadas", 12], ["Sin marcar", 12], ["Avance gestión", 13],
+     ["Renovación real", 14], ["Solo recuperación", 15]]);
+  f = 3;
+  for (const g of d.porEjecutivo) {
+    const r = s3.getRow(f++);
+    r.getCell(1).value = g.ejecutivo;
+    r.getCell(2).value = g.renovaron;
+    r.getCell(3).value = g.montoRenovado; r.getCell(3).numFmt = MONEDA;
+    r.getCell(4).value = g.terminaronEnElMes;
+    r.getCell(5).value = g.tasa == null ? "—" : g.tasa + "%";
+    if (g.tasa != null && g.tasa < 50) r.getCell(5).font = { bold: true, color: { argb: ROJO } };
+    r.getCell(6).value = g.sinRenovar;
+    r.getCell(7).value = g.montoSinRenovar; r.getCell(7).numFmt = MONEDA;
+    r.getCell(10).value = g.marcadas || 0;
+    r.getCell(11).value = g.sinMarcar || 0;
+    r.getCell(12).value = g.avanceGestion == null ? "—" : g.avanceGestion + "%";
+    r.getCell(13).value = g.renovacionReal || 0;
+    r.getCell(14).value = g.soloRecuperacion || 0;
+    // Lo que no se ha tocado se ve: es la tarea pendiente de esa ejecutiva.
+    if ((g.sinMarcar || 0) > 0) r.getCell(11).font = { bold: true, color: { argb: ROJO } };
+    if (g.avanceGestion != null && g.avanceGestion < 50)
+      r.getCell(12).font = { bold: true, color: { argb: ROJO } };
+    r.getCell(8).value = g.porTerminar;
+    r.getCell(9).value = g.montoPorTerminar; r.getCell(9).numFmt = MONEDA;
+  }
+  // Lo que quedó fuera se DICE, no se calla: si el total no cuadra con la
+  // cartera, aquí está la explicación.
+  const rf = s3.getRow(f + 1);
+  rf.getCell(1).value = "Fuera de esta cuenta: " + d.fuera.vencidos + " vencidos (van en recuperación, no en renovación), "
+    + d.fuera.cuotaVariable + " de cuota variable (MAGNUS: su cuota cambia cada periodo) y "
+    + d.fuera.sinCuota + " sin cuota capturada.";
+  rf.font = { italic: true, color: { argb: ROJO } };
+
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Renovaciones FOOAX ${d.hoy}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
 
 app.get("/api/periodo", requiere("direccion", "admin"), (req, res) => {
   const { desde, hasta } = rangoPeriodo(req.query);
@@ -1363,19 +3174,25 @@ app.get("/api/periodo/excel", requiere("direccion", "admin"), async (req, res) =
   // ---- 3. OTROS MOVIMIENTOS: lo que entra fuera de la ficha y todo lo que sale.
   const c3 = hoja("Entradas y salidas", "FOOAX · ENTRADAS Y SALIDAS " + rotulo,
     [["Fecha", 12], ["Día", 11], ["Entra/Sale", 11], ["Tipo", 24], ["Concepto", 34],
-     ["Clienta", 28], ["Socio", 15], ["Ejecutivo", 13], ["Monto", 14], ["Método", 14],
-     ["Registró", 14], ["Folio", 16]]);
+     ["Clienta", 28], ["Socio", 15], ["Crédito", 16], ["Ejecutivo", 13], ["Monto", 14], ["Método", 14],
+     ["Registró", 14], ["Folio", 16], ["ANULADO", 12]]);
   f = 3;
   for (const x of d.otros) {
     const fila = c3.getRow(f++);
     [x.fecha, nomDia(x.fecha), x.entrada ? "ENTRA" : "SALE", x.tipo, x.concepto,
-     x.clienta, x.socio, x.ejecutivo].forEach((v, i) => (fila.getCell(i + 1).value = v));
-    const c = fila.getCell(9); c.value = x.monto; c.numFmt = MONEDA;
+     x.clienta, x.socio, x.producto || "", x.ejecutivo].forEach((v, i) => (fila.getCell(i + 1).value = v));
+    const c = fila.getCell(10); c.value = x.monto; c.numFmt = MONEDA;
     c.font = { bold: true, color: { argb: x.entrada ? VERDE : ROJO } };
     fila.getCell(3).font = { bold: true, color: { argb: x.entrada ? VERDE : ROJO } };
-    fila.getCell(10).value = x.metodo;
-    fila.getCell(11).value = x.registradoPor;
-    fila.getCell(12).value = x.folio;
+    fila.getCell(11).value = x.metodo;
+    fila.getCell(12).value = x.registradoPor;
+    fila.getCell(13).value = x.folio;
+    if (x.anulado) {
+      // Anulado: se ve, no cuenta. Gris y con su letrero, para que nadie lo sume.
+      fila.getCell(14).value = "ANULADO";
+      fila.getCell(14).font = { bold: true, color: { argb: ROJO } };
+      for (let i = 1; i <= 13; i++) fila.getCell(i).font = { ...(fila.getCell(i).font || {}), color: { argb: "FF9A93AC" }, strike: true };
+    }
   }
 
   const buf = await wb.xlsx.writeBuffer();
@@ -1587,11 +3404,22 @@ app.get("/api/clientes", requiere("direccion", "admin", "ejecutivo"), (req, res)
   if (req.usuario.rol === "ejecutivo") base = PADRON.filter(c => norm(c.ejecutivo) === norm(req.usuario.nombre));
   const cv = carteraViva(req.usuario); // cartera viva (pago + liquidación)
   const res1 = base.filter(c => {
-    const heno = norm(c.nombre) + " " + c.id;
+    // También encuentra por GRUPO: nombre del centro o su número ("GHANIMA",
+    // "C-18") traen a todas las clientas del grupo (Karina, 10-sep).
+    const heno = norm(c.nombre) + " " + c.id + " " + norm(c.centro || "") + " " + norm(c.noCentro || "");
     return terminos.every(t => heno.includes(t));
   }).slice(0, 40).map(c => {
+    // `carteraViva` solo calcula los créditos ACTIVOS, y la llave es
+    // socio+producto: al renovar, el crédito viejo comparte llave con el nuevo
+    // y heredaba SUS números. Por eso el 10-ago la tarjeta del crédito de baja
+    // de BLANCA VERONICA decía «pagó $288 esta sem.» de un ciclo ya cerrado.
+    // Un crédito de baja no tiene abonos vivos: su historia va en «Ver pagos».
+    if (c.activa === false || c.estatus === "BAJA")
+      return { ...c, pagado: 0, liquidado: 0, saldoActual: c.saldo || 0 };
     const i = infoCredito(cv, c);
-    return { ...c, pagado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual };
+    return { ...c, pagado: i.pagado, liquidado: i.liquidado, saldoActual: i.saldoActual,
+      // Para que la tarjeta diga VENCIDA sola cuando el plazo ya terminó.
+      vencidaPlazo: vencidaPorPlazo(c, i), finPlazo: finDelPlazo(c) };
   });
   res.json({ total: base.length, resultados: res1 });
 });
@@ -1607,18 +3435,29 @@ const MOTIVOS_BAJA = ["Salió del grupo", "No renovó", "Mora / mal historial",
 // Lista de centros REALES (del padrón activo + los registrados desde el
 // tablero). Sirve para que el alta de clientas elija de una lista en vez de
 // texto libre: un dedazo creaba un "centro fantasma" que partía los reportes.
+// CENTROS PURGADOS (31-ago): los centros de prueba que Dirección mandó quitar
+// con la purga. Sus registros tipo "centro" siguen en la bitácora, pero ya no
+// salen en ninguna lista ni reservan su número.
+function centrosPurgados() {
+  const out = new Set();
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "purga") for (const nm of (cb.centros || [])) out.add(norm(nm));
+  return out;
+}
 function listaCentros() {
   const mapa = new Map();
+  const purgados = centrosPurgados();
   for (const c of PADRON) {
     if (c.activa === false || c.estatus === "BAJA") continue;
     const nom = String(c.centro || "").trim();
     if (!nom || /^c-?0$/i.test(nom)) continue;   // C-0 = créditos individuales
+    if (purgados.has(norm(nom))) continue;
     const e = mapa.get(nom) || { centro: nom, clientas: 0, ejecutivos: new Set() };
     e.clientas++; if (c.ejecutivo) e.ejecutivos.add(c.ejecutivo);
     mapa.set(nom, e);
   }
   for (const cb of store.cambiosPadron()) {
-    if (cb.tipo === "centro" && cb.centro && !mapa.has(cb.centro))
+    if (cb.tipo === "centro" && cb.centro && !mapa.has(cb.centro) && !purgados.has(norm(cb.centro)))
       mapa.set(cb.centro, { centro: cb.centro, clientas: 0, ejecutivos: new Set(cb.ejecutivo ? [cb.ejecutivo] : []) });
   }
   const lista = [...mapa.values()]
@@ -1678,80 +3517,345 @@ app.post("/api/centros", requiere("direccion", "admin"), (req, res) => {
   if (!nombresEjec.includes(ejecutivo)) return res.status(400).json({ error: "Elige la ejecutiva del centro." });
   if (listaCentros().some((c) => norm(c.centro) === norm(nombre)))
     return res.status(400).json({ error: "Ese centro ya existe: elígelo de la lista." });
-  if (store.cambiosPadron().some((cb) => cb.tipo === "centro" && String(cb.numero) === numero))
+  // Un centro PURGADO libera su número: su registro queda en la bitácora pero
+  // ya no reserva nada.
+  const purgadosNum = centrosPurgados();
+  if (store.cambiosPadron().some((cb) => cb.tipo === "centro" && String(cb.numero) === numero
+      && !purgadosNum.has(norm(cb.centro))))
     return res.status(400).json({ error: "Ese número de centro ya está usado." });
   store.agregarCambioPadron({ tipo: "centro", numero, centro: nombre, ejecutivo,
-    dia: String(b.dia || "").trim(), fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
+    dia: diaCanon(b.dia), fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
   res.json({ ok: true, centro: nombre, numero });
 });
 
-app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
+// PURGA DE REGISTROS DE PRUEBA (31-ago, orden de Karina: «elimina el centro y
+// usuarios como karina matus prueba»). Quita del padrón renglones que NO son
+// cartera: solo acepta socios dados de BAJA o de la burbuja de pruebas, y
+// centros sin una sola clienta activa. La purga queda grabada como cambio,
+// con autor, motivo y qué se llevó — quitar sin rastro no existe aquí.
+app.post("/api/padron/purga", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
-  // El socio se limpia de espacios y guiones antes de validar: al copiarlo de
-  // otra hoja a veces viene "1111 3077 777" o "1111-3077-777".
+  const socios = (Array.isArray(b.socios) ? b.socios : []).map((x) => String(x).trim()).filter(Boolean);
+  const centros = (Array.isArray(b.centros) ? b.centros : []).map((x) => String(x).trim()).filter(Boolean);
+  const motivo = String(b.motivo || "").trim();
+  if (!socios.length && !centros.length)
+    return res.status(400).json({ error: "Di qué socios o centros de prueba se purgan." });
+  if (motivo.length < 4) return res.status(400).json({ error: "Escribe el motivo de la purga (queda en la bitácora)." });
+  const esEjecPrueba = (nom) => Object.values(USUARIOS)
+    .some((u) => u.test && u.rol === "ejecutivo" && norm(u.nombre) === norm(String(nom || "")));
+  for (const s of socios) {
+    for (const c of PADRON.filter((x) => String(x.id) === s)) {
+      const esBaja = c.activa === false || c.estatus === "BAJA";
+      if (!esBaja && !esEjecPrueba(c.ejecutivo))
+        return res.status(400).json({ error: "El socio " + s + " (" + (c.nombre || "") + ") tiene un crédito ACTIVO con "
+          + (c.ejecutivo || "una ejecutiva") + ": eso es cartera, no se purga. Dalo de baja primero si de verdad es de prueba." });
+    }
+  }
+  const fueraSoc = new Set(socios);
+  for (const nm of centros) {
+    const vivas = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA"
+      && !fueraSoc.has(String(c.id))
+      && norm(String(c.centro || "").split("·").pop()) === norm(nm));
+    if (vivas.length)
+      return res.status(400).json({ error: "El centro " + nm + " todavía tiene " + vivas.length
+        + " clienta(s) activa(s): no se purga un centro con gente." });
+  }
+  store.agregarCambioPadron({ tipo: "purga", socios, centros, motivo,
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now() });
+  refrescarPadron();
+  res.json({ ok: true, socios, centros });
+});
+
+// Núcleo del alta real: valida, genera pagaré/plan/sobre (sincronización
+// automática) y escribe al padrón. Extraído 09-sep-2026 para que el flujo de
+// sobres/segregación (dispersar, más abajo) dé de alta EXACTAMENTE igual que
+// /api/clientes/alta — un crédito nacido por cualquiera de las dos puertas
+// queda idéntico, sin reglas de negocio duplicadas que puedan desalinearse.
+function procesarAltaPadron(b, usuario) {
+  b = b || {};
   const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
   const nombre = (b.nombre || "").trim();
   const centro = (b.centro || "").trim();
   const ejecutivo = (b.ejecutivo || "").trim();
-  // La cuenta de prueba NO toca el padrón real (probar el alta metía
-  // clientas falsas al padrón de verdad).
-  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." });
-  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
-  // Solo dígitos: un socio con letras o espacios jamás hará match con sus
-  // pagos (la llave de crédito es socio+producto) — sería basura en el padrón.
-  if (!/^\d{5,15}$/.test(id)) return res.status(400).json({ error: "El número de socio debe ser solo dígitos (ej. 11113075182)." });
-  if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
-  if (!centro) return res.status(400).json({ error: "Falta el centro." });
-  if (!ejecutivo) return res.status(400).json({ error: "Falta el ejecutivo." });
-  // El centro debe EXISTIR (evita centros fantasma por dedazo). "C-0" = individual.
+  if (usuario.test) return { status: 400, error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." };
+  if (!id) return { status: 400, error: "Falta el número de socio." };
+  if (!/^\d{5,15}$/.test(id)) return { status: 400, error: "El número de socio debe ser solo dígitos (ej. 11113075182)." };
+  if (!nombre) return { status: 400, error: "Falta el nombre de la clienta." };
+  if (!centro) return { status: 400, error: "Falta el centro." };
+  if (!ejecutivo) return { status: 400, error: "Falta el ejecutivo." };
   if (!/^c-?0$/i.test(centro) && !listaCentros().some((c) => norm(c.centro) === norm(centro)))
-    return res.status(400).json({ error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." });
-  // Duplicado exacto: mismo socio + mismo producto ya activo. Antes el alta se
-  // IGNORABA en silencio y parecía que sí se registró. El mensaje dice DÓNDE
-  // está el crédito que choca y cómo seguir — clave en reestructuras, donde la
-  // clienta suele existir ya con su crédito original.
-  // Si escribieron un producto que ya existe con otra puntuación, se guarda con
-  // el nombre que ya usa el padrón (no nace un "Foxi Plus 2" al lado del
-  // "Foxi Plus - 2" que ya estaba).
+    return { status: 400, error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." };
   const productoAlta = productoCanonico(b.producto);
-  if (!productoAlta) return res.status(400).json({ error: "Elige el tipo de crédito." });
+  if (!productoAlta) return { status: 400, error: "Elige el tipo de crédito." };
   const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(productoAlta));
   if (choca) {
     const donde = [choca.centro, choca.ejecutivo].filter(Boolean).join(" · ");
-    return res.status(400).json({
-      error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
+    return { status: 400, error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
         (donde ? " en " + donde : "") + ". Si está RENOVANDO ese mismo crédito, no la des de alta: usa \"Re-dar crédito\" en Créditos y saldos — ahí sí puede conservar el mismo nombre. " +
-        "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\").",
-    });
+        "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\")." };
   }
-  const clienta = {
+  const desembolso = String(b.desembolso || "").slice(0, 10);
+  if (desembolso && !/^\d{4}-\d{2}-\d{2}$/.test(desembolso))
+    return { status: 400, error: "La fecha de desembolso no se entiende (usa el calendario)." };
+  const diaPagoAlta = String(b.diaPago || "").trim().toUpperCase();
+  if (diaPagoAlta && !idxDia(diaPagoAlta))
+    return { status: 400, error: "Ese día de pago no existe (Lunes a Sábado)." };
+  let clienta = {
     id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
+    importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0,
+    desembolso: desembolso || null,
+    diaPago: diaPagoAlta || diaDelCentro(centro) || null,
   };
+  // SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014): en el mismo
+  // acto del alta, sin pantallas ni pasos aparte, se generan el pagaré, el
+  // plan de pagos y el sobre de dispersión — ver la sección de funciones
+  // arriba de diaDelCentro para el detalle y lo que a propósito no hace.
+  // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
+  // muta la de entrada — por eso se reasigna aquí.
+  clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): al originar se sincroniza el contador de ciclos
+  // limpios de la clienta (suma los ciclos ya terminados sin evaluar, reinicia
+  // si hay mora viva) y se deja la marca en el crédito. No cambia ninguna tasa.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, usuario) };
+  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
+  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
+  registrarGarantiaLiquidaAlDesembolsar(clienta, usuario);
+  // CU-017 (PLD-01/PLD-02): antes de escribir el crédito, suma lo otorgado a
+  // esta clienta en los últimos 6 meses y, si supera 1,605 UMA, la MARCA para
+  // aviso. Nunca bloquea: el alta sigue igual, solo queda `alertaPLD`.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, usuario) };
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
-    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+    fecha: hoyMX(), por: usuario.nombre, ts: Date.now(),
   });
+  // NOT-01 #3 "Desembolso realizado" (Dirección General · Gerencia de
+  // Sucursal) y el aviso nuevo a clienta de otorgamiento/renovación (11-sep-2026).
+  avisar("desembolso_realizado", { socio: id, usuario, test: !!usuario.test,
+    detalle: { nombre: clienta.nombre, centro: clienta.centro, producto: clienta.producto, importe: clienta.importe } });
+  avisar("otorgamiento_renovacion_cliente", { socio: id, usuario, test: !!usuario.test,
+    detalle: { nombre: clienta.nombre, producto: clienta.producto, importe: clienta.importe, tipo: clienta.recredito ? "renovacion" : "otorgamiento" } });
+  // NOT-01 #7 "Operación marcada por acumulación PLD" — solo si de verdad se
+  // marcó (PLD-02: el sistema marca, nunca bloquea; el aviso sigue esa misma regla).
+  if (clienta.alertaPLD && clienta.alertaPLD.activa) {
+    avisar("pld_marcada", { socio: id, usuario, test: !!usuario.test,
+      detalle: { nombre: clienta.nombre, acumulado: clienta.alertaPLD.acumulado, umbralPesos: clienta.alertaPLD.umbralPesos } });
+  }
   refrescarPadron();
-  // AVISO DE COBROS QUE YA TRAÍA. Cuando se da de alta a una clienta a la que la
-  // ejecutiva YA le cobró (el caso de "Agregar clienta nueva" en la app), hay
-  // dos formas de equivocarse y ninguna se ve:
-  //   1. capturar el saldo que debe HOY en vez del ORIGINAL → el sistema le
-  //      resta el pago otra vez y la clienta queda debiendo de menos;
-  //   2. escribir el producto distinto al del cobro → el pago se queda huérfano.
-  // Se contesta con lo que de verdad quedó, para que se vea en el momento.
-  const yaCobrado = cobranzaSinCredito(req.usuario, corteSaldos())
+  const yaCobrado = cobranzaSinCredito(usuario, corteSaldos())
     .filter((x) => String(x.socio) === id);
-  const info = infoCredito(carteraViva(req.usuario), clienta);
-  res.json({ ok: true, clienta,
+  const info = infoCredito(carteraViva(usuario), clienta);
+  return {
+    ok: true, clienta, alertaPLD: clienta.alertaPLD || null,
     saldoCapturado: clienta.saldo,
     yaLePagaron: Math.round((info.pagado || 0) * 100) / 100,
     saldoQuedaEn: Math.round((info.saldoActual || 0) * 100) / 100,
-    // Cobros de ESE socio que siguen sin empatar: casi siempre el producto se
-    // escribió distinto.
+    ciclosLimpios: clienta.ciclosLimpios || null,
     cobrosQueSiguenSueltos: yaCobrado.map((x) => ({ producto: x.producto, monto: x.pago })),
+  };
+}
+
+app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
+  const r = procesarAltaPadron(req.body, req.usuario);
+  if (r.error) return res.status(r.status || 400).json({ error: r.error });
+  res.json(r);
+});
+
+// ---------- SOBRES / SEGREGACIÓN DE FUNCIONES (CU-011/012/013, Regla K.2, CU-021) ----------
+// Reconstruido en el repo real 09-sep-2026. Carlos: "lo que estaba en el fork
+// carlosmatusm-svg/fooax se tiene que volver a hacer pero ahora en el repo de
+// Karina, tomando lo que está en los PR y en main". Se toma como referencia el
+// diseño de store_credito.js/rutas_credito.js del fork (commit c303b0a) —
+// solicitud → autoriza → dispersa → entrega → custodia — pero SIN portar su
+// taxonomía de "puestos" (Gerencia de Sucursal, Administración y Finanzas,
+// Control Operativo…): este repo real solo tiene rol ejecutivo|direccion|admin.
+// La Regla K.2 (quien autoriza no dispersa, quien dispersa no entrega, quien
+// entrega no custodia) se resuelve comparando el USUARIO literal de cada paso
+// — no un puesto — que es el equivalente más honesto sin inventar una
+// taxonomía que Dirección no ha confirmado (ver PENDIENTES §28, ESC-01).
+//
+// DIFERENCIA DELIBERADA con el fork: ahí "dispersar" dejaba un
+// `cartera_pendiente_alta` SIN tocar el padrón real (limitación documentada).
+// Aquí "dispersar" SÍ escribe al padrón real — reutiliza `procesarAltaPadron`,
+// la misma función que usa /api/clientes/alta, para que un crédito nacido por
+// este flujo quede IDÉNTICO a uno nacido por el alta directa (mismo pagaré,
+// mismo plan de pagos, mismo sobre de dispersión — sincronización automática
+// CU-013/CU-014 corre en el mismo acto).
+//
+// ESCALERA DE AUTORIZACIÓN: configurable por Dirección vía
+// /api/configuracion/escalera-autorizacion, VACÍA por defecto (mismo criterio
+// del fork: los montos/nombres de la escalera — ESC-01 — siguen sin
+// confirmarse, así que no se inventan). Con la escalera vacía, cualquier
+// dirección/admin puede autorizar; en cuanto Dirección registre usuarios ahí,
+// SOLO esos usuarios pueden autorizar (aunque no sean dirección/admin —
+// Dirección puede delegar la autorización a quien decida).
+//
+// La cuenta de PRUEBA puede solicitar/autorizar/entregar/custodiar (para
+// poder probar el flujo completo), pero JAMÁS dispersar — dispersar es el paso
+// que escribe al padrón real, y ninguna cuenta de prueba toca el padrón real
+// (mismo candado que ya tiene /api/clientes/alta).
+
+// folioSolicitud, solicitudPorFolio, escaleraAutorizacion, puedeAutorizar y
+// los 5 validarX (Regla K.2) viven en dominios/sobres_segregacion.js desde
+// el 10-sep-2026 — las rutas de abajo (solicitar/autorizar/rechazar/
+// dispersar/entregar/custodiar) siguen aquí, son el "pegamento" HTTP.
+const {
+  folioSolicitud,
+  solicitudPorFolio,
+  escaleraAutorizacion,
+  puedeAutorizar,
+  validarAutorizar,
+  validarRechazar,
+  validarDispersar,
+  validarEntregar,
+  validarCustodiar,
+} = require("./dominios/sobres_segregacion")({ store });
+
+// SOLICITAR (paso 1): cualquier ejecutivo/dirección/admin puede levantar la
+// solicitud — es la captura de la información, todavía no compromete dinero.
+app.post("/api/solicitudes", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
+  const nombre = (b.nombre || "").trim();
+  const centro = (b.centro || "").trim();
+  const ejecutivo = (b.ejecutivo || req.usuario.nombre || "").trim();
+  const productoSolicitado = productoCanonico(b.producto);
+  const importe = Number(b.importe) || 0;
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
+  if (!productoSolicitado) return res.status(400).json({ error: "Elige el tipo de crédito." });
+  if (importe <= 0) return res.status(400).json({ error: "Falta el importe solicitado." });
+  const solicitud = {
+    folio: folioSolicitud(),
+    estado: "solicitada",
+    test: !!req.usuario.test,
+    id, nombre, centro, ejecutivo, producto: productoSolicitado,
+    importe, plazo: Number(b.plazo) || 0, saldo: Number(b.saldo) || 0,
+    cuota: Number(b.cuota) || 0,
+    desembolso: String(b.desembolso || "").slice(0, 10) || null,
+    diaPago: diaCanon(b.diaPago) || null,
+    comision: b.comision != null ? Number(b.comision) : null,
+    seguro: b.seguro != null ? Number(b.seguro) : null,
+    solicitadaPor: req.usuario.nombre, solicitadaPorId: req.usuario.id, solicitadaTs: Date.now(),
+  };
+  store.agregarSolicitud(solicitud);
+  avisar("solicitud_nueva", { socio: solicitud.id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { folio: solicitud.folio, nombre: solicitud.nombre, producto: solicitud.producto, importe: solicitud.importe } });
+  res.json({ ok: true, solicitud });
+});
+
+app.get("/api/solicitudes", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const estado = (req.query.estado || "").trim();
+  let lista = store.solicitudes().filter((s) => !!s.test === !!req.usuario.test);
+  if (estado) lista = lista.filter((s) => s.estado === estado);
+  res.json({ ok: true, solicitudes: lista });
+});
+
+app.get("/api/solicitudes/:folio", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  res.json({ ok: true, solicitud: s });
+});
+
+// AUTORIZA (paso 2, escalera K.2).
+app.post("/api/solicitudes/:folio/autorizar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarAutorizar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "autorizada",
+    autorizadaPor: req.usuario.nombre, autorizadaPorId: req.usuario.id, autorizadaTs: Date.now(),
   });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// RECHAZAR: se puede rechazar mientras no se haya dispersado (después de
+// dispersar ya hay dinero comprometido — eso ya no se "rechaza", se maneja
+// como baja, igual que cualquier otro crédito activo).
+app.post("/api/solicitudes/:folio/rechazar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const motivo = ((req.body && req.body.motivo) || "").trim();
+  const v = validarRechazar(s, req.usuario, motivo);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "rechazada", rechazadaPor: req.usuario.nombre, rechazadaPorId: req.usuario.id,
+    rechazadaTs: Date.now(), motivoRechazo: motivo,
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// DISPERSA (paso 3, Regla K.2: quien autoriza NO dispersa). Este es el paso
+// que de verdad da de alta en el padrón real — usa procesarAltaPadron, la
+// MISMA función que usa el alta directa, para que el resultado sea idéntico
+// sin importar por cuál puerta entró el crédito.
+app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarDispersar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+
+  // CU-010: expediente íntegro y validado, y quien validó no dispersa.
+  const cand = expediente.validarDispersion(s, req.usuario, EXPEDIENTE_CANDADO_DISPERSION);
+  if (cand.error) return res.status(cand.status).json({ error: cand.error, expediente: cand.expediente ?? null });
+
+  // El paso que de verdad mueve dinero: si algo truena aquí (motor de
+  // reglas, store), se responde 500 en vez de tumbar el proceso completo —
+  // la solicitud se queda en "autorizada" y se puede reintentar.
+  let altaRes;
+  try {
+    altaRes = procesarAltaPadron(s, req.usuario);
+  } catch (error) {
+    console.error(`[dispersar ${s.folio}] procesarAltaPadron falló: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo dispersar por un error interno. Intenta de nuevo o avisa a soporte." });
+  }
+  if (altaRes.error) return res.status(altaRes.status || 400).json({ error: altaRes.error });
+
+  const { clienta } = altaRes;
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "dispersada",
+    dispersadaPor: req.usuario.nombre, dispersadaPorId: req.usuario.id, dispersadaTs: Date.now(),
+    pagare: clienta.pagare ?? null,
+    planPagos: clienta.planPagos ?? [],
+    sobreDispersion: clienta.sobreDispersion ?? null,
+  });
+  res.json({ ok: true, solicitud: actualizada, clienta, expediente: cand.estatus, candadoExpediente: EXPEDIENTE_CANDADO_DISPERSION ? "activo" : "aviso" });
+});
+
+// ENTREGA (paso 4, Regla K.2: quien dispersa NO entrega) — el sobre físico
+// (pagaré + tabla + ticket) se entrega a la clienta (paso 3 del mockup "3B").
+app.post("/api/solicitudes/:folio/entregar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarEntregar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "entregada", entregadaPor: req.usuario.nombre, entregadaPorId: req.usuario.id, entregadaTs: Date.now(),
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// CUSTODIA DEL PAGARÉ (paso 5, Regla K.2: quien entrega NO custodia) — cierra
+// el ciclo: el pagaré firmado regresa a resguardo (CU-014, paso 7 del mockup).
+app.post("/api/solicitudes/:folio/custodiar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarCustodiar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "en_custodia", custodiadaPor: req.usuario.nombre, custodiadaPorId: req.usuario.id, custodiadaTs: Date.now(),
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// Configuración de la escalera de autorización — solo Dirección/admin.
+app.get("/api/configuracion/escalera-autorizacion", requiere("direccion", "admin"), (req, res) => {
+  res.json({ ok: true, escaleraAutorizacion: escaleraAutorizacion() });
+});
+app.put("/api/configuracion/escalera-autorizacion", requiere("direccion", "admin"), (req, res) => {
+  const lista = Array.isArray(req.body && req.body.escaleraAutorizacion) ? req.body.escaleraAutorizacion : null;
+  if (!lista) return res.status(400).json({ error: "Manda escaleraAutorizacion como lista de usuarios." });
+  const invalidos = lista.filter((u) => !USUARIOS[u]);
+  if (invalidos.length) return res.status(400).json({ error: "Usuario(s) inexistente(s): " + invalidos.join(", ") });
+  const cfg = store.guardarConfiguracion(Object.assign({}, store.configuracion(), { escaleraAutorizacion: lista }));
+  res.json({ ok: true, escaleraAutorizacion: cfg.escaleraAutorizacion });
 });
 
 app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
@@ -1845,6 +3949,27 @@ function finDelPlazo(c) {
   else f.setDate(f.getDate() + pl * 7);
   return f.toISOString().slice(0, 10);
 }
+// VENCIDA POR PLAZO CUMPLIDO (observación de la mora de Neri, 25-ago: «ya pasa
+// a ser vencido porque terminó su plazo... la app no los marca»). NO es el
+// atraso a medio crédito —ese se recorre, regla de la Ing. Monse del 4-ago—:
+// aquí el calendario COMPLETO ya se acabó y la clienta sigue debiendo. Ya no
+// hay semana a la cual recorrerse: es recuperación. Se deriva sola con fecha
+// de desembolso + plazo (verificados el 25-ago); nadie la marca a mano, y por
+// eso mismo se corrige sola si Dirección corrige la fecha o el plazo.
+// `ref` es la fecha CONTRA la que se pregunta. Por defecto es el LUNES de la
+// semana en curso — la MISMA vara que usa la mora semanal—: un crédito que
+// termina a media semana todavía tenía cobro ESA semana, y se vuelve vencido
+// el lunes siguiente. Así la tarjeta, el semáforo, la cartera y la mora nunca
+// se contradicen entre sí. La mora de una semana PASADA pasa su propio lunes:
+// un crédito vivo en agosto fue mora de agosto aunque hoy ya esté vencido —
+// la historia no se reescribe.
+function vencidaPorPlazo(c, info, ref) {
+  if (esVencido(c)) return false;              // ya viene marcada: no se duplica
+  if (aunNoDesembolsa(c)) return false;
+  if (!info || (info.saldoActual || 0) <= 0.009) return false;
+  const fin = finDelPlazo(c);
+  return !!fin && fin < (ref || lunesDeLaSemana(hoyMX()));
+}
 // ATRASO EN NÚMERO DE PAGOS. Corrección del 4-ago: el PLAZO NO ES UNA FECHA
 // LÍMITE, es un NÚMERO DE PAGOS. Si una clienta falta tres semanas, su crédito
 // de 24 pagos se recorre a 27 semanas — no «se venció». Lo aclaró la Ing. Monse
@@ -1872,6 +3997,151 @@ function atrasoEnPagos(c, info) {
   const debio = Math.min(pl, transcurridos);
   return { atraso: debio - hechos, hechos, debio, restantes, transcurridos, plazo: pl };
 }
+// TODAVÍA NO LE ENTREGAN EL DINERO: no puede deber, no se le espera cuota.
+// (Karina, 12-ago: «asegúrate que sincronice con la mora en el tablero y lo
+// demás».) La mora semanal ya excluía estos créditos; la CARTERA no: sumaban a
+// lo esperado y a pendiente de cobro, y si su día ya había pasado, el semáforo
+// los pintaba EN MORA — tres semanas antes del desembolso.
+// EL DÍA DE PAGO DEL CENTRO, para heredarlo en las altas (Karina, 12-ago:
+// «cuando den de alta traiga ese dato y no nos falle la mora»). Primero el que
+// se registró con el centro; si no, el día ÚNICO de sus créditos activos (48 de
+// 50 centros cobran todos el mismo día). Si el centro cobra en días mezclados,
+// no se adivina: se pide en el formulario.
+function diaDelCentro(centro) {
+  const n0 = norm(String(centro || "").split("·").pop());
+  if (!n0) return "";
+  for (const cb of store.cambiosPadron())
+    if (cb.tipo === "centro" && norm(cb.centro) === n0 && idxDia(cb.dia)) return String(cb.dia).toUpperCase();
+  const dias = new Set();
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (norm(String(c.centro || "").split("·").pop()) !== n0) continue;
+    const d = String(c.diaPago || "").trim().toUpperCase();
+    if (idxDia(d)) dias.add(d);
+  }
+  return dias.size === 1 ? [...dias][0] : "";
+}
+// ---------- SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014) ----------
+// En este sistema no hay un paso separado de "dispersar": dar de alta o
+// re-dar un crédito ES el desembolso (el dinero ya se entregó cuando se
+// captura). Por eso, en el MISMO acto de /api/clientes/alta y de
+// /api/creditos/recredito, se genera junto con el crédito: el pagaré
+// (registro simple, ver más abajo), el plan de pagos (fechas por el MISMO
+// método que ya usa vencimientosEntre/calendarioDelCredito para medir la
+// mora, con el desglose capital/interés/IVA del motor de reglas real cuando
+// el producto resuelve contra el catálogo — ver CORRECCIÓN 09-sep-2026 en
+// generarPlanPagos) y el sobre de dispersión (comisión + garantía líquida +
+// neto, Anexo F Secciones 7/8, Regla 3.3: "cada pago se desglosa y se
+// almacena separado"). El registro en cartera no necesita nada nuevo:
+// carteraViva() ya lee directo del PADRON, así que en cuanto existe el alta
+// ya está en cartera — cero recaptura, cero volver a subir nada.
+//
+// Lo que esto NO hace, a propósito, por los mismos huecos que ya documenta
+// CU-014 §10: no genera el PDF legal del pagaré (catálogo de productos
+// formal y validación legal del Lic. César Cáceres siguen pendientes), y no
+// decide la mecánica real de "cómo se entrega el efectivo" (DISP-01/02,
+// sigue sin definir en Pendientes por Confirmar). Tampoco toca el campo
+// `cuota` ya guardado en el crédito (el que usan mora/saldo en todo el
+// resto del sistema) aunque el motor calcule una cuota distinta — cambiar
+// ESE campo es una decisión aparte, con su propio impacto en mora y saldo,
+// que no es parte de este cambio.
+
+// Porcentaje de garantía líquida retenida al desembolsar. Anexo F, Secciones
+// 7 y 8 ("el 10% que normalmente se recibe de la clienta"), validado por
+// CLIC (Contadora Consuelo). Parámetro de entorno, nunca fijo en código —
+// mismo patrón que COMPROBANTE_DOMICILIO_MESES_MAX (DOC-01).
+const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUIDA) || 10;
+
+// AJUSTE MANUAL DE GARANTÍA — QUIÉN AUTORIZA (CU-006, RESUELTO 21-sep-2026,
+// audio de Karina): Lic. Alejandra (Ing. Alejandra González Arango) o Lic.
+// Monse, cualquiera de las dos. Se verifica por IDENTIDAD DE SESIÓN (el id
+// de USUARIOS con el que se entró), nunca por un campo de texto libre — ver
+// dominios/garantia_liquida.js#puedeAutorizarAjusteManual. Parámetro de
+// entorno (lista separada por comas), nunca fijo en código, mismo patrón que
+// RIESGO_ROLES_PUEDEN_CAMBIAR — por si Dirección agrega o quita a alguien
+// sin necesitar un deploy.
+const USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA = (process.env.GARANTIA_USUARIOS_AUTORIZAN_AJUSTE || "alejandra,monse")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+// Dominio Garantía Líquida extraído a dominios/garantia_liquida.js (10-sep-2026,
+// ver "Reducir dependencia del monolito server.js" en CLAUDE.md). server.js
+// solo inyecta lo que el dominio necesita y usa las funciones que regresa —
+// la lógica de negocio en sí ya no vive aquí.
+const {
+  registrarGarantiaLiquidaAlDesembolsar,
+  garantiaLiquidaDisponible,
+  garantiaADisponible,
+  ultimaSalidaGarantiaLiquida,
+  ticketGarantiaLiquidaH14,
+  resumenGarantias,
+  estadoDeCuentaGarantia,
+  validarAportacionGarantiaEnReestructura,
+  elegibilidadLiberacionGarantia,
+  reporteSemanalGarantias,
+  reporteSalidaGarantiasPorClienta,
+  corteDiarioGarantias,
+  ticketLiberacionGarantia,
+  alertaVencimientoGarantiaHipotecaria,
+  alertasGarantiaHipotecariaPorVencer,
+  alertasPlazoEntregaGarantia,
+  registrarRegresoHojaLiberacion,
+  alertasPlazoRegresoHojaLiberacion,
+  registrarAjusteManualGarantia,
+  validarSalidaAnticipadaGarantiaLiquida,
+} = require("./dominios/garantia_liquida")({
+  store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
+  infoCredito, carteraViva,
+  obtenerPadron: () => PADRON,
+  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+  numeroDePago,
+  hoyMX,
+  // Vigencia de la garantía hipotecaria (21-sep-2026, audio de Karina + pedido
+  // de Carlos): días de anticipación del aviso, configurable — mismo patrón
+  // que COMPROBANTE_DOMICILIO_MESES_MAX, nunca hardcodeado en la lógica.
+  garantiaHipotecariaDiasAlerta: Number(process.env.GARANTIA_HIPOTECARIA_DIAS_ALERTA) || 3,
+  usuariosAutorizanAjusteManual: USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA,
+});
+
+// Dominio Notificaciones (NOT-01, CU-020) extraído a
+// dominios/notificaciones.js (12-sep-2026): bandeja interna de avisos,
+// aprobada por Dirección General el 11-sep-2026. Ver la cabecera de ese
+// archivo para el catálogo completo de eventos NOT-01, cuáles ya disparan
+// aviso desde un punto real del código y cuáles quedan pendientes por no
+// existir todavía la funcionalidad de origen.
+const notificaciones = require("./dominios/notificaciones")({ store, hoyMX });
+// Envuelve crearAviso para que un error de un evento no construido, o
+// cualquier otro fallo al notificar, nunca tumbe la operación de negocio que
+// lo dispara (CU-020 §4: "si algo no sale como se espera" — un aviso es
+// siempre secundario a la operación real).
+function avisar(clave, datos) {
+  try { return notificaciones.crearAviso({ clave, ...datos }); }
+  catch (error) { console.error(`[notificaciones] ${clave}: ${error.message}`); return null; }
+}
+
+// Dominio Sincronización al Desembolso (CU-013/CU-014) extraído a
+// dominios/sincronizacion_desembolso.js (10-sep-2026, ver "Reducir
+// dependencia del monolito server.js" en CLAUDE.md) — sobre de dispersión,
+// pagaré (registro) y plan de pagos, generados juntos al desembolsar.
+const {
+  generarSobreDispersion,
+  generarPagare,
+  generarPlanPagos,
+  sincronizarAlDesembolsar,
+} = require("./dominios/sincronizacion_desembolso")({
+  nprod, hoyMX, idxDia, diaSiguiente, motor,
+  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+});
+
+// (generarSobreDispersion, generarPagare, generarPlanPagos y
+// sincronizarAlDesembolsar viven en dominios/sincronizacion_desembolso.js
+// desde el 10-sep-2026; registrarGarantiaLiquidaAlDesembolsar vive en
+// dominios/garantia_liquida.js — ambos comentarios junto a
+// PORCENTAJE_GARANTIA_LIQUIDA)
+
+function aunNoDesembolsa(c) {
+  const d = String(c.desembolso || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) && d > hoyMX();
+}
 function estaTerminado(c, info) {
   if (/termino|liquidad/i.test(String(c.estatus || ""))) return true;
   return !!info && (info.saldoActual || 0) <= 0.009;
@@ -1884,21 +4154,313 @@ function semaforoDe(c, info, pagoSemana) {
   // ni en mora aunque traiga la marca de antes.
   if (estaTerminado(c, info)) return "liquidada";
   if (esVencido(c) || Number(c.mora) > 0) return "vencida";
+  if (vencidaPorPlazo(c, info)) return "vencida";
   if (info.saldoActual <= 0) return "liquidada";
   // Cuota VARIABLE (Magnus): su cuota baja cada periodo, así que compararla
   // contra la del padrón daría un semáforo falso. Se aparta hasta que exista
   // el módulo de intereses.
   if (esCuotaVariable(c.producto)) return "cuotaVariable";
+  // Aún no desembolsa: no es mora ni parcial — está pendiente de que le
+  // entreguen su dinero, no de que pague.
+  if (aunNoDesembolsa(c)) return "pendiente";
   // "pendiente" NO es mora: cada centro cobra en su día, y el lunes casi nadie
   // ha pagado todavía. Ahora que el crédito trae su DÍA, se puede separar de
   // verdad (lo pidió Anel el 4-ago): si su día ya PASÓ y no cubrió, eso sí es
   // mora; si todavía no le toca —o le toca hoy—, es pendiente de cobro.
   const dc = idxDia(c.diaPago), hy = idxHoy();
+  // SIN ABONAR: si su día ya pasó, es mora; si no le toca todavía, es pendiente.
   if (pagoSemana <= 0) return (dc > 0 && dc < hy) ? "enMora" : "pendiente";
-  if (dc > 0 && dc < hy && cuotaDelCredito(c) > 0 && pagoSemana + 0.01 < cuotaDelCredito(c)) return "enMora";
+  // PAGÓ ALGO PERO NO COMPLETÓ: es PAGO PARCIAL, haya pasado su día o no
+  // (Karina, 15-ago: «esas tienen que ir en cartera en el área de pago
+  // parcial»). Antes, si su día ya había pasado, se iban al montón de la mora:
+  // el jueves ya no quedaba una sola parcial y se perdía de vista quién está
+  // pagando a medias, que es distinto de quien no paga.
   if (cuotaDelCredito(c) > 0 && pagoSemana + 0.01 < cuotaDelCredito(c)) return "parcial";
   return "alCorriente";
 }
+// VERIFICADOR DE DESGLOSE (Karina, 12-ago: «checa si pasó con otras más —
+// necesito que lo prevés»). El hoyo de YOALI se notó porque lo APLICADO al
+// saldo no se podía LISTAR en Ver pagos. Esto revisa esa igualdad para TODOS
+// los créditos de una pasada: lo que carteraViva aplicó vs lo que el historial
+// alcanza a mostrar. Si vuelven a divergir por cualquier rincón, aquí truena.
+function verificarDesglose(usuario) {
+  const corte = corteSaldos();
+  const cv = carteraViva(usuario);
+  const { porFecha } = pagosDeLaSemana(usuario, corte);
+  const listable = {};
+  for (const clave in porFecha)
+    for (const f in porFecha[clave])
+      if (f >= corte) listable[clave] = (listable[clave] || 0) + (porFecha[clave][f].p || 0);
+  const ts0 = corteTs();
+  const vivosPorSocio = {};
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    (vivosPorSocio[String(c.id)] = vivosPorSocio[String(c.id)] || []).push(c);
+  }
+  for (const m of store.todosMovimientos()) {
+    if (m.anulado) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
+    if (!(String(m.fecha) >= corte || (Number(m.ts) || 0) > ts0)) continue;
+    const soc = socioDeMov(m); if (!soc) continue;
+    const monto = Number(m.monto) || 0;
+    if (m.producto) listable[claveCredito(soc, m.producto)] = (listable[claveCredito(soc, m.producto)] || 0) + monto;
+    else for (const cr of (vivosPorSocio[soc] || []))
+      listable[claveCredito(cr.id, cr.producto)] = (listable[claveCredito(cr.id, cr.producto)] || 0) + monto;
+  }
+  let revisados = 0;
+  const rotos = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const info = infoCredito(cv, c);
+    const aplicado = Math.round(((info.pagado || 0) + (info.liquidado || 0)) * 100) / 100;
+    if (aplicado <= 0.009) continue;
+    revisados++;
+    const lst = Math.round((listable[claveCredito(c.id, c.producto)] || 0) * 100) / 100;
+    if (lst + 0.01 < aplicado)
+      rotos.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto,
+        ejecutivo: c.ejecutivo, aplicado, listable: lst,
+        faltaEnLaLista: Math.round((aplicado - lst) * 100) / 100 });
+  }
+  return { revisados, rotos };
+}
+// ===================================================================
+// MOTOR DE REGLAS · intereses por producto (Fase 3)
+// El cálculo NO vive aquí: vive en data/reglas-productos.json, que edita
+// Dirección. Estas rutas solo lo exponen.
+// ===================================================================
+app.get("/api/reglas", requiere("direccion", "admin"), (req, res) => {
+  const R = motor.reglas(true);   // relee al vuelo: si acaban de editar una tasa, se ve
+  const listos = [], esperando = [];
+  for (const p of R.productos || []) {
+    // FOXI y FOXI+ no traen tasa en el padre: la traen sus VARIANTES (por ciclo
+    // o por plazo). No están esperando dato — están listos, solo hay que decir
+    // cuál. Antes caían en "esperando" y parecía que faltaba información que ya
+    // había llegado.
+    const conVariantes = Array.isArray(p.variantes) && p.variantes.length > 0;
+    const fila = { clave: p.clave, nombre: p.nombre, metodo: p.metodo,
+      periodicidad: p.periodicidad, tasaMensual: p.tasaMensual,
+      montoMin: p.montoMin || null, montoMax: p.montoMax || null,
+      plazos: p.plazos || null, fuente: p.fuente || null,
+      iva: p.iva != null ? p.iva : R.iva,
+      variantes: conVariantes ? p.variantes : null,
+      comoElegir: conVariantes ? (p.faltaVariante || null) : null,
+      advertencia: p.advertencia || null, faltaPara: p.faltaPara || null };
+    (!conVariantes && (p.pendiente || p.tasaMensual == null) ? esperando : listos).push(fila);
+  }
+  res.json({ version: R.version, vigenteDesde: R.vigenteDesde, iva: R.iva,
+    redondeo: R.redondeo, moratorio: R.moratorio,
+    listos, esperando, autoprueba: motor.autoprueba(),
+    consistencia: consistenciaCatalogo() });
+});
+
+// EL DESGLOSE DE UN CRÉDITO VIVO (Karina, 23-ago: «cuando le dé clic en el
+// saldo buscando a la clienta, que aparezca la cuota, total a pagar y los
+// intereses más el IVA, más desglosado»).
+//
+// El monto sale del IMPORTE guardado; los créditos viejos no lo traen, así que
+// se DEDUCE de la cuota invirtiendo la fórmula del método A — y se dice que fue
+// deducido, nunca se presenta como capturado.
+function desgloseDeCredito(c) {
+  const r = motor.resolverCredito(c);
+  if (!r.ok) return { ok: false, motivo: r.motivo, fueraDeCatalogo: !!r.fueraDeCatalogo };
+  const p = r.producto;
+  const plazo = Number(c.plazo) || p.plazo || 0;
+  let monto = Number(c.importe) || 0, deducido = false;
+  if (!(monto > 0)) {
+    if (p.metodo !== "A" || !(Number(c.cuota) > 0) || !(plazo > 0))
+      return { ok: false, motivo: "Sin el importe original no se puede desglosar este crédito (" + (p.nombre || c.producto) + ")." };
+    const f = p.tasaMensual / (p.periodicidad === "mensual" ? 1 : 4);
+    const iva = p.iva != null ? p.iva : (motor.reglas().iva || 0.16);
+    const exacto = Number(c.cuota) / (1 / plazo + f * (1 + iva));
+    // A los montos redondos que FOOAX presta: si el redondeo a centenas
+    // reproduce la cuota, ese es; si no, se usa el exacto y se avisa.
+    const redondo = Math.round(exacto / 100) * 100;
+    monto = redondo; deducido = true;
+    const t0 = motor.tablaAmortizacion({ producto: r.clave, monto: redondo, plazo, ciclo: r.ciclo });
+    if (!(t0.ok && Math.abs(t0.cuota - Number(c.cuota)) < 1.5)) monto = Math.round(exacto * 100) / 100;
+  }
+  const t = motor.tablaAmortizacion({ producto: r.clave, monto, plazo, ciclo: r.ciclo });
+  if (!t.ok) return { ok: false, motivo: t.motivo };
+  const p0 = t.pagos[0] || {};
+  // La garantía que la clienta tiene GUARDADA (neteada): es lo que Dirección
+  // necesita ver antes de entregarle una garantía líquida.
+  let garantiaGuardada = 0, garantiaAG = 0;
+  try { const iG = infoCredito(carteraViva({ rol: "direccion", nombre: "Dirección" }), c);
+    garantiaGuardada = iG.garantia || 0; garantiaAG = iG.garantiaA || 0; } catch (e2) {}
+  return { ok: true, producto: t.producto, clave: r.clave, ciclo: r.ciclo || null, plazo,
+    garantiaGuardada: Math.round(garantiaGuardada * 100) / 100,
+    garantiaAGuardada: Math.round((garantiaAG || 0) * 100) / 100,
+    monto, deducido, cuota: t.cuota || p0.cuota || 0,
+    primerPago: { capital: p0.capital, interes: p0.interes, iva: p0.iva },
+    totales: t.totales,
+    cuotaCapturada: Number(c.cuota) || 0,
+    coincide: Math.abs((t.cuota || 0) - (Number(c.cuota) || 0)) < 1.5 };
+}
+
+app.get("/api/creditos/desglose", requiere("direccion", "admin"), (req, res) => {
+  const q = req.query || {};
+  const c = PADRON.find((x) => String(x.id) === String(q.socio || "").trim()
+    && nprod(x.producto) === nprod(q.producto || ""));
+  if (!c) return res.status(404).json({ ok: false, motivo: "No encuentro ese crédito en el padrón." });
+  res.json(desgloseDeCredito(c));
+});
+
+// LA CONSISTENCIA CATÁLOGO ↔ PADRÓN (Karina, 23-ago: «busca cualquier falla de
+// desactualización o que se actualicen juntos»). Tres archivos hablan de
+// productos —el catálogo, el puente y el padrón— y si uno cambia sin los
+// otros, el hueco se nota semanas después en un crédito mal cobrado. Esto los
+// coteja completos y se enseña donde alguien está a punto de cotizar.
+function consistenciaCatalogo() {
+  const R = motor.reglas(true), E = motor.equivalencias(true);
+  const cat = {}; for (const p of R.productos || []) cat[p.clave] = p;
+  const fallas = [], avisos = [];
+  const usados = new Set();
+  for (const eq of (E.equivalencias || [])) {
+    const claves = eq.porPlazo ? Object.values(eq.porPlazo) : (eq.clave ? [eq.clave] : []);
+    for (const cl of claves) {
+      usados.add(cl);
+      if (!cat[cl]) fallas.push("El puente apunta a «" + cl + "» (" + eq.padron + ") y esa clave NO está en el catálogo.");
+    }
+  }
+  for (const p of R.productos || []) {
+    if (!usados.has(p.clave) && !p.sinPadron)
+      avisos.push("«" + p.nombre + "» está en el catálogo pero ningún nombre del padrón llega a él: nadie lo puede dar de alta.");
+  }
+  let sinEquivalencia = 0, muestras = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const r = motor.resolverCredito(c);
+    if (!r.ok && r.sinEquivalencia) { sinEquivalencia++; if (muestras.length < 5) muestras.push(c.producto); }
+  }
+  if (sinEquivalencia) fallas.push(sinEquivalencia + " crédito(s) vivos con producto sin equivalencia: "
+    + muestras.join(", ") + ". Se agregan en data/equivalencias-productos.json.");
+  return { ok: fallas.length === 0, fallas, avisos };
+}
+
+// LOS PRODUCTOS COMO LOS VE EL ALTA (Karina, 23-ago: «que seleccione el
+// producto que nosotros creamos —Grupal Básico 18, 24, FOXI, FOXI+— como en el
+// simulador, y que se linkee al producto que ellos ya tienen»).
+//
+// Cada opción trae DOS nombres: la etiqueta del catálogo (lo que Monse ve al
+// elegir) y `padron`, el nombre con el que se GUARDA — el que las apps, la
+// clave de crédito y los reportes ya conocen. Se arma al revés del puente:
+// misma tabla de equivalencias, leída de catálogo → padrón, así un producto
+// nuevo sigue siendo una entrada en el JSON y nada más.
+app.get("/api/reglas/alta-productos", requiere("direccion", "admin"), (req, res) => {
+  const R = motor.reglas(true), E = motor.equivalencias(true);
+  const cat = {}; for (const p of R.productos || []) cat[p.clave] = p;
+  const out = [];
+  const mx = (n2) => "$" + Number(n2 || 0).toLocaleString("es-MX");
+  for (const eq of (E.equivalencias || [])) {
+    if (eq.porPlazo) {
+      // Solo el ciclo 1: los ciclos siguientes nacen por «Re-dar crédito»,
+      // que les pega su número al nombre.
+      if ((eq.ciclo || 1) !== 1) continue;
+      for (const pl of Object.keys(eq.porPlazo)) {
+        const p = cat[eq.porPlazo[pl]]; if (!p) continue;
+        out.push({ etiqueta: p.nombre, padron: eq.padron, clave: p.clave, plazo: Number(pl),
+          montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+      }
+      continue;
+    }
+    const p = cat[eq.clave]; if (!p) continue;
+    if (Array.isArray(p.variantes) && p.variantes.length) {
+      if (eq.ciclo != null) {           // Individual N = FOXI ciclo N
+        const v = p.variantes.find((x) => Number(x.ciclo) === Number(eq.ciclo));
+        if (v) out.push({ etiqueta: v.nombre + (v.monto ? " · " + mx(v.monto) : ""),
+          padron: eq.padron, clave: p.clave, ciclo: eq.ciclo, plazo: v.plazo || null,
+          monto: v.monto || null, montoMin: v.monto || null, montoMax: v.monto || null });
+      } else if (eq.plazoFijo != null) { // Foxi Plus - 1 = el de 32 sem
+        const v = p.variantes.find((x) => Number(x.plazo) === Number(eq.plazoFijo));
+        if (v) out.push({ etiqueta: v.nombre, padron: eq.padron, clave: p.clave,
+          plazo: v.plazo, montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+      } else if (eq.usarPlazoDelCredito) { // Foxi Plus - 2 = 24 o 16 sem
+        const tomados = new Set((E.equivalencias || [])
+          .filter((x) => x !== eq && x.clave === eq.clave && x.plazoFijo != null)
+          .map((x) => Number(x.plazoFijo)));
+        for (const v of p.variantes)
+          if (v.plazo && !tomados.has(Number(v.plazo)))
+            out.push({ etiqueta: v.nombre, padron: eq.padron, clave: p.clave,
+              plazo: v.plazo, montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+      }
+    } else {                             // MAGNUS, COMADRE: directos
+      out.push({ etiqueta: p.nombre, padron: eq.padron, clave: p.clave,
+        plazo: (p.plazos && p.plazos.length === 1) ? p.plazos[0] : null,
+        montoMin: p.montoMin || null, montoMax: p.montoMax || null });
+    }
+  }
+  res.json({ productos: out });
+});
+
+// Simula un crédito y devuelve su tabla de amortización completa.
+app.get("/api/reglas/simular", requiere("direccion", "admin"), (req, res) => {
+  const q = req.query || {};
+  const dias = String(q.diasPorPeriodo || "").trim();
+  // EL NOMBRE PUEDE VENIR DE LOS DOS LADOS. Del catálogo ("GRUPAL_BASICO_24")
+  // cuando lo llama el simulador, o del PADRÓN ("Grupal-Basico") cuando lo
+  // llama el alta. Se intenta el puente primero para que la pantalla y la
+  // operación hablen el mismo idioma: quien da de alta escribe el nombre que
+  // conoce, no una clave interna.
+  const puente = motor.resolverCredito({
+    producto: q.producto, plazo: Number(q.plazo) || null, saldo: Number(q.monto) || 0 });
+  // Si el puente ya sabe POR QUÉ no se puede (reestructura, falta el plazo), esa
+  // es la respuesta buena. Caer al catálogo la tapaba con un "no está en el
+  // motor de reglas" que no le dice nada a quien está dando el alta.
+  if (!puente.ok && (puente.fueraDeCatalogo || puente.faltaPlazo || puente.plazoDesconocido))
+    return res.status(400).json({ ok: false, motivo: puente.motivo, fueraDeCatalogo: !!puente.fueraDeCatalogo });
+  const productoFinal = puente.ok ? puente.clave : q.producto;
+  const cicloFinal = q.ciclo != null && q.ciclo !== "" ? Number(q.ciclo)
+    : (puente.ok ? puente.ciclo : null);
+  const t = motor.tablaAmortizacion({
+    producto: productoFinal, monto: Number(q.monto), plazo: Number(q.plazo),
+    // EL CICLO (Anel, 19-ago): FOXI cambia de tasa y de monto en cada uno de
+    // sus 5 ciclos. Sin este parámetro el simulador no podía cotizar FOXI —
+    // el motor pedía el ciclo y la ruta no lo mandaba.
+    ciclo: cicloFinal,
+    dias: Number(q.dias) || 0,
+    diasPorPeriodo: dias ? dias.split(",").map((x) => Number(x.trim())) : null,
+  });
+  if (!t.ok) return res.status(400).json(t);
+  res.json(t);
+});
+
+app.get("/api/desglose", requiere("direccion", "admin"), (req, res) => {
+  res.json(verificarDesglose(req.usuario));
+});
+
+// QUIÉNES SON (Karina, 14-ago: «que pueda tocar estos y vea qué clientas
+// son»). La lista de cada color del semáforo. Usa EXACTAMENTE el mismo
+// clasificador que cuenta los chips (semaforoDe con los mismos insumos), así
+// el número del chip y el largo de la lista no pueden diferir jamás.
+app.get("/api/cartera/semaforo", requiere("direccion", "admin"), (req, res) => {
+  const estado = String(req.query.estado || "");
+  const validos = ["alCorriente", "parcial", "pendiente", "enMora", "vencida", "liquidada", "cuotaVariable"];
+  if (!validos.includes(estado))
+    return res.status(400).json({ error: "Estado desconocido. Usa: " + validos.join(", ") });
+  const cv = carteraViva(req.usuario);
+  const sem = pagosDeLaSemana(req.usuario);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const filas = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    const info = infoCredito(cv, c);
+    const pagoSemana = sem.pago[claveCredito(c.id, c.producto)] || 0;
+    if (semaforoDe(c, info, pagoSemana) !== estado) continue;
+    const cuota = Number(c.cuota) || 0;
+    filas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo,
+      producto: c.producto, diaPago: c.diaPago || null, cuota,
+      pagoSemana: r2(pagoSemana), saldoActual: r2(info.saldoActual),
+      faltante: r2(Math.max(0, Math.min(cuota || Infinity, cuota) - pagoSemana)),
+      cuotasSinPagar: Number(c.mora) > 0 ? Number(c.mora) : 0 });
+  }
+  // Orden por lo que DECIDE en cada color: en mora y parcial, lo que falta;
+  // vencidas y las demás, el dinero en juego; al corriente, por nombre.
+  if (estado === "enMora" || estado === "parcial") filas.sort((a2, b2) => b2.faltante - a2.faltante);
+  else if (estado === "alCorriente") filas.sort((a2, b2) => String(a2.nombre).localeCompare(String(b2.nombre), "es"));
+  else filas.sort((a2, b2) => b2.saldoActual - a2.saldoActual);
+  res.json({ estado, total: filas.length, filas });
+});
+
 app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   const cv = carteraViva(req.usuario);
   const sem = pagosDeLaSemana(req.usuario);          // ventana semanal (lunes → hoy)
@@ -1915,7 +4477,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
   // Un crédito está EN RECUPERACIÓN si trae cuotas sin pagar (columna `mora` de
   // la plantilla, que Monse definió como «las cuotas que no ha pagado el
   // cliente») o si ya está vencido. Su dinero cuenta SOLO como recuperación.
-  const enRecuperacion = (c) => Number(c.mora) > 0 || esVencido(c);
+  const enRecuperacion = (c, info) => Number(c.mora) > 0 || esVencido(c) || vencidaPorPlazo(c, info);
   for (const c of activos) {
     const info = infoCredito(cv, c);
     const clave = claveCredito(c.id, c.producto);
@@ -1931,7 +4493,8 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
       // dictado de Monse (29-jul) "mora = los faltantes de pago de los créditos
       // ACTIVOS". Un vencido ya no tiene cuota que esperar, está en recuperación
       // — y lo que entre de él es RECUPERACIÓN, no cobranza de la semana.
-      if (!esCuotaVariable(c.producto) && !esVencido(c)) {
+      if (!esCuotaVariable(c.producto) && !esVencido(c) && !aunNoDesembolsa(c)
+          && !vencidaPorPlazo(c, info)) {
         const cu = Math.min(Number(c.cuota) || 0, info.saldoActual);
         esperado += cu;
         const d = idxDia(c.diaPago);
@@ -1946,12 +4509,17 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     }
     if (info.saldoActual <= 0) acc.liquidadas++;
     const mora = Number(c.mora) > 0 ? Number(c.mora) : 0;
-    if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, mora, saldoActual: info.saldoActual }); }
+    // LA COLUMNA `mora` DEL PADRÓN ES UN CONTEO, no pesos: «las cuotas que no
+    // ha pagado el cliente» (Monse). En el padrón real vale 12, 21, 63, 229 —
+    // con cuotas de $320. Sumarla y pintarla como "$21 de mora" era enseñar un
+    // número falso. El DINERO en riesgo es otro: el saldo vivo de ese crédito.
+    if (mora > 0) { acc.moraMonto += mora; acc.moraCreditos++; vencidas.push({ socio: String(c.id), nombre: c.nombre, centro: c.centro, ejecutivo: c.ejecutivo, producto: c.producto, cuotasSinPagar: mora, saldoActual: info.saldoActual }); }
+    if (enRecuperacion(c, info)) acc.enRiesgo = (acc.enRiesgo || 0) + info.saldoActual;
     const np = numeroDePago(c, info.saldoActual);
     if (np && np.inconsistente) inconsistentes.push({ socio: String(c.id), nombre: c.nombre, producto: c.producto, ejecutivo: c.ejecutivo, saldo: c.saldo || 0, cuota: c.cuota || 0, plazoPadron: np.plazo, plazoReal: np.restantes });
     const e = porEjec[c.ejecutivo || "—"] || (porEjec[c.ejecutivo || "—"] = { nombre: c.ejecutivo || "—", creditos: 0, cartera: 0, mora: 0, esperado: 0, esperadoALaFecha: 0, pendiente_: 0, cobrado: 0, alCorriente: 0, parcial: 0, pendiente: 0, enMora: 0, vencida: 0, liquidada: 0, cuotaVariable: 0 });
     e.creditos++; e.cartera += info.saldoActual; e.moraAcum = (e.moraAcum || 0) + mora; e[s]++;
-    if (info.saldoActual > 0 && !esCuotaVariable(c.producto) && !esVencido(c)) {
+    if (info.saldoActual > 0 && !esCuotaVariable(c.producto) && !esVencido(c) && !aunNoDesembolsa(c)) {
       const cuE = Math.min(Number(c.cuota) || 0, info.saldoActual);
       const dE = idxDia(c.diaPago);
       e.esperado += cuE;
@@ -1965,6 +4533,24 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     else e.cobrado += pagoSemana;
   }
   const r2 = (n) => Math.round(n * 100) / 100;
+  // LA MORA DE LA TARJETA ES LA MISMA DEL EXCEL (Karina, 15-ago: «tiene que
+  // llevar la mora lo que tenemos en los exceles»). Antes esta tarjeta la
+  // calculaba aparte —cuota menos lo pagado ESTA semana— y el reporte usaba el
+  // método de Monse —arrastre desde el corte, topado a una cuota y al saldo—.
+  // Con pagos reales los dos números se separan: la que adelantó la semana
+  // pasada salía debiendo aquí y no allá. Ahora el reporte MANDA y la tarjeta
+  // lo muestra, así no puede haber dos verdades.
+  //   · "mora · ya venció"  = lo vencido a la fecha (lo comparable con Monse)
+  //   · "aún no vence"      = los días de la semana que todavía no llegan
+  const mw = moraDeLaSemana(req.usuario);
+  const moraPorEjec = {};
+  for (const g of (mw.dias || [])) {
+    if (!g.vencido) continue;
+    for (const x of (g.filas || []))
+      moraPorEjec[x.ejecutivo || "—"] = r2((moraPorEjec[x.ejecutivo || "—"] || 0) + (x.faltante || 0));
+  }
+  moraReal = mw.totalVencido;
+  pendienteCobro = mw.totalPorVencer;
   // COBRANZA vs RECUPERACIÓN (dictado de Monse, 4-ago, opción A):
   // «recuperación es todo lo entrante, tanto de créditos de mora como de créditos
   // vencidos», y ese dinero cuenta SOLO como recuperación — NO se suma también a
@@ -1988,7 +4574,12 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     creditosActivos: activos.length, conSaldo,
     cartera: r2(acc.cartera),
     saldoPromedio: conSaldo ? r2(acc.cartera / conSaldo) : 0,
-    moraMonto: r2(acc.moraMonto), moraCreditos: acc.moraCreditos,
+    // `moraMonto`/`moraPorcentaje` mezclaban unidades (cuotas entre pesos) y ya
+    // no se enseñan; quedan por compatibilidad. Los buenos son estos dos:
+    moraCuotasTotal: acc.moraMonto, moraCreditos: acc.moraCreditos,
+    carteraEnRiesgo: r2(acc.enRiesgo || 0),
+    riesgoPorcentaje: acc.cartera > 0 ? r2(((acc.enRiesgo || 0) / acc.cartera) * 100) : 0,
+    moraMonto: r2(acc.moraMonto),
     moraPorcentaje: acc.cartera > 0 ? r2((acc.moraMonto / acc.cartera) * 100) : 0,
     liquidadas: acc.liquidadas,
     // MORA DE LA SEMANA vs RECUPERACIÓN (corazón de la Fase 2, versión
@@ -2003,6 +4594,11 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // la que YA venció sin cubrirse: ese es el número de riesgo.
     pendienteSemana: r2(pendienteCobro),
     moraSemana: r2(moraReal),
+    // De dónde sale la mora: el MISMO reporte que baja en Excel. Si algún día
+    // vuelven a divergir, este campo delata cuál se movió.
+    moraFuente: "reporte de la semana (método Monse)",
+    moraCreditosSemana: (mw.dias || []).reduce((n, g) => n + (g.vencido ? (g.filas || []).length : 0), 0),
+    moraLunes: mw.lunes,
     // Se conserva el cálculo anterior con su nombre viejo para no romper nada que
     // lo lea, pero el tablero ya no lo muestra como "mora".
     esperadoMenosCobrado: r2(Math.max(0, esperado - cobrado)),
@@ -2014,11 +4610,57 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     semaforo,
     porEjec: Object.values(porEjec).map((e) => ({ ...e, cartera: r2(e.cartera), mora: r2(e.moraAcum || 0),
       esperado: r2(e.esperado), esperadoALaFecha: r2(e.esperadoALaFecha), cobrado: r2(e.cobrado),
-      moraSemana: r2(e.mora), pendienteSemana: r2(e.pendiente_),
+      moraSemana: moraPorEjec[e.nombre] || 0, pendienteSemana: r2(e.pendiente_),
       cumplimiento: e.esperadoALaFecha > 0 ? r2((e.cobrado / e.esperadoALaFecha) * 100) : 0 })),
-    inconsistentes, vencidas: vencidas.sort((a, b) => b.mora - a.mora).slice(0, 50),
+    inconsistentes, vencidas: vencidas.sort((a, b) => b.saldoActual - a.saldoActual).slice(0, 50),
+    // MISMO CRÉDITO CAPTURADO EN DOS LUGARES (Karina, 15-ago). Se toma la
+    // captura del centro donde la clienta está en el padrón y se ignora la
+    // otra, pero se DICE: el renglón sobrante hay que borrarlo en la app, si no
+    // vuelve cada semana.
+    pagosDuplicados: (pagosDeLaSemana(req.usuario, corteSaldos()).duplicados || []).slice(0, 50),
+    // EL CORTE ADELANTADO SIN PLANTILLA (Karina, 15-ago). Si el corte se movió
+    // a mano por delante de la última plantilla cargada, los pagos hechos en
+    // medio dejaron de descontar y las clientas aparecen debiendo lo que ya
+    // pagaron. Es dinero real que se ve perdido, así que se avisa arriba.
+    corteAdelantado: (() => {
+      const cortes = store.cambiosPadron().filter((x) => x.tipo === "corte"
+        && /^\d{4}-\d{2}-\d{2}$/.test(x.fecha || ""));
+      const ultimoPlantilla = [...cortes].reverse().find((x) => x.dePlantilla);
+      const base = ultimoPlantilla ? ultimoPlantilla.fecha : null;
+      const actual = corteSaldos();
+      if (!base || !actual || actual <= base) return null;
+      const imp = pagosQueDejanDeContar(req.usuario, base, actual);
+      if (!(imp.monto > 0)) return null;
+      return { desdeLaPlantilla: base, corteActual: actual, monto: imp.monto,
+        creditos: imp.creditos, clientas: imp.clientas.slice(0, 20) };
+    })(),
+    // EL GASTO QUE DICE «TRANSFERENCIA» PERO SE ANOTÓ COMO EFECTIVO (Karina,
+    // 18-ago). En el arqueo del martes había «PAGO NOMINA EN TRANSFERENCIA» por
+    // $33,192 marcado en efectivo: ese dinero nunca salió de la caja, así que
+    // el arqueo pedía entregar $33,192 menos de los que había. El concepto lo
+    // dice con todas sus letras; solo hacía falta leerlo.
+    gastosMalMarcados: (() => {
+      const out = [];
+      const desde = lunesDeLaSemana(hoyMX());
+      for (let d = new Date(desde + "T12:00:00"); ; d.setDate(d.getDate() + 1)) {
+        const f = d.toISOString().slice(0, 10);
+        if (f > hoyMX()) break;
+        for (const m of movsDeFecha(f, req.usuario)) {
+          if (m.anulado || m.entrada || m.metodo !== "efectivo") continue;
+          const txt = String(m.concepto || "") + " " + String(m.tipo || "");
+          if (!/transferenc|deposit|dep[oó]sito|spei/i.test(txt)) continue;
+          out.push({ fecha: f, folio: m.folio, concepto: String(m.concepto || "").slice(0, 90),
+            monto: Math.abs(Number(m.monto) || 0), registradoPor: m.registradoPor || "" });
+        }
+      }
+      return out;
+    })(),
     // Liquidaciones que entraron a la caja pero no le bajaron el saldo a nadie.
     liquidacionesSinClienta: liquidacionesSinClienta(req.usuario, corteSaldos()),
+    // Las que SÍ traen clienta pero no dicen de cuál de sus créditos: el sistema
+    // las reparte en orden y le baja el saldo al que no es. Son las de antes del
+    // 8-ago; se listan para corregirlas una por una (Karina, 8-ago).
+    liquidacionesSinCredito: liquidacionesSinCredito(req.usuario, corteSaldos()),
     // Abonos capturados DESPUÉS del corte pero con fecha anterior a él. Ya
     // descuentan (antes se perdían en silencio), pero se avisan: mueven saldos
     // de días que la plantilla daba por cerrados, y eso Monse tiene que verlo.
@@ -2029,7 +4671,7 @@ app.get("/api/cartera", requiere("direccion", "admin"), (req, res) => {
     // el Excel de Monse para comparar.
     conciliacion: conciliacionDeSaldos(req.usuario),
     movsAtrasados: movsAtrasadosQueSiCuentan(req.usuario, corteSaldos())
-      .filter((m) => /^(liquidaci|recuperaci)/i.test(tipoDeMov(m)))
+      .filter((m) => /^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m)))
       .map((m) => { const s = socioDeMov(m); const cl = s && PADRON.find((c) => String(c.id) === String(s));
         return { folio: m.folio, fecha: m.fecha, monto: m.monto, socio: s || null,
           clienta: cl ? cl.nombre : null, registradoPor: m.registradoPor || null,
@@ -2106,7 +4748,7 @@ function seriesSemanales(usuario) {
     const u = id && USUARIOS[id];
     if (!!(u && u.test) !== !!(usuario && usuario.test)) continue;   // misma burbuja
     const tipo = tipoDeMov(m) || "Otro";
-    if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) continue;
     const b = bucket(m.fecha);
     b.recuperacion += m.monto;
     const soc = socioDeMov(m);
@@ -2186,19 +4828,68 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   const q = norm(req.query.q).trim();
   const cv = carteraViva(req.usuario);
   let base = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA");
-  const conSaldo = base.map((c) => ({ ...c, ...infoCredito(cv, c) }));
+  // LO ABONADO, SEMANA POR SEMANA (Karina, 15-ago: «la semana es de lunes a
+  // domingo, y aquí hicieron un pago una semana y a la siguiente le puso pagó
+  // tanto esta semana»). La tarjeta decía "pagó $960 esta sem." sumando TODO lo
+  // abonado desde el corte: los $480 del 6-ago eran de la semana anterior.
+  // Ahora se desglosa por semana y cada una dice su lunes.
+  const { porFecha: pfCred } = pagosDeLaSemana(req.usuario, corteSaldos());
+  const semanasDe = (c) => {
+    const clave = claveCredito(c.id, c.producto);
+    const porLunes = {};
+    for (const f in (pfCred[clave] || {})) {
+      const p = pfCred[clave][f].p || 0;
+      if (p <= 0) continue;
+      const L = lunesDeLaSemana(f);
+      porLunes[L] = Math.round(((porLunes[L] || 0) + p) * 100) / 100;
+    }
+    return Object.keys(porLunes).sort().reverse().map((L) => ({ lunes: L, monto: porLunes[L] }));
+  };
+  const lunesHoy = lunesDeLaSemana(hoyMX());
+  const conSaldo = base.map((c) => {
+    const semanas = semanasDe(c);
+    const estaSem = semanas.find((x) => x.lunes === lunesHoy);
+    const info = infoCredito(cv, c);
+    return { ...c, ...info, porSemana: semanas,
+      pagadoEstaSemana: estaSem ? estaSem.monto : 0, lunesDeHoy: lunesHoy,
+      ciclo: Number(c.ciclo) || 1,
+      // Para que la tarjeta de estas listas también diga VENCIDA con su fecha.
+      vencidaPlazo: vencidaPorPlazo(c, info), finPlazo: finDelPlazo(c),
+      liquidadoEl: fechaDeLiquidacion(c, cv, pfCred) };
+  });
   let lista = conSaldo;
   if (estado === "liquidadas") lista = conSaldo.filter((c) => (c.saldo || 0) > 0 && c.saldoActual <= 0);
   // esVencido(): reconoce "VENCIDO" y "CREDITO VENCIDO A RECUPERAR" como los
   // escribe la plantilla. Antes comparaba contra "VENCIDA" y este filtro devolvía
   // SIEMPRE vacío, aunque hubiera 29 vencidos reales (29-jul).
-  else if (estado === "vencidas") lista = conSaldo.filter((c) => esVencido(c) || Number(c.mora) > 0);
+  // La VENCIDA DERIVADA (terminó su plazo y sigue debiendo, 25-ago) también
+  // sale en esta lista: es el filtro donde Dirección va a buscarlas.
+  else if (estado === "vencidas") lista = conSaldo.filter((c) => esVencido(c) || Number(c.mora) > 0 || c.vencidaPlazo);
   else if (q.length >= 2) {
     const t = q.split(/\s+/);
     lista = conSaldo.filter((c) => { const h = norm(c.nombre) + " " + c.id; return t.every((x) => h.includes(x)); });
   } else lista = [];
   lista = lista.sort((a, b) => String(a.centro).localeCompare(String(b.centro), "es") || String(a.nombre).localeCompare(String(b.nombre), "es")).slice(0, 120);
   res.json({ total: base.length, resultados: lista });
+});
+
+// PAGARÉ + PLAN DE PAGOS + SOBRE DE DISPERSIÓN de un crédito (CU-013/CU-014,
+// sincronización automática al desembolsar). No recalcula nada: solo lee lo
+// que ya se generó en /api/clientes/alta o /api/creditos/recredito y lo
+// devuelve junto, para verificar sin tener que abrir el padrón entero.
+app.get("/api/creditos/plan-pagos", soloAnelMonse, (req, res) => {
+  const id = String(req.query.id || "").replace(/[\s\-.]/g, "").trim();
+  const producto = String(req.query.producto || "").trim();
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  const c = PADRON.find((x) => x.activa !== false && x.estatus !== "BAJA" && String(x.id) === id
+    && (!producto || nprod(x.producto) === nprod(producto)));
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({
+    id: c.id, producto: c.producto, centro: c.centro, diaPago: c.diaPago || null,
+    pagare: c.pagare || null,
+    planPagos: c.planPagos || [],
+    sobreDispersion: c.sobreDispersion || null,
+  });
 });
 
 // HISTORIAL DE PAGOS de un crédito: qué pagó, en qué fecha y quién lo capturó.
@@ -2215,7 +4906,14 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
   const id = String(req.query.id || "").trim();
   const producto = String(req.query.producto || "").trim();
   if (!id) return res.status(400).json({ error: "Falta el número de socio." });
-  const c = PADRON.find((x) => String(x.id) === id && (!producto || x.producto === producto));
+  // EL ACTIVO MANDA. Al renovar quedan DOS registros con el mismo socio y el
+  // mismo producto —el viejo dado de baja y el nuevo—, y tomar el primero
+  // mezclaba los dos: el saldo salía del registro VIEJO y lo abonado del
+  // crédito VIVO. Por eso el 10-ago la tarjeta de BLANCA VERONICA decía el
+  // disparate «saldo de la plantilla $288 − pagado desde el corte $288 = $2,712».
+  const cand = PADRON.filter((x) => String(x.id) === id && (!producto || x.producto === producto));
+  const c = cand.find((x) => x.activa !== false && x.estatus !== "BAJA")
+    || cand.slice().sort((x, y) => String(y.alta_fecha || "").localeCompare(String(x.alta_fecha || "")))[0];
   if (!c) return res.status(404).json({ error: "No encuentro ese crédito." });
   const corte = corteSaldos();
   const clave = claveCredito(c.id, c.producto);
@@ -2236,20 +4934,42 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     for (const fecha in snaps[ej]) {
       let data = snaps[ej][fecha].snapshot;
       if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
-      for (const bloque of [data && data.reg, data && data.regI]) {
-        if (!bloque) continue;
-        for (const k in bloque) acum(bloque[k], k, fecha, USUARIOS[ej] ? USUARIOS[ej].nombre : ej);
-      }
+      // EN DOS NIVELES, como pagosDeLaSemana. `reg` guarda centro → clienta →
+      // pago, y este recorrido era PLANO: le pasaba el CENTRO entero a acum(),
+      // que no le encontraba pago y lo tiraba. Resultado: los pagos capturados
+      // dentro de un centro NUNCA salían en «Ver pagos» — solo los individuales.
+      // Lo destapó Karina el 12-ago con YOALI KAREN: su pago del lunes ($576,
+      // centro OSHER) no aparecía, aunque el saldo sí lo descontaba.
+      const acumPlano = (st) => {
+        if (!st || typeof st !== "object") return;
+        for (const k in st) {
+          const nd = st[k];
+          if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd))
+            acum(nd, k, fecha, USUARIOS[ej] ? USUARIOS[ej].nombre : ej);
+          else if (nd && typeof nd === "object")
+            for (const kk in nd) acum(nd[kk], kk, fecha, USUARIOS[ej] ? USUARIOS[ej].nombre : ej);
+        }
+      };
+      acumPlano(data && data.reg); acumPlano(data && data.regI);
     }
   }
   // Liquidaciones y recuperaciones: van por SOCIO, no por crédito.
   for (const m of (store.respaldo().movimientos || [])) {
     if (m.anulado || socioDeMov(m) !== String(c.id)) continue;
     const tipo = tipoDeMov(m);
-    if (!/^(liquidaci|recuperaci)/i.test(tipo)) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipo)) continue;
+    // LA LIQUIDACIÓN ES DE SU CRÉDITO, NO DE TODOS (Karina, 12-ago): la de
+    // YOALI ($2,880, Grupal-Basico 2) salía también en el «Ver pagos» de su
+    // Grupal-Adicional, aunque ahí no descontó un peso. Si el movimiento dice
+    // de cuál crédito es, solo se muestra en ese. Los viejos sin crédito se
+    // siguen mostrando en todos: no hay forma de saber de cuál eran.
+    if (m.producto && nprod(m.producto) !== nprod(c.producto)) continue;
     filas.push({ fecha: m.fecha, tipo: "liquidacion", ejecutivo: m.registradoPor || "—",
       pago: m.monto, garantia: 0, solidario: 0, forma: m.metodo || "efectivo",
-      cuenta: String(m.fecha) >= corte, folio: m.folio });
+      // Cuenta si es del corte en adelante O si se capturó DESPUÉS de fijar el
+      // corte (fecha atrasada): la plantilla no pudo traerlo, así que sí baja
+      // el saldo — y la tarjeta debe decirlo igual que lo aplica carteraViva.
+      cuenta: String(m.fecha) >= corte || (Number(m.ts) || 0) > corteTs(), folio: m.folio });
   }
   // LO QUE LE CORRIGIÓ DIRECCIÓN, con su motivo (Karina, 7-ago). Un pago
   // anulado desaparece del historial —queda en cero y deja de sumar—, así que
@@ -2287,6 +5007,21 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
 
   filas.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
   const info = infoCredito(carteraViva(req.usuario), c);
+  // EL DESCUADRE SE ANUNCIA SOLO (Karina, 12-ago: «si lo dan de alta tiene que
+  // aparecer — chécalo»). El hoyo de YOALI se notó porque el resumen decía
+  // $3,456 y los renglones sumaban $2,880: dinero aplicado que la lista no
+  // enseñaba. Ese cotejo ahora lo hace la propia tarjeta en cada carga: si lo
+  // aplicado es MÁS de lo que se alcanza a listar, viene `descuadre` con el
+  // monto y el tablero lo pinta en rojo. Así el próximo hoyo de esta familia
+  // no espera a que alguien lo note: se denuncia solo.
+  // El solidario cuenta como pago desde el 4-sep (regla Monse), así que el
+  // cotejo lo suma también — si no, cada aporte solidario pintaría un
+  // descuadre falso en rojo.
+  const sumaListada = Math.round(filas.filter((x) => x.cuenta)
+    .reduce((t, x) => t + (x.pago || 0) + (x.solidario || 0), 0) * 100) / 100;
+  const aplicado = Math.round(((info.pagado || 0) + (info.liquidado || 0)) * 100) / 100;
+  const descuadre = (sumaListada + 0.01 < aplicado)
+    ? Math.round((aplicado - sumaListada) * 100) / 100 : 0;
   res.json({
     socio: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
     ejecutivo: c.ejecutivo, cuota: c.cuota || 0, corte,
@@ -2297,6 +5032,7 @@ app.get("/api/credito/historial", soloAnelMonse, (req, res) => {
     pagadoAntesDelCorte: Math.round(filas.filter((x) => !x.cuenta).reduce((s, x) => s + x.pago, 0) * 100) / 100,
     historial: filas,
     correcciones,
+    descuadre,
   });
 });
 
@@ -2369,13 +5105,222 @@ app.post("/api/creditos/ajuste", soloAnelMonse, (req, res) => {
     if (!ok) return res.status(400).json({ error: "Ese ejecutivo no existe. Elige uno de: " + nombres.join(", ") });
     campos.ejecutivo = ok;
   }
-  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota o el ejecutivo." });
+  // FECHA DE DESEMBOLSO (Karina, 15-ago). Es el dato con el que el sistema
+  // distingue un crédito NUEVO —que todavía no debe— de uno que ya venía
+  // corriendo. Faltaba poder capturarla después del alta: los que se dieron de
+  // alta sin ella no había forma de arreglarlos, y quedaban midiéndose desde
+  // el corte para siempre.
+  if (b.desembolso != null && b.desembolso !== "") {
+    const des = String(b.desembolso).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(des))
+      return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
+    campos.desembolso = des;
+  }
+  // DÍA DE PAGO: sin él la clienta es invisible para la mora, así que también
+  // se puede corregir aquí.
+  if (b.diaPago != null && b.diaPago !== "") {
+    const dp = diaCanon(b.diaPago);
+    if (!idxDia(dp)) return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
+    campos.diaPago = dp;
+  }
+  // PLAZO (Karina, 19-ago). Es lo que decide QUÉ producto del catálogo es el
+  // crédito: un Grupal Básico de 18 semanas cobra 5.67% y uno de 24 cobra
+  // 6.32%. Sin plazo el motor no calcula —y no debe adivinar—, así que hacía
+  // falta poder capturarlo después del alta, igual que la fecha de desembolso.
+  if (b.plazo != null && String(b.plazo).trim() !== "") {
+    const pl = Number(b.plazo);
+    if (!Number.isInteger(pl) || pl < 1 || pl > 200)
+      return res.status(400).json({ error: "El plazo es el NÚMERO DE PAGOS del crédito (por ejemplo 18 o 24), entre 1 y 200." });
+    campos.plazo = pl;
+  }
+  // CENTRO (caso Leticia Morales, 14-sep): la clienta que se cambia de centro
+  // se corrige aquí, sin baja + alta (eso revive el crédito viejo con su fecha
+  // y la regresa al centro anterior). El centro destino debe EXISTIR en el
+  // padrón — protege el catálogo único (CU-13) contra typos — y el número de
+  // centro se hereda del destino para que fichas y mora la agrupen bien.
+  if (b.centro != null && String(b.centro).trim() !== "") {
+    const buscado = norm(String(b.centro));
+    const canon = PADRON.find((x) => norm(x.centro || "") === buscado && x.centro);
+    const registro = store.cambiosPadron().find((cb) => cb.tipo === "centro" && norm(cb.centro || "") === buscado);
+    if (!canon && !registro)
+      return res.status(400).json({ error: "Ese centro no existe en el padrón ni en el catálogo. Escríbelo igual que aparece en el sistema (o da de alta el centro primero)." });
+    const nombreCanon = canon ? canon.centro : String(registro.centro).toUpperCase();
+    if (norm(nombreCanon) !== norm(c.centro || "")) {
+      campos.centro = nombreCanon;
+      // El número del centro destino se hereda de donde exista: una clienta
+      // que lo traiga, o el registro del catálogo (centro recién creado).
+      const conNum = PADRON.find((x) => norm(x.centro || "") === buscado && x.noCentro);
+      const her = (canon && canon.noCentro) || (conNum && conNum.noCentro)
+        || (registro && registro.numero ? "C-" + registro.numero : null);
+      if (her) campos.noCentro = her;
+    }
+  }
+  if (!Object.keys(campos).length) return res.status(400).json({ error: "No hay nada que cambiar: pon el saldo nuevo, la cuota, el plazo, el ejecutivo, la fecha de desembolso, el día de pago o el centro." });
   store.agregarCambioPadron({
     tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
     saldoAnterior: c.saldo || 0, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
   });
   refrescarPadron();
   res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
+// CAPTURA de datos del crédito que NO son dinero: fecha de desembolso, día de
+// pago y plazo. Puerta separada del ajuste (OK de Karina, 25-ago, para cargar
+// el archivo VERIFICADO de fechas): cualquier rol de dirección/admin puede
+// completar estos datos — son captura, no movimiento de saldos — y cada uno
+// queda en la bitácora del padrón con autor y motivo. Saldo, cuota y
+// reasignación siguen viviendo SOLO en /api/creditos/ajuste con su candado.
+app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  const campos = {};
+  if (b.desembolso != null && b.desembolso !== "") {
+    const des = String(b.desembolso).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(des))
+      return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
+    campos.desembolso = des;
+  }
+  if (b.diaPago != null && b.diaPago !== "") {
+    const dp = diaCanon(b.diaPago);
+    if (!idxDia(dp)) return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
+    campos.diaPago = dp;
+  }
+  if (b.plazo != null && String(b.plazo).trim() !== "") {
+    const pl = Number(b.plazo);
+    if (!Number.isInteger(pl) || pl < 1 || pl > 200)
+      return res.status(400).json({ error: "El plazo es el NÚMERO DE PAGOS del crédito (por ejemplo 18 o 24), entre 1 y 200." });
+    campos.plazo = pl;
+  }
+  // CAMBIO DE EJECUTIVO (27-ago: la cuenta de Karina se da de baja y su
+  // cartera se reparte con el PADRÓN ACTUALIZADO de Dirección). Reasignar NO
+  // toca saldos ni cuotas — el crédito se va con los números que ya trae — y
+  // la bitácora guarda de quién venía (ejecutivo_anterior), quién lo movió y
+  // por qué. Solo nombres de ejecutivas que existen.
+  if (b.ejecutivo) {
+    const nombres = Object.keys(USUARIOS)
+      .filter((k2) => USUARIOS[k2].rol === "ejecutivo").map((k2) => USUARIOS[k2].nombre);
+    const okE = nombres.find((n) => norm(n) === norm(String(b.ejecutivo)));
+    if (!okE) return res.status(400).json({ error: "Ese ejecutivo no existe. Elige uno de: " + nombres.join(", ") });
+    campos.ejecutivo = okE;
+  }
+  if (!Object.keys(campos).length)
+    return res.status(400).json({ error: "No hay nada que capturar: pon la fecha de desembolso, el día de pago, el plazo o el ejecutivo." });
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto, campos, motivo,
+    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
+// DOC-01 (carta "Definiciones de Dirección aprobadas", Dirección General,
+// 02-sep-2026): INE vigente por su propia fecha de vencimiento (impresa en
+// la credencial); comprobante de domicilio vigente solo dentro de esta
+// antigüedad máxima desde su fecha de emisión. Parámetro configurable —
+// NUNCA hardcodeado en la lógica de negocio.
+const COMPROBANTE_DOMICILIO_MESES_MAX = Number(process.env.COMPROBANTE_DOMICILIO_MESES_MAX) || 3;
+
+// vigenciaDocumentosRenovacion vive en dominios/renovacion_documentos.js
+// desde el 10-sep-2026 (ver "Reducir dependencia del monolito server.js" en
+// CLAUDE.md) — las rutas que la usan siguen aquí, son el pegamento HTTP.
+const { vigenciaDocumentosRenovacion } = require("./dominios/renovacion_documentos")({
+  hoyMX, comprobanteDomicilioMesesMax: COMPROBANTE_DOMICILIO_MESES_MAX,
+});
+
+// Documentos de renovación (CU-007 §3, precisión de Karina 24-ago sobre qué
+// cuenta como "actualizado" al renovar): INE y comprobante de domicilio son
+// SIEMPRE obligatorios, sin excepción — por eso el candado exige los dos, no
+// uno solo. Lo que este endpoint NO hace: decidir si un documento vencido
+// bloquea la renovación (CU-007 §10.6, todavía sin definir) — solo registra
+// que se capturaron y cuándo, con motivo en la bitácora.
+// DOC-01 (carta Dirección 02-sep): además de la fecha de captura, ahora se
+// puede mandar la fecha PROPIA de cada documento (vencimiento de la INE,
+// emisión del comprobante) — opcional, para no romper capturas que todavía
+// no la mandan. Sin ella, simplemente no se puede saber si venció
+// (vigenciaDocumentosRenovacion la marca en null, no en falso).
+app.post("/api/creditos/documentos-renovacion", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  if (!b.ine || !b.comprobanteDomicilio)
+    return res.status(400).json({ error: "INE y comprobante de domicilio son siempre obligatorios para renovar (CU-007)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  const fecha = String(b.fecha || hoyMX()).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "La fecha no se entiende (usa el calendario)." });
+  const docsRenov = { ine: fecha, comprobanteDomicilio: fecha };
+  if (b.ineFechaVencimiento != null) {
+    const v = String(b.ineFechaVencimiento).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return res.status(400).json({ error: "La fecha de vencimiento de la INE no se entiende (usa el calendario)." });
+    docsRenov.ineFechaVencimiento = v;
+  }
+  if (b.comprobanteFechaEmision != null) {
+    const v = String(b.comprobanteFechaEmision).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return res.status(400).json({ error: "La fecha de emisión del comprobante no se entiende (usa el calendario)." });
+    docsRenov.comprobanteFechaEmision = v;
+  }
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto,
+    campos: { documentosRenovacion: docsRenov },
+    motivo, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
+// Estado de renovación de un crédito: el ciclo (ya existía como contador de
+// re-crédito, Karina 15-ago — ver cicloSiguiente) junto con los documentos de
+// renovación ya capturados y su vigencia (DOC-01), para que el frontend no
+// tenga que combinarlos.
+app.get("/api/creditos/renovacion", requiere("direccion", "admin"), (req, res) => {
+  const c = creditoActivo(req.query.id, req.query.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({ ciclo: Number(c.ciclo) || 1, documentosRenovacion: c.documentosRenovacion || null,
+    vigenciaDocumentosRenovacion: vigenciaDocumentosRenovacion(c) });
+});
+
+// VIGENCIA DE LA GARANTÍA HIPOTECARIA (21-sep-2026, audio de Karina: "el
+// sistema tiene que decir con tres días antes que ya está por expirar" +
+// pedido explícito de Carlos: "avisar 3 días antes de vencer la vigencia
+// del documento hipotecario"). Mismo patrón exacto que
+// /api/creditos/documentos-renovacion (DOC-01) — motivo obligatorio en la
+// bitácora, se guarda vía store.agregarCambioPadron, nunca se sobrescribe
+// en silencio. alertaVencimientoGarantiaHipotecaria/
+// alertasGarantiaHipotecariaPorVencer viven en dominios/garantia_liquida.js.
+app.post("/api/creditos/garantia-hipotecaria", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  const fechaVencimiento = String(b.fechaVencimiento || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaVencimiento))
+    return res.status(400).json({ error: "La fecha de vencimiento de la vigencia hipotecaria no se entiende (usa el calendario)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto,
+    campos: { garantiaHipotecaria: { fechaVencimiento } },
+    motivo, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  const actualizado = creditoActivo(c.id, c.producto);
+  res.json({ ok: true, clienta: actualizado, alerta: alertaVencimientoGarantiaHipotecaria(actualizado) });
+});
+
+app.get("/api/creditos/garantia-hipotecaria", requiere("direccion", "admin"), (req, res) => {
+  const c = creditoActivo(req.query.id, req.query.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({ garantiaHipotecaria: c.garantiaHipotecaria || null,
+    alerta: alertaVencimientoGarantiaHipotecaria(c) });
+});
+
+// Tablero de Dirección: solo las clientas cuya vigencia hipotecaria ya
+// venció o está a 3 días (o menos) de vencer — no regresa a quien no
+// necesita alerta (mismo criterio que reporteSalidaGarantiasPorClienta).
+app.get("/api/garantias/hipotecaria/alertas", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasGarantiaHipotecariaPorVencer());
 });
 
 // Re-dar crédito a una clienta que LIQUIDÓ: crédito NUEVO (monto+cuota), mismo
@@ -2436,12 +5381,126 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   // esos abonos al crédito nuevo. Se guarda con el corte vigente porque los
   // acumulados se miden desde ahí: si el corte cambia, el descuento ya no aplica.
   const infoPrev = choca ? infoCredito(cv, choca) : null;
-  const previo = infoPrev
-    ? { pago: infoPrev.pagado || 0, gar: infoPrev.garantia || 0, liq: infoPrev.liquidado || 0, corte: corteSaldos() }
-    : null;
-  const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
+  // `fecha` es el día de la renovación: es lo que permite separar los abonos del
+  // ciclo viejo (fecha <= ese día) de los del nuevo. `corte` se conserva solo
+  // para los apuntes que ya existían con el formato anterior.
+  // Se guarda el DESGLOSE POR DÍA de lo que abonó el ciclo que se cierra, no solo
+  // el total. Con el total había que adivinar después qué abono era de cuál
+  // ciclo, y el día de la renovación son indistinguibles (se liquida y se
+  // renueva el mismo día). Con el desglose no hay nada que adivinar: son los
+  // montos tal como estaban en este momento, y el ciclo nuevo nace en cero.
+  // La ventana se abre MUY atrás a propósito: el desglose no debe depender del
+  // corte, que es justo lo que se está arreglando.
+  // SE GUARDA SIEMPRE, HAYA O NO UN CRÉDITO ACTIVO QUE CERRAR. Cuando el ciclo
+  // anterior ya está dado de BAJA no hay `choca`, así que antes no se guardaba
+  // nada y los abonos de ese ciclo volvían a caerle al crédito nuevo — justo el
+  // caso de SOCORRO MIGUEL y BLANCA VERONICA, que quedaron con los dos créditos
+  // de baja. El razonamiento no depende de que exista el activo: el ciclo NUEVO
+  // nace hoy, así que todo lo que esa llave abonó antes es de un ciclo pasado.
+  let previo = null;
+  {
+    const atras = new Date(hoyMX() + "T12:00:00"); atras.setDate(atras.getDate() - 395);
+    const orig = atras.toISOString().slice(0, 10);
+    const { porFecha: pfTodo } = pagosDeLaSemana(req.usuario, orig);
+    const liqTodo = {};
+    liquidacionesDeLaSemana(req.usuario, orig, liqTodo);
+    // La llave del ciclo que se cierra es la MISMA que va a tener el nuevo
+    // (socio + producto). Se arma con el producto que se está re-dando, no con
+    // el del registro que se encontró: `previa` puede ser cualquier crédito de
+    // esa socia —hasta de otro producto— cuando ya no queda ninguno activo.
+    const claveVieja = claveCredito(id, producto);
+    // LOS ABONOS DE LA FICHA SON TODOS DEL CICLO VIEJO, SIN TOPE. El crédito
+    // nuevo nace en este momento, así que TODO lo que esa llave abonó hasta hoy
+    // es del ciclo que se cierra. El primer intento los recortaba al total que
+    // se veía bajo el corte de ese día y los repartía sobre la ventana ancha:
+    // el monto acababa pegado a la fecha equivocada —una anterior al corte, que
+    // luego se ignora— y el abono de ESTA semana volvía a caerle al crédito
+    // nuevo. Le pasó a SOCORRO MIGUEL el 10-ago: sus $320 del ciclo viejo se le
+    // restaron al crédito recién dado.
+    const todos = (mapa, leer) => {
+      const out = {};
+      for (const f in (mapa || {})) {
+        const v = leer(mapa[f]);
+        if (v > 0) out[f] = Math.round(v * 100) / 100;
+      }
+      return out;
+    };
+    // Las LIQUIDACIONES sí llevan tope: van por SOCIO y se reparten entre sus
+    // créditos, así que solo es del ciclo cerrado la parte que le tocó. Se
+    // toman de la MÁS RECIENTE hacia atrás, que es la que lo cerró.
+    const recorta = (mapa, tope, leer) => {
+      const out = {};
+      if (!(tope > 0) || !mapa) return out;
+      let queda = tope;
+      for (const f of Object.keys(mapa).sort().reverse()) {
+        if (queda <= 0) break;
+        const usa = Math.min(queda, leer(mapa[f]));
+        if (usa > 0) { out[f] = Math.round(usa * 100) / 100; queda -= usa; }
+      }
+      return out;
+    };
+    // Sin crédito activo que cerrar (el anterior ya estaba de baja) no hay
+    // `infoPrev`: la liquidación que lo cerró se toma de lo que quedó apuntado
+    // en ese registro, y si tampoco lo hay, de lo que la socia liquidó desde el
+    // corte. Los abonos de ficha no lo necesitan: se toman completos.
+    const cerrado = choca || PADRON.filter((c) => String(c.id) === id && nprod(c.producto) === nprod(producto))
+      .sort((a, b) => String(b.alta_fecha || "").localeCompare(String(a.alta_fecha || "")))[0] || null;
+    const liqPrev = infoPrev ? (infoPrev.liquidado || 0)
+      : (cerrado ? Number(cerrado.saldo) || 0 : 0);
+    previo = {
+      pago: infoPrev ? (infoPrev.pagado || 0) : 0,
+      gar: infoPrev ? (infoPrev.garantia || 0) : 0,
+      liq: liqPrev,
+      corte: corteSaldos(), fecha: hoyMX(),
+      dias: todos(pfTodo[claveVieja], (x) => x.p || 0),
+      diasGar: todos(pfTodo[claveVieja], (x) => x.g || 0),
+      diasLiq: recorta(liqTodo[id], liqPrev, (x) => x || 0),
+    };
+  }
+  const desembolsoRc = String(b.desembolso || "").slice(0, 10);
+  if (desembolsoRc && !/^\d{4}-\d{2}-\d{2}$/.test(desembolsoRc))
+    return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
+  const diaPagoRc = String(b.diaPago || "").trim().toUpperCase();
+  if (diaPagoRc && !idxDia(diaPagoRc))
+    return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
+  let clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
+    importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
+    // DOC-01: los documentos de renovacion (INE + comprobante, con sus fechas
+    // propias) capturados para este ciclo se estaban perdiendo al renovar --
+    // el credito nuevo siempre nacia sin documentosRenovacion, aunque se
+    // hubieran subido momentos antes de liquidar (CU-007: "documentos exactos
+    // requeridos al renovar", RESUELTO 25-ago-2026). Se cargan hacia el ciclo
+    // nuevo tal cual estaban en el credito que se cierra. NO decide si un
+    // documento vencido bloquea la renovacion (CU-007 SEC 10.6 sigue sin
+    // definir) -- solo evita perder lo ya capturado.
+    documentosRenovacion: (choca && choca.documentosRenovacion) || null,
+    // CICLO INTERNO (Karina, 15-ago): «si alguien liquida su Grupal-Básico y
+    // renueva otro Grupal-Básico, ponerle un folio interno 02, 03 — para ver
+    // cuántos renovó con nosotros». Es un CONTADOR, no parte del nombre: la
+    // llave del crédito sigue siendo socio+producto y los pagos siguen casando.
+    ciclo: cicloSiguiente(id, producto),
+    desembolso: desembolsoRc || null,
+    diaPago: diaPagoRc || String((choca || previa).diaPago || "").toUpperCase() || diaDelCentro(centro) || null,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
+  // SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014): la renovación
+  // es un desembolso nuevo igual que el alta — mismo acto, mismas tres
+  // piezas (pagaré, plan de pagos, sobre de dispersión), para el ciclo que
+  // nace ahora.
+  // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
+  // muta la de entrada — por eso se reasigna aquí.
+  clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): la renovación es EL momento del contador — el ciclo
+  // que se cierra (`choca`, ya en saldo cero) se evalúa aquí: +1 si no tuvo un
+  // solo día de mora, 0 si lo tuvo. Se corre ANTES de escribir la baja/alta
+  // para que el veredicto salga de los pagos tal como quedaron.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, req.usuario) };
+  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
+  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
+  registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
+  // CU-017 (PLD-01/PLD-02): la renovación es un desembolso nuevo — misma
+  // vigilancia de acumulación en 6 meses que el alta. Marca, nunca bloquea.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, req.usuario) };
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
   // nuevo y dejarlo dado de baja el mismo día que se abrió.
@@ -2453,10 +5512,22 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   }
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
     fecha: hoyMX(), por: req.usuario.nombre, ts: ts + 1 });
+  // NOT-01 #3 "Desembolso realizado" y el aviso a clienta de renovación —
+  // una renovación (recrédito) es un desembolso nuevo (CU-013/CU-014), igual
+  // que el alta.
+  avisar("desembolso_realizado", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { nombre: clienta.nombre, centro: clienta.centro, producto: clienta.producto, importe: clienta.importe, recredito: true } });
+  avisar("otorgamiento_renovacion_cliente", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { nombre: clienta.nombre, producto: clienta.producto, importe: clienta.importe, tipo: "renovacion" } });
+  if (clienta.alertaPLD && clienta.alertaPLD.activa) {
+    avisar("pld_marcada", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { nombre: clienta.nombre, acumulado: clienta.alertaPLD.acumulado, umbralPesos: clienta.alertaPLD.umbralPesos } });
+  }
   refrescarPadron();
-  res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
+  res.json({ ok: true, clienta, alertaPLD: clienta.alertaPLD || null, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
-    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
+    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe,
+    ciclosLimpios: clienta.ciclosLimpios || null });
 });
 
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
@@ -2467,11 +5538,86 @@ app.get("/api/saldos/corte", requiere("direccion", "admin"), (req, res) => {
   // haya que adivinar si el día del corte cuenta o no.
   res.json({ corte: corteSaldos(), desde: corteSaldos() });
 });
+// PAGOS QUE DEJARÍAN DE DESCONTAR AL ADELANTAR EL CORTE (Karina, 15-ago: «en
+// algunos créditos no se bajaron lo que pagaron»).
+//
+// El saldo del padrón es la foto de la plantilla. Si el corte se adelanta SIN
+// cargar una plantilla nueva de esa fecha, los pagos hechos entre la foto y el
+// corte nuevo dejan de descontar: el saldo se queda como estaba y el dinero de
+// la clienta se pierde de vista. Le pasó a BEATRIZ CRESPO, que pagó su lunes y
+// aparecía debiendo. Esto lo mide antes de que ocurra.
+function pagosQueDejanDeContar(usuario, desde, hasta) {
+  if (!desde || !hasta || hasta <= desde) return { monto: 0, creditos: 0, clientas: [] };
+  const finExc = diaAnterior(hasta);          // el día del corte nuevo SÍ sigue contando
+  if (finExc < desde) return { monto: 0, creditos: 0, clientas: [] };
+  const porClave = {};
+  const { porFecha } = pagosDeLaSemana(usuario, desde, finExc);
+  for (const clave in porFecha)
+    for (const f in porFecha[clave])
+      if (f >= desde && f <= finExc) porClave[clave] = (porClave[clave] || 0) + (porFecha[clave][f].p || 0);
+  for (let d = new Date(desde + "T12:00:00"); ; d.setDate(d.getDate() + 1)) {
+    const fISO = d.toISOString().slice(0, 10);
+    if (fISO > finExc) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
+      const soc = socioDeMov(m); if (!soc) continue;
+      let prod = productoDeMov(m);
+      if (!prod) {
+        const suyos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === String(soc));
+        if (suyos.length === 1) prod = suyos[0].producto;
+      }
+      if (!prod) continue;
+      porClave[claveCredito(soc, prod)] = (porClave[claveCredito(soc, prod)] || 0) + (Number(m.monto) || 0);
+    }
+  }
+  const clientas = [];
+  let monto = 0;
+  for (const clave of Object.keys(porClave)) {
+    const v = Math.round(porClave[clave] * 100) / 100;
+    if (v <= 0) continue;
+    monto += v;
+    const [soc] = String(clave).split("|");
+    const c = PADRON.find((x) => x.activa !== false && x.estatus !== "BAJA" && claveCredito(x.id, x.producto) === clave);
+    clientas.push({ socio: String(soc), clienta: c ? c.nombre : "(sin identificar)",
+      producto: c ? c.producto : "", centro: c ? c.centro : "", ejecutivo: c ? c.ejecutivo : "", monto: v });
+  }
+  clientas.sort((a2, b2) => b2.monto - a2.monto);
+  return { monto: Math.round(monto * 100) / 100, creditos: clientas.length, desde, hasta: finExc, clientas };
+}
+
+app.get("/api/saldos/corte/impacto", requiere("direccion", "admin"), (req, res) => {
+  const fecha = String(req.query.fecha || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
+  res.json(pagosQueDejanDeContar(req.usuario, corteSaldos(), fecha));
+});
+
+// EL CORTE YA NO SE MUEVE (Karina, 15-ago: «quítales eso de mover el corte, ya
+// no va a haber corte»). Quedó fijo en la fecha de la última plantilla y esa es
+// la base de los saldos para siempre. Moverlo hacia adelante borraba pagos ya
+// capturados —las clientas volvían a aparecer debiendo lo que ya pagaron— y no
+// hay ningún caso que lo necesite ahora que no habrá más plantillas.
+//
+// La ruta se conserva y sigue exigiendo `confirmar` para no romper la carga de
+// una plantilla histórica ni las pruebas, pero desde el tablero ya no se puede.
 app.post("/api/saldos/corte", soloAnelMonse, (req, res) => {
-  const fecha = String((req.body || {}).fecha || "").trim();
+  const b = req.body || {};
+  if (!b.confirmar) {
+    return res.status(409).json({
+      error: "El corte de saldos ya no se mueve: es la base de los saldos y quedó fija en la fecha "
+        + "de la última plantilla (" + corteSaldos() + "). Moverlo hacía que los pagos capturados en "
+        + "medio dejaran de descontar y las clientas aparecieran debiendo lo que ya pagaron. "
+        + "Para el padrón de cada ejecutiva, con sus altas y bajas, usa «Padrón por ejecutivo».",
+      corte: corteSaldos(), noSeMueve: true,
+    });
+  }
+  const fecha = String(b.fecha || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "Fecha inválida (usa AAAA-MM-DD)." });
   if (fecha > hoyMX()) return res.status(400).json({ error: "El corte no puede ser una fecha futura." });
-  store.agregarCambioPadron({ tipo: "corte", fecha, por: req.usuario.nombre, ts: Date.now() });
+  // EL CANDADO. Adelantar el corte sin plantilla nueva le borra a las clientas
+  // los pagos hechos en medio: el saldo es la foto de la plantilla vieja y esos
+  // abonos dejan de descontarse. Antes se hacía en silencio.
+  store.agregarCambioPadron({ tipo: "corte", fecha, por: req.usuario.nombre, ts: Date.now(),
+    confirmado: !!b.confirmar });
   res.json({ ok: true, corte: fecha });
 });
 
@@ -2487,13 +5633,58 @@ const CATEGORIAS = ["Retiro de dirección", "Gasto operativo", "Autorización / 
 const CONCEPTOS_DIR = {
   // ENTRADAS · dinero que LLEGA a la caja
   "Liquidación":                 { entrada: true,  categoria: "Otro", clienta: "obliga" },
-  "Recuperación / adelanto":     { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  // RECUPERACIÓN y ADELANTO SE SEPARAN (Karina, 24-ago: «son dos cosas
+  // diferentes»): la recuperación es el cobro de un crédito vencido; el
+  // adelanto es la clienta pagando cuotas por adelantado. Los dos bajan saldo.
+  "Recuperación":                { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  "Adelanto":                    { entrada: true,  categoria: "Otro", clienta: "obliga" },
   "Comisión de desembolso":      { entrada: true,  categoria: "Otro", clienta: "sugiere" },
-  "Garantía":                    { entrada: true,  categoria: "Otro", clienta: "sugiere" },
+  // La GARANTÍA cobrada OBLIGA la clienta (Karina, 24-ago: «mismo caso»): se
+  // linkea a su crédito y le SUMA a su garantía guardada — simétrico a la
+  // Garantía líquida entregada, que se la resta.
+  // «GARANTÍA» a secas se veía duplicada junto a «Garantía A» (Karina,
+  // 24-ago): ahora se llama por su nombre completo. Los movimientos viejos con
+  // «Garantía» siguen contando como líquida.
+  "Garantía líquida":            { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  // GARANTÍA A (Karina, 24-ago): la garantía de AHORRO — no se le puede llamar
+  // así oficialmente, por eso el nombre corto. Mismo trato que la líquida:
+  // clienta obligada, guardado PROPIO (separado del de la líquida), y su
+  // entrega topada a lo que la clienta tenga juntado de este tipo.
+  "Garantía A":                  { entrada: true,  categoria: "Otro", clienta: "obliga" },
+  // ENTRADAS DE TESORERÍA (requerimientos de la Ing. Karina, 24-ago): dinero
+  // que se INYECTA a la caja para completar el día.
+  "Recurso de bancos para caja": { entrada: true,  categoria: "Recurso de bancos para caja", tesoreria: true },
+  "Recurso aportado por Dirección": { entrada: true, categoria: "Recurso aportado por Dirección", tesoreria: true },
   // SALIDAS · dinero que SALE de la caja
   "Gasto operativo":             { entrada: false, categoria: "Gasto operativo" },
   "Retiro de dirección":         { entrada: false, categoria: "Retiro de dirección" },
-  "Autorización / préstamo":     { entrada: false, categoria: "Autorización / préstamo" },
+  // LA CAJA CRECIÓ A TESORERÍA (Ing. Karina, 24-ago; contratado el proyecto
+  // completo). La AUTORIZACIÓN vuelve, pero ya no como el texto suelto que se
+  // vetó el 19-ago: ahora es un concepto del catálogo que OBLIGA la clienta y
+  // registra el monto ENTREGADO (el préstamo, NUNCA lo que terminará pagando
+  // — regla escrita de la Ing. Karina). De aquí sale el reporte de créditos
+  // otorgados y el renglón de salidas del arqueo. Las apps de las EJECUTIVAS
+  // siguen vetadas: la tesorería es de Dirección.
+  // «Autorización DE préstamo» (Karina, 24-ago: «para que no se malentienda»).
+  "Autorización de préstamo":    { entrada: false, categoria: "Autorización de préstamo", clienta: "obliga", tesoreria: true },
+  // DESEMBOLSO (Karina, 24-ago): cuando sacan dinero para dar un CRÉDITO NUEVO.
+  // Obliga la clienta para linkear a su perfil — de aquí también se alimenta el
+  // reporte de créditos otorgados.
+  "Desembolso":                  { entrada: false, categoria: "Desembolso", clienta: "obliga", tesoreria: true },
+  "Garantía líquida entregada":  { entrada: false, categoria: "Garantía líquida entregada", clienta: "obliga", tesoreria: true },
+  "Garantía A entregada":        { entrada: false, categoria: "Garantía A entregada", clienta: "obliga", tesoreria: true },
+  // GARANTÍA LÍQUIDA APLICADA (10-sep-2026, CU-006/CU-022): aplicar la garantía
+  // guardada de la clienta contra su propio crédito vencido — no es efectivo
+  // que entra ni sale de caja, es una transferencia interna (baja el pasivo de
+  // garantía, sube el "Recuperación" ligado a ESE crédito). Solo se crea desde
+  // /api/garantia-liquida/aplicar, nunca suelta desde /api/movimiento: siempre
+  // va emparejada con su "Recuperación" (doble registro, ver esa función).
+  "Garantía líquida aplicada":   { entrada: false, categoria: "Garantía líquida aplicada", clienta: "obliga", tesoreria: true },
+  // "Autorización / préstamo" queda FUERA (Karina, 19-ago). Con ese concepto se
+  // registraban las ENTREGAS DE CRÉDITO: el 13-ago salieron $86,000 en un día
+  // —$31,000 a una sola clienta— por una caja que es CHICA, para gastos de
+  // campo. El arqueo entonces pedía entregar de menos y parecía que el arqueo
+  // estaba mal. La tesorería es otro módulo y no está desarrollado.
   // "Desembolso (crédito nuevo)" queda FUERA de esta lista (Karina, 6-ago): el
   // crédito nuevo se abre con "Dar de alta" o "Re-dar crédito", que además le
   // ponen su ancla y su plazo. Registrarlo aquí como movimiento suelto lo dejaba
@@ -2502,7 +5693,18 @@ const CONCEPTOS_DIR = {
   // préstamo".
   "Otro":                        { entrada: false, categoria: "Otro" },
 };
-const METODOS = ["efectivo", "transferencia", "cheque"];
+// MIXTO (Karina, 24-ago): una autorización puede salir parte en efectivo y
+// parte por transferencia — «siempre tienen que marcar si fue efectivo,
+// transferencia o mixto». El movimiento guarda las dos partes (mixEfe/mixTr) y
+// cada carril cuenta lo suyo: la caja solo el efectivo, el banco lo demás.
+const METODOS = ["efectivo", "transferencia", "cheque", "mixto"];
+// La parte EN EFECTIVO de un movimiento, sea puro o mixto.
+function efectivoDeMov(m) {
+  if (!m) return 0;
+  if (m.metodo === "efectivo") return Number(m.monto) || 0;
+  if (m.metodo === "mixto") return Number(m.mixEfe) || 0;
+  return 0;
+}
 
 // Movimientos que capturan las EJECUTIVAS en la pestaña "Otros movimientos".
 // Unos meten dinero a la caja (comisión, recuperación, garantía, liquidación) y
@@ -2521,17 +5723,48 @@ function tipoGastoCanonico(t) {
 }
 const CONCEPTOS_EJEC = {
   COMISION:     { etiqueta: "Comisión de desembolso",   categoria: "Otro",            entrada: true },
-  RECUPERACION: { etiqueta: "Recuperación / adelanto",  categoria: "Otro",            entrada: true },
+  RECUPERACION: { etiqueta: "Recuperación",             categoria: "Otro",            entrada: true },
+  ADELANTO:     { etiqueta: "Adelanto",                 categoria: "Otro",            entrada: true },
   GARANTIA:     { etiqueta: "Garantía",                 categoria: "Otro",            entrada: true },
   LIQUIDACION:  { etiqueta: "Liquidación",              categoria: "Otro",            entrada: true },
-  DESEMBOLSO:   { etiqueta: "Desembolso (crédito nuevo)", categoria: "Autorización / préstamo", entrada: false },
   GASTO:        { etiqueta: "Gasto",                    categoria: "Gasto operativo", entrada: false },
 };
+// DESEMBOLSO y DEVOLUCIÓN DE GARANTÍA quedan FUERA (Karina, 19-ago). No es un
+// olvido: son módulos que NO están desarrollados ni contratados. La caja de la
+// app es una CAJA CHICA para gastos de campo, y se estaba usando como si fuera
+// tesorería — se metían desembolsos de crédito y entregas de garantía por ahí,
+// el arqueo dejaba de cuadrar y la culpa parecía del arqueo.
+//
+// Un crédito nuevo se abre con «Dar de alta» o «Re-dar crédito», que además le
+// ponen su fecha, su plazo y su día de cobro. Un movimiento suelto en la caja
+// no crea el crédito: solo saca el dinero y deja el saldo sin nacer.
+const CONCEPTOS_PROHIBIDOS = {
+  ENTREGA: "La ENTREGA DE UN CRÉDITO no se registra en la caja. El crédito se abre con «Dar de "
+    + "alta» o «Re-dar crédito», que además le ponen su monto, su plazo, su día de cobro y su "
+    + "fecha de desembolso. Capturado aquí, el dinero sale de la caja chica pero el crédito no "
+    + "nace en ningún lado: el arqueo pide entregar de menos y la clienta no aparece debiendo.",
+  DEVOLUCION: "La DEVOLUCIÓN DE GARANTÍA todavía no tiene módulo. Registrarla como gasto "
+    + "descuadra el arqueo y deja la garantía viva en el saldo de la clienta.",
+};
+// Lo que intenta colarse por la caja chica: entregas de crédito —vengan como
+// «préstamo», «autorización» o «desembolso»— y devoluciones de garantía.
+function conceptoProhibido(cve, texto) {
+  const c = String(cve || "").toUpperCase();
+  const t = norm(String(texto || ""));
+  if (c === "DESEMBOLSO" || /^autorizaci/i.test(String(cve || ""))) return CONCEPTOS_PROHIBIDOS.ENTREGA;
+  // «Comisión de desembolso» SÍ es válida: es lo que la clienta paga, no lo que se le entrega.
+  if (/(desembols|prestamo|préstamo)/.test(t) && !/comision/.test(t)) return CONCEPTOS_PROHIBIDOS.ENTREGA;
+  // El veto de DEVOLUCIONES DE GARANTÍA se desactivó el 24-ago (Karina): ya
+  // existe el camino bueno — «Garantía líquida entregada», con clienta OBLIGADA
+  // y validado contra lo que esa clienta tiene guardado. El de entregas de
+  // crédito disfrazadas sigue vivo.
+  return null;
+}
 // Efectivo que SALE de la caja. Un movimiento marcado como entrada resta aquí
 // (mete dinero), por eso no se puede sumar a secas.
 function egresosEnEfectivo(movs) {
-  return movs.filter((m) => m.metodo === "efectivo")
-    .reduce((s, m) => s + (m.entrada ? -m.monto : m.monto), 0);
+  return movs.filter((m) => m.metodo === "efectivo" || m.metodo === "mixto")
+    .reduce((s, m) => s + (m.entrada ? -efectivoDeMov(m) : efectivoDeMov(m)), 0);
 }
 // Lo que los "otros movimientos" mueven POR CADA FORMA que no es efectivo.
 // El efectivo ya va por egresosEnEfectivo(); esto es lo demás. Nació el 5-ago:
@@ -2576,6 +5809,18 @@ function gastosDelDia(movs, porEjec) {
   return { porTipo, total: Math.round(gastos.reduce((a, m) => a + Number(m.monto || 0), 0) * 100) / 100,
     posiblesDobles: dobles, sobregiro };
 }
+// GARANTÍA LÍQUIDA: MOTOR DE RECEPCIÓN/APLICACIÓN/DEVOLUCIÓN (10-sep-2026,
+// CU-006, CU-022, Anexo F §7-8, Anexo G, Anexo H.14). El guardado neteado por
+// clienta ya lo calculaba infoCredito()/pagosDeLaSemana() desde el 24-ago —
+// aquí solo se usa ese mismo cálculo (nunca se reinventa) para dos cosas que
+// faltaban: 1) decir cuánto hay DISPONIBLE ahora mismo para una entrega o
+// aplicación puntual, y 2) el candado antiduplicado que exige CU-022 ("la
+// segunda devolución se rechaza con el ticket de la primera").
+//
+// (garantiaLiquidaDisponible, ultimaSalidaGarantiaLiquida y
+// ticketGarantiaLiquidaH14 viven en dominios/garantia_liquida.js desde el
+// 10-sep-2026 — ver comentario junto a PORCENTAJE_GARANTIA_LIQUIDA)
+
 // Cuánto de los "otros movimientos" son GARANTÍAS. Normalmente la garantía viene
 // dentro de la ficha que captura la ejecutiva, pero si una clienta la paga en la
 // oficina, Dirección la registra suelta. Antes ese dinero sumaba al efectivo a
@@ -2643,6 +5888,63 @@ function socioDeMov(m) {
   const mm = String(m.concepto || "").match(/·\s*(\d{6,})/);
   return mm ? mm[1] : null;
 }
+// CUÁL de los créditos de esa socia. Los movimientos nuevos lo traen; los de
+// antes del 8-ago-2026 no, y por eso su liquidación se repartía entre todos sus
+// créditos en orden fijo en vez de bajarle al que la clienta liquidó.
+function productoDeMov(m) {
+  return m && m.producto ? String(m.producto) : null;
+}
+// Liquidaciones/recuperaciones LIGADAS a un crédito exacto (socio+producto).
+// Devuelve { porClave: {clave: monto}, porSocio: {socio: monto} } — el segundo
+// sirve para apartar del reparto lo que ya tiene dueño y que no se cuente doble.
+function liquidacionesLigadas(usuario, desde) {
+  const hoy = hoyMX(), lunes = desde || lunesDeLaSemana(hoy);
+  const porClave = {}, porSocio = {};
+  const sumar = (m) => {
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) return;
+    const soc = socioDeMov(m), prod = productoDeMov(m);
+    if (!soc || !prod) return;                      // sin crédito: va al reparto viejo
+    const clave = claveCredito(soc, prod);
+    porClave[clave] = (porClave[clave] || 0) + m.monto;
+    porSocio[soc] = (porSocio[soc] || 0) + m.monto;
+  };
+  const d0 = new Date(lunes + "T12:00:00");
+  for (let i = 0; i < (desde ? 400 : 7); i++) {
+    const f = new Date(d0); f.setDate(d0.getDate() + i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) break;
+    for (const m of movsDeFecha(fISO, usuario)) sumar(m);
+  }
+  for (const m of movsAtrasadosQueSiCuentan(usuario, desde)) sumar(m);
+  return { porClave, porSocio };
+}
+// Liquidaciones de socias que tienen MÁS DE UN crédito y llegaron SIN decir cuál.
+// Son las que el sistema tiene que adivinar, y adivina mal: le baja el saldo al
+// primer crédito en orden, no al que la clienta liquidó. Se listan para que el
+// tablero las pueda señalar y se corrijan una por una.
+function liquidacionesSinCredito(usuario, desde) {
+  const hoy = hoyMX(), inicio = desde || lunesDeLaSemana(hoy);
+  const d0 = new Date(inicio + "T12:00:00");
+  const out = [];
+  for (let i = 0; i < (desde ? 400 : 7); i++) {
+    const f = new Date(d0); f.setDate(d0.getDate() + i);
+    const fISO = f.toISOString().slice(0, 10);
+    if (fISO > hoy) break;
+    for (const m of movsDeFecha(fISO, usuario)) {
+      if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
+      const soc = socioDeMov(m);
+      if (!soc || productoDeMov(m)) continue;        // sin socia ya se avisa aparte
+      const suyos = PADRON.filter((c) => String(c.id).split("|")[0] === String(soc)
+        && c.activa !== false && c.estatus !== "BAJA");
+      if (suyos.length < 2) continue;                // con un solo crédito no hay duda
+      out.push({ folio: m.folio, fecha: m.fecha, monto: m.monto, socio: soc,
+        clienta: suyos[0].nombre, concepto: m.concepto,
+        registradoPor: m.registradoPor || m.usuario || "",
+        candidatos: suyos.map((c) => c.producto) });
+    }
+  }
+  return out;
+}
 function movsDeFecha(fecha, usuario, conAnulados) {
   const enPruebas = !!(usuario && usuario.test);
   return store.movimientosDeFecha(fecha).filter((m) => {
@@ -2659,13 +5961,25 @@ function repartirMovsPorEjecutivo(porEjec, movs) {
     const id = ejecutivoDeMov(m);
     if (!id || !porEjec[id]) continue;
     const e = porEjec[id];
-    if (m.entrada) e.movEntradas = (e.movEntradas || 0) + m.monto;
+    if (m.entrada) {
+      e.movEntradas = (e.movEntradas || 0) + m.monto;
+      // Y POR FORMA (arqueo, 25-ago: «suma a cada uno lo que agregaron»): lo
+      // que la ejecutiva metió de otros movimientos —recuperaciones,
+      // comisiones, liquidaciones— también es dinero que ella entrega, y debe
+      // sumar en SU renglón del desglose de recepción, no solo en el global.
+      const efeM = efectivoDeMov(m);
+      if (efeM) e.movEfe = (e.movEfe || 0) + efeM;
+      if (m.metodo === "transferencia") e.movTr = (e.movTr || 0) + m.monto;
+      else if (m.metodo === "mixto") e.movTr = (e.movTr || 0) + Math.max(0, m.monto - efeM);
+      else if (m.metodo === "cheque") e.movChq = (e.movChq || 0) + m.monto;
+    }
     else e.movSalidas = (e.movSalidas || 0) + m.monto;
     // SOLO el efectivo afecta el arqueo de billetes: una transferencia va al
     // banco, no a la caja. Sin esto, un gasto por transferencia bajaba el
     // efectivo a entregar y descuadraba la caja sin razón. egresoEfectivo =
     // lo que SALE en efectivo menos lo que ENTRA en efectivo.
-    if (m.metodo === "efectivo") e.egresoEfectivo = (e.egresoEfectivo || 0) + (m.entrada ? -m.monto : m.monto);
+    if (m.metodo === "efectivo" || m.metodo === "mixto")
+      e.egresoEfectivo = (e.egresoEfectivo || 0) + (m.entrada ? -efectivoDeMov(m) : efectivoDeMov(m));
   }
 }
 
@@ -2675,9 +5989,24 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   const concepto = (b.concepto || "").trim();
   // El TIPO manda: de él salen `entrada` y la categoría. Se acepta el catálogo
   // nuevo y, por compatibilidad, la categoría suelta de los movimientos viejos.
-  const tipo = CONCEPTOS_DIR[String(b.tipo || "").trim()] || null;
+  // Los nombres viejos se aceptan como alias de los nuevos: capturas guardadas
+  // y pantallas sin recargar no truenan por un renombre.
+  if (b.tipo === "Recuperación / adelanto") b.tipo = "Recuperación";
+  if (b.tipo === "Garantía") b.tipo = "Garantía líquida";
+  // El nombre viejo «Autorización / préstamo» se acepta como alias del nuevo.
+  const tipoNombre = String(b.tipo || "").trim() === "Autorización / préstamo"
+    ? "Autorización de préstamo" : String(b.tipo || "").trim();
+  const tipo = CONCEPTOS_DIR[tipoNombre] || null;
   const categoria = tipo ? tipo.categoria : (CATEGORIAS.includes(b.categoria) ? b.categoria : null);
   const metodo = METODOS.includes(b.metodo) ? b.metodo : null;
+  // Un MIXTO sin partes, o con partes que no suman el total, no entra: es
+  // exactamente la validación que ya rige el pago mixto en las apps.
+  let mixEfe = null, mixTr = null;
+  if (metodo === "mixto") {
+    mixEfe = Number(b.mixEfe); mixTr = Number(b.mixTr);
+    if (!(mixEfe >= 0) || !(mixTr >= 0) || Math.abs((mixEfe + mixTr) - Number(b.monto)) > 0.009)
+      return res.status(400).json({ error: "El mixto necesita sus dos partes (efectivo + transferencia) y deben sumar el total." });
+  }
   const fecha = b.fecha || hoyMX();
   // La fecha del gasto la elige quien captura: antes no había campo y TODO caía
   // en el día de hoy. Al subir los gastos de varios días de golpe, se descontaban
@@ -2686,6 +6015,20 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   if (fecha > hoyMX()) return res.status(400).json({ error: "El gasto no puede ser de una fecha futura." });
   if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
   if (!concepto) return res.status(400).json({ error: "Escribe un concepto para el movimiento." });
+  // LA CAJA CHICA NO ES TESORERÍA (Karina, 19-ago). Una entrega de crédito o una
+  // devolución de garantía capturadas aquí sacan dinero de una caja que es para
+  // gastos de campo, y dejan el arqueo pidiendo entregar de menos. Va ANTES de
+  // validar la categoría: si no, el concepto retirado del catálogo caía en el
+  // «elige de qué es el movimiento» y nadie entendía por qué.
+  // La categoría también se revisa: se puede mandar suelta, sin el concepto del
+  // catálogo, y por ahí se colaría igual.
+  // Los conceptos de TESORERÍA del catálogo no pasan por el veto: existen
+  // justamente para registrar bien lo que antes se colaba mal. El veto sigue
+  // vivo para lo disfrazado (un "gasto" que dice desembolso) y para las apps
+  // de las ejecutivas.
+  const vetoDir = (tipo && tipo.tesoreria) ? null
+    : conceptoProhibido(b.tipo, [b.tipo, b.categoria, concepto].filter(Boolean).join(" "));
+  if (vetoDir) return res.status(400).json({ error: vetoDir, moduloSinDesarrollar: true });
   if (!categoria) return res.status(400).json({ error: "Elige de qué es el movimiento." });
   // Una liquidación o recuperación SIN clienta entra a la caja y no le baja el
   // saldo a nadie: por eso aquí se exige, no se sugiere.
@@ -2705,25 +6048,354 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // que la clienta quede en cero y desaparezca de la app de su ejecutiva
   // (pedido de Karina, 5-ago).
   const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim() || null;
+  let producto = String(b.producto || "").trim() || null;
+  // El crédito exacto al que quedó ligado el movimiento (cuando "obliga"
+  // clienta) — CU-006 item 30: se guarda para poder revisar su etiqueta antes
+  // de aceptar una aportación de garantía (ver candado más abajo).
+  let creditoLigado = null;
   if (socio) {
-    const cred = PADRON.filter((c) => String(c.id) === socio && c.activa !== false && c.estatus !== "BAJA");
+    let cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+    // LA GARANTÍA SE ENTREGA CUANDO EL CRÉDITO YA TERMINÓ (Monse, 8-sep: «la
+    // clienta liquidó y no renovó, y no me deja liberar su garantía»). Si la
+    // clienta ya no tiene crédito activo —liquidó y se dio de baja—, el
+    // linkeo de una GARANTÍA cae a su crédito más reciente aunque esté de
+    // baja: el dinero queda amarrado a su historia. Las liquidaciones y
+    // recuperaciones NO: esas sí necesitan un crédito vivo al cual bajarle.
+    if (!cred.length && /^garant/i.test(String(b.tipo || ""))) {
+      cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio)
+        .sort((c1, c2) => String(c2.alta_fecha || "").localeCompare(String(c1.alta_fecha || "")));
+      if (cred.length > 1 && !producto) cred = [cred[0]];
+    }
     if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
+    // DE CUÁL DE SUS CRÉDITOS. Una liquidación baja el saldo de UN crédito, no de
+    // la clienta: ~146 socias tienen más de uno. Sin este dato el sistema se lo
+    // aplicaba al primero de la lista — el sábado 8-ago le bajó el saldo al
+    // crédito equivocado a cuatro clientas. Se exige igual que la clienta.
+    if (tipo && tipo.clienta === "obliga") {
+      // Con UN solo crédito no hay nada que elegir: se resuelve solo y de todos
+      // modos queda escrito en el movimiento. Se exige únicamente cuando la
+      // socia tiene varios, que es el caso en que el sistema tendría que adivinar.
+      if (!producto && cred.length === 1) producto = cred[0].producto;
+      if (!producto)
+        return res.status(400).json({ error: "Elige CUÁL de sus créditos se está liquidando. " + cred[0].nombre
+          + " tiene " + cred.length + ": " + cred.map((c) => c.producto).join(", ")
+          + ". Sin eso el abono le baja el saldo al que no es." });
+      const exacto = cred.find((c) => norm(c.producto) === norm(producto));
+      if (!exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto
+        + "\" activo. Los suyos son: " + cred.map((c) => c.producto).join(", ") + "." });
+      producto = exacto.producto;      // se guarda con el nombre canónico del padrón
+      creditoLigado = exacto;
+    }
+  } else {
+    producto = null;                   // sin clienta no hay crédito que ligar
+  }
+
+  // CANDADO — NO GARANTÍA EN REESTRUCTURA (CU-006 item 30, respuesta de
+  // Dirección 18-sep-2026, ver dominios/garantia_liquida.js
+  // validarAportacionGarantiaEnReestructura). Solo aplica a los conceptos que
+  // SON una aportación/entrada de garantía ("Garantía líquida" y "Garantía A"
+  // del catálogo CONCEPTOS_DIR) — "Garantía líquida entregada"/"Garantía A
+  // entregada" (salidas) y "...aplicada" no se tocan, porque esas SÍ deben
+  // poder sacar lo que ya estaba guardado desde antes de la reestructura.
+  if (creditoLigado && (tipoNombre === "Garantía líquida" || tipoNombre === "Garantía A")) {
+    const rechazoReestructura = validarAportacionGarantiaEnReestructura(creditoLigado);
+    if (rechazoReestructura) return res.status(400).json({ error: rechazoReestructura });
+  }
+
+  // GARANTÍA LÍQUIDA ENTREGADA — CANDADO ANTIDUPLICADO (10-sep-2026, CU-006,
+  // CU-022 Regla H.14 / sección 5: "el candado antiduplicado rechaza la
+  // segunda devolución y muestra el ticket con el que salió"). El neteo
+  // (recepciones automáticas al desembolso + cobradas a mano − entregadas) ya
+  // lo calcula garantiaLiquidaDisponible() reusando infoCredito(); antes solo
+  // se anotaba (Karina, 25-ago: "el módulo aún no paga FOOAX"). Carlos confirma
+  // 10-sep-2026 que ese módulo YA está contratado, así que el candado se activa:
+  // ya no se puede entregar/aplicar más de lo disponible ni repetir una entrega
+  // que ya dejó el guardado en cero.
+  // GARANTÍA A — disponible ANTES del movimiento (20-sep-2026, hallazgo de
+  // validación, CU-006 item 12 RESUELTO 10-sep-2026: "por cada importe
+  // recibido se deberá generar un ticket o extender un recibo... sin
+  // distinguir por volumen ni por tipo de garantía"). A propósito NO se
+  // agrega candado antiduplicado aquí (eso no forma parte de lo resuelto por
+  // Dirección para Garantía A todavía) — solo el dato para poder emitir el
+  // ticket en cada entrada Y cada salida, como exige el item 12.
+  let disponibleAntesA = null;
+  if ((tipoNombre === "Garantía A" || tipoNombre === "Garantía A entregada") && socio && producto) {
+    disponibleAntesA = garantiaADisponible(req.usuario, socio, producto).disponible;
+  }
+
+  let disponibleAntes = null;
+  if (tipoNombre === "Garantía líquida entregada" && socio && producto) {
+    const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
+    disponibleAntes = g.disponible;
+    if (monto > g.disponible + 0.009) {
+      const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+      // NOT-01 #11 "Intento bloqueado por un candado" — con nombre, fecha y
+      // qué se intentó, como pide la definición aprobada.
+      avisar("candado_bloqueado", { socio, usuario: req.usuario, test: !!req.usuario.test,
+        detalle: { candado: "antiduplicado_garantia_liquida", accion: "entrega", producto, montoIntentado: monto, disponible: g.disponible } });
+      return res.status(400).json({
+        error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
+          + (g.disponible <= 0.009 && previa
+              ? " — ya se devolvió/aplicó por completo con el ticket " + previa.folio + " (" + previa.fecha + ")."
+              : ". No se puede entregar más de lo que tiene guardado."),
+        disponible: g.disponible,
+        ticketAnterior: previa ? { folio: previa.folio, fecha: previa.fecha, monto: previa.monto } : null,
+      });
+    }
+  }
+
+  // MOTIVO OBLIGATORIO + ALERTA EN EL HISTORIAL AL SACAR LA GARANTÍA ANTES DE
+  // TIEMPO (CU-006, RESUELTO 21-sep-2026, audio de Karina — ver
+  // dominios/garantia_liquida.js#validarSalidaAnticipadaGarantiaLiquida). Si
+  // la garantía todavía no era liberable, exige `motivoSalidaAnticipada` —
+  // no bloquea la salida en sí, solo exige dejar el motivo por escrito.
+  let salidaAnticipada = null;
+  if (tipoNombre === "Garantía líquida entregada" && socio && producto) {
+    const evaluacion = validarSalidaAnticipadaGarantiaLiquida(req.usuario, socio, producto, b.motivoSalidaAnticipada);
+    if (evaluacion.error) return res.status(evaluacion.status).json({ error: evaluacion.error, elegibilidad: evaluacion.elegibilidad });
+    if (evaluacion.salidaAnticipada) salidaAnticipada = evaluacion;
   }
 
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
   const folio = "DIR-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
   const mov = {
-    folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec, socio,
+    folio, fecha, monto, concepto, categoria, metodo, ejecutivo: ejec, socio, producto,
+    mixEfe, mixTr,
     // ENTRADA o SALIDA. Sin esto todo se guardaba como salida.
-    tipo: tipo ? String(b.tipo).trim() : null, entrada: tipo ? !!tipo.entrada : false,
+    // Sin tipo del catálogo NO se da por hecho que sale: se lee el concepto.
+    // Escribir `false` a secas mandaba una liquidación al lado de los gastos y
+    // el cierre de la semana quedaba mal por el DOBLE del monto.
+    tipo: tipo ? tipoNombre : null,
+    entrada: tipo ? !!tipo.entrada : store.entradaPorTexto(concepto || categoria),
     autorizadoA: (b.autorizadoA || "").trim() || null,
+    salidaAnticipada: !!salidaAnticipada,
+    motivoSalidaAnticipada: salidaAnticipada ? salidaAnticipada.motivoSalidaAnticipada : null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);
-  res.json({ ok: true, movimiento: mov });
+  // NOT-01 #4 "Garantía devuelta o aplicada" — destinatario corregido por
+  // Dirección (11-sep-2026) a Auxiliar administrativo (no Dirección General).
+  if (tipoNombre === "Garantía líquida entregada" && socio) {
+    avisar("garantia_devuelta_aplicada", { socio, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { accion: "entrega", producto, monto, folio } });
+  }
+  // TICKET H.14 (Anexo H.14, CU-022): en los tres movimientos de garantía
+  // —recepción, aplicación, devolución— se manda junto con el movimiento para
+  // que el tablero lo pueda imprimir o mostrar. Solo se calcula el "después"
+  // cuando ya sabíamos el "antes" (entregada); para el resto no aplica todavía.
+  //
+  // GARANTÍA A (20-sep-2026, item 12 RESUELTO): se agrega ticket también en
+  // CADA aportación ("Garantía A", entrada) y CADA entrega ("Garantía A
+  // entregada", salida) — mismo formato H.14, mismo generador; la función no
+  // tiene nada específico de Garantía Líquida en su cuerpo.
+  let ticket = null;
+  if (tipoNombre === "Garantía líquida entregada" && disponibleAntes != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntes, Math.max(0, disponibleAntes - monto));
+  } else if (tipoNombre === "Garantía A" && disponibleAntesA != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntesA, disponibleAntesA + monto);
+  } else if (tipoNombre === "Garantía A entregada" && disponibleAntesA != null) {
+    ticket = ticketGarantiaLiquidaH14(mov, disponibleAntesA, Math.max(0, disponibleAntesA - monto));
+  }
+  res.json({ ok: true, movimiento: mov, ticket });
 });
 
+// APLICAR GARANTÍA LÍQUIDA A MORA/CRÉDITO (10-sep-2026, CU-006, CU-022 sección
+// 5: "el sistema propone aplicar la garantía al vencido... aplicar requiere
+// autorización y ticket de aplicación"). No es efectivo que se mueve: es una
+// transferencia interna, DOBLE REGISTRO (Regla G.2/CU-022: "o entran los dos,
+// o no entra ninguno"):
+//   1) "Garantía líquida aplicada" — baja el guardado de garantía del crédito.
+//   2) "Recuperación" — abona ESE MISMO monto al crédito, igual que si la
+//      clienta hubiera pagado en efectivo (liquidacionesLigadas() ya lee
+//      "Recuperación" para bajar el saldo — mismo camino que un abono real).
+// Los dos movimientos comparten `aplicacionId` para poder rastrearlos como par
+// y llevan metodo "retencion" (no cuenta como efectivo ni como transferencia
+// real, igual que la recepción automática — ver registrarGarantiaLiquidaAlDesembolsar).
+//
+// Alcance a propósito acotado: solo aplica la garantía guardada de un crédito
+// contra SU PROPIO saldo/mora (el caso ya resuelto y con Anexo detrás). Aplicarla
+// contra OTRO crédito de la misma clienta (CU-022 lo menciona de pasada, "al
+// vencido") queda pendiente de que Dirección confirme la regla exacta —
+// ver PENDIENTES_POR_CONFIRMAR.md.
+app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim();
+  const monto = Math.round((Number(b.monto) || 0) * 100) / 100;
+  const motivo = (b.motivo || "").trim();
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(b.fecha || "") ? b.fecha : hoyMX();
+  if (!socio) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!(monto > 0)) return res.status(400).json({ error: "El monto debe ser mayor a cero." });
+  if (!motivo) return res.status(400).json({ error: "Escribe el motivo de la aplicación (queda en el rastro)." });
+  const cred = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+  if (!cred.length) return res.status(400).json({ error: "No encuentro una clienta activa con ese número de socio." });
+  let producto = String(b.producto || "").trim();
+  if (!producto && cred.length === 1) producto = cred[0].producto;
+  if (!producto)
+    return res.status(400).json({ error: "Elige CUÁL de sus créditos: " + cred.map((c) => c.producto).join(", ") + "." });
+  const exacto = cred.find((c) => norm(c.producto) === norm(producto));
+  if (!exacto) return res.status(400).json({ error: "Esa clienta no tiene un crédito \"" + producto + "\" activo." });
+  producto = exacto.producto;
+  const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
+  if (monto > g.disponible + 0.009) {
+    const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+    avisar("candado_bloqueado", { socio, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { candado: "antiduplicado_garantia_liquida", accion: "aplicacion", producto, montoIntentado: monto, disponible: g.disponible } });
+    return res.status(400).json({
+      error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
+        + (g.disponible <= 0.009 && previa
+            ? " — ya se devolvió/aplicó por completo con el ticket " + previa.folio + " (" + previa.fecha + ")."
+            : ". No se puede aplicar más de lo que tiene guardado."),
+      disponible: g.disponible,
+      ticketAnterior: previa ? { folio: previa.folio, fecha: previa.fecha, monto: previa.monto } : null,
+    });
+  }
+  const delDia = store.movimientosDeFecha(fecha).length;
+  const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
+  const aplicacionId = "APG-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
+  const ts = Date.now();
+  const movGarantia = {
+    folio: aplicacionId + "-G", fecha, monto, concepto: "Garantía líquida aplicada",
+    categoria: "Garantía líquida aplicada", metodo: "retencion",
+    ejecutivo: null, socio, producto, tipo: "Garantía líquida aplicada", entrada: false,
+    aplicacionId, nota: motivo,
+    registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts,
+  };
+  const movRecuperacion = {
+    folio: aplicacionId + "-R", fecha, monto, concepto: "Recuperación (garantía líquida aplicada)",
+    categoria: "Otro", metodo: "retencion",
+    ejecutivo: null, socio, producto, tipo: "Recuperación", entrada: true,
+    aplicacionId, nota: "Aplicación de Garantía Líquida al crédito, folio " + movGarantia.folio + ". " + motivo,
+    registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: ts + 1,
+  };
+  // O entran los dos, o no entra ninguno (Regla G.2/CU-022): agregarMovimiento
+  // no falla por validación de negocio a estas alturas (ya se validó arriba),
+  // así que insertar en secuencia es seguro; si algo truena a media inserción,
+  // el candado antiduplicado de la próxima corrida detecta el hueco (guardado
+  // bajó pero el crédito no) porque los folios comparten aplicacionId.
+  store.agregarMovimiento(movGarantia);
+  store.agregarMovimiento(movRecuperacion);
+  // NOT-01 #4 "Garantía devuelta o aplicada" — destinatario corregido por
+  // Dirección (11-sep-2026) a Auxiliar administrativo (no Dirección General).
+  avisar("garantia_devuelta_aplicada", { socio, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { accion: "aplicacion", producto, monto, folio: movGarantia.folio } });
+  const ticket = ticketGarantiaLiquidaH14(movGarantia, g.disponible, Math.max(0, g.disponible - monto));
+  res.json({ ok: true, movimientoGarantia: movGarantia, movimientoRecuperacion: movRecuperacion, ticket });
+});
+
+// ---------- PANTALLA MÍNIMA DE GARANTÍAS (MVP, 10-sep-2026) ----------
+// CU-006 — Carlos: "que Dirección vea la opción de garantías en la
+// aplicación junto con lo que se puede implementar, y mande mensaje solamente
+// de que algo no está definido o falta, para luego implementar esa
+// funcionalidad". No es la entrega 2E completa del lienzo (esa sigue
+// "CONSTRUYE: por acordar" en la cotización) — es SOLO lo que hoy ya se puede
+// calcular con datos reales (el motor de Garantía Líquida construido antes de
+// hoy). Todo lo que el mockup pide y que SÍ depende de una respuesta de
+// Dirección (reporte por corte histórico, conciliación bancaria, bienes en
+// garantía hipotecaria/prendaria) NO se inventa aquí: el frontend lo muestra
+// como "pendiente de definir" citando la fila exacta de
+// PENDIENTES_POR_CONFIRMAR.md, en vez de ocultarlo o fingir que ya existe.
+//
+// resumenGarantias/estadoDeCuentaGarantia viven en
+// dominios/garantia_liquida.js — estas dos rutas son solo el pegamento HTTP:
+// piden los datos, y traducen el resultado a la respuesta. Ninguna regla de
+// negocio se escribe aquí (mismo criterio que el resto del dominio).
+app.get("/api/garantias", requiere("direccion", "admin"), (req, res) => {
+  res.json(resumenGarantias(req.usuario));
+});
+
+app.get("/api/garantias/ficha", requiere("direccion", "admin"), (req, res) => {
+  const resultado = estadoDeCuentaGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
+});
+
+// REPORTES DE GARANTÍAS (CU-008, 20-sep-2026 — hallazgo de validación: solo
+// se construyen los 2 de 5 reportes del catálogo que ya tienen ejemplo real y
+// corte confirmado por Dirección, ver dominios/garantia_liquida.js. El pegamento
+// HTTP solo normaliza la fecha al lunes de su semana (mismo criterio que el
+// resto de reportes de corte semanal, ver lunesDeLaSemana) y traduce a JSON.
+// TICKET DE LIBERACIÓN DE GARANTÍAS (CU-006, formato "HOJA DE LIBERACION DE
+// GARANTIAS" de Karina, 21-sep-2026). ticketLiberacionGarantia vive en
+// dominios/garantia_liquida.js — esta ruta es solo el pegamento HTTP: mismo
+// criterio de parámetros que /api/garantias/ficha (id + producto).
+app.get("/api/garantias/liberacion", requiere("direccion", "admin"), (req, res) => {
+  const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
+});
+
+// VISTA IMPRIMIBLE del ticket de liberación (21-sep-2026, hallazgo de
+// validación sobre un audio de Karina: "cuando entregas la garantía tienes
+// que imprimir un ticket que se los deje firmar y que el ejecutivo lo deje
+// escanear para que quede de evidencia"). Mismos datos y mismos parámetros
+// que /api/garantias/liberacion — solo cambia el formato de salida (HTML con
+// @media print en vez de JSON) para que se pueda abrir en el teléfono/tablet
+// del ejecutivo, imprimir o guardar como PDF con el diálogo del sistema, y
+// que la clienta firme sobre el papel.
+app.get("/api/garantias/liberacion/ticket", requiere("direccion", "admin"), (req, res) => {
+  const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.type("html").send(ticketLiberacionGarantiaHtml.renderHtml(resultado));
+});
+
+app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  res.json(reporteSemanalGarantias(lunesDeLaSemana(fecha)));
+});
+
+app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
+  const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
+  res.json(reporteSalidaGarantiasPorClienta(mes));
+});
+
+// CORTE DIARIO DE GARANTÍAS por grupo (centro) y tipo de crédito (producto)
+// — 21-sep-2026, audio de Karina/Dirección. Reporte APARTE del arqueo diario
+// de caja (GET /api/arqueo, más abajo): agrupan por unidades distintas
+// (ejecutiva vs. centro/producto) — ver el comentario en
+// dominios/garantia_liquida.js::corteDiarioGarantias para la validación
+// técnica completa de por qué no se mete dentro de calcularArqueo.
+app.get("/api/garantias/corte-diario", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  res.json(corteDiarioGarantias(fecha));
+});
+
+// ALERTA/ESCALACIÓN — PLAZO DE 2 SEMANAS PARA ENTREGAR LA GARANTÍA (CU-006,
+// RESUELTO 21-sep-2026: Dirección aprueba la propuesta de Sistemas del
+// 11-sep-2026 — "alerta y escala", nunca bloquea). Ver
+// dominios/garantia_liquida.js#alertasPlazoEntregaGarantia.
+app.get("/api/garantias/alertas-plazo-entrega", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoEntregaGarantia(req.usuario));});
+
+// PLAZO DE 5 DÍAS PARA REGRESAR LA HOJA DE LIBERACIÓN FIRMADA (CU-006,
+// RESUELTO 21-sep-2026: Carlos confirma que SÍ es política vigente). El
+// candado es informativo — alerta y escala, nunca bloquea (misma doctrina
+// que el plazo de 2 semanas para entregar la garantía) — ver
+// dominios/garantia_liquida.js.
+app.get("/api/garantias/hoja-liberacion/alertas-plazo-regreso", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoRegresoHojaLiberacion());
+});
+
+app.post("/api/garantias/hoja-liberacion/regresada", requiere("direccion", "admin"), (req, res) => {
+  const resultado = registrarRegresoHojaLiberacion(req.body || {}, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);});
+
+// AJUSTE MANUAL DE GARANTÍA CON AUTORIZACIÓN (CU-006, RESUELTO 21-sep-2026):
+// aplica igual a Garantía Líquida y Garantía A — la autorización se exige
+// vía identidad de sesión (ver dominios/garantia_liquida.js), no un campo de
+// texto, así que el candado de rol (direccion/admin) es un primer filtro y
+// registrarAjusteManualGarantia() hace la verificación real, más fina, de
+// que la cuenta sea justo Alejandra o Monse.
+app.post("/api/garantias/ajuste-manual", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const resultado = registrarAjusteManualGarantia({
+    socio: b.socio, producto: b.producto, tipoGarantia: b.tipoGarantia,
+    direccion: b.direccion, monto: b.monto, motivo: b.motivo,
+  }, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error, disponible: resultado.disponible });
+  res.json(resultado);
+});
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
 // anuló y por qué, y deja de contar en los totales y en el arqueo. Nació el
 // 30-jul: Karina registró un gasto de prueba de $100 desde el tablero y NO HABÍA
@@ -2749,6 +6421,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
 // las aplica sobre la captura local de la ejecutiva.
 // ===================================================================
 const CAMPOS_COBRANZA = { pago: "el pago", garantia: "la garantía", solidario: "el solidario" };
+// La FORMA DE PAGO también se corrige (caso Christopher 26-ago: la app
+// sensible marcó como transferencia $936 que entraron en efectivo, y
+// Dirección no tenía herramienta para regresarlos — el arqueo "sobraba").
+const FORMAS_COBRANZA = { E: "EFECTIVO", T: "TRANSFERENCIA", D: "DEPÓSITO (Oxxo/tienda)", M: "MIXTO", CH: "CHEQUE" };
 
 // LA CAPTURA DE UNA EJECUTIVA, clienta por clienta. Es lo que Dirección tiene
 // que ver ANTES de corregir: sin esto, corregiría a ciegas.
@@ -2811,11 +6487,19 @@ app.post("/api/cobranza/ajuste", requiere("direccion", "admin"), (req, res) => {
   // El motivo es OBLIGATORIO: sin él, dentro de un mes nadie sabe por qué el
   // arqueo de ese día no cuadra con lo que la ejecutiva juraba haber cobrado.
   if (motivo.length < 4) return res.status(400).json({ error: "Escribe el motivo de la corrección." });
-  if (!anula && !CAMPOS_COBRANZA[campo])
-    return res.status(400).json({ error: "Elige qué corregir: el pago, la garantía o el solidario." });
+  if (!anula && !CAMPOS_COBRANZA[campo] && campo !== "forma")
+    return res.status(400).json({ error: "Elige qué corregir: el pago, la garantía, el solidario o la forma de pago." });
   const monto = Number(b.monto);
-  if (!anula && (!Number.isFinite(monto) || monto < 0))
+  if (!anula && campo !== "forma" && (!Number.isFinite(monto) || monto < 0))
     return res.status(400).json({ error: "El monto debe ser un número válido (0 lo quita)." });
+  // La forma no lleva monto: lleva VALOR (E/T/D/M/CH), y se valida contra el
+  // catálogo — una letra inventada dejaría el pago invisible para el cierre.
+  let valorForma = null;
+  if (!anula && campo === "forma") {
+    valorForma = String(b.valor || "").trim().toUpperCase();
+    if (!FORMAS_COBRANZA[valorForma])
+      return res.status(400).json({ error: "La forma debe ser E (efectivo), T (transferencia), D (depósito Oxxo), M (mixto) o CH (cheque)." });
+  }
 
   // Que la clienta EXISTA en la captura de ese día. Sin esta comprobación el
   // ajuste se guardaba, no encontraba a nadie a quien aplicarse y el tablero
@@ -2829,7 +6513,7 @@ app.post("/api/cobranza/ajuste", requiere("direccion", "admin"), (req, res) => {
   if (!existe) return res.status(404).json({ error: "Esa clienta no aparece en la captura de " + u.nombre + " ese día." });
 
   const aj = { fecha, ejecutivo: ejec, clave, campo: anula ? null : campo,
-    monto: anula ? 0 : monto, anula, motivo,
+    monto: anula || campo === "forma" ? 0 : monto, valor: valorForma, anula, motivo,
     por: req.usuario.nombre, usuario: req.usuario.id, ts: Date.now() };
   store.agregarAjusteCobranza(aj);
   res.json({ ok: true, ajuste: aj });
@@ -2889,11 +6573,80 @@ app.post("/api/movimiento/anular", requiere("direccion", "admin"), (req, res) =>
   res.json({ ok: true, folio, anulado: anular });
 });
 
+// ---------- RIESGO Y PEP · bitácora inmutable (CU-016, Regla R11.4 Anexo F) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/riesgo_bitacora.js; aquí
+// solo el pegamento HTTP. Quién puede cambiar: RIESGO_ROLES_PUEDEN_CAMBIAR
+// (roles separados por coma; default "direccion", CU-016 §10.2 pendiente).
+const RIESGO_ROLES_PUEDEN_CAMBIAR = String(process.env.RIESGO_ROLES_PUEDEN_CAMBIAR ?? "direccion")
+  .split(",").map((rol) => rol.trim()).filter(Boolean);
+const riesgo = require("./dominios/riesgo_bitacora")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  rolesPuedenCambiar: RIESGO_ROLES_PUEDEN_CAMBIAR,
+});
+// Traduce la respuesta del dominio ({ status, error } o el resultado) a HTTP;
+// si el dominio truena, 500 legible en vez de tumbar el proceso.
+const rutaRiesgo = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[riesgo] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación de riesgo. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/riesgo/catalogos", requiere("direccion", "admin"), rutaRiesgo(() => riesgo.catalogos()));
+app.get("/api/riesgo/:socio", requiere("direccion", "admin"), rutaRiesgo((req) => riesgo.fichaRiesgo(req.usuario, req.params.socio)));
+app.post("/api/riesgo/cambiar", requiere("direccion", "admin"), rutaRiesgo(({ body = {}, usuario }) => riesgo.registrarCambioRiesgo(
+  { socio: body.socio ?? body.id, campo: body.campo, valor: body.valor, motivo: body.motivo }, usuario,
+)));
+
+// ---------- NOTIFICACIONES · bandeja interna (NOT-01, dentro de CU-020) ----------
+// Construido 12-sep-2026, aprobado por Dirección General (Consuelo Bozas)
+// el 11-sep-2026. La lógica vive en dominios/notificaciones.js; aquí solo el
+// pegamento HTTP (mismo patrón que /api/riesgo).
+const rutaNotificaciones = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado && resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json({ ok: true, ...(Array.isArray(resultado) ? { notificaciones: resultado } : resultado) });
+  } catch (error) {
+    console.error(`[notificaciones] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación de notificaciones. Intenta de nuevo o avisa a soporte." });
+  }
+};
+app.get("/api/notificaciones/catalogo", requiere("direccion", "admin"), rutaNotificaciones(() => ({ catalogo: notificaciones.catalogo(), pendientes: notificaciones.pendientes() })));
+app.get("/api/notificaciones", requiere("direccion", "admin"), rutaNotificaciones((req) => notificaciones.bandeja(req.usuario)));
+app.post("/api/notificaciones/:ts/leida", requiere("direccion", "admin"), rutaNotificaciones((req) => notificaciones.marcarLeida(Number(req.params.ts), req.usuario)));
+
 // ---------- ARQUEO consolidado del día ----------
 // Reproduce el FORMATO ARQUEO de FOOAX: desglose de billetes/monedas por
 // ejecutivo, efectivo total, menos egresos (gastos/retiros), efectivo a
 // entregar, depósitos (transferencias) y mora del día (faltantes).
 const DENOMS_ARQUEO = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5];
+// LA MONEDA MÁS CHICA QUE EXISTE SON $0.50 (Karina, 19-ago).
+//
+// Los productos que prorratean por días —Magnus, Pago Único— dejan el monto a
+// entregar en centavos que NO SE PUEDEN PAGAR: nadie entrega $162,499.97; lo
+// más cerca que hay es $162,499.50 o $162,500. En los dos casos el arqueo
+// marcaba "no cuadra" por unos centavos que no son error de nadie — y un rojo
+// que aparece siempre deja de leerse, que es peor que no avisar.
+//
+// La regla estricta de UN CENTAVO no se toca cuando la cifra SÍ se puede pagar
+// (múltiplo de $0.50): ahí o cuadra o no cuadra, como se decidió el 6-ago. La
+// holgura existe SOLO cuando el monto es impagable, y nunca llega a $0.50: si
+// la diferencia alcanza una moneda de cincuenta, esa moneda sí existía y el
+// descuadre es real.
+const CAMBIO_MIN = 0.5;
+function cuadreDe(aEntregar, contado) {
+  const dif = Math.round((contado - aEntregar) * 100) / 100;
+  const exacto = Math.abs(dif) < 0.01;
+  const impagable = Math.round(Math.abs(aEntregar) * 100) % 50 !== 0;
+  const redondeo = !exacto && impagable && Math.abs(dif) < CAMBIO_MIN;
+  return { dif, cuadra: exacto || redondeo, exacto, redondeo };
+}
 
 // Cálculo del arqueo de un día (reusado por /api/arqueo y por el Excel).
 function calcularArqueo(fecha, ids) {
@@ -2907,7 +6660,7 @@ function calcularArqueo(fecha, ids) {
     // (bug del 28-jul: IRMA NORA traía desglose de $140 y a Karina le
     // "sobraban" $140 que nunca le sobraron).
     const desglosePorClienta = {};
-    const acc = { denom, efectivo: 0, transferencia: 0, garantias: 0, faltantes: 0, clientas: 0 };
+    const acc = { denom, efectivo: 0, transferencia: 0, garantias: 0, faltantes: 0, clientas: 0, cheque: 0 };
     const s = snaps[id];
     if (s) {
       let data = s.snapshot;
@@ -2923,6 +6676,9 @@ function calcularArqueo(fecha, ids) {
           acc.transferencia += total;
           if (n.forma === "D") acc.deposito = (acc.deposito || 0) + total;
         }
+        // CHEQUE (Ing. Karina, 24-ago): no son billetes ni transferencia — van
+        // al banco por su propio carril y con su propia columna en la recepción.
+        else if (n.forma === "CH") acc.cheque += total;
         else if (n.forma === "M") {
           const mt = n.mixTr || 0;
           const me = (n.mixEfe != null && (mt + (n.mixEfe || 0)) === total) ? n.mixEfe : (total - mt);
@@ -2995,6 +6751,9 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     : todos;
   const egresosEfectivo = egresosEnEfectivo(movs);
   repartirMovsPorEjecutivo(a.porEjec, movs);
+  // LA CAJA DEL DÍA para Dirección: saldo inicial encadenado, recursos y las
+  // salidas con nombre (formato Ing. Karina, 24-ago).
+  if (req.usuario.rol !== "ejecutivo") a.caja = cajaDelDia(req.usuario, fecha);
   // Cuadre POR EJECUTIVA: lo que contó de billetes vs lo que debe entregar
   // (su efectivo + sus entradas − sus salidas). Antes solo existía el
   // consolidado, así que no se veía CUÁL ejecutiva estaba descuadrada.
@@ -3005,7 +6764,10 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     // que entró en efectivo (recuperaciones/liquidaciones). Solo efectivo: la
     // transferencia va al banco y no toca la caja.
     e.aEntregar = Math.round((e.efectivo - (e.egresoEfectivo || 0)) * 100) / 100;
-    e.dif = Math.round((e.contado - e.aEntregar) * 100) / 100;
+    const cq = cuadreDe(e.aEntregar, e.contado);
+    e.dif = cq.dif;
+    e.cuadra = cq.cuadra;             // el veredicto lo da el servidor, no la pantalla
+    e.difRedondeo = cq.redondeo;      // cuadra, pero por redondeo al cambio más chico
     // Si lo que le SOBRA coincide con un gasto suyo en efectivo, se nombra: es
     // casi siempre un gasto anotado cuyo dinero todavía no salió de la caja, y
     // así la ejecutiva no tiene que deducirlo (Karina, 5-ago).
@@ -3031,6 +6793,36 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
   });
 });
 
+// ---------- PLD · ACUMULACIÓN POR CLIENTA EN 6 MESES (CU-017, R11.3 Anexo F, G.5-G.7 Anexo G) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/pld_acumulacion.js; aquí
+// el pegamento HTTP y los parámetros (umbral 1,605 UMA — PLD-01 — y ventana
+// de 180 días, por entorno; la UMA versionada en data/uma.json). SOLO MARCA,
+// NUNCA BLOQUEA (PLD-02): la marca `alertaPLD` se cuelga del crédito en
+// procesarAltaPadron y /api/creditos/recredito.
+const PLD_UMBRAL_UMA = Number(process.env.PLD_UMBRAL_UMA) || 1605;
+const PLD_VENTANA_DIAS = Number(process.env.PLD_VENTANA_DIAS) || 180;
+const pld = require("./dominios/pld_acumulacion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  umbralUMA: PLD_UMBRAL_UMA, ventanaDias: PLD_VENTANA_DIAS,
+  archivoUMA: path.join(__dirname, "data", "uma.json"),
+});
+const evaluarPLDAlDesembolsar = pld.evaluarAlDesembolsar;
+const rutaPLD = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[pld] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la consulta PLD. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/pld/acumulacion", requiere("direccion", "admin"), rutaPLD(({ query }) => pld.consultarAcumulacion(query)));
+app.get("/api/pld/alertas", requiere("direccion", "admin"), rutaPLD(({ usuario }) => pld.resumenAlertas(usuario)));
+app.get("/api/pld/uma", requiere("direccion", "admin"), rutaPLD(() => pld.resumenUMA()));
+
 // ---------- CIERRE DE CAJA DE LA SEMANA ----------
 // El arqueo diario contesta "¿cuánto entrega cada ejecutiva hoy?". No contesta
 // "¿cuánto efectivo tiene FOOAX el sábado?", y por eso al cierre de semana
@@ -3042,14 +6834,29 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
 // lo que debe quedar el sábado es simplemente lo que entró menos lo que salió.
 // El cierre se para el SÁBADO: ninguna clienta tiene ese día de cobro, pero sí
 // entra dinero (recuperaciones, liquidaciones, pagos atrasados).
-function cierreDeCaja(usuario, lunesOpt) {
+// `fechaOpt`: el día que Dirección está mirando. Si se regresa al sábado, el
+// cierre tiene que ser el DE ESA SEMANA cerrado a ese día — no el de la semana
+// en curso (Karina, 17-ago: «si me regreso al sábado, necesito ver el cierre de
+// caja del sábado»). Antes se ignoraba y siempre salía la semana de hoy.
+function cierreDeCaja(usuario, lunesOpt, fechaOpt) {
   const r2 = (n) => Math.round((n || 0) * 100) / 100;
-  const hoy = hoyMX();
-  const lunes = lunesOpt || lunesDeLaSemana(hoy);
+  const hoyReal = hoyMX();
+  const mirando = /^\d{4}-\d{2}-\d{2}$/.test(String(fechaOpt || "")) && fechaOpt <= hoyReal
+    ? fechaOpt : hoyReal;
+  const hoy = mirando;
+  const lunes = lunesOpt || lunesDeLaSemana(mirando);
   const ids = idsEjecutivos(usuario);
   const dias = [];
   let entroCobranza = 0, entroMovs = 0, salio = 0;
   let transferencias = 0, depositos = 0, cheques = 0, garantias = 0;
+  // Los carriles del banco, partidos en ENTRA y SALE (Karina, 24-ago: el
+  // renglón del APARTE debe decir lo mismo que el de arriba, semana completa).
+  let trEntra = 0, trSale = 0, chequesCobranza = 0;
+  // Un renombre de concepto NO puede partir un renglón en dos («Recuperación /
+  // adelanto» y «Recuperación» salían por separado en el cierre del 17-22).
+  const unifica = (t2) => t2 === "Recuperación / adelanto" ? "Recuperación"
+    : t2 === "Garantía" ? "Garantía líquida"
+    : t2 === "Autorización / préstamo" ? "Autorización de préstamo" : t2;
   // LA COBRANZA COMPLETA, por forma de pago. Sin esto no se podía cuadrar el
   // cierre contra la tarjeta de Cartera: aquí solo entra el EFECTIVO, y la
   // diferencia —transferencias y depósitos— no se veía por ningún lado.
@@ -3068,9 +6875,21 @@ function cierreDeCaja(usuario, lunesOpt) {
     let ent = 0, sal = 0;
     for (const m of movsDeFecha(fISO, usuario)) {
       const monto = Number(m.monto) || 0;
-      const tipo = tipoDeMov(m) || "Otro";
-      if (m.metodo === "transferencia") { transferencias += m.entrada ? monto : -monto; continue; }
+      const tipo = unifica(tipoDeMov(m) || "Otro");
+      if (m.metodo === "transferencia") { transferencias += m.entrada ? monto : -monto;
+        if (m.entrada) trEntra += monto; else trSale += monto; continue; }
       if (m.metodo === "cheque") { cheques += m.entrada ? monto : -monto; continue; }
+      if (m.metodo === "mixto") {
+        // Cada parte a su carril, como en las capturas de las apps.
+        const tr = Number(m.mixTr) || 0;
+        transferencias += m.entrada ? tr : -tr;
+        if (m.entrada) trEntra += tr; else trSale += tr;
+        const ef = Number(m.mixEfe) || 0;
+        if (m.entrada) { ent += ef; entradasPorTipo[tipo] = (entradasPorTipo[tipo] || 0) + ef; }
+        else { sal += ef; const et2 = m.tipoGasto ? (tipo + " · " + m.tipoGasto) : tipo;
+          salidasPorTipo[et2] = (salidasPorTipo[et2] || 0) + ef; }
+        continue;
+      }
       if (m.metodo !== "efectivo") continue;
       if (m.entrada) { ent += monto; entradasPorTipo[tipo] = (entradasPorTipo[tipo] || 0) + monto; }
       else {
@@ -3082,6 +6901,7 @@ function cierreDeCaja(usuario, lunesOpt) {
     entroCobranza += cob; entroMovs += ent; salio += sal;
     cobTransfer += (a.transferencia || 0) - (a.deposito || 0);
     cobDeposito += a.deposito || 0;
+    chequesCobranza += a.cheque || 0;   // los pagos de clientas con cheque también son de la semana
     transferencias += (a.transferencia || 0) - (a.deposito || 0);
     depositos += a.deposito || 0;
     garantias += a.garantias || 0;
@@ -3100,15 +6920,176 @@ function cierreDeCaja(usuario, lunesOpt) {
       deposito: r2(cobDeposito), total: r2(entroCobranza + cobTransfer + cobDeposito) },
     // Esto NO es efectivo: va al banco. Se reporta aparte para que nadie lo sume.
     transferencias: r2(transferencias), depositos: r2(depositos), cheques: r2(cheques),
+    // Las transferencias DE TODA LA SEMANA que entraron (cobranza + movimientos)
+    // y las que salieron — el renglón del APARTE dice el primero, tal cual.
+    transferenciasEntraron: r2(cobTransfer + trEntra), transferenciasSalieron: r2(trSale),
+    chequesCobranza: r2(chequesCobranza),
+    // TODO lo que entró en la semana, en todas las formas: el total que pidió
+    // Karina el 24-ago («ya vas a meter todo»).
+    totalEntroTodas: r2(entroCobranza + entroMovs + cobTransfer + trEntra + cobDeposito + chequesCobranza),
     entradasPorTipo, salidasPorTipo, dias,
   };
 }
+// REPORTE DE CRÉDITOS OTORGADOS (plantilla de la Ing. Karina, 24-ago).
+// Sale del registro de tesorería: cada «Autorización / préstamo» con su
+// clienta, su producto y el monto ENTREGADO — el préstamo, nunca lo que la
+// clienta terminará pagando (regla escrita en su hoja de correcciones). La
+// tasa y la periodicidad las pone el motor por el puente; el vencimiento se
+// estima del plazo. Descargable en CUALQUIER rango de fechas, como pidió.
+function creditosOtorgados(usuario, desde, hasta) {
+  const d1 = /^\d{4}-\d{2}-\d{2}$/.test(String(desde || "")) ? desde : hoyMX();
+  const d2 = /^\d{4}-\d{2}-\d{2}$/.test(String(hasta || "")) ? hasta : hoyMX();
+  const filas = [];
+  for (const m of store.todosMovimientos()) {
+    if (m.anulado || m.entrada) continue;   // la Comisión de desembolso es entrada: fuera
+    if (!/autorizaci|desembols/i.test(tipoDeMov(m) || "")) continue;
+    if (m.fecha < d1 || m.fecha > d2) continue;
+    const soc = socioDeMov(m), prod = productoDeMov(m);
+    const c = soc ? PADRON.find((x) => String(x.id) === String(soc)
+      && (!prod || nprod(x.producto) === nprod(prod))) : null;
+    const plazo = c ? Number(c.plazo) || null : null;
+    const rp = c ? motor.resolverCredito(c) : { ok: false };
+    const pm = rp.ok ? rp.producto : null;
+    let vence = null;
+    if (plazo) {
+      const v = new Date(m.fecha + "T12:00:00");
+      v.setDate(v.getDate() + (pm && pm.periodicidad === "mensual" ? plazo * 30 : plazo * 7));
+      vence = v.toISOString().slice(0, 10);
+    }
+    filas.push({
+      referencia: m.folio, control: soc || "—",
+      cliente: m.clientaNombre || (c ? c.nombre : "(sin clienta)"),
+      grupo: c ? c.centro : "—", producto: prod || (c ? c.producto : "—"),
+      periodicidad: pm ? (pm.periodicidad === "mensual" ? "Mensual" : "Semanal") : "—",
+      totalPagos: plazo || "—",
+      plazoTexto: plazo ? (plazo + (pm && pm.periodicidad === "mensual" ? " meses" : " semanas")) : "—",
+      tasa: pm && pm.tasaMensual != null ? (pm.tasaMensual * 100).toFixed(2) + "% mensual" : "—",
+      importe: Number(m.monto) || 0,
+      otorgamiento: m.fecha, vencimiento: vence || "—",
+      formaDesembolso: m.metodo === "efectivo" ? "Efectivo"
+        : m.metodo === "cheque" ? "Cheque" + (m.cheque ? " #" + m.cheque : "")
+        : "Transferencia bancaria",
+      corregido: m.montoAnterior != null
+        ? { montoAnterior: m.montoAnterior, por: m.montoCorrigioPor, motivo: m.montoCorrigioMotivo } : null,
+    });
+  }
+  filas.sort((a2, b2) => String(a2.otorgamiento).localeCompare(String(b2.otorgamiento)));
+  return { desde: d1, hasta: d2, total: filas.length,
+    monto: Math.round(filas.reduce((t, x) => t + x.importe, 0) * 100) / 100, filas };
+}
+
+app.get("/api/otorgados", requiere("direccion", "admin"), (req, res) => {
+  res.json(creditosOtorgados(req.usuario, req.query.desde, req.query.hasta));
+});
+
+app.get("/api/otorgados/excel", requiere("direccion", "admin"), async (req, res) => {
+  const d = creditosOtorgados(req.usuario, req.query.desde, req.query.hasta);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const s2 = wb.addWorksheet("Créditos otorgados");
+  const MONEDA = '"$"#,##0.00';
+  s2.mergeCells("A1:M1");
+  const t1 = s2.getCell("A1");
+  t1.value = "FOOAX · REPORTE DE CRÉDITOS OTORGADOS · del " + d.desde + " al " + d.hasta;
+  t1.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t1.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1228E" } };
+  t1.alignment = { horizontal: "center" }; s2.getRow(1).height = 24;
+  const cols = [["Referencia", 18], ["No. Control (socio)", 16], ["Cliente", 30], ["Grupo", 20],
+    ["Producto", 18], ["Periodicidad", 12], ["Total de pagos", 12], ["Plazo", 12], ["Tasa", 14],
+    ["Importe entregado", 15], ["F. Otorgamiento", 14], ["F. Vencimiento", 14], ["Forma de desembolso", 18]];
+  const h2r = s2.getRow(2);
+  cols.forEach(([h3, w], i) => { const c = h2r.getCell(i + 1); c.value = h3;
+    s2.getColumn(i + 1).width = w;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF324AB6" } }; });
+  let f2 = 3;
+  for (const x of d.filas) {
+    const r = s2.getRow(f2++);
+    [x.referencia, x.control, x.cliente, x.grupo, x.producto, x.periodicidad,
+     x.totalPagos, x.plazoTexto, x.tasa].forEach((v, i) => (r.getCell(i + 1).value = v));
+    const cI = r.getCell(10); cI.value = x.importe; cI.numFmt = MONEDA;
+    r.getCell(11).value = x.otorgamiento; r.getCell(12).value = x.vencimiento;
+    r.getCell(13).value = x.formaDesembolso
+      + (x.corregido ? " · corregido (antes $" + x.corregido.montoAnterior + ")" : "");
+  }
+  const tt = s2.getRow(f2++);
+  tt.getCell(9).value = "TOTAL · " + d.total + " créditos"; tt.getCell(9).font = { bold: true };
+  const cT = tt.getCell(10); cT.value = d.monto; cT.numFmt = MONEDA; cT.font = { bold: true };
+  s2.mergeCells(f2, 1, f2, 13);
+  s2.getCell(f2, 1).value = "El importe es lo ENTREGADO a la clienta (el préstamo), nunca lo que "
+    + "terminará pagando — regla de la Ing. Karina, 24-ago-2026.";
+  s2.getCell(f2, 1).font = { italic: true, size: 9, color: { argb: "FF6B6480" } };
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Creditos otorgados FOOAX ${d.desde} a ${d.hasta}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
+// CORRECCIÓN DEL MONTO OTORGADO (hoja «CORRECCIONES» de la Ing. Karina):
+// se corrige el monto ENTREGADO de una autorización, con rastro completo —
+// cuánto decía, quién lo corrigió y por qué. Nunca se borra ni se recaptura.
+app.post("/api/movimiento/corregir-monto", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const folio = String(b.folio || "").trim();
+  const monto = Number(b.monto);
+  const motivo = String(b.motivo || "").trim();
+  if (!folio) return res.status(400).json({ error: "Falta el folio del movimiento." });
+  if (!(monto > 0)) return res.status(400).json({ error: "El monto corregido debe ser mayor a cero." });
+  if (!motivo) return res.status(400).json({ error: "Escribe por qué se corrige (queda en el rastro)." });
+  const m = store.todosMovimientos().find((x) => x.folio === folio);
+  if (!m) return res.status(400).json({ error: "No encuentro ese movimiento." });
+  store.corregirMovimiento(folio, { monto, montoPor: req.usuario.nombre, montoMotivo: motivo });
+  res.json({ ok: true, folio, monto, montoAnterior: m.montoAnterior });
+});
+
+// LA CAJA DEL DÍA (formato de la Ing. Karina, 24-ago). El día NO arranca en
+// cero: arranca con lo que quedó AYER — «si el 17 termina con $10,000, ese es
+// el saldo inicial del 18». La cadena se reinicia cada LUNES (regla que ya
+// regía el cierre semanal). De aquí salen el saldo inicial, los recursos
+// inyectados, las tres salidas con nombre y el «queda en caja» que será el
+// saldo inicial de mañana.
+function cajaDelDia(usuario, fecha) {
+  const r2c = (x) => Math.round((x || 0) * 100) / 100;
+  const lunes = lunesDeLaSemana(fecha);
+  let saldoInicial = 0;
+  if (fecha > lunes) {
+    const ayer = new Date(fecha + "T12:00:00"); ayer.setDate(ayer.getDate() - 1);
+    const c = cierreDeCaja(usuario, lunes, ayer.toISOString().slice(0, 10));
+    saldoInicial = c.quedaEnCaja || 0;
+  }
+  const cat = { recursosBancos: 0, recursosDireccion: 0, autorizaciones: 0,
+    gastosRetiros: 0, garantiasEntregadas: 0, otrasEntradas: 0, otrasSalidas: 0 };
+  for (const m of movsDeFecha(fecha, usuario)) {
+    // La caja es billetes: de un MIXTO solo cuenta su parte en efectivo; lo
+    // demás va al banco por su carril.
+    if (m.metodo !== "efectivo" && m.metodo !== "mixto") continue;
+    const monto = efectivoDeMov(m);
+    const t = tipoDeMov(m) || "";
+    if (m.entrada) {
+      if (/recurso de bancos/i.test(t)) cat.recursosBancos += monto;
+      else if (/recurso aportado/i.test(t)) cat.recursosDireccion += monto;
+      else cat.otrasEntradas += monto;              // liquidaciones, recuperaciones, comisiones
+    } else {
+      if (/autorizaci|desembols/i.test(t)) cat.autorizaciones += monto;
+      else if (/^garant/i.test(t)) cat.garantiasEntregadas += monto;
+      else cat.gastosRetiros += monto;              // gastos operativos y retiros
+    }
+  }
+  const a = calcularArqueo(fecha, idsEjecutivos(usuario));
+  const entradas = a.efectivo + cat.otrasEntradas + cat.recursosBancos + cat.recursosDireccion;
+  const salidas = cat.autorizaciones + cat.gastosRetiros + cat.garantiasEntregadas + cat.otrasSalidas;
+  return { fecha, saldoInicial: r2c(saldoInicial), cobranzaEfectivo: r2c(a.efectivo),
+    recursosBancos: r2c(cat.recursosBancos), recursosDireccion: r2c(cat.recursosDireccion),
+    otrasEntradas: r2c(cat.otrasEntradas), autorizaciones: r2c(cat.autorizaciones),
+    gastosRetiros: r2c(cat.gastosRetiros), garantiasEntregadas: r2c(cat.garantiasEntregadas),
+    totalSalidas: r2c(salidas), quedaEnCaja: r2c(saldoInicial + entradas - salidas) };
+}
+
 app.get("/api/semana/caja", requiere("direccion", "admin"), (req, res) => {
-  res.json(cierreDeCaja(req.usuario, req.query.lunes));
+  res.json(cierreDeCaja(req.usuario, req.query.lunes, req.query.fecha));
 });
 // El mismo cierre en Excel, para mandárselo a Dirección o guardarlo del sábado.
 app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, res) => {
-  const c = cierreDeCaja(req.usuario, req.query.lunes);
+  const c = cierreDeCaja(req.usuario, req.query.lunes, req.query.fecha);
   const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
   const s = wb.addWorksheet("Cierre de caja", { properties: { defaultColWidth: 20 } });
   const AURORA = "FFF1228E", RIO = "FF324AB6", VERDE = "FF0B7247";
@@ -3137,23 +7118,27 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
   // De dónde sale el número: el desglose por forma, para poder cuadrarlo contra
   // la tarjeta de Cartera sin adivinar (Karina, 6-ago).
   if (c.cobranza) {
-    enc("COBRANZA DE LA SEMANA, POR FORMA", "FF8A5A00");
-    linea("En efectivo — es lo único que entra a esta caja", c.cobranza.efectivo);
-    linea("En transferencias — van al banco", c.cobranza.transferencia);
-    linea("En depósitos Oxxo / tienda — van al banco", c.cobranza.deposito);
-    linea("TOTAL COBRADO EN LA SEMANA", c.cobranza.total, true);
+  }
+  // UNA SOLA SECCIÓN DE ENTRADAS (Karina, 24-ago: «ya vas a meter todo — el
+  // efectivo, transferencias, cobranza por forma y más entró en efectivo; esas
+  // dos tienen que fundirse»). Antes «cobranza por forma» y «entró en
+  // efectivo» eran dos bloques con dos totales que había que sumar de cabeza.
+  enc("TOTAL QUE ENTRÓ EN LA SEMANA — todas las formas", RIO).getCell(4).value = null;
+  linea("En EFECTIVO — cobranza (fichas, garantías y solidario)", c.entroCobranza);
+  for (const k of Object.keys(c.entradasPorTipo).sort((a, b) => c.entradasPorTipo[b] - c.entradasPorTipo[a]))
+    linea("   " + k + " (efectivo)", c.entradasPorTipo[k]);
+  linea("Subtotal en efectivo — es lo único que entra a esta caja", c.entro, true);
+  linea("En TRANSFERENCIAS — cobranza y movimientos, van al banco", c.transferenciasEntraron);
+  linea("En DEPÓSITOS OXXO / tienda — van al banco", c.cobranza.deposito);
+  if (c.chequesCobranza) linea("En CHEQUES — son papel, van al banco", c.chequesCobranza);
+  linea("TOTAL QUE ENTRÓ", c.totalEntroTodas, true);
+  {
     const rn = s.getRow(fila++); s.mergeCells(fila - 1, 1, fila - 1, 4);
-    rn.getCell(1).value = "Este total incluye garantías y solidario, y lo cobrado a créditos en recuperación. "
+    rn.getCell(1).value = "Incluye garantías y solidario, y lo cobrado a créditos en recuperación. "
       + "La tarjeta de Cartera los reporta aparte, por eso los dos números no son el mismo.";
     rn.getCell(1).font = { italic: true, size: 9 };
     rn.getCell(1).alignment = { wrapText: true };
-    fila++;
   }
-  enc("ENTRÓ EN EFECTIVO", RIO).getCell(4).value = null;
-  linea("Cobranza en efectivo (fichas, garantías y solidario)", c.entroCobranza);
-  for (const k of Object.keys(c.entradasPorTipo).sort((a, b) => c.entradasPorTipo[b] - c.entradasPorTipo[a]))
-    linea("   " + k, c.entradasPorTipo[k]);
-  linea("TOTAL QUE ENTRÓ", c.entro, true);
   fila++;
   enc("SALIÓ EN EFECTIVO", RIO);
   const sal = Object.keys(c.salidasPorTipo).sort((a, b) => c.salidasPorTipo[b] - c.salidasPorTipo[a]);
@@ -3162,16 +7147,23 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
   linea("TOTAL QUE SALIÓ", c.salio, true);
   fila++;
   const rq = s.getRow(fila++); s.mergeCells(fila - 1, 1, fila - 1, 3);
-  rq.getCell(1).value = "EFECTIVO QUE DEBE QUEDAR EL SÁBADO";
+  rq.getCell(1).value = "EFECTIVO QUE DEBE QUEDAR EL SÁBADO — solo el efectivo que se queda o entrega a Dirección General";
   rq.getCell(1).font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
   rq.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: VERDE } };
   const cq = rq.getCell(4); cq.value = c.quedaEnCaja; cq.numFmt = dinero;
   cq.font = { bold: true, size: 12, color: { argb: VERDE } };
   fila++;
   enc("APARTE — NO ES EFECTIVO, VA AL BANCO", "FF8A5A00");
-  linea("Transferencias", c.transferencias);
+  // EL MISMO IMPORTE que el renglón de transferencias de arriba, SEMANA
+  // COMPLETA (Karina, 24-ago). Un solo número en los dos lugares: cobranza +
+  // movimientos que entraron por transferencia. Si algo SALIÓ por
+  // transferencia, se dice en su renglón para que el banco cuadre.
+  linea("Transferencias — las mismas de arriba, semana completa", c.transferenciasEntraron);
+  if (c.transferenciasSalieron)
+    linea("   − salidas por transferencia (pagos, entregas)", -c.transferenciasSalieron);
   linea("Depósitos Oxxo / tienda", c.depositos);
-  if (c.cheques) linea("Cheques (son papel, no billetes)", c.cheques);
+  if (c.chequesCobranza || c.cheques)
+    linea("Cheques (son papel, no billetes)", Math.round(((c.chequesCobranza || 0) + (c.cheques || 0)) * 100) / 100);
   fila++;
   const rh = s.getRow(fila++);
   ["Día", "Entró", "Salió", "Neto"].forEach((h, i) => { const cc = rh.getCell(i + 1);
@@ -3195,6 +7187,316 @@ app.get("/api/semana/caja/excel", requiere("direccion", "admin"), async (req, re
 // ---------- ARQUEO DE CAJA en Excel (formato de la ficha física) ----------
 // Botón para Monse: cuenta el efectivo por denominación (billetes/monedas),
 // subtotal y total, del día elegido. Solo dirección/admin.
+// ===================================================================
+// MORA DEL DÍA, POR CENTRO — la idea de Karina (12-ago), tomada de su boceto:
+//
+//     MORA DE CENTROS :
+//       El Milagro · Ma de los Ángeles      $780.00
+//       Cofre de dinero · Lizbeth           $180.00
+//       Total de Mora del día               $960.00
+//       TOTAL DE MORA                     $9,754.00
+//
+// Usa EXACTAMENTE la misma regla que la mora de la semana (faltante = cuota −
+// lo que abonó), para que los dos reportes nunca se contradigan: mismos
+// excluidos (vencidos, cuota variable, sin cuota, sin desembolsar) y mismo
+// criterio de día de cobro.
+//
+// Lo que había antes en el arqueo era un solo número, y encima solo contaba a
+// las que pagaron DE MENOS: la que no pagaba nada no sumaba a la mora del día.
+// ===================================================================
+function moraDelDia(usuario, fecha) {
+  const f = /^\d{4}-\d{2}-\d{2}$/.test(String(fecha || "")) ? fecha : hoyMX();
+  const dia = NOMBRE_DIA[new Date(f + "T12:00:00").getDay()];
+  const lunes = lunesDeLaSemana(f);
+  const cv = carteraViva(usuario);
+  const mios = new Set(idsEjecutivos(usuario).map((id) => norm(USUARIOS[id].nombre)));
+  // Lo abonado ESE DÍA, crédito por crédito.
+  const { porFecha } = pagosDeLaSemana(usuario, f, f);
+  const pagoDelDia = {};
+  for (const clave in porFecha)
+    if (porFecha[clave][f]) pagoDelDia[clave] = (porFecha[clave][f].p || 0);
+
+  const sumaMovsCorte = (destino, desdeF, hastaF) => {
+    const d0 = new Date(desdeF + "T12:00:00");
+    for (let k = 0; k < 400; k++) {
+      const dd = new Date(d0); dd.setDate(d0.getDate() + k);
+      const fISO = dd.toISOString().slice(0, 10);
+      if (fISO > hastaF) break;
+      for (const m of movsDeFecha(fISO, usuario)) {
+        if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
+        const soc = socioDeMov(m); if (!soc) continue;
+        let prod = productoDeMov(m);
+        if (!prod) {
+          // Sin crédito escrito solo se puede aplicar si tiene UNO solo vivo.
+          const suyos = PADRON.filter((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === String(soc));
+          if (suyos.length === 1) prod = suyos[0].producto;
+        }
+        if (!prod) continue;
+        const cl = claveCredito(soc, prod);
+        destino[cl] = (destino[cl] || 0) + (Number(m.monto) || 0);
+      }
+    }
+  };
+
+  // TODO lo abonado DESDE EL CORTE, en dos cortes de tiempo: hasta este día
+  // (decide la mora del día) y hasta hoy (decide qué ya se recuperó). Es la
+  // misma ventana que usa la mora semanal — método de Monse, 14-ago.
+  const corteHoy = corteSaldos();
+  const hoyReal2 = hoyMX();
+  const { porFecha: pfCorte } = pagosDeLaSemana(usuario, corteHoy, hoyReal2 > f ? hoyReal2 : f);
+  const abonadoDesdeCorteHasta = {}, abonadoTotal = {};
+  for (const clave in pfCorte)
+    for (const d2 in pfCorte[clave]) {
+      const v = pfCorte[clave][d2].p || 0;
+      abonadoTotal[clave] = (abonadoTotal[clave] || 0) + v;
+      if (d2 <= f) abonadoDesdeCorteHasta[clave] = (abonadoDesdeCorteHasta[clave] || 0) + v;
+    }
+  sumaMovsCorte(abonadoDesdeCorteHasta, corteHoy, f);
+  sumaMovsCorte(abonadoTotal, corteHoy, hoyReal2 > f ? hoyReal2 : f);
+  // Abonos de caja por clave y por FECHA, para poder cortarlos en cualquier día
+  // del acumulado sin volver a recorrer los movimientos.
+  const movsPorClaveFecha = {};
+  {
+    const d0 = new Date(corteHoy + "T12:00:00");
+    for (let k = 0; k < 400; k++) {
+      const dd = new Date(d0); dd.setDate(d0.getDate() + k);
+      const fISO2 = dd.toISOString().slice(0, 10);
+      // Hasta HOY, no hasta el día del reporte: el "sigue debiendo" tiene que
+      // ver el dinero que entró DESPUÉS de ese día (es justo lo que reconcilia
+      // el arqueo con la mora de la semana). Cortando en `f`, una liquidación
+      // posterior no se veía y los dos números se separaban.
+      if (fISO2 > (hoyReal2 > f ? hoyReal2 : f)) break;
+      const dest = {};
+      sumaMovsCorte(dest, fISO2, fISO2);
+      for (const cl in dest) (movsPorClaveFecha[cl] = movsPorClaveFecha[cl] || {})[fISO2] = dest[cl];
+    }
+  }
+  // Abonos de un crédito ENTRE dos fechas (fichas + oficina). Es el equivalente
+  // de la mora semanal: se suma desde el arranque propio del crédito.
+  const abonoEntre = (clave, desdeISO, hastaISO) => {
+    let t = 0;
+    for (const d2 in (pfCorte[clave] || {}))
+      if (d2 >= desdeISO && d2 <= hastaISO) t += pfCorte[clave][d2].p || 0;
+    for (const d2 in (movsPorClaveFecha[clave] || {}))
+      if (d2 >= desdeISO && d2 <= hastaISO) t += movsPorClaveFecha[clave][d2];
+    return Math.round(t * 100) / 100;
+  };
+  const movsCorteHasta = (clave, hastaISO) => {
+    let t = 0;
+    for (const dd2 in (movsPorClaveFecha[clave] || {})) if (dd2 <= hastaISO) t += movsPorClaveFecha[clave][dd2];
+    return t;
+  };
+
+  // LOS PAGOS DE OFICINA TAMBIÉN CUENTAN. Una liquidación o recuperación que
+  // registra Dirección es dinero que la clienta entregó: si no se cuenta aquí,
+  // sale debiendo alguien que ya pagó. La mora de la semana sí los contaba y
+  // este bloque no — por eso el arqueo mostraba MÁS que la mora semanal, que
+  // fue exactamente lo que Karina notó el 12-ago.
+
+
+  // Y lo abonado de ese día EN ADELANTE, hasta el DOMINGO: sirve para saber
+  // quién se puso al corriente después.
+  //
+  // El tope es el domingo, no hoy, A PROPÓSITO: es la misma ventana que usa la
+  // mora de la semana, y solo así el «sigue debiendo» de este bloque coincide
+  // al centavo con lo que ella reporta. Cortando en hoy los dos números se
+  // separaban y parecían contradictorios. (En la práctica no hay abonos con
+  // fecha futura, así que el número es el mismo; lo que cambia es que ahora
+  // está garantizado.)
+  const finSem = new Date(lunes + "T12:00:00"); finSem.setDate(finSem.getDate() + 6);
+  const domingoSem = finSem.toISOString().slice(0, 10);
+  const { porFecha: pfHasta } = pagosDeLaSemana(usuario, f, domingoSem);
+  const pagoHastaHoy = {};
+  for (const clave in pfHasta)
+    for (const d2 in pfHasta[clave])
+      if (d2 >= f && d2 <= domingoSem)
+        pagoHastaHoy[clave] = (pagoHastaHoy[clave] || 0) + (pfHasta[clave][d2].p || 0);
+  sumaMovsCorte(pagoHastaHoy, f, domingoSem);
+
+  // LO ABONADO EN LA SEMANA HASTA ESE DÍA. Karina, 15-ago: «si su pago es el
+  // martes pero decidió pagar el lunes, no tiene que registrarle una mora
+  // porque pagó». Mirando solo el día exacto, la que se adelanta dentro de su
+  // propia semana salía debiendo — el caso de LA CONSENTIDA, que paga el
+  // miércoles su cuota del jueves.
+  const pagoSemHasta = {};
+  {
+    const { porFecha: pfSem } = pagosDeLaSemana(usuario, lunes, f);
+    for (const clave in pfSem)
+      for (const d2 in pfSem[clave])
+        if (d2 >= lunes && d2 <= f) pagoSemHasta[clave] = (pagoSemHasta[clave] || 0) + (pfSem[clave][d2].p || 0);
+    sumaMovsCorte(pagoSemHasta, lunes, f);
+  }
+
+  // Lo abonado exactamente en un día (fichas + caja), para separar lo del día
+  // de lo que entró después.
+  const porFechaDia = (clave, fISO) => Math.round(
+    (((pagoDelDia[clave] || 0)) + (((movsPorClaveFecha[clave] || {})[fISO]) || 0)) * 100) / 100;
+
+  const centros = {};
+  const fuera = { vencidos: 0, cuotaVariable: 0, sinCuota: 0, sinDesembolsar: 0, liquidados: 0 };
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!mios.has(norm(c.ejecutivo))) continue;
+    if (String(c.diaPago || "").trim().toUpperCase() !== dia) continue;   // solo los que cobran HOY
+    if (infoCredito(cv, c).saldoActual <= 0.009) { fuera.liquidados++; continue; }
+    if (/vencid/i.test(String(c.estatus || ""))) { fuera.vencidos++; continue; }
+    // La vencida por plazo cumplido (25-ago) tampoco es mora del día: es
+    // recuperación, igual que en la semanal. La referencia es el LUNES de la
+    // semana del día medido — la MISMA que usa la mora semanal — para que el
+    // día y el acumulado de su semana cuadren al centavo entre sí.
+    if (vencidaPorPlazo(c, infoCredito(cv, c), lunes)) { fuera.vencidos++; continue; }
+    if (esCuotaVariable(c.producto)) { fuera.cuotaVariable++; continue; }
+    const cuota = Number(c.cuota) || 0;
+    if (cuota <= 0) { fuera.sinCuota++; continue; }
+    const des = String(c.desembolso || "").slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(des) && des > f) { fuera.sinDesembolsar++; continue; }
+    const clave = claveCredito(c.id, c.producto);
+    const pagado = Math.round((pagoDelDia[clave] || 0) * 100) / 100;
+    // LA MISMA FÓRMULA DE MONSE que la mora semanal (14-ago): cuotas exigidas
+    // desde el corte hasta ESTE día, menos TODO lo abonado desde el corte hasta
+    // este día — así el adelanto de la semana pasada (ARIELA) y el pago
+    // adelantado dentro de la semana (LA CONSENTIDA, pagó el miércoles su
+    // jueves) cuentan a favor. Acotado a una cuota y al saldo restante (LUCIA).
+    const infoD = infoCredito(cv, c);
+    // LA MISMA REGLA QUE LA SEMANAL, pero mirando SOLO ESE DÍA: entra quien no
+    // cubrió su cuota el día que le tocaba cobrar. Lo que pague después no
+    // cambia lo que debía ese jueves — eso va abajo, en "se puso al corriente
+    // después", que es la recuperación.
+    // Lo abonado en su semana HASTA ese día: incluye el pago adelantado dentro
+    // de la misma semana. `pagado` (el del día exacto) se sigue reportando,
+    // porque es lo que mide la disciplina del centro.
+    const pagadoSem = Math.round((pagoSemHasta[clave] || 0) * 100) / 100;
+    // El saldo ANTES de los abonos de esta semana que aún no están dentro de
+    // él (los posteriores al corte): mismo cuidado que en la mora semanal.
+    const saldoAntesD = Math.max(0, Math.round(
+      ((c.saldo || 0) - abonoEntre(clave, corteSaldos(), lunes === corteSaldos() ? lunes : diaAnterior(lunes))) * 100) / 100);
+    const calAntD = calendarioDelCredito(c, idxDia(dia), diaAnterior(f));
+    const aFavor = (calAntD && !calAntD.termino)
+      ? Math.max(0, Math.round((calAntD.restante - saldoAntesD) * 100) / 100) : 0;
+    const calHoyD = calendarioDelCredito(c, idxDia(dia), f);
+    const termino = !!(calHoyD && calHoyD.termino && saldoAntesD < cuota * 2);
+    const exigible = termino ? saldoAntesD : Math.min(cuota, saldoAntesD);
+    const faltante = Math.round(
+      Math.min(Math.max(0, exigible - pagadoSem - aFavor), saldoAntesD) * 100) / 100;
+    if (faltante <= 0) continue;
+    // LA RECUPERACIÓN. Lo que entró DESPUÉS de su día: es lo que la saca de la
+    // mora («se sale cuando se hace recuperación», Karina 15-ago). Este bloque
+    // sigue mostrándola —ese día no pagó, y eso no se borra— pero con su
+    // pendiente en cero. Es lo que reconcilia el arqueo con la mora semanal,
+    // donde la que se puso al corriente ya no aparece.
+    const pagadoDespues = Math.round(
+      Math.max(0, (pagoHastaHoy[clave] || 0) - (porFechaDia(clave, f))) * 100) / 100;
+    const sigueDebiendo = Math.round(
+      Math.min(Math.max(0, faltante - pagadoDespues), infoD.saldoActual) * 100) / 100;
+    void termino;
+    const nom = String(c.centro || "").trim() || "Individual";
+    const g = centros[nom] || (centros[nom] = { centro: nom, ejecutivo: c.ejecutivo || "—",
+      filas: [], total: 0, recuperado: 0, pendiente: 0 });
+    g.filas.push({ socio: String(c.id), clienta: c.nombre, producto: c.producto,
+      cuota, pagado, faltante, pagadoDespues, sigueDebiendo });
+    g.total = Math.round((g.total + faltante) * 100) / 100;
+    g.recuperado = Math.round((g.recuperado + Math.min(pagadoDespues, faltante)) * 100) / 100;
+    g.pendiente = Math.round((g.pendiente + sigueDebiendo) * 100) / 100;
+  }
+  const lista = Object.values(centros).sort((a, b) => b.total - a.total);
+  for (const g of lista) g.filas.sort((a, b) => b.faltante - a.faltante);
+  const totalDia = Math.round(lista.reduce((t, g) => t + g.total, 0) * 100) / 100;
+  const recuperado = Math.round(lista.reduce((t, g) => t + g.recuperado, 0) * 100) / 100;
+  const pendiente = Math.round(lista.reduce((t, g) => t + g.pendiente, 0) * 100) / 100;
+
+  // TOTAL DE MORA: el acumulado de la semana hasta ese día — el número grande
+  // del boceto. Se suman los faltantes DÍA POR DÍA con esta misma regla.
+  //
+  // No se saca de la mora semanal a propósito: aquella mide "cuota − lo que
+  // abonó en TODA la semana", así que perdona a la que pagó tarde. Mezclarlas
+  // daba un acumulado MENOR que el día, que no se puede leer. Cada día se mide
+  // igual y se suma: eso sí se sostiene.
+  //
+  // Misma fórmula de Monse, día por día: cuotas vencidas desde el corte hasta
+  // ese día, menos lo abonado desde el corte hasta ese día. Los abonos por
+  // fecha ya están en pfCorte; solo se corta la suma en cada día.
+  let acumulado = 0;
+  let acumuladoNeto = 0;
+  const porDiaAcum = {}, fechaDeDia = {}, recupDia = {};
+  for (let k = 0; k < 7; k++) {
+    const dd = new Date(lunes + "T12:00:00"); dd.setDate(dd.getDate() + k);
+    const fISO = dd.toISOString().slice(0, 10);
+    if (fISO > f) break;
+    const diaK = NOMBRE_DIA[dd.getDay()];
+    for (const c of PADRON) {
+      if (c.activa === false || c.estatus === "BAJA") continue;
+      if (!mios.has(norm(c.ejecutivo))) continue;
+      if (String(c.diaPago || "").trim().toUpperCase() !== diaK) continue;
+      const infoK = infoCredito(cv, c);
+      if (infoK.saldoActual <= 0.009) continue;
+      if (/vencid/i.test(String(c.estatus || ""))) continue;
+      // La vencida por plazo cumplido sale del acumulado con la MISMA
+      // referencia que el bloque del día (el lunes de la semana): si no, el
+      // día y su renglón del acumulado dan distinto y parecen contradecirse.
+      if (vencidaPorPlazo(c, infoK, lunes)) continue;
+      if (esCuotaVariable(c.producto)) continue;
+      const cuotaK = Number(c.cuota) || 0;
+      if (cuotaK <= 0) continue;
+      const desK = String(c.desembolso || "").slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(desK) && desK > fISO) continue;
+      const claveK = claveCredito(c.id, c.producto);
+      let abonadoK = 0;
+      for (const dd2 in (pfCorte[claveK] || {}))
+        if (dd2 <= fISO) abonadoK += pfCorte[claveK][dd2].p || 0;
+      abonadoK += movsCorteHasta(claveK, fISO);
+      // Misma regla que arriba: su cuota menos lo que abonó ESE día, con el
+      // adelanto a favor si lo trae.
+      const saldoK = Math.max(0, Math.round(((c.saldo || 0) - abonoEntre(claveK, corteHoy, fISO)) * 100) / 100);
+      // LA MISMA REGLA QUE EL BLOQUE DEL DÍA (Karina, 18-ago: «del lunes
+      // $2,976.50 y del martes $5,886 — eso está mal»). El acumulado contaba
+      // SOLO el pago hecho ESE día exacto, mientras el bloque de arriba cuenta
+      // lo abonado en la semana HASTA ese día. Por eso cobraba de más a la que
+      // se adelanta: pagaba el lunes su cuota del martes, el martes salía
+      // limpia arriba y morosa en el acumulado. Ahora las dos miran lo mismo.
+      const pagoK = abonoEntre(claveK, lunes, fISO);
+      const calAntK = calendarioDelCredito(c, idxDia(diaK), diaAnterior(fISO));
+      const aFavorK = (calAntK && !calAntK.termino)
+        ? Math.max(0, Math.round((calAntK.restante - (saldoK + pagoK)) * 100) / 100) : 0;
+      const calHoyK = calendarioDelCredito(c, idxDia(diaK), fISO);
+      const exigibleK = (calHoyK && calHoyK.termino && infoK.saldoActual < cuotaK * 2)
+        ? Math.round((saldoK + pagoK) * 100) / 100 : Math.min(cuotaK, saldoK + pagoK);
+      const faltoEseDia = Math.min(Math.max(0, exigibleK - pagoK - aFavorK), saldoK);
+      // DOS CIFRAS, NO UNA (Karina, 18-ago: «la mora acumulada está mal»). El
+      // acumulado sumaba el faltante de cada día tal cual, y así la clienta que
+      // no pagó el lunes seguía contada el martes aunque el martes ya hubiera
+      // pagado. Se reportan las dos, igual que el bloque del día: lo que faltó
+      // en la semana, y lo que de eso SIGUE debiéndose tras las recuperaciones.
+      const recuperadoK = Math.max(0, abonoEntre(claveK, diaSiguiente(fISO), hoyReal2 > f ? hoyReal2 : f));
+      acumulado += faltoEseDia;
+      porDiaAcum[diaK] = Math.round(((porDiaAcum[diaK] || 0) + faltoEseDia) * 100) / 100;
+      // Y lo que de ESE día ya se recuperó: sin esto, el renglón del acumulado
+      // (lo que faltó ese día) y el arqueo de ese día (lo que sigue debiendo)
+      // dan distinto y parecen contradecirse — el $4,290.50 contra el $2,976.50
+      // que Karina comparó el 18-ago. Son el mismo lunes en dos momentos.
+      recupDia[diaK] = Math.round(((recupDia[diaK] || 0)
+        + Math.min(recuperadoK, faltoEseDia)) * 100) / 100;
+      fechaDeDia[diaK] = fISO;
+      acumuladoNeto += Math.max(0, faltoEseDia - recuperadoK);
+    }
+  }
+  acumulado = Math.round(acumulado * 100) / 100;
+  // El desglose día por día: es lo que permite comprobar la suma sin fe.
+  const acumuladoPorDia = Object.keys(porDiaAcum)
+    .map((d2) => ({ dia: d2, fecha: fechaDeDia[d2], total: porDiaAcum[d2],
+      recuperado: recupDia[d2] || 0,
+      sigueDebiendo: Math.round((porDiaAcum[d2] - (recupDia[d2] || 0)) * 100) / 100 }))
+    .sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)));
+  acumuladoNeto = Math.round(acumuladoNeto * 100) / 100;
+
+  return { fecha: f, dia, lunes, centros: lista, totalDia, recuperado, pendiente,
+    totalSemanaAlDia: acumulado, acumuladoPorDia, totalSemanaSigueDebiendo: acumuladoNeto, fuera,
+    clientas: lista.reduce((n, g) => n + g.filas.length, 0),
+    seRegularizaron: lista.reduce((n, g) => n + g.filas.filter((x) => x.sigueDebiendo <= 0).length, 0) };
+}
+app.get("/api/mora/dia", requiere("direccion", "admin"), (req, res) => {
+  res.json(moraDelDia(req.usuario, req.query.fecha));
+});
+
 app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) => {
   const fecha = req.query.fecha || hoyMX();
   const a = calcularArqueo(fecha, idsEjecutivos(req.usuario));
@@ -3220,6 +7522,17 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   s.getCell("A2").value = "Efectivo recibido este día, por denominación.";
   s.getCell("A2").font = { italic: true, size: 10, color: { argb: RIO } };
   s.getCell("A2").alignment = { horizontal: "center" };
+  // EL SALDO INICIAL VA PRIMERO (Ing. Karina, 24-ago): el día arranca con lo
+  // que quedó ayer, y el lunes con cero. En verde, como su plantilla.
+  const caja = cajaDelDia(req.usuario, fecha);
+  s.mergeCells("A3:C3");
+  const si = s.getCell("A3");
+  si.value = "SALDO INICIAL (con el que terminó el día anterior" +
+    (caja.saldoInicial === 0 && nomDia === "Lunes" ? " — lunes arranca en cero" : "") + ")";
+  si.font = { bold: true, color: { argb: "FF1F6B33" } };
+  si.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF92D050" } };
+  const siV = s.getCell("D3"); siV.value = caja.saldoInicial; siV.numFmt = '"$"#,##0.00';
+  siV.font = { bold: true }; siV.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF92D050" } };
 
   const head = ["DENOMINACIÓN", "CANTIDAD", "VALOR UNIT.", "SUBTOTAL"];
   const hr = s.getRow(4);
@@ -3282,8 +7595,24 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   fila += 2;
 
   // ── BLOQUE 2: DE DÓNDE SALE ESE NÚMERO ───────────────────────────────────
-  const aEntregar = a.efectivo - egresosEfectivo;
+  // LO QUE LA EJECUTIVA ENTREGA vs LO QUE PAGA LA OFICINA (Karina, 18-ago).
+  //
+  // Ella cuenta el efectivo que trae: su cobranza, más lo que entró por caja,
+  // menos SUS gastos de campo (pasaje, papelería). Los gastos que registra
+  // Dirección —nómina, garantías devueltas, pagos a proveedores— salen DESPUÉS
+  // y de la caja de la oficina, no de lo que ella entrega.
+  //
+  // Al restarlos todos juntos, el conteo sobraba SIEMPRE y por exactamente el
+  // total de los gastos: el arqueo del 18-ago gritó $57,783 de alarma con el
+  // efectivo cuadrado al centavo. Ahora cada cosa va por su lado.
+  const deEjecutiva = (m) => m && (m.rol === "ejecutivo" || !!m.ejecutivo);
+  const egresosEjec = egresosEnEfectivo((movs || []).filter(deEjecutiva));
+  const egresosOficina = Math.round((egresosEfectivo - egresosEjec) * 100) / 100;
+  const aEntregar = a.efectivo - egresosEjec;
   const sinDesglosar = Math.round((aEntregar - totalEfe) * 100) / 100;
+  // Misma regla que por ejecutiva: si los centavos del monto no se pueden pagar
+  // con la moneda más chica, la diferencia no es un descuadre.
+  const cqDia = cuadreDe(aEntregar, totalEfe);
   s.mergeCells(fila, 1, fila, 4);
   const ch = s.getCell(fila, 1);
   ch.value = "CUENTAS DEL DÍA · así se llega a lo que debe entregar";
@@ -3298,11 +7627,38 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   // salía en cero y parecía un arqueo vacío.
   linea("Cobranza en efectivo del día", a.efectivo);
   // egresosEfectivo es el NETO: si es negativo, entró más de lo que salió.
-  if (egresosEfectivo >= 0) linea("− Gastos y retiros en efectivo", -egresosEfectivo);
-  else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEfectivo);
-  linea("= Efectivo a entregar", aEntregar, true);
+  if (egresosEjec >= 0) linea("− Gastos de campo de la ejecutiva", -egresosEjec);
+  else linea("+ Entradas de caja (recuperaciones, etc.)", -egresosEjec);
+  linea("= Efectivo que entrega la ejecutiva", aEntregar, true);
+  // LO DE TESORERÍA, con nombre (formato Ing. Karina, 24-ago). Los recursos
+  // inyectados solo se imprimen si los hubo («en dado caso», dice su nota);
+  // las tres salidas van SIEMPRE, aunque sean cero — son los renglones que
+  // Dirección revisa a diario.
+  if (caja.recursosBancos) linea("+ Recurso retirado de bancos para caja", caja.recursosBancos);
+  if (caja.recursosDireccion) linea("+ Recurso aportado por Dirección General", caja.recursosDireccion);
+  linea("− Autorizaciones y desembolsos (créditos otorgados hoy)", -caja.autorizaciones);
+  linea("− Gastos y retiros en efectivo", -caja.gastosRetiros);
+  linea("− Garantías entregadas (líquida y A)", -caja.garantiasEntregadas);
+  {
+    const rq = s.getRow(fila++);
+    rq.getCell(1).value = "= QUEDA EN CAJA AL CIERRE (saldo inicial de mañana)";
+    rq.getCell(1).font = { bold: true, color: { argb: "FF1F6B33" } };
+    rq.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF92D050" } };
+    const cq = rq.getCell(4); cq.value = caja.quedaEnCaja; cq.numFmt = dinero;
+    cq.font = { bold: true }; cq.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF92D050" } };
+  }
   // La diferencia va AL FINAL, cuando el lector ya vio las cuentas de arriba.
-  if (Math.abs(sinDesglosar) >= 0.01) {
+  if (cqDia.redondeo) {
+    // Se DICE, no se esconde: queda escrito que la diferencia es el redondeo y
+    // de cuánto, para que nadie la ande buscando.
+    const r0 = s.getRow(fila++);
+    s.mergeCells(fila - 1, 1, fila - 1, 3);
+    const c0 = r0.getCell(1);
+    c0.value = "El día CUADRA. La diferencia de " + Math.abs(sinDesglosar).toFixed(2)
+      + " es redondeo: el monto a entregar cae en centavos y la moneda más chica es $0.50.";
+    c0.font = { italic: true, color: { argb: "FF0B7247" } };
+    r0.getCell(4).value = sinDesglosar; r0.getCell(4).numFmt = dinero;
+  } else if (Math.abs(sinDesglosar) >= 0.01) {
     const r = s.getRow(fila++);
     s.mergeCells(fila - 1, 1, fila - 1, 3);
     const c = r.getCell(1);
@@ -3355,6 +7711,48 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   }
   if (movsMetX.transferencia) linea("   de eso, otros movimientos", movsMetX.transferencia);
   if (movsMetX.cheque) linea("Cheques (no son billetes)", movsMetX.cheque);
+  // DESGLOSE DE RECEPCIÓN DE PAGOS (Ing. Karina, 24-ago): las tres formas LADO
+  // A LADO por ejecutivo — antes había que armarlo cruzando dos secciones.
+  fila++;
+  {
+    const rh = s.getRow(fila++);
+    ["Ejecutivo", "Efectivo", "Transferencia", "Oxxo", "Cheque"].forEach((h2, i) => {
+      const c = rh.getCell(i + 1); c.value = h2;
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+      c.alignment = { horizontal: i === 0 ? "left" : "right" };
+    });
+    let tE = 0, tT = 0, tO = 0, tC = 0, tMovs = 0;
+    for (const id in a.porEjec) {
+      const e = a.porEjec[id];
+      // Cada renglón trae la COBRANZA de la ejecutiva MÁS sus otros
+      // movimientos (recuperaciones, comisiones, liquidaciones) por la forma
+      // en que entraron — es lo que ella de verdad entrega (arqueo, 25-ago).
+      const oxxo = e.deposito || 0, transf = (e.transferencia || 0) - oxxo + (e.movTr || 0),
+        efe = (e.efectivo || 0) + (e.movEfe || 0), chq = (e.cheque || 0) + (e.movChq || 0);
+      if (!(efe || transf || oxxo || chq)) continue;
+      const r = s.getRow(fila++);
+      r.getCell(1).value = (USUARIOS[id] || {}).nombre || id;
+      [efe, transf, oxxo, chq].forEach((v, i) => { const c = r.getCell(i + 2); c.value = v; c.numFmt = dinero; });
+      tE += efe; tT += transf; tO += oxxo; tC += chq;
+      tMovs += (e.movEfe || 0) + (e.movTr || 0) + (e.movChq || 0);
+    }
+    const rt = s.getRow(fila++);
+    rt.getCell(1).value = "TOTAL"; rt.getCell(1).font = { bold: true };
+    [tE, tT, tO, tC].forEach((v, i) => { const c = rt.getCell(i + 2);
+      c.value = Math.round(v * 100) / 100; c.numFmt = dinero; c.font = { bold: true }; });
+    // La cuadratura por escrito (regla de las tablas): el total de esta tabla
+    // NO es solo la cobranza — dice cuánto viene de otros movimientos, para
+    // que cuadre a la vista contra los renglones de arriba.
+    if (tMovs > 0.004) {
+      const rn = s.getRow(fila++);
+      rn.getCell(1).value = "   ya incluye $"
+        + (Math.round(tMovs * 100) / 100).toLocaleString("es-MX", { minimumFractionDigits: 2 })
+        + " de sus otros movimientos (recuperaciones, comisiones…)";
+      rn.getCell(1).font = { italic: true, color: { argb: "FF6B6480" } };
+      s.mergeCells(fila - 1, 1, fila - 1, 5);
+    }
+  }
   // EN QUÉ SE FUE EL DINERO, por tipo. Antes el Excel decía "− Gastos $X" y para
   // saber en qué había que leer el detalle renglón por renglón.
   const gx = gastosDelDia(movs, a.porEjec);
@@ -3367,7 +7765,7 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     const rg = s.getRow(fila++); rg.getCell(1).value = "EN QUÉ SE FUE EL DINERO";
     rg.getCell(1).font = { bold: true, color: { argb: RIO } };
     for (const t of tiposX) linea("   " + t, gx.porTipo[t]);
-    linea("   Total de gastos", gx.total);
+    linea("   Total salida de efectivo", caja.totalSalidas, true);
     for (const sg of (gx.sobregiro || [])) {
       const r = s.getRow(fila++);
       r.getCell(1).value = "⚠ " + sg.ejecutivo + " gastó " + mxn(sg.gastos) + " y solo cobró " + mxn(sg.cobro);
@@ -3385,88 +7783,116 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
     }
     fila++;
   }
-  linea("Garantías", a.garantias);
-  const rm = s.getRow(fila++); rm.getCell(1).value = "Mora del día (faltantes)";
-  const cm = rm.getCell(4); cm.value = a.faltantes; cm.numFmt = dinero;
-  cm.font = { bold: true, color: { argb: a.faltantes > 0 ? "FFB00020" : "FF000000" } };
+  // La fila suelta de "Garantías" se QUITÓ (Ing. Karina, 27-ago): eran las
+  // garantías COBRADAS del día, que ya viajan dentro del dinero recibido — al
+  // lado de las salidas confundía. Las garantías que SALEN sí se quedan, en
+  // "− Garantías entregadas (líquida y A)" de las cuentas del día.
   fila++;
-  // por ejecutiva: efectivo, transferencia y sus otros movimientos, igual que el tablero
-  const rh = s.getRow(fila++); rh.getCell(1).value = "Por ejecutiva"; rh.getCell(1).font = { bold: true, color: { argb: RIO } };
-  const pesos = (n) => n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
-  for (const id in a.porEjec) { const e = a.porEjec[id];
-    if (e.efectivo <= 0 && e.transferencia <= 0 && !e.movEntradas && !e.movSalidas) continue;
-    const r = s.getRow(fila++); r.getCell(1).value = e.nombre;
-    r.getCell(2).value = "efectivo"; r.getCell(2).alignment = { horizontal: "right" };
-    r.getCell(3).value = e.efectivo; r.getCell(3).numFmt = dinero;
-    const extra = [];
-    if (e.transferencia) extra.push("transf. " + pesos(e.transferencia));
-    if (e.movEntradas) extra.push("otros +" + pesos(e.movEntradas));
-    if (e.movSalidas) extra.push("otros −" + pesos(e.movSalidas));
-    r.getCell(4).value = extra.join(" · ");
-    r.getCell(4).alignment = { horizontal: "right" }; }
-
-  // DETALLE DE GASTOS Y MOVIMIENTOS. Antes el Excel decía "− Gastos $450" y nada
-  // más: Monse veía el monto pero no DE QUÉ fue, y tenía que preguntar por cada
-  // uno. Aquí van renglón por renglón, con quién lo capturó y su nota. Los
-  // ANULADOS también se listan (tachados en gris): si alguien borró un gasto de
-  // $2,000 eso tiene que verse, no desaparecer.
-  const movsDia = (movs || []).filter((m) => Number(m.monto) > 0);
-  if (movsDia.length) {
-    fila++;
-    const rt = s.getRow(fila++);
-    s.mergeCells(fila - 1, 1, fila - 1, 4);
-    const ct2 = rt.getCell(1);
-    ct2.value = "GASTOS Y MOVIMIENTOS DE CAJA DEL DÍA";
-    ct2.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    ct2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NARANJA } };
-    const rh2 = s.getRow(fila++);
-    ["Concepto", "Quién / nota", "Forma", "Monto"].forEach((h, i) => {
-      const c = rh2.getCell(i + 1); c.value = h;
-      c.font = { bold: true, color: { argb: "FF2A1F35" } };
-      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFECE6F1" } };
-      c.alignment = { horizontal: i === 3 ? "right" : "left" };
-    });
-    // Los campos son los que guarda el servidor: `registradoPor`, `metodo` y
-    // `autorizadoA` (no `ejecutivo`/`via`/`nota`, que son los de la app).
-    const via = { E: "Efectivo", T: "Transferencia", D: "Depósito", CH: "Cheque",
-      efectivo: "Efectivo", transferencia: "Transferencia", deposito: "Depósito", cheque: "Cheque" };
-    for (const m of movsDia) {
-      const r = s.getRow(fila++);
-      const entra = !!m.entrada;
-      r.getCell(1).value = String(m.concepto || m.categoria || "Movimiento");
-      // DE QUIÉN es el gasto primero, y quién lo capturó después: Monse necesita
-      // saber a qué ejecutiva cargarlo, no quién tecleó.
-      const dueño = ejecutivoDeMov(m);
-      r.getCell(2).value = [dueño ? "de " + USUARIOS[dueño].nombre : "",
-        m.registradoPor || m.usuario || "",
-        m.autorizadoA ? "a " + m.autorizadoA : ""].filter(Boolean).join(" · ");
-      const mt = String(m.metodo || m.via || "efectivo");
-      r.getCell(3).value = via[mt] || via[mt.toUpperCase()] || mt;
-      const cmn = r.getCell(4);
-      // Con signo: entra en positivo, sale en negativo. Así la columna se puede
-      // sumar y da exactamente el neto que aparece arriba.
-      cmn.value = entra ? Number(m.monto) : -Number(m.monto);
-      cmn.numFmt = dinero;
-      const gris = { argb: "FF9A93A6" };
-      if (m.anulado) {
-        [1, 2, 3, 4].forEach((i) => { r.getCell(i).font = { strike: true, color: gris }; });
-        r.getCell(2).value = (r.getCell(2).value ? r.getCell(2).value + " · " : "") + "ANULADO";
-      } else {
-        cmn.font = { bold: true, color: { argb: entra ? "FF0B7247" : "FFB00020" } };
+  // DESGLOSE DE MOVIMIENTOS DE CAJA, agrupado por concepto (Ing. Karina,
+  // 24-ago): cada autorización con su clienta, cada gasto con su nota — como
+  // su plantilla, en vez de una lista revuelta.
+  {
+    const vivos2 = (movs || []).filter((m2) => !m2.anulado);
+    const grupos = [
+      ["AUTORIZACIONES Y DESEMBOLSOS", (m2) => !m2.entrada && /autorizaci|desembols/i.test(tipoDeMov(m2) || "")],
+      ["GASTOS Y RETIROS", (m2) => !m2.entrada && /gasto|retiro/i.test(tipoDeMov(m2) || "")],
+      ["GARANTÍAS ENTREGADAS (líquida y A)", (m2) => !m2.entrada && /^garant/i.test(tipoDeMov(m2) || "")],
+      ["RECURSOS RECIBIDOS (bancos / Dirección)", (m2) => m2.entrada && /recurso/i.test(tipoDeMov(m2) || "")],
+      ["OTRAS ENTRADAS (liquidaciones, recuperaciones, comisiones)", (m2) => m2.entrada && !/recurso/i.test(tipoDeMov(m2) || "")],
+    ];
+    if (vivos2.length) {
+      s.mergeCells(fila, 1, fila, 4);
+      const dh = s.getCell(fila, 1);
+      dh.value = "DESGLOSE DE MOVIMIENTOS DE CAJA";
+      dh.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      dh.fill = { type: "pattern", pattern: "solid", fgColor: { argb: NARANJA } };
+      dh.alignment = { horizontal: "center" }; fila++;
+      const he = s.getRow(fila++);
+      ["Concepto", "Quién / a quién", "Forma", "Monto"].forEach((h2, i) => {
+        const c = he.getCell(i + 1); c.value = h2;
+        c.font = { bold: true, color: { argb: "FF2A1F35" } };
+        c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFECE6F1" } }; });
+      for (const [titulo, filtro] of grupos) {
+        const del = vivos2.filter(filtro);
+        if (!del.length) continue;
+        const rg2 = s.getRow(fila++);
+        rg2.getCell(1).value = titulo; rg2.getCell(1).font = { bold: true, color: { argb: RIO } };
+        for (const m2 of del) {
+          const r = s.getRow(fila++);
+          // EL TIPO MANDA (Karina, 24-ago: «yo sé que le puse prueba, pero
+          // automáticamente tiene que decir Desembolso»). El concepto libre es
+          // nota, no título — y la clienta se resuelve del padrón, porque el
+          // movimiento guarda su socio pero no su nombre.
+          const tipoM2 = tipoDeMov(m2) || "";
+          const cPad = socioDeMov(m2) ? PADRON.find((x) => String(x.id) === String(socioDeMov(m2))) : null;
+          const quien2 = (cPad && cPad.nombre) || m2.clienta || m2.clientaNombre || "";
+          // La nota del gasto vive en tipoGasto («pasaje», «gasolina»); si no,
+          // en el concepto — quitándole el tipo de enfrente para no repetirlo.
+          let nota2 = m2.tipoGasto || String(m2.concepto || "").replace(/ — /g, " · ");
+          if (norm(nota2).indexOf(norm(tipoM2)) === 0)
+            nota2 = nota2.slice(tipoM2.length).replace(/^[\s·:—-]+/, "");
+          r.getCell(1).value = (tipoM2
+            + (quien2 ? " · " + quien2 : "")
+            + (nota2 && norm(nota2) !== norm(tipoM2) ? " · " + nota2 : "")).slice(0, 70);
+          r.getCell(2).value = [m2.registradoPor, m2.autorizadoA ? "a " + m2.autorizadoA : ""].filter(Boolean).join(" · ");
+          r.getCell(3).value = m2.metodo === "mixto"
+            ? "Mixto: $" + (Number(m2.mixEfe) || 0).toLocaleString("es-MX") + " ef + $"
+              + (Number(m2.mixTr) || 0).toLocaleString("es-MX") + " transf"
+            : (m2.metodo || "");
+          const cM = r.getCell(4); cM.value = Number(m2.monto) || 0; cM.numFmt = dinero;
+        }
       }
+      fila++;
     }
-    const rtot = s.getRow(fila++);
-    rtot.getCell(1).value = "Neto de caja (así se movió el efectivo a entregar)";
-    rtot.getCell(1).font = { bold: true };
-    const ctt = rtot.getCell(4);
-    ctt.value = -egresosEfectivo; ctt.numFmt = dinero;
-    ctt.font = { bold: true, color: { argb: AURORA } };
   }
+
+  // LA MORA SALIÓ DEL ARQUEO (Karina, 24-ago: «se elimina lo de la mora del
+  // día en el arqueo del día»). El arqueo es la CAJA — el formato de la Ing.
+  // Karina no la trae, y la mora ya tiene su propia tarjeta y su propio Excel
+  // (la mora de la semana, por día de cobro). Dos reportes contando la misma
+  // mora con ventanas distintas era justo la confusión del 18-ago.
+  // LOS DOS BLOQUES VIEJOS SE FUERON (Karina, 24-ago): «Por ejecutiva» lo
+  // reemplazó el Desglose de recepción de pagos (Efectivo | Transferencia |
+  // Oxxo | Cheque, con total), y «GASTOS Y MOVIMIENTOS DE CAJA DEL DÍA» lo
+  // reemplazó el DESGLOSE DE MOVIMIENTOS agrupado por concepto. Tener las dos
+  // versiones era leer el mismo dinero dos veces con acomodos distintos —
+  // «se puede malentender».
 
   const buf = await wb.xlsx.writeBuffer();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="Arqueo FOOAX ${fecha}.xlsx"`);
   res.send(Buffer.from(buf));
+});
+
+// ---------- CICLOS LIMPIOS · contador por clienta (CU-019 parcial, R5.2 Anexo E/F, TASA-01) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/ciclos_limpios.js; aquí el
+// pegamento HTTP, el umbral (CICLOS_LIMPIOS_TASA_PREFERENCIAL, default 3 —
+// TASA-01) y las dependencias inyectadas. PARCIAL: marca si aplica la tasa
+// preferencial, NO propone tasa (PENDIENTES §1 y §9).
+const CICLOS_LIMPIOS_TASA_PREFERENCIAL = Number(process.env.CICLOS_LIMPIOS_TASA_PREFERENCIAL) || 3;
+const DIAS_VENTANA_PAGOS_CICLOS = 395;   // misma ventana ancha que /api/creditos/recredito
+const ciclosLimpios = require("./dominios/ciclos_limpios")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  claveCredito, infoCredito, carteraViva, esVencido, atrasoEnPagos, vencidaPorPlazo,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_CICLOS);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  umbralCiclos: CICLOS_LIMPIOS_TASA_PREFERENCIAL,
+});
+const marcaCiclosLimpios = ciclosLimpios.marcaParaCredito;
+
+app.get("/api/ciclos-limpios/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = ciclosLimpios.consultar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[ciclos limpios] ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo calcular el contador de ciclos. Intenta de nuevo o avisa a soporte." });
+  }
 });
 
 // ---------- RESUMEN del día (campanita de alertas para dirección) ----------
@@ -3477,6 +7903,51 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
 function pesos(n) {
   const v = Math.round((n || 0) * 100) / 100;
   return "$" + v.toLocaleString("es-MX", { minimumFractionDigits: (v % 1) ? 2 : 0, maximumFractionDigits: 2 });
+}
+
+
+// CU-06 (Casos de Uso Cobranza, 10-sep-2026): "una reestructura que no se
+// cumple es una segunda mora en cámara lenta". Si un crédito etiquetado
+// Reestructura (o con estatus irregular) pagó menos de su cuota las DOS
+// últimas semanas completas, se avisa solo en el resumen del día — Rosa Elia
+// (ARENITA) pagaba $500 contra $1,305, debía $45,420, y nadie había prendido
+// el foco. Dirección decide qué hacer; la app solo enciende la luz a tiempo.
+function alertasReestructuras(usuario) {
+  const cv = carteraViva(usuario);
+  const menosDias = (ymd, n) => { const d = new Date(ymd + "T12:00:00"); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const lunesHoy = lunesDeLaSemana(hoyMX());
+  // Las dos últimas semanas COMPLETAS (la actual va a medias y no acusa a nadie).
+  const semanas = [
+    { lunes: menosDias(lunesHoy, 14), domingo: menosDias(lunesHoy, 8) },
+    { lunes: menosDias(lunesHoy, 7), domingo: menosDias(lunesHoy, 1) },
+  ];
+  const pagosSem = semanas.map((sem) => {
+    const { porFecha } = pagosDeLaSemana(usuario, sem.lunes, sem.domingo);
+    const suma = {};
+    for (const clave in porFecha)
+      for (const f in porFecha[clave])
+        if (f >= sem.lunes && f <= sem.domingo) suma[clave] = (suma[clave] || 0) + (porFecha[clave][f].p || 0);
+    return suma;
+  });
+  const avisos = [];
+  for (const c of PADRON) {
+    if (c.activa === false || c.estatus === "BAJA") continue;
+    if (!/reestructura|irregular/i.test(String(c.etiqueta || "") + " " + String(c.estatus || ""))) continue;
+    const cuota = Number(c.cuota) || 0;
+    if (!cuota || esCuotaVariable(c.producto)) continue;
+    // Un crédito recién desembolsado no debía nada esas semanas.
+    if (String(c.desembolso || "").slice(0, 10) > semanas[0].lunes) continue;
+    const info = infoCredito(cv, c);
+    if (info.saldoActual <= 0.009) continue;
+    const clave = claveCredito(c.id, c.producto);
+    const p1 = Math.round((pagosSem[0][clave] || 0) * 100) / 100;
+    const p2 = Math.round((pagosSem[1][clave] || 0) * 100) / 100;
+    if (p1 < cuota - 0.009 && p2 < cuota - 0.009)
+      avisos.push("Reestructura pagando por debajo: " + c.nombre + " (" + (c.centro || "Individual")
+        + ", " + (c.ejecutivo || "—") + ") — cuota " + pesos(cuota) + ", pagó " + pesos(p1) + " y "
+        + pesos(p2) + " las últimas dos semanas · debe " + pesos(info.saldoActual));
+  }
+  return avisos;
 }
 
 app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
@@ -3532,6 +8003,36 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   items.push({ sev: "ok", txt: `Efectivo a entregar: ${pesos(efectivoAEntregar)}` });
   if (garantias > 0) items.push({ sev: "info", txt: `Garantías: ${pesos(garantias)}` });
   if (faltantes > 0) items.push({ sev: "alto", txt: `Mora del día: ${pesos(faltantes)} en ${clientasFaltan} clientas` });
+  for (const a of alertasReestructuras(req.usuario)) items.push({ sev: "alto", txt: a });
+  // "Ponle a Anel solamente a qué horas sincroniza Monse" (Karina, 10-sep):
+  // SOLO Anel ve la actividad de Monse del día elegido — cuándo entró, su
+  // última actividad y qué movió (capturas, anulaciones, ajustes).
+  if (req.usuario.id === "anel") {
+    const tzF = (ts) => new Date(ts).toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+    const hhmm = (ts) => new Date(ts).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" });
+    const deMonse = (t) => /mons/i.test(String(t || ""));
+    const sesionesM = Object.values(store.sesiones()).filter((x) => x.usuario === "monse");
+    const entradasHoy = sesionesM.filter((x) => x.creada && tzF(x.creada) === fecha)
+      .map((x) => x.creada).sort((a, b) => a - b);
+    const ultimaVez = Math.max(0, ...sesionesM.map((x) => x.ultimaVez || 0).filter((ts) => ts && tzF(ts) === fecha));
+    const capsM = movs.filter((m) => String(m.usuario || "").toLowerCase() === "monse");
+    const anulM = movsDeFecha(fecha, req.usuario, true)
+      .filter((m) => m.anulado && deMonse(m.anuladoPor) && m.anuladoTs && tzF(m.anuladoTs) === fecha);
+    const ajusM = (store.todosCambios ? store.todosCambios() : [])
+      .filter((cb) => cb.tipo === "ajuste" && cb.fecha === fecha && deMonse(cb.por));
+    if (entradasHoy.length)
+      items.push({ sev: "info", txt: `Monse entró a las ${hhmm(entradasHoy[0])}` + (ultimaVez ? ` · última actividad ${hhmm(ultimaVez)}` : "") });
+    else if (ultimaVez || capsM.length || anulM.length || ajusM.length)
+      items.push({ sev: "info", txt: "Monse trabajó con su sesión ya abierta" + (ultimaVez ? ` · última actividad ${hhmm(ultimaVez)}` : "") });
+    else if (fecha === hoyMX())
+      items.push({ sev: "warn", txt: "Monse no ha entrado hoy" });
+    if (capsM.length) {
+      const tss = capsM.map((m) => m.ts).filter(Boolean).sort((a, b) => a - b);
+      items.push({ sev: "info", txt: `Monse capturó ${capsM.length} movimiento(s)` + (tss.length ? ` (${hhmm(tss[0])}–${hhmm(tss[tss.length - 1])})` : "") });
+    }
+    if (anulM.length) items.push({ sev: "info", txt: `Monse anuló ${anulM.length} captura(s), con motivo` });
+    if (ajusM.length) items.push({ sev: "info", txt: `Monse hizo ${ajusM.length} ajuste(s) de dirección` });
+  }
   for (const e of conSync) items.push({ sev: "ok", txt: `${e.nombre} sincronizó a las ${e.hora}` });
   for (const n of sinSync) items.push({ sev: "warn", txt: `${n} aún no sincroniza hoy` });
   if (movs.length) items.push({ sev: "info", txt: `${movs.length} movimiento(s) de caja: ${pesos(movs.reduce((a, m) => a + m.monto, 0))}` });
@@ -3562,6 +8063,42 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   const pendientes = sinSync.length + (faltantes > 0 ? 1 : 0) + desfases + descuadres.length;
   res.json({ fecha, items, pendientes });
 });
+
+// ---------- DERECHOS ARCO Y RETENCIÓN PLD (CU-015) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/arco_retencion.js; aquí el pegamento HTTP y los parámetros.
+// Exportar: dirección y admin. Anonimizar: solo ARCO_ROLES_ANONIMIZAR (default
+// "direccion" = Dirección General). Retención: RETENCION_PLD_ANIOS, solo lectura.
+const RETENCION_PLD_ANIOS = Number(process.env.RETENCION_PLD_ANIOS) || 10;
+const ARCO_ROLES_ANONIMIZAR = String(process.env.ARCO_ROLES_ANONIMIZAR ?? "direccion").split(",").map((rol) => rol.trim()).filter(Boolean);
+const DIAS_VENTANA_PAGOS_ARCO = 395;   // misma ventana ancha que /api/creditos/recredito
+const arco = require("./dominios/arco_retencion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_ARCO);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  retencionAnios: RETENCION_PLD_ANIOS, rolesAnonimizar: ARCO_ROLES_ANONIMIZAR,
+});
+const entidadARCO = (req) => String(req.params.entidad ?? "").toLowerCase();
+const rutaARCO = (operacion, { refrescaPadron = false } = {}) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    if (refrescaPadron) refrescarPadron();
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[arco] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la solicitud ARCO. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/arco/:entidad/:id/exportar", requiere("direccion", "admin"), rutaARCO((req) => arco.exportar(req.usuario, entidadARCO(req), req.params.id, req.query.solicitante)));
+app.get("/api/arco/:entidad/:id", requiere("direccion", "admin"), rutaARCO((req) => arco.ficha(req.usuario, entidadARCO(req), req.params.id)));
+app.post("/api/arco/:entidad/:id/anonimizar", requiere("direccion", "admin"), rutaARCO((req) => arco.anonimizar(req.usuario, entidadARCO(req), req.params.id, req.body?.motivo), { refrescaPadron: true }));
+app.get("/api/retencion/pld", requiere("direccion", "admin"), rutaARCO((req) => arco.reporteRetencion(req.usuario, req.query.hoy)));
 
 // ---------- RECUPERAR COBRANZA DE UN DÍA ----------
 // Cada vez que un snapshot se sobrescribe, la versión anterior queda archivada.
@@ -3724,6 +8261,71 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
     netoEfectivo: neto("efectivo"), netoTransf: neto("transferencia"), netoCheques: neto("cheque") });
 });
 
+// ---------- EXPEDIENTE · alta y captura en campo (CU-009) + checklist y validación (CU-010) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/expediente.js; aquí el pegamento HTTP y los parámetros. La app de la
+// ejecutiva captura sin señal (public/alta-campo.js) y manda a
+// POST /api/expediente/captura cuando hay red; el folioCaptura hace idempotente
+// el reintento. La clienta nace "en captura": NO se escribe al padrón de
+// cobranza. El candado del desembolso (CU-010) vive en el flujo de sobres:
+// EXPEDIENTE_CANDADO_DISPERSION=0 lo vuelve aviso, solo para transición.
+const TOPE_RESPONSABLE = Number(process.env.TOPE_RESPONSABLE) || 2;
+const TOPE_AVAL = Number(process.env.TOPE_AVAL) || 1;
+const MONTO_REQUIERE_AVAL = Number(process.env.MONTO_REQUIERE_AVAL) || 10000;
+const EXPEDIENTE_CANDADO_DISPERSION = String(process.env.EXPEDIENTE_CANDADO_DISPERSION ?? "1") !== "0";
+// Quién valida el expediente (CU-010 §1: Administración y Finanzas = rol admin).
+// Parámetro por si Dirección decide ampliarlo; nunca la ejecutiva.
+const EXPEDIENTE_ROLES_VALIDAR = String(process.env.EXPEDIENTE_ROLES_VALIDAR ?? "admin").split(",").map((rol) => rol.trim()).filter(Boolean);
+const expediente = require("./dominios/expediente")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  topeResponsable: TOPE_RESPONSABLE, topeAval: TOPE_AVAL, montoRequiereAval: MONTO_REQUIERE_AVAL,
+  comprobanteDomicilioMesesMax: COMPROBANTE_DOMICILIO_MESES_MAX,
+});
+const rutaExpediente = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error, errores: resultado.errores ?? [resultado.error], estatus: resultado.estatus ?? null });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[expediente] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación del expediente. Intenta de nuevo o avisa a soporte." });
+  }
+};
+const TODOS_LOS_ROLES = requiere("ejecutivo", "direccion", "admin");
+
+app.get("/api/expediente/catalogos", TODOS_LOS_ROLES, rutaExpediente(() => expediente.catalogos()));
+app.get("/api/expedientes", TODOS_LOS_ROLES, rutaExpediente(({ usuario }) => expediente.listado(usuario)));
+// La captura de campo es de la EJECUTIVA (CU-009 §1); dirección/admin la leen.
+app.post("/api/expediente/captura", requiere("ejecutivo"), rutaExpediente(({ body, usuario }) => expediente.registrarCaptura(body, usuario)));
+app.get("/api/expediente/:socio", TODOS_LOS_ROLES, rutaExpediente(({ usuario, params }) => expediente.ficha(usuario, params.socio)));
+app.post("/api/expediente/:socio/documento", TODOS_LOS_ROLES, rutaExpediente(({ params, body, usuario }) => expediente.registrarDocumento(params.socio, body, usuario)));
+// CU-010 · validación de Administración y Finanzas (Ale): solo EXPEDIENTE_ROLES_VALIDAR.
+app.post("/api/expediente/:socio/validar", requiere(...EXPEDIENTE_ROLES_VALIDAR), rutaExpediente(({ params, body, usuario }) => expediente.registrarValidacion(params.socio, body, usuario)));
+
+// ---------- CU-018 · Vista 360 del expediente (solo lectura) ----------
+// La lógica vive en dominios/vista_360.js; aquí solo el pegamento HTTP.
+// Compone dominios ya construidos (riesgo, PLD, ciclos limpios, expediente,
+// garantías) — nunca recalcula nada con lógica propia (CU-018 §6).
+const vista360 = require("./dominios/vista_360")({
+  obtenerPadron: () => PADRON,
+  riesgo, pld, ciclosLimpios, expediente, estadoDeCuentaGarantia,
+  retencionAnios: RETENCION_PLD_ANIOS,
+});
+// Mismos roles que ya ven riesgo/PLD/garantías/ciclos (direccion, admin) —
+// Control Operativo (ejecutivo) queda como pendiente documentado (CU-018 §1,
+// ver dominios/vista_360.js → pendientes()).
+app.get("/api/vista360/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = vista360.consolidar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[vista360] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la Vista 360. Intenta de nuevo o avisa a soporte." });
+  }
+});
+
 // ---------- páginas ----------
 app.get("/", (req, res) => {
   const u = usuarioDe(req);
@@ -3750,10 +8352,9 @@ function altasParaApp(usuario) {
   // padrón base ya vienen escritas dentro del HTML de cada app.
   const mia = (c) => norm(c.ejecutivo) === norm(nombreEjec);
   const viva = (c) => c.activa !== false && c.estatus !== "BAJA";
-  const altas = PADRON
-    .filter((c) => c.origen === "alta" && viva(c) && mia(c))
-    .map((c) => ({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
-      saldo: c.saldo || 0, cuota: c.cuota || 0 }));
+  // La lista de altas se arma MÁS ABAJO, cuando ya se sabe quién terminó de
+  // pagar: una liquidada no debe ir en las dos listas a la vez.
+  let altas = [];
   // QUITAR: créditos de esta ejecutiva que ya se dieron de baja (liquidados y
   // renovados, o reasignados a otra). Sin esto el crédito viejo se le quedaba
   // pegado en el teléfono: los montos viven EMBEBIDOS en el HTML de cada app,
@@ -3787,9 +8388,49 @@ function altasParaApp(usuario) {
     return ((fechasLiq[String(c.id)] || {})[hoy] || 0) > 0;   // liquidó hoy por caja
   };
   const yaNoDebe = (c) => infoCredito(cv, c).saldoActual <= 0.009 && !cobroHoy(c);
+  // NO SE QUITA LO QUE SIGUE VIVO CON ESA MISMA LLAVE. Al renovar quedan dos
+  // registros con el mismo socio y producto: el viejo de baja y el nuevo. Como
+  // la app borra por socio+producto, el "quitar" del viejo alcanzaba también al
+  // nuevo, y en cada sondeo la app lo borraba y lo volvía a agregar. Efecto:
+  // decía "algo cambió" CADA MINUTO y le repintaba la pantalla a la ejecutiva
+  // mientras capturaba. El orden (quitar antes que altas) salvaba el dato, pero
+  // el parpadeo era real.
+  const vivasAhora = new Set(PADRON.filter((c) => mia(c) && viva(c) && !yaNoDebe(c))
+    .map((c) => claveCredito(c.id, c.producto)));
   const quitar = PADRON
     .filter((c) => mia(c) && (!viva(c) || yaNoDebe(c)))
+    .filter((c) => !vivasAhora.has(claveCredito(c.id, c.producto)))
     .map((c) => ({ id: String(c.id), producto: c.producto }));
+  // Y LOS TRASPASADOS A OTRA EJECUTIVA (27-ago, reparto de la cartera de
+  // Karina): el crédito reasignado sigue EMBEBIDO en el HTML del teléfono de
+  // la ejecutiva anterior, que lo seguiría cobrando. Para ella es un quitar.
+  for (const c of PADRON) {
+    if (!viva(c) || mia(c)) continue;
+    if (!c.ejecutivo_anterior || norm(c.ejecutivo_anterior) !== norm(nombreEjec)) continue;
+    if (vivasAhora.has(claveCredito(c.id, c.producto))) continue;
+    quitar.push({ id: String(c.id), producto: c.producto });
+  }
+
+  // LA QUE YA TERMINÓ DE PAGAR NO SE VUELVE A AGREGAR. Iba en las DOS listas:
+  // en `quitar` por estar en cero y en `altas` por haber nacido en el tablero.
+  // Y como la app aplica primero `quitar` y luego `altas`, la borraba y la
+  // volvía a meter en el mismo sondeo: la ejecutiva la seguía viendo y la
+  // seguía cobrando. Es el punto 1 del reporte de Administración —«cinco
+  // clientas que terminaron el 16 y 17 de julio siguieron recibiendo cobro»—
+  // que solo se arreglaba para las clientas venidas de plantilla, no para las
+  // dadas de alta en el sistema.
+  const fuera = new Set(quitar.map((q) => claveCredito(q.id, q.producto)));
+  // Entra como alta lo nacido en el tablero Y lo TRASPASADO desde otra
+  // ejecutiva (27-ago: «varias no les aparecen en la app»): un crédito
+  // reasignado viene del padrón base de OTRA app — en el HTML de la ejecutiva
+  // nueva no existe, así que se le inyecta igual que un alta. Si ya lo trae,
+  // la app no duplica por socio+producto: se queda con el primero.
+  const traspasada = (c) => c.ejecutivo_anterior && norm(c.ejecutivo_anterior) !== norm(c.ejecutivo);
+  altas = PADRON
+    .filter((c) => (c.origen === "alta" || traspasada(c)) && viva(c) && mia(c))
+    .filter((c) => !fuera.has(claveCredito(c.id, c.producto)))
+    .map((c) => ({ id: String(c.id), nombre: c.nombre, producto: c.producto, centro: c.centro,
+      saldo: c.saldo || 0, cuota: c.cuota || 0 }));
   return { altas, centros, quitar };
 }
 
@@ -3823,7 +8464,7 @@ function datosVivosParaApp(usuario) {
   const suyoHoy = {};   // socio → liquidado/recuperado por ELLA hoy
   for (const m of movsDeFecha(hoy, usuario)) {
     if (String(m.folio || "").startsWith("DIR-")) continue;
-    if (!/^(liquidaci|recuperaci)/i.test(tipoDeMov(m) || "")) continue;
+    if (!/^(liquidaci|recuperaci|adelant)/i.test(tipoDeMov(m) || "")) continue;
     const soc = socioDeMov(m);
     if (soc) suyoHoy[soc] = (suyoHoy[soc] || 0) + (Number(m.monto) || 0);
   }
@@ -3838,6 +8479,13 @@ function datosVivosParaApp(usuario) {
       const soc = String(c.id);
       const devuelve = Math.min(bolsa[soc] || 0, info.liquidado || 0);
       if (devuelve > 0) bolsa[soc] -= devuelve;
+      // CUÁL CUOTA LE TOCA HOY (CU-013/CU-014, sincronización automática al
+      // desembolsar): busca en el plan de pagos ya generado al alta/recrédito
+      // la fila cuya fecha_programada es HOY. Es la misma información que ya
+      // trae `dia` (el día de cobranza de la semana), pero con el número de
+      // cuota exacto — para que "el día que cae cada pago aparece solo en la
+      // app" no dependa de que la ejecutiva cuente a mano en qué cuota va.
+      const cuotaHoy = (c.planPagos || []).find((p) => p.fecha_programada === hoy) || null;
       return {
         id: soc, producto: c.producto,
         saldo: Math.max(0, info.saldoActual + pagoHoy + devuelve),
@@ -3848,6 +8496,18 @@ function datosVivosParaApp(usuario) {
         importe: Number(c.importe) || 0,
         mora: Number(c.mora) || 0,
         etiqueta: c.etiqueta || "",
+        desembolso: String(c.desembolso || "").slice(0, 10),
+        // El CICLO viaja para que el teléfono sepa cuándo hubo RENOVACIÓN
+        // (31-ago, caso Yoali): la llave socio+producto es la misma entre
+        // ciclos, y la cuota que la ejecutiva guardó a mano en el ciclo
+        // anterior se quedaba pegada ganándole a la cuota nueva.
+        ciclo: Number(c.ciclo) || 1,
+        // Sincronizado en el mismo acto del alta/recrédito — sin recaptura,
+        // sin volver a subir nada: viaja tal cual se generó.
+        pagare: c.pagare || null,
+        planPagos: c.planPagos || [],
+        sobreDispersion: c.sobreDispersion || null,
+        cuotaDeHoy: cuotaHoy ? cuotaHoy.numero : null,
       };
     });
 }
@@ -3856,10 +8516,86 @@ function datosVivosParaApp(usuario) {
 // Lo pide `vivos.js` al abrir, cada minuto, al recuperar señal y al volver a la
 // pestaña — para que un cambio de Dirección aparezca solo, sin recargar y sin
 // que nadie tenga que regenerar el archivo de nadie.
+// LA MORA DE LA EJECUTIVA, para su teléfono (Karina, 15-ago: «en las apps de
+// cada uno de los ejecutivos que le ponga cuánta mora llevan, con el nombre de
+// la clienta»).
+//
+// Sale del MISMO reporte que ve Dirección —no se recalcula aparte— filtrado a
+// sus clientas. Así el número que ella trae en la mano y el que Anel ve en el
+// tablero son el mismo, y cuando entra una recuperación baja en los dos.
+function moraDeUnaSemana(usuario, lunes) {
+  const d = moraDeLaSemana(usuario, lunes);
+  const mias = [];
+  for (const g of (d.dias || [])) {
+    if (g.vencido === false) continue;          // su día aún no llega: no es mora
+    for (const x of g.filas) {
+      if (norm(x.ejecutivo) !== norm(usuario.nombre)) continue;
+      mias.push({ dia: g.dia, fecha: g.fecha, centro: x.centro, clienta: x.clienta,
+        socio: x.socio, producto: x.producto, cuota: x.cuota, pagado: x.pagado,
+        falta: x.faltante, saldo: x.saldo });
+    }
+  }
+  // La que más debe, primero: es por donde se empieza a cobrar.
+  mias.sort((a2, b2) => b2.falta - a2.falta);
+  const porCentro = {};
+  for (const x of mias) porCentro[x.centro] = Math.round(((porCentro[x.centro] || 0) + x.falta) * 100) / 100;
+  return {
+    lunes: d.lunes, domingo: d.domingo,
+    total: Math.round(mias.reduce((a2, x) => a2 + x.falta, 0) * 100) / 100,
+    clientas: mias.length,
+    porCentro: Object.keys(porCentro).sort((a2, b2) => porCentro[b2] - porCentro[a2])
+      .map((c) => ({ centro: c, falta: porCentro[c] })),
+    filas: mias,
+    // Sus vencidas por plazo cumplido: fuera de la mora, pero A LA VISTA.
+    vencidas: (d.vencidasPlazo || []).filter((x) => norm(x.ejecutivo) === norm(usuario.nombre)),
+  };
+}
+
+// LA MORA DE LA EJECUTIVA, SEMANA POR SEMANA Y EL MES (Karina, 15-ago: «pueden
+// ver la semana pasada, esta semana y así... y overall de todo el mes»).
+//
+// Se mandan las semanas DEL MES EN CURSO (desde su día 1) y el acumulado del
+// mes. Van completas —con sus clientas— para que ella pueda mirar hacia atrás
+// sin señal: el teléfono anda en la calle.
+function moraParaApp(usuario) {
+  const hoy = hoyMX();
+  const mes = hoy.slice(0, 7);
+  const lunHoy = lunesDeLaSemana(hoy);
+  // Los lunes del mes: desde el lunes de la semana del día 1 hasta el de hoy.
+  const lunes = [];
+  {
+    let L = lunesDeLaSemana(mes + "-01");
+    for (let k = 0; k < 8 && L <= lunHoy; k++) {
+      lunes.push(L);
+      const d2 = new Date(L + "T12:00:00"); d2.setDate(d2.getDate() + 7);
+      L = d2.toISOString().slice(0, 10);
+    }
+  }
+  const semanas = lunes.map((L) => moraDeUnaSemana(usuario, L));
+  const actual = semanas[semanas.length - 1] || moraDeUnaSemana(usuario, lunHoy);
+  // EL MES: la misma clienta puede caer en varias semanas; para el total del mes
+  // se suma lo que faltó en cada una (es cobranza distinta), pero las clientas
+  // se cuentan UNA vez, que es lo que se pregunta ("¿a cuántas les debo ir?").
+  const socias = new Set();
+  for (const w of semanas) for (const x of w.filas) socias.add(x.socio + "|" + x.producto);
+  return Object.assign({}, actual, {
+    mes,
+    semanas: semanas.map((w) => ({ lunes: w.lunes, domingo: w.domingo, total: w.total,
+      clientas: w.clientas, porCentro: w.porCentro, filas: w.filas })),
+    totalMes: Math.round(semanas.reduce((a2, w) => a2 + w.total, 0) * 100) / 100,
+    clientasMes: socias.size,
+  });
+}
+
 function paqueteVivo(usuario) {
   const { altas, centros, quitar } = altasParaApp(usuario);
+  // `hoy`: la fecha OFICIAL del servidor viaja en cada paquete. El vigilante de
+  // medianoche la usa como única referencia — comparar contra el reloj del
+  // teléfono recargaba la app CADA MINUTO cuando ese reloj andaba mal (le pasó
+  // a Christopher el 12-ago, capturando pagos).
   return { altas, centros, quitar, vivos: datosVivosParaApp(usuario),
-    correcciones: correccionesParaApp(usuario), ts: Date.now() };
+    correcciones: correccionesParaApp(usuario), mora: moraParaApp(usuario),
+    ts: Date.now(), hoy: hoyMX() };
 }
 
 // LAS CORRECCIONES DE DIRECCIÓN, para que la ejecutiva las vea en su teléfono.
@@ -3920,8 +8656,28 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   // esté al día aunque el teléfono no tenga señal para el primer sondeo.
   const inyecciones =
     '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' +
+    // CU-009: alta y captura de clienta en campo, sin conexión (expediente).
+    '<script src="/alta-campo.js"></script>' +
     "<script>window.__VIVOS0=" + JSON.stringify(paqueteVivo(req.usuario)) + ";</script>" +
-    '<script src="/vivos.js"></script>';
+    '<script src="/vivos.js"></script>' +
+    // AUTO-CURACIÓN DEL TELÉFONO (Karina, 15-ago: «no encontré lo de la mora en
+    // la app de Neri»). El service worker servía la lógica del cache, así que
+    // una mejora tardaba UNA ABIERTA COMPLETA en llegar y quien la buscaba no
+    // la encontraba. Esto lo detecta: si el vivos.js que cargó es viejo —no
+    // sabe pintar la mora— pide el archivo saltándose el cache, actualiza el
+    // service worker y recarga UNA sola vez. La marca en sessionStorage evita
+    // cualquier ciclo: si tras recargar sigue viejo, ya no vuelve a intentar.
+    '<script>(function(){setTimeout(function(){try{' +
+      'if(typeof window.__pintarMora==="function")return;' +
+      'if(sessionStorage.getItem("fooax_refresco"))return;' +
+      'sessionStorage.setItem("fooax_refresco","1");' +
+      'if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations){' +
+        'navigator.serviceWorker.getRegistrations().then(function(rs){' +
+          'return Promise.all(rs.map(function(r){return r.update();}));' +
+        '}).then(function(){return fetch("/vivos.js",{cache:"reload"});})' +
+        '.then(function(){location.reload();}).catch(function(){location.reload();});' +
+      '}else{location.reload();}' +
+    '}catch(e){}},3000);})();</script>';
   let out = html.includes("</head>") ? html.replace("</head>", cabeza + "</head>") : cabeza + html;
   out = out.includes("</body>") ? out.replace("</body>", inyecciones + "</body>") : out + inyecciones;
   res.type("html").send(out);
@@ -4086,13 +8842,101 @@ function repararCarteraJulio() {
   }
 }
 
+// Reparación ÚNICA del sábado 8-ago-2026. Ese día entraron liquidaciones que no
+// dijeron a qué crédito iban (el movimiento sólo guardaba el socio), así que el
+// sistema las repartió entre los créditos de la socia en orden fijo y se las
+// comió el primero. Resultado: un crédito ya pagado seguía debiendo, y otro
+// aparecía rebajado de más.
+//
+// El crédito correcto NO se adivina: se dedujo con la cuenta que empata al peso
+//   saldo del crédito − cuota que pagó esa semana = monto de la liquidación
+// y en las dos de aquí abajo el resultado es único (ningún otro crédito suyo da
+// ese número). Las que NO empatan solas se dejan fuera a propósito: las contesta
+// la ejecutiva que cobró, no una corazonada.
+//
+// No se mueve un peso: el monto es el mismo. Sólo se dice a qué crédito
+// pertenece, que era el dato que faltaba. Corre una sola vez (centinela).
+function repararLiquidacionesDel8ago() {
+  const CENTINELA = "MIGR-LIQ-CREDITO-2026-08-08";
+  if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;   // ya aplicada
+  const FIX = [
+    // folio,                          socio,          crédito al que iba,   comprobación
+    ["EJE-CHRISTOPHER-CHR-0808-01", "11112847319", "Micro-Especial",  "12,968 − 1,621 = 11,347"],
+    ["EJE-CHRISTOPHER-CHR-0808-02", "11113102023", "Grupal-Micro",    "3,520 − 320 = 3,200"],
+  ];
+  let n = 0;
+  for (const [folio, socio, producto, cuenta] of FIX) {
+    const m = store.todosMovimientos().find((x) => x.folio === folio);
+    if (!m) { console.error("[reparación 8-ago] no encuentro el movimiento " + folio); continue; }
+    if (String(m.socio || "") !== socio) { console.error("[reparación 8-ago] " + folio + " no es de la socia " + socio); continue; }
+    if (m.producto) continue;                        // ya tiene crédito: no se pisa
+    // El crédito tiene que existir y ser de ella: si el padrón cambió, mejor no tocar nada.
+    const cred = PADRON.find((c) => String(c.id).split("|")[0] === socio
+      && norm(c.producto) === norm(producto) && c.activa !== false && c.estatus !== "BAJA");
+    if (!cred) { console.error("[reparación 8-ago] " + socio + " ya no tiene activo un \"" + producto + "\""); continue; }
+    store.corregirMovimiento(folio, { producto: cred.producto,
+      productoPor: "Karina (desarrollo) · autorizado por Karina el 8-ago",
+      productoMotivo: "La liquidación era de este crédito y el sistema se la aplicó a otro. " + cuenta });
+    n++;
+  }
+  store.agregarMovimiento({ folio: CENTINELA, fecha: "2000-01-01", monto: 0,
+    concepto: "migración", anulado: true, usuario: "karina", ts: Date.now() });
+  console.log(`[reparación] liquidaciones del 8-ago: ${n} movimientos ligados a su crédito`);
+}
+
+// ALMA ROSARIO CAMACHO GONZALEZ (11112919388), 10-ago-2026. Su liquidación del
+// sábado quedó sin crédito y por eso los $5,440 seguían SUELTOS: se le comían el
+// saldo a cualquier crédito que le abrieran. Ese lunes le intentaron re-dar
+// crédito tres veces y las tres nacieron en cero — no era el recrédito, era este
+// dato faltante.
+//
+// Karina confirmó que fue el GRUPAL-MICRO, y cuadra por los tres lados:
+//   · $5,440 = 10 cuotas exactas de $544, la cuota del Micro (la del Basico es $720)
+//   · el Micro debía $5,984; el Basico sólo $2,160 — nadie paga $5,440 por $2,160
+//   · el 8-ago ella misma lo puso en cero con motivo "LIQUIDO", y el 10-ago Anel
+//     le hizo recrédito a ese mismo crédito
+//
+// No se mueve un peso: sólo se dice a qué crédito pertenece. Con esto el
+// Grupal-Basico deja de aparecer liquidado y recupera su saldo real.
+function repararAlmaRosario10ago() {
+  const CENTINELA = "MIGR-LIQ-ALMAROSARIO-2026-08-10";
+  if (store.todosMovimientos().some((m) => m.folio === CENTINELA)) return;   // ya aplicada
+  const FOLIO = "EJE-NERI-NER-0808-03", SOCIO = "11112919388", PROD = "Grupal-Micro";
+  const m = store.todosMovimientos().find((x) => x.folio === FOLIO);
+  if (!m) console.error("[reparación Alma Rosario] no encuentro " + FOLIO);
+  else if (String(m.socio || "") !== SOCIO) console.error("[reparación Alma Rosario] " + FOLIO + " no es de esa socia");
+  else if (m.producto) console.error("[reparación Alma Rosario] ya tenía crédito: " + m.producto);
+  else {
+    store.corregirMovimiento(FOLIO, { producto: PROD,
+      productoPor: "Karina (desarrollo) · confirmado por Karina el 10-ago",
+      productoMotivo: "La liquidación de $5,440 era del Grupal-Micro (10 cuotas de $544; debía $5,984). "
+        + "Sin crédito se la comía el Grupal-Basico y hacía nacer en cero cada recrédito." });
+    console.log("[reparación] Alma Rosario: la liquidación de $5,440 ligada al Grupal-Micro");
+  }
+  store.agregarMovimiento({ folio: CENTINELA, fecha: "2000-01-01", monto: 0,
+    concepto: "migración", anulado: true, usuario: "neri", ts: Date.now() });
+}
+
 store.init().then(() => {
   refrescarPadron();
   console.log(`Padrón cargado: ${PADRON.length} clientas`);
+  // MOTOR DE REGLAS: se comprueba contra los ejemplos que validó la contadora.
+  // Si un cambio en las tasas o en el redondeo deja de reproducirlos, se grita
+  // aquí — vale más un servidor que avisa que uno que cobra mal en silencio.
+  try {
+    const ap = motor.autoprueba();
+    if (ap.ok) console.log("[motor de reglas] OK · reproduce los " + ap.casos.length + " ejemplos validados");
+    else {
+      console.error("[motor de reglas] ⚠️  NO reproduce los ejemplos validados:");
+      for (const c of ap.casos) if (!c.ok) console.error("   ✗ " + c.caso + " · espera " + c.espera + " · obtuvo " + c.obtuvo);
+    }
+  } catch (e) { console.error("[motor de reglas] no se pudo leer:", e.message); }
   recuperarMovimientosHistoricos();
   repararAnuladosFalsos();
   repararCapturaKarina24jul();
   reasignarMarthaPatricia30jul();
+  repararLiquidacionesDel8ago();
+  repararAlmaRosario10ago();
   repararCarteraJulio();
   aplicarCorteDeLaPlantilla();
   app.listen(PORT, () => console.log(`FOOAX cobranza · puerto ${PORT}`));
