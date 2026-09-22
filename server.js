@@ -4048,6 +4048,17 @@ function diaDelCentro(centro) {
 // mismo patrón que COMPROBANTE_DOMICILIO_MESES_MAX (DOC-01).
 const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUIDA) || 10;
 
+// AJUSTE MANUAL DE GARANTÍA — QUIÉN AUTORIZA (CU-006, RESUELTO 21-sep-2026,
+// audio de Karina): Lic. Alejandra (Ing. Alejandra González Arango) o Lic.
+// Monse, cualquiera de las dos. Se verifica por IDENTIDAD DE SESIÓN (el id
+// de USUARIOS con el que se entró), nunca por un campo de texto libre — ver
+// dominios/garantia_liquida.js#puedeAutorizarAjusteManual. Parámetro de
+// entorno (lista separada por comas), nunca fijo en código, mismo patrón que
+// RIESGO_ROLES_PUEDEN_CAMBIAR — por si Dirección agrega o quita a alguien
+// sin necesitar un deploy.
+const USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA = (process.env.GARANTIA_USUARIOS_AUTORIZAN_AJUSTE || "alejandra,monse")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
 // Dominio Garantía Líquida extraído a dominios/garantia_liquida.js (10-sep-2026,
 // ver "Reducir dependencia del monolito server.js" en CLAUDE.md). server.js
 // solo inyecta lo que el dominio necesita y usa las funciones que regresa —
@@ -4064,11 +4075,14 @@ const {
   elegibilidadLiberacionGarantia,
   reporteSemanalGarantias,
   reporteSalidaGarantiasPorClienta,
+  registrarAjusteManualGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
   obtenerPadron: () => PADRON,
   porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+  hoyMX,
+  usuariosAutorizanAjusteManual: USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA,
 });
 
 // Dominio Notificaciones (NOT-01, CU-020) extraído a
@@ -6237,6 +6251,22 @@ app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, 
 app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
   const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
   res.json(reporteSalidaGarantiasPorClienta(mes));
+});
+
+// AJUSTE MANUAL DE GARANTÍA CON AUTORIZACIÓN (CU-006, RESUELTO 21-sep-2026):
+// aplica igual a Garantía Líquida y Garantía A — la autorización se exige
+// vía identidad de sesión (ver dominios/garantia_liquida.js), no un campo de
+// texto, así que el candado de rol (direccion/admin) es un primer filtro y
+// registrarAjusteManualGarantia() hace la verificación real, más fina, de
+// que la cuenta sea justo Alejandra o Monse.
+app.post("/api/garantias/ajuste-manual", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const resultado = registrarAjusteManualGarantia({
+    socio: b.socio, producto: b.producto, tipoGarantia: b.tipoGarantia,
+    direccion: b.direccion, monto: b.monto, motivo: b.motivo,
+  }, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error, disponible: resultado.disponible });
+  res.json(resultado);
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo

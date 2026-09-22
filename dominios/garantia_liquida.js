@@ -27,6 +27,8 @@ module.exports = function crearDominioGarantiaLiquida({
   carteraViva,
   obtenerPadron,
   porcentajeGarantiaLiquida,
+  hoyMX,
+  usuariosAutorizanAjusteManual,
 }) {
   // GARANTÍA LÍQUIDA: CONEXIÓN AUTOMÁTICA AL DESEMBOLSO (10-sep-2026, CU-006,
   // Anexo F §7-8). generarSobreDispersion ya calculaba el 10% retenido desde
@@ -523,6 +525,96 @@ module.exports = function crearDominioGarantiaLiquida({
     };
   }
 
+  // ---------------------------------------------------------------------
+  // BOTÓN "AJUSTE MANUAL" DE GARANTÍA, CON AUTORIZACIÓN (CU-006, RESUELTO
+  // 21-sep-2026): audio de Karina confirma quién autoriza — Lic. Alejandra
+  // (Ing. Alejandra González Arango) o Lic. Monse, cualquiera de las dos; y
+  // Carlos confirma por escrito el mismo día que aplica IGUAL a los demás
+  // tipos de garantía/crédito — no es exclusivo de Garantía Líquida (por eso
+  // `tipoGarantia` acepta "Garantía Líquida" o "Garantía A", nunca una tercera
+  // opción inventada aquí).
+  //
+  // QUIÉN AUTORIZA SE VERIFICA POR IDENTIDAD DE SESIÓN, NO POR UN CAMPO DE
+  // TEXTO: en vez de un campo "autorizadoPor" libre (que cualquiera podría
+  // escribir), la propia cuenta con la que se hace el ajuste TIENE que ser
+  // Alejandra o Monse — mismo criterio que puedeCambiarRiesgo() en
+  // riesgo_bitacora.js. `usuariosAutorizanAjusteManual` llega como parámetro
+  // (no hardcodeado) para poder confirmarlo distinto sin deploy, igual que
+  // RIESGO_ROLES_PUEDEN_CAMBIAR.
+  //
+  // SE REUTILIZAN LOS MISMOS TIPOS DE MOVIMIENTO DEL CATÁLOGO ("Garantía
+  // líquida"/"Garantía líquida entregada"/"Garantía A"/"Garantía A entregada")
+  // — así garantiaLiquidaDisponible/garantiaADisponible, los 2 reportes de
+  // CU-008 y el estado de cuenta de la ficha ya cuentan el ajuste sin tocar
+  // nada de esa lógica (es la MISMA cifra, con motivo de ajuste anotado en la
+  // nota); no se inventa un tipo nuevo. `metodo: "ajuste"` (como "retencion")
+  // es invisible al arqueo/cierre de caja — un ajuste manual de garantía NO es
+  // efectivo entrando o saliendo de una caja física.
+  //
+  // UNA SALIDA de ajuste SÍ respeta el tope de lo guardado (no se puede
+  // "ajustar" a un guardado negativo) — el candado duro sigue siendo sobre el
+  // dinero, la autorización es lo que permite saltarse el resto de reglas
+  // (p. ej. la de reestructura). Si algún día Dirección necesita ajustar POR
+  // ENCIMA de ese tope (corregir un guardado que se sabe mal capturado desde
+  // antes), es una decisión nueva que hay que pedirle — no se asume aquí.
+  function puedeAutorizarAjusteManual(usuario) {
+    return Boolean(usuario) && usuariosAutorizanAjusteManual.includes(String(usuario.id || "").toLowerCase());
+  }
+
+  const JUSTIFICACION_MINIMA_AJUSTE = 5;
+  const TIPOS_GARANTIA_AJUSTE_MANUAL = ["Garantía Líquida", "Garantía A"];
+
+  function registrarAjusteManualGarantia({ socio, producto, tipoGarantia, direccion, monto, motivo }, usuario) {
+    if (!puedeAutorizarAjusteManual(usuario)) {
+      return { error: "Solo Lic. Alejandra o Lic. Monse pueden autorizar un ajuste manual de garantía (CU-006, audio de Karina 21-sep-2026) — entra con esa cuenta para hacerlo.", status: 403 };
+    }
+    if (!TIPOS_GARANTIA_AJUSTE_MANUAL.includes(tipoGarantia)) {
+      return { error: "El tipo de garantía debe ser \"Garantía Líquida\" o \"Garantía A\".", status: 400 };
+    }
+    if (direccion !== "entrada" && direccion !== "salida") {
+      return { error: "La dirección del ajuste debe ser \"entrada\" o \"salida\".", status: 400 };
+    }
+    const montoNum = Number(monto);
+    if (!(montoNum > 0)) return { error: "El monto del ajuste debe ser mayor a cero.", status: 400 };
+    const justificacion = String(motivo ?? "").trim();
+    if (justificacion.length < JUSTIFICACION_MINIMA_AJUSTE) {
+      return { error: `La justificación es obligatoria (mínimo ${JUSTIFICACION_MINIMA_AJUSTE} caracteres): un ajuste manual de garantía sin explicación es indefendible ante una autoridad.`, status: 400 };
+    }
+    const socioLimpio = String(socio ?? "").replace(/[\s\-.]/g, "").trim();
+    if (!socioLimpio) return { error: "Falta el número de socio.", status: 400 };
+    const cred = buscarCreditoDeSocia(socioLimpio, producto);
+    if (!cred) return { error: "No encuentro un crédito de esa clienta con ese producto.", status: 400 };
+
+    const esLiquida = tipoGarantia === "Garantía Líquida";
+    const disponibleFn = esLiquida ? garantiaLiquidaDisponible : garantiaADisponible;
+    const { disponible } = disponibleFn(usuario, socioLimpio, cred.producto);
+    if (direccion === "salida" && montoNum > disponible + 0.009) {
+      return {
+        error: "Esta clienta solo tiene $" + disponible.toFixed(2) + " guardado de " + tipoGarantia
+          + " en ese crédito — el ajuste manual no puede sacar más de lo que hay guardado.",
+        status: 400, disponible,
+      };
+    }
+
+    const tipoNombre = direccion === "entrada" ? tipoGarantia : tipoGarantia + " entregada";
+    const fecha = hoyMX();
+    const folio = "AJUSTE-" + norm(socioLimpio) + "-" + nprod(cred.producto) + "-" + Date.now();
+    const mov = {
+      folio, fecha, monto: Math.round(montoNum * 100) / 100,
+      concepto: "Ajuste manual de " + tipoGarantia + " — " + justificacion,
+      categoria: "Otro", metodo: "ajuste",
+      ejecutivo: null, socio: socioLimpio, producto: cred.producto,
+      tipo: tipoNombre, entrada: direccion === "entrada",
+      ajusteManual: true, motivo: justificacion,
+      autorizadoPor: usuario.nombre, autorizadoPorId: usuario.id,
+      registradoPor: usuario.nombre, rol: usuario.rol, usuario: usuario.id, ts: Date.now(),
+    };
+    store.agregarMovimiento(mov);
+    const disponibleDespues = direccion === "entrada" ? disponible + montoNum : Math.max(0, disponible - montoNum);
+    const ticket = ticketGarantiaLiquidaH14(mov, disponible, disponibleDespues);
+    return { ok: true, movimiento: mov, ticket };
+  }
+
   return {
     registrarGarantiaLiquidaAlDesembolsar,
     garantiaLiquidaDisponible,
@@ -535,5 +627,6 @@ module.exports = function crearDominioGarantiaLiquida({
     reporteSalidaGarantiasPorClienta,
     validarAportacionGarantiaEnReestructura,
     elegibilidadLiberacionGarantia,
+    registrarAjusteManualGarantia,
   };
 };
