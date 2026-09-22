@@ -27,6 +27,7 @@ module.exports = function crearDominioGarantiaLiquida({
   carteraViva,
   obtenerPadron,
   porcentajeGarantiaLiquida,
+  hoyMX,
 }) {
   // GARANTÍA LÍQUIDA: CONEXIÓN AUTOMÁTICA AL DESEMBOLSO (10-sep-2026, CU-006,
   // Anexo F §7-8). generarSobreDispersion ya calculaba el 10% retenido desde
@@ -523,6 +524,65 @@ module.exports = function crearDominioGarantiaLiquida({
     };
   }
 
+  // ---------------------------------------------------------------------
+  // ALERTA/ESCALACIÓN POR EXCEDER EL PLAZO DE 2 SEMANAS PARA ENTREGAR LA
+  // GARANTÍA (CU-006, PENDIENTES_POR_CONFIRMAR.md sección 3: "Consecuencia
+  // de exceder el plazo de 2 semanas para entregar la garantía"). RESUELTO
+  // 21-sep-2026 — Dirección aprueba sin cambios la propuesta de Sistemas del
+  // 11-sep-2026: "Respuesta: alerta y escala." Nunca bloquea — "es la
+  // doctrina de la casa: los candados duros van en el dinero, no en las
+  // entregas" (mismo criterio que el resto del módulo: elegibilidadLiberacion-
+  // Garantia y validarAportacionGarantiaEnReestructura tampoco mueven ni
+  // detienen nada solos, solo avisan).
+  //
+  // El plazo corre desde que el crédito que garantiza CIERRA (fecha_baja,
+  // store.js aplicarCambios "baja" — se fija también en la baja que genera
+  // una renovación/recrédito, así que cubre ese caso sin código aparte) y la
+  // garantía queda LIBERABLE (elegibilidadLiberacionGarantia().liberable ===
+  // true) pero todavía sigue guardada (nadie la ha entregado). Días
+  // configurables por variable de entorno, nunca fijos en código — mismo
+  // patrón que PORCENTAJE_GARANTIA_LIQUIDA/GARANTIA_HIPOTECARIA_DIAS_ALERTA.
+  const DIAS_PLAZO_ENTREGA_GARANTIA = Number(process.env.GARANTIA_DIAS_PLAZO_ENTREGA) || 14;
+
+  function diasEntreFechasISO(desdeISO, hastaISO) {
+    const d1 = new Date(String(desdeISO).slice(0, 10) + "T12:00:00");
+    const d2 = new Date(String(hastaISO).slice(0, 10) + "T12:00:00");
+    return Math.round((d2.getTime() - d1.getTime()) / 86400000);
+  }
+
+  // Todas las clientas con una garantía YA liberable (crédito cerrado, sin
+  // otro crédito activo, con saldo guardado > 0) que lleva DIAS_PLAZO_ENTREGA_
+  // GARANTIA días o más sin que nadie la entregue — para que el tablero de
+  // Dirección la muestre como alerta y decida escalar. Informativo, no
+  // genera ningún movimiento ni bloquea la entrega cuando por fin ocurra.
+  function alertasPlazoEntregaGarantia(usuario) {
+    const hoy = hoyMX();
+    const padron = obtenerPadron();
+    const cerrados = padron.filter((credito) => (credito.activa === false || credito.estatus === "BAJA")
+      && credito.fecha_baja);
+
+    const alertas = cerrados.reduce((filas, credito) => {
+      const socio = String(credito.id).split("|")[0];
+      const elegibilidad = elegibilidadLiberacionGarantia(usuario, socio, credito.producto);
+      if (!elegibilidad.liberable) return filas;
+      const diasSinEntregar = diasEntreFechasISO(credito.fecha_baja, hoy);
+      if (diasSinEntregar < DIAS_PLAZO_ENTREGA_GARANTIA) return filas;
+      const { disponible } = garantiaLiquidaDisponible(usuario, socio, credito.producto);
+      return [...filas, {
+        socio, nombre: credito.nombre, centro: credito.centro, producto: credito.producto,
+        fechaCierre: credito.fecha_baja, diasSinEntregar, guardado: disponible,
+        motivo: "Han pasado " + diasSinEntregar + " días desde que el crédito cerró y la garantía "
+          + "sigue sin entregarse (plazo: " + DIAS_PLAZO_ENTREGA_GARANTIA + " días). Alertar y escalar "
+          + "a Dirección — nunca bloquear (CU-006, aprobado por Dirección 21-sep-2026).",
+      }];
+    }, []);
+
+    return {
+      diasPlazo: DIAS_PLAZO_ENTREGA_GARANTIA,
+      alertas: alertas.sort((a, b) => b.diasSinEntregar - a.diasSinEntregar),
+    };
+  }
+
   return {
     registrarGarantiaLiquidaAlDesembolsar,
     garantiaLiquidaDisponible,
@@ -535,5 +595,6 @@ module.exports = function crearDominioGarantiaLiquida({
     reporteSalidaGarantiasPorClienta,
     validarAportacionGarantiaEnReestructura,
     elegibilidadLiberacionGarantia,
+    alertasPlazoEntregaGarantia,
   };
 };

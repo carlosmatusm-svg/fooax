@@ -4064,11 +4064,13 @@ const {
   elegibilidadLiberacionGarantia,
   reporteSemanalGarantias,
   reporteSalidaGarantiasPorClienta,
+  alertasPlazoEntregaGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
   obtenerPadron: () => PADRON,
   porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+  hoyMX,
 });
 
 // Dominio Notificaciones (NOT-01, CU-020) extraído a
@@ -6237,6 +6239,14 @@ app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, 
 app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
   const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
   res.json(reporteSalidaGarantiasPorClienta(mes));
+});
+
+// ALERTA/ESCALACIÓN — PLAZO DE 2 SEMANAS PARA ENTREGAR LA GARANTÍA (CU-006,
+// RESUELTO 21-sep-2026: Dirección aprueba la propuesta de Sistemas del
+// 11-sep-2026 — "alerta y escala", nunca bloquea). Ver
+// dominios/garantia_liquida.js#alertasPlazoEntregaGarantia.
+app.get("/api/garantias/alertas-plazo-entrega", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoEntregaGarantia(req.usuario));
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
