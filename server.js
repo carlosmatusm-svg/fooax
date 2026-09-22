@@ -4072,6 +4072,7 @@ const {
   ticketLiberacionGarantia,
   alertaVencimientoGarantiaHipotecaria,
   alertasGarantiaHipotecariaPorVencer,
+  alertasPlazoEntregaGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -6327,6 +6328,14 @@ app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, 
 app.get("/api/garantias/corte-diario", requiere("direccion", "admin"), (req, res) => {
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
   res.json(corteDiarioGarantias(fecha));
+});
+
+// ALERTA/ESCALACIÓN — PLAZO DE 2 SEMANAS PARA ENTREGAR LA GARANTÍA (CU-006,
+// RESUELTO 21-sep-2026: Dirección aprueba la propuesta de Sistemas del
+// 11-sep-2026 — "alerta y escala", nunca bloquea). Ver
+// dominios/garantia_liquida.js#alertasPlazoEntregaGarantia.
+app.get("/api/garantias/alertas-plazo-entrega", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoEntregaGarantia(req.usuario));
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
