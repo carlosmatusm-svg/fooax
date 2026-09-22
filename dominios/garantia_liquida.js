@@ -27,6 +27,7 @@ module.exports = function crearDominioGarantiaLiquida({
   carteraViva,
   obtenerPadron,
   porcentajeGarantiaLiquida,
+  hoyMX,
 }) {
   // GARANTÍA LÍQUIDA: CONEXIÓN AUTOMÁTICA AL DESEMBOLSO (10-sep-2026, CU-006,
   // Anexo F §7-8). generarSobreDispersion ya calculaba el 10% retenido desde
@@ -523,6 +524,120 @@ module.exports = function crearDominioGarantiaLiquida({
     };
   }
 
+  // ---------------------------------------------------------------------
+  // PLAZO DE 5 DÍAS PARA REGRESAR LA HOJA DE LIBERACIÓN FIRMADA (CU-006,
+  // RESUELTO 21-sep-2026: Carlos confirma por escrito que SÍ es política
+  // vigente — no es solo formato interno de una sucursal, ver
+  // PENDIENTES_POR_CONFIRMAR.md sección 3, fila "Plazo de 5 días...").
+  //
+  // Cuando se entrega la garantía (salida "Garantía líquida entregada" o
+  // "Garantía A entregada", ver ticketGarantiaLiquidaH14/ticket-liberacion-
+  // garantia.js) se le da a la clienta la hoja de liberación para firmar y
+  // debe regresarla a oficina dentro de 5 días. Hasta hoy nada registraba
+  // si esa hoja YA regresó firmada — este candado agrega justo esa pieza,
+  // con el mismo criterio ya usado en el resto del módulo (INFORMATIVO,
+  // "alerta y escala", NUNCA bloquea — es la misma doctrina que el plazo de
+  // 2 semanas para entregar la garantía).
+  //
+  // POR QUÉ UN REGISTRO APPEND-ONLY (store.registro/agregarRegistro) Y NO UN
+  // CAMPO MUTABLE: el mecanismo ya existe para bitácoras de cumplimiento
+  // (riesgo, PLD, ARCO, expediente) — una fila nueva por cada regreso de
+  // hoja, nunca un update; el estado vigente ("¿ya regresó?") se DERIVA de
+  // si existe al menos una fila con ese folio, igual que el resto de estas
+  // bitácoras. El folio de la SALIDA (mov.folio, el mismo que ya imprime el
+  // ticket H.14) es la llave — así no hace falta inventar un id nuevo.
+  const REGISTRO_HOJA_LIBERACION_REGRESO = "hoja_liberacion_garantia_regreso";
+  const DIAS_PLAZO_REGRESO_HOJA_LIBERACION = Number(process.env.GARANTIA_DIAS_PLAZO_REGRESO_HOJA) || 5;
+  const PATRON_TIPOS_SALIDA_GARANTIA = /^garant[íi]a (l[íi]quida|a) entregada$/i;
+
+  function diasEntreFechasISO(desdeISO, hastaISO) {
+    const d1 = new Date(String(desdeISO).slice(0, 10) + "T12:00:00");
+    const d2 = new Date(String(hastaISO).slice(0, 10) + "T12:00:00");
+    return Math.round((d2.getTime() - d1.getTime()) / 86400000);
+  }
+
+  // El movimiento de salida real (folio) contra el que se marca el regreso —
+  // nunca se acepta un folio inventado: si no hay una salida de garantía con
+  // ese folio, no hay hoja de liberación que regresar.
+  function buscarSalidaGarantiaPorFolio(folio) {
+    return store.todosMovimientos().find((mov) => !mov.anulado
+      && String(mov.folio) === String(folio)
+      && PATRON_TIPOS_SALIDA_GARANTIA.test((tipoDeMov(mov) ?? "").trim())) || null;
+  }
+
+  // Ya hay una fila de regreso para este folio (no importa quién la puso ni
+  // cuándo — basta una).
+  function hojaLiberacionYaRegresada(folio) {
+    return store.registro(REGISTRO_HOJA_LIBERACION_REGRESO)
+      .some((fila) => String(fila.folio) === String(folio));
+  }
+
+  // Registrar que la hoja de liberación firmada YA regresó a oficina para
+  // el folio de salida `folio`. `fecha` default hoyMX() (no se puede
+  // registrar un regreso en el futuro). Regresa { error, status } si el
+  // folio no corresponde a una salida real de garantía, o si ya estaba
+  // marcada — nunca se duplica ni se sobrescribe una fila.
+  function registrarRegresoHojaLiberacion({ folio, fecha }, usuario) {
+    const salida = buscarSalidaGarantiaPorFolio(folio);
+    if (!salida) {
+      return { error: "No encuentro una salida de garantía (\"Garantía líquida entregada\" o \"Garantía A entregada\") con ese folio.", status: 400 };
+    }
+    if (hojaLiberacionYaRegresada(folio)) {
+      return { error: "Ya está registrado el regreso de la hoja de liberación para este folio.", status: 400 };
+    }
+    const fechaRegreso = String(fecha || hoyMX()).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaRegreso)) {
+      return { error: "La fecha de regreso no es válida.", status: 400 };
+    }
+    if (fechaRegreso > hoyMX()) {
+      return { error: "La fecha de regreso no puede ser futura.", status: 400 };
+    }
+    const socio = socioDeMov(salida);
+    const fila = store.agregarRegistro(REGISTRO_HOJA_LIBERACION_REGRESO, {
+      folio: String(folio), socio, producto: productoDeMov(salida) || salida.producto || null,
+      fechaSalida: salida.fecha, fechaRegreso,
+      diasParaRegresar: diasEntreFechasISO(salida.fecha, fechaRegreso),
+      registradoPor: (usuario && usuario.nombre) || null, usuarioId: (usuario && usuario.id) || null,
+    });
+    return { ok: true, registro: fila };
+  }
+
+  // Todas las salidas de garantía (líquida o A) que llevan
+  // DIAS_PLAZO_REGRESO_HOJA_LIBERACION días o más sin que nadie registre el
+  // regreso de su hoja de liberación firmada — para que el tablero de
+  // Dirección la muestre como alerta y decida escalar. Informativo, igual
+  // que alertasPlazoEntregaGarantia: nunca bloquea ninguna operación futura.
+  function alertasPlazoRegresoHojaLiberacion() {
+    const hoy = hoyMX();
+    const padron = obtenerPadron();
+    const salidas = store.todosMovimientos().filter((mov) => !mov.anulado
+      && PATRON_TIPOS_SALIDA_GARANTIA.test((tipoDeMov(mov) ?? "").trim()));
+
+    const alertas = salidas.reduce((filas, mov) => {
+      if (hojaLiberacionYaRegresada(mov.folio)) return filas;
+      const diasSinRegresar = diasEntreFechasISO(mov.fecha, hoy);
+      if (diasSinRegresar < DIAS_PLAZO_REGRESO_HOJA_LIBERACION) return filas;
+      const socio = socioDeMov(mov);
+      const producto = productoDeMov(mov) || mov.producto || null;
+      const credito = padron.find((c) => String(c.id).split("|")[0] === socio
+        && norm(c.producto) === norm(producto || "")) || null;
+      return [...filas, {
+        socio, nombre: (credito && credito.nombre) || null, centro: (credito && credito.centro) || null,
+        producto, folio: mov.folio, tipo: mov.tipo || mov.concepto,
+        fechaSalida: mov.fecha, monto: Number(mov.monto) || 0, diasSinRegresar,
+        motivo: "Han pasado " + diasSinRegresar + " días desde que se entregó la garantía y la hoja de "
+          + "liberación firmada sigue sin regresar a oficina (plazo: " + DIAS_PLAZO_REGRESO_HOJA_LIBERACION
+          + " días). Alertar y escalar a Dirección — nunca bloquear (misma doctrina que el plazo de "
+          + "entrega, CU-006, confirmado por Carlos 21-sep-2026).",
+      }];
+    }, []);
+
+    return {
+      diasPlazo: DIAS_PLAZO_REGRESO_HOJA_LIBERACION,
+      alertas: alertas.sort((a, b) => b.diasSinRegresar - a.diasSinRegresar),
+    };
+  }
+
   return {
     registrarGarantiaLiquidaAlDesembolsar,
     garantiaLiquidaDisponible,
@@ -535,5 +650,7 @@ module.exports = function crearDominioGarantiaLiquida({
     reporteSalidaGarantiasPorClienta,
     validarAportacionGarantiaEnReestructura,
     elegibilidadLiberacionGarantia,
+    registrarRegresoHojaLiberacion,
+    alertasPlazoRegresoHojaLiberacion,
   };
 };

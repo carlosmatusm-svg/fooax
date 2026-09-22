@@ -4064,11 +4064,14 @@ const {
   elegibilidadLiberacionGarantia,
   reporteSemanalGarantias,
   reporteSalidaGarantiasPorClienta,
+  registrarRegresoHojaLiberacion,
+  alertasPlazoRegresoHojaLiberacion,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
   obtenerPadron: () => PADRON,
   porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+  hoyMX,
 });
 
 // Dominio Notificaciones (NOT-01, CU-020) extraído a
@@ -6237,6 +6240,21 @@ app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, 
 app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
   const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
   res.json(reporteSalidaGarantiasPorClienta(mes));
+});
+
+// PLAZO DE 5 DÍAS PARA REGRESAR LA HOJA DE LIBERACIÓN FIRMADA (CU-006,
+// RESUELTO 21-sep-2026: Carlos confirma que SÍ es política vigente). El
+// candado es informativo — alerta y escala, nunca bloquea (misma doctrina
+// que el plazo de 2 semanas para entregar la garantía) — ver
+// dominios/garantia_liquida.js.
+app.get("/api/garantias/hoja-liberacion/alertas-plazo-regreso", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoRegresoHojaLiberacion());
+});
+
+app.post("/api/garantias/hoja-liberacion/regresada", requiere("direccion", "admin"), (req, res) => {
+  const resultado = registrarRegresoHojaLiberacion(req.body || {}, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
