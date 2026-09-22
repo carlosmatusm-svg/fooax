@@ -4073,7 +4073,8 @@ const {
   alertaVencimientoGarantiaHipotecaria,
   alertasGarantiaHipotecariaPorVencer,
   alertasPlazoEntregaGarantia,
-} = require("./dominios/garantia_liquida")({
+  registrarRegresoHojaLiberacion,
+  alertasPlazoRegresoHojaLiberacion,} = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
   obtenerPadron: () => PADRON,
@@ -6335,8 +6336,21 @@ app.get("/api/garantias/corte-diario", requiere("direccion", "admin"), (req, res
 // 11-sep-2026 — "alerta y escala", nunca bloquea). Ver
 // dominios/garantia_liquida.js#alertasPlazoEntregaGarantia.
 app.get("/api/garantias/alertas-plazo-entrega", requiere("direccion", "admin"), (req, res) => {
-  res.json(alertasPlazoEntregaGarantia(req.usuario));
+  res.json(alertasPlazoEntregaGarantia(req.usuario));});
+
+// PLAZO DE 5 DÍAS PARA REGRESAR LA HOJA DE LIBERACIÓN FIRMADA (CU-006,
+// RESUELTO 21-sep-2026: Carlos confirma que SÍ es política vigente). El
+// candado es informativo — alerta y escala, nunca bloquea (misma doctrina
+// que el plazo de 2 semanas para entregar la garantía) — ver
+// dominios/garantia_liquida.js.
+app.get("/api/garantias/hoja-liberacion/alertas-plazo-regreso", requiere("direccion", "admin"), (req, res) => {
+  res.json(alertasPlazoRegresoHojaLiberacion());
 });
+
+app.post("/api/garantias/hoja-liberacion/regresada", requiere("direccion", "admin"), (req, res) => {
+  const resultado = registrarRegresoHojaLiberacion(req.body || {}, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  res.json(resultado);});
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
 // anuló y por qué, y deja de contar en los totales y en el arqueo. Nació el
