@@ -4087,6 +4087,7 @@ const {
   registrarRegresoHojaLiberacion,
   alertasPlazoRegresoHojaLiberacion,
   registrarAjusteManualGarantia,
+  validarSalidaAnticipadaGarantiaLiquida,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -6143,6 +6144,18 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     }
   }
 
+  // MOTIVO OBLIGATORIO + ALERTA EN EL HISTORIAL AL SACAR LA GARANTÍA ANTES DE
+  // TIEMPO (CU-006, RESUELTO 21-sep-2026, audio de Karina — ver
+  // dominios/garantia_liquida.js#validarSalidaAnticipadaGarantiaLiquida). Si
+  // la garantía todavía no era liberable, exige `motivoSalidaAnticipada` —
+  // no bloquea la salida en sí, solo exige dejar el motivo por escrito.
+  let salidaAnticipada = null;
+  if (tipoNombre === "Garantía líquida entregada" && socio && producto) {
+    const evaluacion = validarSalidaAnticipadaGarantiaLiquida(req.usuario, socio, producto, b.motivoSalidaAnticipada);
+    if (evaluacion.error) return res.status(evaluacion.status).json({ error: evaluacion.error, elegibilidad: evaluacion.elegibilidad });
+    if (evaluacion.salidaAnticipada) salidaAnticipada = evaluacion;
+  }
+
   const delDia = store.movimientosDeFecha(fecha).length;
   const compacta = fecha.slice(8, 10) + fecha.slice(5, 7);
   const folio = "DIR-" + compacta + "-" + String(delDia + 1).padStart(3, "0");
@@ -6156,6 +6169,8 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     tipo: tipo ? tipoNombre : null,
     entrada: tipo ? !!tipo.entrada : store.entradaPorTexto(concepto || categoria),
     autorizadoA: (b.autorizadoA || "").trim() || null,
+    salidaAnticipada: !!salidaAnticipada,
+    motivoSalidaAnticipada: salidaAnticipada ? salidaAnticipada.motivoSalidaAnticipada : null,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);

@@ -302,6 +302,14 @@ module.exports = function crearDominioGarantiaLiquida({
         fecha: mov.fecha, folio: mov.folio, tipo: mov.tipo ?? mov.concepto, monto: mov.monto,
         entrada: !!mov.entrada, saldoDespues,
         capturadoPor: mov.registradoPor ?? null, nota: mov.nota ?? null,
+        // ALERTA EN EL HISTORIAL — SALIDA ANTICIPADA (CU-006, RESUELTO
+        // 21-sep-2026, audio de Karina): si esta salida se registró cuando la
+        // garantía todavía NO era liberable (ver
+        // validarSalidaAnticipadaGarantiaLiquida más abajo), el movimiento
+        // queda marcado con el motivo que se anotó en su momento — así el
+        // historial de la clienta muestra la alerta sin tener que adivinar.
+        salidaAnticipada: !!mov.salidaAnticipada,
+        motivoSalidaAnticipada: mov.motivoSalidaAnticipada ?? null,
       }];
     }, []);
   }
@@ -431,6 +439,42 @@ module.exports = function crearDominioGarantiaLiquida({
       motivo: "Crédito cerrado y sin otro crédito activo de la clienta — puede liberarse (CU-006 item 27).",
       otroCreditoActivo: null,
     };
+  }
+
+  // MOTIVO OBLIGATORIO + ALERTA EN EL HISTORIAL AL SACAR LA GARANTÍA ANTES DE
+  // TIEMPO (CU-006, RESUELTO 21-sep-2026, audio de Karina: "si se saca antes
+  // tiene que poner ese motivo, y también hay que poner una alerta en el
+  // historial de la clienta"). Investigado contra el código real: capturar
+  // QUIÉN hizo el movimiento YA EXISTE (`registradoPor`); lo que faltaba es
+  // que la salida CONSULTE elegibilidadLiberacionGarantia() y, si todavía NO
+  // es liberable, EXIJA un motivo (en vez de aceptarlo como nota libre y
+  // opcional) — es lo que hace esta función.
+  //
+  // NO BLOQUEA LA SALIDA: si el motivo viene, la salida procede igual (misma
+  // doctrina del módulo — el candado duro es el antiduplicado, sobre el
+  // dinero; esto es transparencia/rastro, no un candado de aprobación). Si
+  // el motivo NO viene, sí se rechaza — no es opcional cuando la garantía
+  // todavía no era liberable.
+  //
+  // Solo cubre Garantía Líquida por ahora (mismo alcance que
+  // elegibilidadLiberacionGarantia — Garantía A queda pendiente de que
+  // Dirección confirme que aplica el mismo criterio de liberación, CU-006).
+  const JUSTIFICACION_MINIMA_SALIDA_ANTICIPADA = 5;
+
+  function validarSalidaAnticipadaGarantiaLiquida(usuario, socio, producto, motivoPropuesto) {
+    const elegibilidad = elegibilidadLiberacionGarantia(usuario, socio, producto);
+    if (elegibilidad.liberable) return { salidaAnticipada: false, motivoSalidaAnticipada: null };
+
+    const motivo = String(motivoPropuesto ?? "").trim();
+    if (motivo.length < JUSTIFICACION_MINIMA_SALIDA_ANTICIPADA) {
+      return {
+        error: "Esta garantía todavía no es liberable (" + elegibilidad.motivo + "). Para sacarla de todos modos "
+          + "hay que anotar el motivo (mínimo " + JUSTIFICACION_MINIMA_SALIDA_ANTICIPADA + " caracteres) — queda "
+          + "marcado en el historial de la clienta (CU-006, audio de Karina 21-sep-2026).",
+        status: 400, elegibilidad,
+      };
+    }
+    return { salidaAnticipada: true, motivoSalidaAnticipada: motivo, elegibilidadEnElMomento: elegibilidad.motivo };
   }
 
   // ---------------------------------------------------------------------
@@ -1138,5 +1182,7 @@ module.exports = function crearDominioGarantiaLiquida({
     alertasPlazoEntregaGarantia,
     registrarRegresoHojaLiberacion,
     alertasPlazoRegresoHojaLiberacion,
-    registrarAjusteManualGarantia,  };
+    registrarAjusteManualGarantia,
+    validarSalidaAnticipadaGarantiaLiquida,
+  };
 };
