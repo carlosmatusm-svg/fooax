@@ -456,6 +456,21 @@ module.exports = function crearDominioGarantiaLiquida({
       && String(mov.fecha || "") >= desdeISO && String(mov.fecha || "") <= hastaISO);
   }
 
+  // DESGLOSE POR TIPO DE GARANTÍA Y MODALIDAD DE PAGO (CU-008, RESUELTO
+  // 21-sep-2026 — Dirección, vía Excel "LUNES PRIMERA PARTE 2109.xlsx":
+  // "tienen que ser por modalidad y tipo de garantía"). El TIPO se
+  // normaliza a los dos conceptos de caja que hoy existen (Garantía Líquida
+  // y Garantía A — la Hipotecaria es documental, sin movimiento de caja,
+  // Regla 8.1), sin importar si el movimiento es la entrada, la entregada o
+  // la aplicada; la MODALIDAD es la forma de pago del movimiento (mismo
+  // criterio que ya usaba porFormaPago en el reporte semanal).
+  function tipoGarantiaNormalizado(tipoRaw) {
+    return /^garant[íi]a a\b/i.test(String(tipoRaw || "").trim()) ? "Garantía A" : "Garantía Líquida";
+  }
+  function modalidadPagoDeMov(mov) {
+    return mov.metodo === "retencion" ? "Retención automática" : (mov.metodo || "—");
+  }
+
   // REPORTE SEMANAL DE ENTRADA/SALIDA (página del catálogo CU-008 #1, con
   // ejemplo real en "PLANILLA-GARANTIAS LUNES PRIMERA PARTE.xlsx"): por día,
   // por quién lo capturó, y por forma de pago. `fechaLunes` YA debe venir
@@ -471,19 +486,22 @@ module.exports = function crearDominioGarantiaLiquida({
     const movs = movimientosDeGarantiaEntre(desde, hasta);
     const sumar = (mapa, llave, monto) => { mapa[llave] = Math.round(((mapa[llave] || 0) + monto) * 100) / 100; };
 
-    const porDia = {}, porQuien = {}, porForma = {};
+    const porDia = {}, porQuien = {}, porForma = {}, porTipoGarantia = {};
     let totalEntradas = 0, totalSalidas = 0;
     for (const mov of movs) {
       const monto = Number(mov.monto) || 0;
       const quien = mov.ejecutivo || mov.registradoPor || "—";
-      const forma = mov.metodo === "retencion" ? "Retención automática" : (mov.metodo || "—");
+      const forma = modalidadPagoDeMov(mov);
+      const tipoG = tipoGarantiaNormalizado(mov.tipo || tipoDeMov(mov));
       if (!porDia[mov.fecha]) porDia[mov.fecha] = { entradas: 0, salidas: 0 };
       if (!porQuien[quien]) porQuien[quien] = { entradas: 0, salidas: 0 };
       if (!porForma[forma]) porForma[forma] = { entradas: 0, salidas: 0 };
+      if (!porTipoGarantia[tipoG]) porTipoGarantia[tipoG] = { entradas: 0, salidas: 0 };
       const campo = mov.entrada ? "entradas" : "salidas";
       sumar(porDia[mov.fecha], campo, monto);
       sumar(porQuien[quien], campo, monto);
       sumar(porForma[forma], campo, monto);
+      sumar(porTipoGarantia[tipoG], campo, monto);
       if (mov.entrada) totalEntradas = Math.round((totalEntradas + monto) * 100) / 100;
       else totalSalidas = Math.round((totalSalidas + monto) * 100) / 100;
     }
@@ -497,6 +515,7 @@ module.exports = function crearDominioGarantiaLiquida({
       porDia: aArreglo(porDia, "fecha"),
       porQuienCaptura: aArreglo(porQuien, "quien"),
       porFormaPago: aArreglo(porForma, "forma"),
+      porTipoGarantia: aArreglo(porTipoGarantia, "tipo"),
     };
   }
 
@@ -517,22 +536,38 @@ module.exports = function crearDominioGarantiaLiquida({
         const socio = socioDeMov(mov);
         const cred = padron.find((c) => String(c.id).split("|")[0] === socio
           && norm(c.producto) === norm(productoDeMov(mov) || "")) || null;
+        const tipoRaw = mov.tipo || mov.concepto;
         return {
           folio: mov.folio, fecha: mov.fecha, socio, nombre: (cred && cred.nombre) || null,
           centro: (cred && cred.centro) || "—", quien: mov.ejecutivo || mov.registradoPor || "—",
-          monto: Number(mov.monto) || 0, tipo: mov.tipo || mov.concepto,
+          monto: Number(mov.monto) || 0, tipo: tipoRaw,
+          // RESUELTO 21-sep-2026 (Dirección, Excel "LUNES PRIMERA PARTE
+          // 2109.xlsx"): "tienen que ser por modalidad y tipo de garantía".
+          // `tipo` ya trae el texto crudo del movimiento (para no perder
+          // detalle, p. ej. "Garantía líquida entregada" vs "aplicada");
+          // `tipoGarantia` es la versión normalizada para agrupar, y
+          // `modalidad` es la forma de pago.
+          tipoGarantia: tipoGarantiaNormalizado(tipoRaw),
+          modalidad: modalidadPagoDeMov(mov),
         };
       })
       .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-    const porCentro = salidas.reduce((acc, s) => {
-      acc[s.centro] = Math.round(((acc[s.centro] || 0) + s.monto) * 100) / 100;
-      return acc;
-    }, {});
+    const sumarEn = (mapa, llave, monto) => { mapa[llave] = Math.round(((mapa[llave] || 0) + monto) * 100) / 100; };
+    const porCentro = {}, porTipoGarantia = {}, porModalidad = {};
+    for (const s of salidas) {
+      sumarEn(porCentro, s.centro, s.monto);
+      sumarEn(porTipoGarantia, s.tipoGarantia, s.monto);
+      sumarEn(porModalidad, s.modalidad, s.monto);
+    }
 
     return {
       mes, periodo: { desde, hasta }, salidas,
       rollupPorCentro: Object.keys(porCentro).sort().map((centro) => ({ centro, total: porCentro[centro] })),
+      rollupPorTipoGarantia: Object.keys(porTipoGarantia).sort()
+        .map((tipo) => ({ tipo, total: porTipoGarantia[tipo] })),
+      rollupPorModalidad: Object.keys(porModalidad).sort()
+        .map((modalidad) => ({ modalidad, total: porModalidad[modalidad] })),
     };
   }
 
