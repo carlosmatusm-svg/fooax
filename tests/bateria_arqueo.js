@@ -5821,6 +5821,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       JSON.stringify(f105 || {}).slice(0, 100));
   }
 
+  console.log("\n— 106. LA CUENTA DE ALEJANDRA: SOLO GARANTÍAS Y CAJA (Karina y Anel, 23-sep) —");
+  {
+    const ca106 = await login("alejandra", "alejandra2026");
+    const me106 = await j(await fetch(U + "/api/me", { headers: H(ca106) }));
+    ok("su sesión declara el puesto (soloCajaGarantias)", me106.soloCajaGarantias === true,
+      JSON.stringify(me106).slice(0, 80));
+    const g106 = await fetch(U + "/api/garantias", { headers: H(ca106) });
+    ok("Garantías le abre", g106.status === 200, "status " + g106.status);
+    const a106 = await fetch(U + "/api/arqueo", { headers: H(ca106) });
+    ok("el arqueo le abre (valida el efectivo de la sucursal)", a106.status === 200, "status " + a106.status);
+    const c106 = await fetch(U + "/api/cartera", { headers: H(ca106) });
+    ok("la cartera NO le abre (403 del servidor, no un escondite de pantalla)", c106.status === 403, "status " + c106.status);
+    const r106 = await fetch(U + "/api/resumen", { headers: H(ca106) });
+    ok("el resumen de cobranza tampoco", r106.status === 403, "status " + r106.status);
+    const m106 = await fetch(U + "/api/garantias", { headers: H(cm) });
+    ok("y Monse sigue viendo todo (Garantías incluida)", m106.status === 200, "status " + m106.status);
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
