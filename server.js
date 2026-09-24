@@ -4075,6 +4075,14 @@ const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUI
 const USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA = (process.env.GARANTIA_USUARIOS_AUTORIZAN_AJUSTE || "alejandra,monse")
   .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
 
+// QUIÉN APRUEBA las solicitudes de garantías — soltar una garantía, o un
+// ajuste de saldo pedido por Alejandra (Karina, 24-sep-2026: "cuando
+// Alejandra quiera modificar el saldo, solo se modifique si la Ing. Monse lo
+// aprueba"). Mismo patrón de entorno que la lista de arriba: configurable
+// sin deploy, nunca fija en código.
+const USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA = (process.env.GARANTIA_USUARIOS_APRUEBAN_SOLICITUDES || "monse")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
 // Dominio Garantía Líquida extraído a dominios/garantia_liquida.js (10-sep-2026,
 // ver "Reducir dependencia del monolito server.js" en CLAUDE.md). server.js
 // solo inyecta lo que el dominio necesita y usa las funciones que regresa —
@@ -4100,6 +4108,10 @@ const {
   alertasPlazoRegresoHojaLiberacion,
   registrarAjusteManualGarantia,
   validarSalidaAnticipadaGarantiaLiquida,
+  movimientosDeGarantiaEntre,
+  crearSolicitudGarantia,
+  listarSolicitudesGarantia,
+  resolverSolicitudGarantia,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -4112,6 +4124,7 @@ const {
   // que COMPROBANTE_DOMICILIO_MESES_MAX, nunca hardcodeado en la lógica.
   garantiaHipotecariaDiasAlerta: Number(process.env.GARANTIA_HIPOTECARIA_DIAS_ALERTA) || 3,
   usuariosAutorizanAjusteManual: USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA,
+  usuariosApruebanSolicitudes: USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA,
 });
 
 // Dominio Notificaciones (NOT-01, CU-020) extraído a
@@ -6399,8 +6412,37 @@ app.post("/api/garantias/hoja-liberacion/regresada", requiere("direccion", "admi
 // texto, así que el candado de rol (direccion/admin) es un primer filtro y
 // registrarAjusteManualGarantia() hace la verificación real, más fina, de
 // que la cuenta sea justo Alejandra o Monse.
+//
+// APROBACIÓN DE LA ING. MONSE (Karina, 24-sep-2026: "cuando Alejandra quiera
+// modificar el saldo, solo se modifique si la Ing. Monse lo aprueba"): si
+// quien captura NO está en la lista de quienes aprueban, el ajuste NO se
+// aplica — queda como SOLICITUD pendiente en la cola de garantías y a Monse
+// le llega la notificación (bandeja NOT-01 + campanita). Monse capturando
+// directo sigue aplicando en el acto, como siempre.
+function avisarSolicitudGarantia(s, usuario) {
+  avisar("solicitud_garantias", {
+    socio: s.socio, usuario, test: !!usuario.test,
+    detalle: (s.tipo === "liberacion" ? "Soltar garantía" : "Ajuste de saldo (" + s.tipoGarantia + ", " + s.direccion + ")")
+      + " · " + s.nombre + " · socio " + s.socio + " · crédito " + s.producto
+      + " · $" + Number(s.monto).toFixed(2) + " · pidió " + (s.solicitadoPor || "—") + " · folio " + s.folio,
+  });
+}
+
 app.post("/api/garantias/ajuste-manual", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
+  if (!USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA.includes(String(req.usuario.id || "").toLowerCase())) {
+    const sol = crearSolicitudGarantia({
+      tipo: "ajuste", socio: b.socio, producto: b.producto, monto: b.monto,
+      tipoGarantia: b.tipoGarantia, direccion: b.direccion, motivo: b.motivo,
+    }, req.usuario);
+    if (sol.error) return res.status(sol.status).json({ error: sol.error });
+    avisarSolicitudGarantia(sol.solicitud, req.usuario);
+    return res.json({
+      ok: true, pendiente: true, solicitud: sol.solicitud,
+      mensaje: "Tu ajuste quedó registrado como solicitud (folio " + sol.solicitud.folio
+        + ") — el saldo se modificará cuando la Ing. Monse lo apruebe.",
+    });
+  }
   const resultado = registrarAjusteManualGarantia({
     socio: b.socio, producto: b.producto, tipoGarantia: b.tipoGarantia,
     direccion: b.direccion, monto: b.monto, motivo: b.motivo,
@@ -6408,6 +6450,199 @@ app.post("/api/garantias/ajuste-manual", requiere("direccion", "admin"), (req, r
   if (resultado.error) return res.status(resultado.status).json({ error: resultado.error, disponible: resultado.disponible });
   res.json(resultado);
 });
+
+// SOLICITUDES DE GARANTÍAS (Karina, 24-sep-2026): el botón "solicitar que
+// suelten las garantías" y los ajustes de Alejandra caen aquí; la Ing. Monse
+// aprueba o rechaza. Ver dominios/garantia_liquida.js.
+app.get("/api/garantias/solicitudes", requiere("direccion", "admin"), (req, res) => {
+  res.json(listarSolicitudesGarantia(req.usuario));
+});
+
+app.post("/api/garantias/solicitudes", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const resultado = crearSolicitudGarantia({
+    tipo: b.tipo, socio: b.socio, producto: b.producto, monto: b.monto,
+    tipoGarantia: b.tipoGarantia, direccion: b.direccion, motivo: b.motivo,
+  }, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  avisarSolicitudGarantia(resultado.solicitud, req.usuario);
+  res.json(resultado);
+});
+
+app.post("/api/garantias/solicitudes/resolver", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const resultado = resolverSolicitudGarantia({ folio: b.folio, decision: b.decision, nota: b.nota }, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error, disponible: resultado.disponible });
+  res.json(resultado);
+});
+
+// GARANTÍAS DE HOY (Karina, 24-sep-2026: "en el panel tiene que decir cuánto
+// de $$ de garantías se recibió hoy, qué centros y cuánto de garantía por
+// ejecutivo, así como las últimas garantías que se dieron y a qué crédito").
+// Junta las DOS fuentes reales de garantía del día:
+//   - EN CAMPO: el campo "Garantía" de las fichas que sincronizan las
+//     ejecutivas (snapshots del día — es lo que alimenta la Garantía Líquida
+//     en el motor, mismo recorrido que /api/resumen).
+//   - EN OFICINA: los movimientos de garantía del catálogo de Dirección
+//     (Garantía líquida / Garantía A), vía el corte diario del dominio. La
+//     retención automática al desembolso se muestra APARTE: no es efectivo
+//     que alguien haya recibido.
+function garantiasFichasDeFecha(fecha, usuario) {
+  const snaps = store.snapshotsDeFecha(fecha);
+  const filas = [];
+  for (const id of idsEjecutivos(usuario)) {
+    const s = snaps[id];
+    if (!s) continue;
+    let data = s.snapshot;
+    if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
+    const toma = (nodo, clave) => {
+      const g = (nodo && typeof nodo === "object" && Number(nodo.garantia)) || 0;
+      if (!(g > 0)) return;
+      const [socio, producto, nombre] = String(clave).split("|");
+      const cred = PADRON.find((c) => String(c.id).split("|")[0] === String(socio || "")
+        && norm(c.producto) === norm(producto || "")) || null;
+      filas.push({
+        fuente: "ficha", fecha, socio: socio || "—",
+        nombre: (cred && cred.nombre) || nombre || "—",
+        centro: (cred && cred.centro) || "Individual",
+        producto: (cred && cred.producto) || producto || "—",
+        monto: Math.round(g * 100) / 100,
+        quien: USUARIOS[id].nombre,
+      });
+    };
+    const rec = (st) => {
+      if (!st || typeof st !== "object") return;
+      for (const k in st) {
+        const nd = st[k];
+        if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd || "garantia" in nd)) toma(nd, k);
+        else if (nd && typeof nd === "object") for (const kk in nd) toma(nd[kk], kk);
+      }
+    };
+    rec(data.reg); rec(data.regI);
+  }
+  return filas;
+}
+
+app.get("/api/garantias/hoy", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  const fichas = garantiasFichasDeFecha(fecha, req.usuario);
+  const corte = corteDiarioGarantias(fecha);
+  const esRetencion = (m) => m.modalidad === "Retención automática";
+  const movsEntrada = corte.movimientos.filter((m) => m.entrada && !esRetencion(m));
+  const movsSalida = corte.movimientos.filter((m) => !m.entrada);
+  const retenidoAutomatico = Math.round(corte.movimientos
+    .filter((m) => m.entrada && esRetencion(m))
+    .reduce((a, m) => a + m.monto, 0) * 100) / 100;
+
+  const sumar = (mapa, llave, monto) => { mapa[llave] = Math.round(((mapa[llave] || 0) + monto) * 100) / 100; };
+  const porCentro = {}, porQuien = {};
+  for (const f of fichas) { sumar(porCentro, f.centro, f.monto); sumar(porQuien, f.quien, f.monto); }
+  for (const m of movsEntrada) { sumar(porCentro, m.centro, m.monto); sumar(porQuien, m.quien, m.monto); }
+
+  const enCampo = Math.round(fichas.reduce((a, f) => a + f.monto, 0) * 100) / 100;
+  const enOficina = Math.round(movsEntrada.reduce((a, m) => a + m.monto, 0) * 100) / 100;
+
+  // ÚLTIMAS GARANTÍAS QUE SE DIERON Y A QUÉ CRÉDITO: entradas de los últimos
+  // 14 días — fichas de las ejecutivas + capturas de oficina — las 15 más
+  // recientes primero.
+  const desdeDt = new Date(fecha + "T12:00:00"); desdeDt.setDate(desdeDt.getDate() - 13);
+  const desde = desdeDt.toISOString().slice(0, 10);
+  const ultimas = [];
+  for (let d = new Date(fecha + "T12:00:00"); d.toISOString().slice(0, 10) >= desde; d.setDate(d.getDate() - 1)) {
+    for (const fila of garantiasFichasDeFecha(d.toISOString().slice(0, 10), req.usuario)) ultimas.push(fila);
+  }
+  for (const mov of movimientosDeGarantiaEntre(desde, fecha)) {
+    if (!mov.entrada || mov.metodo === "retencion") continue;
+    const socio = socioDeMov(mov);
+    const cred = PADRON.find((c) => String(c.id).split("|")[0] === socio
+      && norm(c.producto) === norm(productoDeMov(mov) || "")) || null;
+    ultimas.push({
+      fuente: "movimiento", fecha: mov.fecha, socio,
+      nombre: (cred && cred.nombre) || null,
+      centro: (cred && cred.centro) || "—",
+      producto: (cred && cred.producto) || productoDeMov(mov) || "—",
+      monto: Number(mov.monto) || 0,
+      quien: mov.ejecutivo || mov.registradoPor || "—",
+      tipo: mov.tipo || mov.concepto,
+    });
+  }
+  ultimas.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || (b.ts || 0) - (a.ts || 0));
+
+  res.json({
+    fecha,
+    recibidoHoy: Math.round((enCampo + enOficina) * 100) / 100,
+    enCampo, enOficina, retenidoAutomatico,
+    entregadoHoy: Math.round(movsSalida.reduce((a, m) => a + m.monto, 0) * 100) / 100,
+    porCentro: Object.keys(porCentro).sort().map((c) => ({ centro: c, monto: porCentro[c] })),
+    porEjecutivo: Object.keys(porQuien).sort().map((q) => ({ quien: q, monto: porQuien[q] })),
+    ultimas: ultimas.slice(0, 15),
+  });
+});
+
+// DESCARGA EN EXCEL del reporte de salidas por clienta (Karina, 24-sep-2026:
+// "Reporte de salidas por clienta (mensual) tienen que poder descargarlo en
+// excell"). Mismos datos que GET /api/garantias/reporte-salidas; formato de
+// la casa: banda rosa, encabezados azules, TOTAL DENTRO de la tabla y rollup
+// por centro con su propio total adentro.
+app.get("/api/garantias/reporte-salidas/excel", requiere("direccion", "admin"), async (req, res) => {
+  const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
+  const d = reporteSalidaGarantiasPorClienta(mes);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", DORADO = "FFF2BB06";
+  const s = wb.addWorksheet("Salidas " + mes);
+  s.mergeCells("A1:H1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · SALIDAS DE GARANTÍAS POR CLIENTA · " + mes + " (" + d.periodo.desde + " al " + d.periodo.hasta + ")";
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center", vertical: "middle" };
+  s.getRow(1).height = 24;
+  const head = [["Folio", 24], ["Fecha", 12], ["Clienta", 32], ["Centro", 20], ["Quién capturó", 18],
+    ["Monto", 14], ["Tipo", 26], ["Modalidad", 20]];
+  const hr = s.getRow(2);
+  head.forEach(([h, w], i) => { const c = hr.getCell(i + 1); c.value = h; s.getColumn(i + 1).width = w;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    c.alignment = { horizontal: "center", wrapText: true }; });
+  let f = 3, total = 0;
+  for (const x of d.salidas) {
+    const r = s.getRow(f++);
+    r.getCell(1).value = x.folio; r.getCell(2).value = x.fecha;
+    r.getCell(3).value = x.nombre || x.socio; r.getCell(4).value = x.centro;
+    r.getCell(5).value = x.quien;
+    r.getCell(6).value = x.monto; r.getCell(6).numFmt = '"$"#,##0.00';
+    r.getCell(7).value = x.tipo; r.getCell(8).value = x.modalidad;
+    total = Math.round((total + x.monto) * 100) / 100;
+  }
+  // TOTAL DENTRO de la tabla (regla de la casa: las tablas cierran su cuenta).
+  const filaTotal = f;
+  const tr2 = s.getRow(f++);
+  tr2.getCell(1).value = "TOTAL DEL MES · " + d.salidas.length + " salida(s)";
+  tr2.getCell(6).value = total; tr2.getCell(6).numFmt = '"$"#,##0.00';
+  [1, 6].forEach((i) => { tr2.getCell(i).font = { bold: true };
+    tr2.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DORADO } }; });
+  s.mergeCells(filaTotal, 1, filaTotal, 5);
+  f += 1;
+  const rc = s.getRow(f++);
+  rc.getCell(1).value = "POR CENTRO";
+  rc.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  rc.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+  for (const x of d.rollupPorCentro) {
+    const r = s.getRow(f++);
+    r.getCell(1).value = x.centro;
+    r.getCell(6).value = x.total; r.getCell(6).numFmt = '"$"#,##0.00';
+  }
+  const tc = s.getRow(f++);
+  tc.getCell(1).value = "TOTAL";
+  tc.getCell(6).value = total; tc.getCell(6).numFmt = '"$"#,##0.00';
+  [1, 6].forEach((i) => { tc.getCell(i).font = { bold: true };
+    tc.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DORADO } }; });
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Salidas de garantias por clienta ${mes}.xlsx"`);
+  res.end(Buffer.from(buf));
+});
+
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
 // anuló y por qué, y deja de contar en los totales y en el arqueo. Nació el
 // 30-jul: Karina registró un gasto de prueba de $100 desde el tablero y NO HABÍA
@@ -8016,6 +8251,15 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   if (garantias > 0) items.push({ sev: "info", txt: `Garantías: ${pesos(garantias)}` });
   if (faltantes > 0) items.push({ sev: "alto", txt: `Mora del día: ${pesos(faltantes)} en ${clientasFaltan} clientas` });
   for (const a of alertasReestructuras(req.usuario)) items.push({ sev: "alto", txt: a });
+  // SOLICITUDES DE GARANTÍAS PENDIENTES (Karina, 24-sep-2026): a quien
+  // aprueba (Ing. Monse) le suenan en la campanita con nombre, socio,
+  // crédito y monto — se resuelven en GARANTÍAS · Panel.
+  if (USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA.includes(String(req.usuario.id || "").toLowerCase())) {
+    for (const s of listarSolicitudesGarantia(req.usuario).solicitudes.filter((x) => x.estado === "pendiente"))
+      items.push({ sev: "alto", txt: "Solicitud de garantías (" + (s.tipo === "liberacion" ? "soltar garantía" : "ajuste de saldo") + "): "
+        + s.nombre + " · socio " + s.socio + " · crédito " + s.producto + " · " + pesos(s.monto)
+        + " — pidió " + (s.solicitadoPor || "—") + ". Apruébala o recházala en GARANTÍAS · Panel." });
+  }
   // "Ponle a Anel solamente a qué horas sincroniza Monse" (Karina, 10-sep):
   // SOLO Anel ve la actividad de Monse del día elegido — cuándo entró, su
   // última actividad y qué movió (capturas, anulaciones, ajustes).

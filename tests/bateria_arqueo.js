@@ -5938,6 +5938,99 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     ok("y Monse sigue viendo todo (Garantías incluida)", m106.status === 200, "status " + m106.status);
   }
 
+  console.log("\n— 107. GARANTÍAS: PANEL DE HOY, SOLICITUDES CON APROBACIÓN DE MONSE Y EXCEL (Karina, 24-sep) —");
+  {
+    const ca107 = await login("alejandra", "alejandra2026");
+    // Clienta de prueba con crédito vivo para colgarle garantías.
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO GARANTIAS 107", numero: "76", dia: "MIERCOLES", ejecutivo: "Neri" }) });
+    await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "77000000107", nombre: "GARDENIA DE PRUEBA 107", producto: "Grupal-Basico",
+        centro: "CENTRO GARANTIAS 107", ejecutivo: "Neri", saldo: 3000, cuota: 150, plazo: 20,
+        diaPago: "MIERCOLES", desembolso: HOY }) }));
+
+    // (a) La garantía de la FICHA de la ejecutiva entra al panel de HOY.
+    const hoy0 = await j(await fetch(U + "/api/garantias/hoy", { headers: H(cm) }));
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({
+      fecha: HOY, snapshot: { reg: { "CENTRO GARANTIAS 107": {
+        "77000000107|Grupal-Basico|GARDENIA DE PRUEBA 107": { pago: 0, garantia: 68, forma: "E" } } },
+        regI: {}, movs: [] }, ts: Date.now() }) });
+    const hoy1 = await j(await fetch(U + "/api/garantias/hoy", { headers: H(cm) }));
+    ok("la garantía de la ficha de Neri suma al RECIBIDO HOY (en campo)",
+      Math.abs((hoy1.enCampo - (hoy0.enCampo || 0)) - 68) < 0.01,
+      "antes " + hoy0.enCampo + " · después " + hoy1.enCampo);
+    ok("y el panel la desglosa POR EJECUTIVO (Neri)",
+      (hoy1.porEjecutivo || []).some((x) => /neri/i.test(x.quien) && x.monto >= 68),
+      JSON.stringify(hoy1.porEjecutivo || []).slice(0, 120));
+    ok("y POR CENTRO", (hoy1.porCentro || []).some((x) => x.centro === "CENTRO GARANTIAS 107" && x.monto >= 68),
+      JSON.stringify(hoy1.porCentro || []).slice(0, 120));
+    ok("y en las ÚLTIMAS garantías, con su crédito",
+      (hoy1.ultimas || []).some((u) => u.socio === "77000000107" && u.producto === "Grupal-Basico" && u.fuente === "ficha"),
+      JSON.stringify((hoy1.ultimas || []).slice(0, 3)).slice(0, 160));
+    ok("a Alejandra el panel de HOY también le abre (es de su área)",
+      (await fetch(U + "/api/garantias/hoy", { headers: H(ca107) })).status === 200, "no le abrió");
+
+    // (b) El ajuste de saldo de Alejandra NO se aplica: queda como solicitud.
+    const aj107 = await j(await fetch(U + "/api/garantias/ajuste-manual", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ socio: "77000000107", producto: "Grupal-Basico", tipoGarantia: "Garantía A",
+        direccion: "entrada", monto: 50, motivo: "prueba de aprobación 107" }) }));
+    ok("el ajuste de Alejandra queda PENDIENTE, no aplicado",
+      aj107.ok === true && aj107.pendiente === true && !!(aj107.solicitud && aj107.solicitud.folio),
+      JSON.stringify(aj107).slice(0, 140));
+    const ficha0 = await j(await fetch(U + "/api/garantias/ficha?id=77000000107", { headers: H(cm) }));
+    ok("y el saldo de Garantía A sigue SIN moverse", !(ficha0.saldoActualGarantiaA > 0),
+      "saldo A: " + ficha0.saldoActualGarantiaA);
+
+    // (c) Solo la Ing. Monse resuelve; al aprobar, el ajuste se aplica.
+    const noAprueba = await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ folio: aj107.solicitud.folio, decision: "aprobar" }) });
+    ok("Alejandra NO puede aprobar (403 del servidor)", noAprueba.status === 403, "status " + noAprueba.status);
+    const listaA = await j(await fetch(U + "/api/garantias/solicitudes", { headers: H(ca107) }));
+    ok("ella ve la cola, pero sin poder de aprobar",
+      listaA.puedeAprobar === false && listaA.pendientes >= 1, JSON.stringify(listaA).slice(0, 100));
+    const rM107 = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("a Monse le suena la campanita con nombre, socio y monto",
+      (rM107.items || []).some((x) => /Solicitud de garantías/.test(x.txt || "")
+        && /77000000107/.test(x.txt) && /GARDENIA/.test(x.txt)),
+      JSON.stringify((rM107.items || []).filter((x) => /garant/i.test(x.txt || ""))).slice(0, 200));
+    const ap107 = await j(await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ folio: aj107.solicitud.folio, decision: "aprobar" }) }));
+    ok("Monse aprueba y el ajuste SE APLICA en el acto",
+      ap107.ok === true && !!(ap107.resultadoAjuste && ap107.resultadoAjuste.ok),
+      JSON.stringify(ap107).slice(0, 160));
+    const ficha1 = await j(await fetch(U + "/api/garantias/ficha?id=77000000107", { headers: H(cm) }));
+    ok("el saldo de Garantía A ya subió los $50 y quedó en el historial",
+      Math.abs((ficha1.saldoActualGarantiaA || 0) - 50) < 0.01 && (ficha1.historialGarantiaA || []).length >= 1,
+      "saldo A: " + ficha1.saldoActualGarantiaA + " · historial: " + (ficha1.historialGarantiaA || []).length);
+    const dos107 = await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ folio: aj107.solicitud.folio, decision: "rechazar" }) });
+    ok("una solicitud resuelta no se resuelve dos veces (400)", dos107.status === 400, "status " + dos107.status);
+
+    // (d) El botón de SOLTAR: solicitud con monto guardado, sin duplicados,
+    //     y el rechazo no mueve dinero.
+    const sol107 = await j(await fetch(U + "/api/garantias/solicitudes", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ tipo: "liberacion", socio: "77000000107", producto: "Grupal-Basico" }) }));
+    ok("la solicitud de SOLTAR toma sola lo guardado (ficha $68 + ajuste $50)",
+      sol107.ok === true && sol107.solicitud.monto >= 50 && sol107.solicitud.guardadaA >= 49.99,
+      JSON.stringify(sol107.solicitud || {}).slice(0, 160));
+    const dup107 = await fetch(U + "/api/garantias/solicitudes", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ tipo: "liberacion", socio: "77000000107", producto: "Grupal-Basico" }) });
+    ok("no se duplica una solicitud pendiente igual (400)", dup107.status === 400, "status " + dup107.status);
+    const rz107 = await j(await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ folio: sol107.solicitud.folio, decision: "rechazar", nota: "prueba 107" }) }));
+    ok("Monse puede RECHAZAR sin que se mueva dinero",
+      rz107.ok === true && rz107.solicitud.estado === "rechazada" && !rz107.resultadoAjuste,
+      JSON.stringify(rz107).slice(0, 120));
+
+    // (e) El Excel del reporte de salidas por clienta baja.
+    const xl107 = await fetch(U + "/api/garantias/reporte-salidas/excel", { headers: H(cm) });
+    ok("el Excel de salidas por clienta baja (hoja de cálculo)",
+      xl107.status === 200 && /spreadsheetml/.test(xl107.headers.get("content-type") || ""),
+      "status " + xl107.status + " · " + xl107.headers.get("content-type"));
+    const xlA107 = await fetch(U + "/api/garantias/reporte-salidas/excel", { headers: H(ca107) });
+    ok("y a Alejandra también (es su área)", xlA107.status === 200, "status " + xlA107.status);
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

@@ -819,7 +819,26 @@
     <button class="mchip" data-gar="reportes" onclick="garShow('reportes')">Reportes</button>
   </div>
   <div class="garsec" id="gar-panel">
-    <h3 style="margin-top:6px">Garantías · resumen</h3>
+    <!-- GARANTÍAS DE HOY (Karina, 24-sep-2026): cuánto entró HOY, por centro
+         y por ejecutivo, y las últimas garantías que se dieron y a qué
+         crédito. Dos fuentes: el campo Garantía de las fichas de las
+         ejecutivas (campo) y las capturas de Dirección (oficina). -->
+    <h3 style="margin-top:6px">Garantías de hoy</h3>
+    <div class="reccard">
+      <div class="rechint">Lo que entró HOY de garantías — en campo (el campo Garantía de las fichas de las ejecutivas) y en oficina (capturas de Dirección) — por centro y por ejecutivo, y las últimas garantías que se dieron y a qué crédito.</div>
+      <div id="garHoy"><div class="arq-vacio">Cargando…</div></div>
+    </div>
+
+    <!-- SOLICITUDES CON APROBACIÓN (Karina, 24-sep-2026): soltar garantías y
+         ajustes de saldo llegan aquí y a la campanita de la Ing. Monse; solo
+         ella aprueba o rechaza. -->
+    <h3>Solicitudes por aprobar</h3>
+    <div class="reccard">
+      <div class="rechint">Peticiones de soltar una garantía o de ajustar un saldo. Se crean desde la FICHA de una clienta; a la Ing. Monse le suenan en su campanita y ella las aprueba o rechaza aquí mismo.</div>
+      <div id="garSolicitudes"><div class="arq-vacio">Cargando…</div></div>
+    </div>
+
+    <h3>Garantías · resumen</h3>
     <div class="reccard">
       <div class="rechint">Pasivo total de Garantía Líquida (10% retenido al desembolso, Anexo F §7-8) y cuántas socias lo tienen guardado ahora mismo. Se calcula en vivo con los mismos números que ya usa la búsqueda de créditos — no es un dato capturado a mano.</div>
       <div id="garResumen"><div class="arq-vacio">Cargando garantías…</div></div>
@@ -869,6 +888,7 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input id="garRepMesMes" type="month">
         <button class="recbtn" onclick="cargarReporteSalidasGarantias()">Ver mes</button>
+        <button class="recbtn" onclick="descargarExcelSalidasGarantias()">Descargar Excel</button>
       </div>
       <div id="garRepSalidas" style="margin-top:10px"></div>
     </div>
@@ -3826,6 +3846,8 @@ function pintarDesgloseCentros(filasTotales, porIntegrante, campoMonto, etiqueta
   }).join("");
 }
 async function cargarGarantias() {
+  cargarGarantiasHoy();
+  cargarSolicitudesGarantia();
   const box = $("garResumen"), boxA = $("garResumenA");
   try {
     const r = await fetch("/api/garantias", { credentials: "include" });
@@ -3848,6 +3870,136 @@ async function cargarGarantias() {
     pintarPendientesGarantia("garPendGlobal", d.pendientes);
   } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
+// GARANTÍAS DE HOY (Karina, 24-sep-2026) — consume /api/garantias/hoy.
+async function cargarGarantiasHoy() {
+  const box = $("garHoy");
+  if (!box) return;
+  try {
+    const r = await fetch("/api/garantias/hoy", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const t2 = (titulo, cab, filas) => filas
+      ? '<div class="gar-eti">' + titulo + '</div><table class="gar-tab chica" style="max-width:420px"><thead><tr><th>' + cab + '</th><th class="num">Recibido hoy</th></tr></thead><tbody>' + filas + '</tbody></table>'
+      : "";
+    const fCentro = (d.porCentro || []).map((x) => '<tr><td>' + hesc(x.centro) + '</td><td class="num">' + dinero(x.monto) + '</td></tr>').join("");
+    const fEjec = (d.porEjecutivo || []).map((x) => '<tr><td>' + hesc(x.quien) + '</td><td class="num">' + dinero(x.monto) + '</td></tr>').join("");
+    const fUlt = (d.ultimas || []).map((u) =>
+      '<tr><td class="mono">' + hesc(u.fecha) + '</td><td>' + hesc(u.nombre || u.socio) + '</td><td>' + hesc(u.centro || "—")
+      + '</td><td>' + hesc(u.producto || "—") + '</td><td class="num">' + dinero(u.monto) + '</td><td>' + hesc(u.quien || "—")
+      + '</td><td><span class="gar-pill' + (u.fuente === "ficha" ? " liquida" : "") + '">'
+      + (u.fuente === "ficha" ? "Ficha de campo" : hesc(u.tipo || "Oficina")) + '</span></td></tr>').join("");
+    box.innerHTML =
+      '<div class="renrow"><span>Recibido HOY de garantías</span><b>' + dinero(d.recibidoHoy) + '</b></div>'
+      + '<div class="renrow"><span>· En campo (fichas de las ejecutivas)</span><b>' + dinero(d.enCampo) + '</b></div>'
+      + '<div class="renrow"><span>· En oficina (capturas de Dirección)</span><b>' + dinero(d.enOficina) + '</b></div>'
+      + (d.retenidoAutomatico > 0 ? '<div class="renrow"><span>· Retención automática al desembolso (no es efectivo)</span><b>' + dinero(d.retenidoAutomatico) + '</b></div>' : '')
+      + (d.entregadoHoy > 0 ? '<div class="renrow"><span>Entregado HOY (salidas)</span><b>' + dinero(d.entregadoHoy) + '</b></div>' : '')
+      + t2("Por centro", "Centro", fCentro)
+      + t2("Por ejecutivo", "Ejecutivo", fEjec)
+      + (fUlt
+        ? '<div class="gar-eti">Últimas garantías que se dieron (14 días)</div><div class="gar-scroll"><table class="gar-tab"><thead><tr><th>Fecha</th><th>Clienta</th><th>Centro</th><th>Crédito</th><th class="num">Monto</th><th>Quién</th><th>Cómo</th></tr></thead><tbody>' + fUlt + '</tbody></table></div>'
+        : '<div class="rechint">Sin garantías recibidas hoy ni en los últimos 14 días.</div>');
+  } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
+// SOLICITUDES DE GARANTÍAS (Karina, 24-sep-2026): la Ing. Monse ve los
+// botones de Aprobar/Rechazar; el resto solo ve el estado.
+async function cargarSolicitudesGarantia() {
+  const box = $("garSolicitudes");
+  if (!box) return;
+  try {
+    const r = await fetch("/api/garantias/solicitudes", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const pillEstado = (e2) => '<span class="gar-pill' + (e2 === "aprobada" ? " liquida" : "") + '"'
+      + (e2 === "rechazada" ? ' style="background:#FEF2F2;color:#B91C1C"' : '') + '>' + hesc(e2) + '</span>';
+    const filas = (d.solicitudes || []).slice(0, 30).map((s) =>
+      '<tr><td class="mono">' + hesc(s.folio) + '</td><td class="mono">' + hesc(s.fecha) + '</td>'
+      + '<td>' + (s.tipo === "liberacion" ? "Soltar garantía" : "Ajuste de saldo")
+      + (s.tipoGarantia ? '<br><span style="font-size:11px;color:var(--gris)">' + hesc(s.tipoGarantia + " · " + s.direccion) + '</span>' : '') + '</td>'
+      + '<td>' + hesc(s.nombre || s.socio) + '<br><span class="mono" style="color:var(--gris);font-size:11px">' + hesc(s.socio) + '</span></td>'
+      + '<td>' + hesc(s.producto || "—") + '</td><td class="num">' + dinero(s.monto) + '</td>'
+      + '<td>' + hesc(s.solicitadoPor || "—") + '</td>'
+      + '<td>' + (s.estado === "pendiente" && d.puedeAprobar
+          ? '<button class="recbtn" onclick="resolverSolGarantia(\'' + hesc(s.folio) + '\',\'aprobar\')">Aprobar</button> '
+            + '<button class="recbtn" style="background:#FEF2F2;color:#B91C1C" onclick="resolverSolGarantia(\'' + hesc(s.folio) + '\',\'rechazar\')">Rechazar</button>'
+          : pillEstado(s.estado) + (s.resolucion ? '<br><span style="font-size:11px;color:var(--gris)">' + hesc((s.resolucion.por || "") + " · " + (s.resolucion.fecha || "")) + '</span>' : ''))
+      + '</td></tr>').join("");
+    box.innerHTML = filas
+      ? '<div class="gar-scroll"><table class="gar-tab"><thead><tr><th>Folio</th><th>Fecha</th><th>Qué pide</th><th>Clienta</th><th>Crédito</th><th class="num">Monto</th><th>Pidió</th><th>Estado</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
+      : '<div class="rechint">Sin solicitudes todavía. Se crean desde la FICHA de una clienta (botones "Solicitar que se suelte la garantía" y "Ajustar saldo").</div>';
+  } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
+async function resolverSolGarantia(folio, decision) {
+  if (!confirm((decision === "aprobar" ? "¿Aprobar" : "¿Rechazar") + " la solicitud " + folio + "?")) return;
+  try {
+    const r = await fetch("/api/garantias/solicitudes/resolver", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ folio, decision }) });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error || "No se pudo resolver."); return; }
+    alert(decision === "aprobar"
+      ? (d.resultadoAjuste ? "Aprobada — el ajuste ya quedó aplicado al saldo." : "Aprobada — ya se puede entregar la garantía con su ticket desde la Ficha.")
+      : "Rechazada.");
+    cargarSolicitudesGarantia();
+  } catch (e) { alert("Sin conexión con el servidor."); }
+}
+
+// BOTONES DE LA FICHA (Karina, 24-sep-2026): pedir que se suelte la garantía
+// (le llega a la Ing. Monse con nombre, socio, crédito y monto) y el ajuste
+// manual de saldo (Monse aplica directo; Alejandra queda pendiente de
+// aprobación — el server decide, aquí solo se muestra la respuesta).
+async function solicitarSueltaGarantia() {
+  const d = window._garFichaActual;
+  if (!d) return;
+  const total = Math.round(((d.saldoActual || 0) + (d.saldoActualGarantiaA || 0)) * 100) / 100;
+  if (!(total > 0)) { alert("Esta clienta no tiene garantía guardada que soltar."); return; }
+  if (!confirm("Se le mandará a la Ing. Monse la solicitud de SOLTAR la garantía de:\n\n"
+    + d.nombre + " · socio " + d.socio + "\nCrédito: " + d.producto
+    + "\nGuardado: $" + total.toFixed(2) + "\n\n¿Mandar la solicitud?")) return;
+  try {
+    const r = await fetch("/api/garantias/solicitudes", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ tipo: "liberacion", socio: d.socio, producto: d.producto }) });
+    const j = await r.json();
+    if (!r.ok) { alert(j.error || "No se pudo mandar la solicitud."); return; }
+    alert("Solicitud mandada (folio " + j.solicitud.folio + ") — le llega a la Ing. Monse en su campanita y en GARANTÍAS · Panel.");
+    cargarSolicitudesGarantia();
+  } catch (e) { alert("Sin conexión con el servidor."); }
+}
+
+function toggleAjusteGarantia() {
+  const f = $("garAjusteForm");
+  if (f) f.style.display = f.style.display === "none" ? "" : "none";
+}
+
+async function enviarAjusteGarantia() {
+  const d = window._garFichaActual;
+  if (!d) return;
+  const cuerpo = {
+    socio: d.socio, producto: d.producto,
+    tipoGarantia: $("garAjTipo").value, direccion: $("garAjDir").value,
+    monto: Number($("garAjMonto").value), motivo: ($("garAjMotivo").value || "").trim(),
+  };
+  if (!(cuerpo.monto > 0)) { alert("Escribe el monto del ajuste."); return; }
+  if (cuerpo.motivo.length < 5) { alert("Escribe el motivo del ajuste (mínimo 5 caracteres)."); return; }
+  try {
+    const r = await fetch("/api/garantias/ajuste-manual", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify(cuerpo) });
+    const j = await r.json();
+    if (!r.ok) { alert(j.error || "No se pudo registrar el ajuste."); return; }
+    if (j.pendiente) { alert(j.mensaje); cargarSolicitudesGarantia(); }
+    else { alert("Ajuste aplicado (folio " + (j.movimiento && j.movimiento.folio || "—") + ")."); buscarFichaGarantia(); }
+  } catch (e) { alert("Sin conexión con el servidor."); }
+}
+
+function descargarExcelSalidasGarantias() {
+  const mes = ($("garRepMesMes").value || "").trim();
+  location.href = "/api/garantias/reporte-salidas/excel" + (mes ? "?mes=" + encodeURIComponent(mes) : "");
+}
+
 async function buscarFichaGarantia() {
   const socio = ($("garSocio").value || "").trim();
   const cont = $("garFicha");
@@ -3877,7 +4029,26 @@ async function buscarFichaGarantia() {
       + (filasA
           ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Monto</th><th>Saldo</th><th>Capturó</th></tr></thead><tbody>' + filasA + '</tbody></table>'
           : '<div class="rechint">Sin movimientos de Garantía A en este crédito.</div>')
+      // BOTONES (Karina, 24-sep-2026): solicitar que se suelte la garantía
+      // (solicitud a la Ing. Monse) y el ajuste manual de saldo (Monse aplica
+      // directo; a Alejandra le queda pendiente de aprobación).
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
+      + '<button class="recbtn" onclick="solicitarSueltaGarantia()">Solicitar que se suelte la garantía</button>'
+      + '<button class="recbtn" onclick="toggleAjusteGarantia()">Ajustar saldo…</button>'
+      + '</div>'
+      + '<div id="garAjusteForm" style="display:none;margin-top:10px;border:1px solid var(--linea);border-radius:8px;padding:10px">'
+      + '<div class="gar-eti" style="margin-top:0">Ajuste manual de saldo</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+      + '<select id="garAjTipo" class="recbtn"><option>Garantía Líquida</option><option>Garantía A</option></select>'
+      + '<select id="garAjDir" class="recbtn"><option value="entrada">Entrada (sube el saldo)</option><option value="salida">Salida (baja el saldo)</option></select>'
+      + '<input id="garAjMonto" type="number" min="0" step="0.01" placeholder="Monto" style="font:inherit;padding:8px;border:1px solid var(--linea);border-radius:8px;width:110px">'
+      + '</div>'
+      + '<input id="garAjMotivo" placeholder="Motivo del ajuste (obligatorio)" style="font:inherit;padding:8px;border:1px solid var(--linea);border-radius:8px;width:100%;max-width:420px;margin-top:8px;box-sizing:border-box">'
+      + '<div style="margin-top:8px"><button class="recbtn" onclick="enviarAjusteGarantia()">Registrar ajuste</button></div>'
+      + '<div class="rechint" style="margin-top:6px">Si no eres la Ing. Monse, el ajuste queda como solicitud y el saldo solo cambia cuando ella lo apruebe.</div>'
+      + '</div>'
       + '<div id="garFichaPend" style="margin-top:8px"></div>';
+    window._garFichaActual = d;
     pintarPendientesGarantia("garFichaPend", d.pendientes);
   } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }

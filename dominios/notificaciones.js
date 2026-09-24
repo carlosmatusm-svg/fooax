@@ -142,6 +142,10 @@ const CATALOGO_EVENTOS = [
     destinatarios: ["La socia"], porQue: "Aviso nuevo pedido por Dirección/Karina, fuera de los 12 originales (11-sep-2026).",
     canal: "whatsapp_pendiente", construido: false,
     motivoPendiente: "No existe hoy un evento de \"liquidación anticipada\" distinto de una baja genérica (MOTIVOS_BAJA) — falta que Karina/Dirección confirmen qué acción exacta cuenta como \"se liquidó el crédito\"." },
+  { id: "solicitud-garantias", clave: "solicitud_garantias", etiqueta: "Solicitud de garantías por aprobar (soltar garantía / ajuste de saldo)",
+    destinatarios: ["Administración y Finanzas"],
+    porQue: "Aviso nuevo pedido por Karina/Dirección (24-sep-2026): la solicitud llega al panel de la Ing. Monse con nombre, número de socio, crédito y monto — ella aprueba o rechaza (GARANTÍAS · Panel).",
+    canal: "bandeja", construido: true },
 ];
 
 const CATALOGO_POR_CLAVE = Object.fromEntries(CATALOGO_EVENTOS.map((e) => [e.clave, e]));
