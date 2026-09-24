@@ -703,59 +703,6 @@ const ExcelJS = require("exceljs");
 // El motor de reglas: los intereses se calculan con lo que Dirección escribe en
 // data/reglas-productos.json, no con números metidos en este archivo.
 const motor = require("./motor-reglas");
-// Vista imprimible del ticket de liberación de garantías (CU-006).
-const ticketLiberacionGarantiaHtml = require("./ticket-liberacion-garantia");
-
-// GARANTÍA LÍQUIDA — Anexo F §7-8 ("el 10% que normalmente se recibe de la
-// clienta"), validado por CLIC (Contadora Consuelo). Parámetro de entorno,
-// nunca fijo en código.
-const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUIDA) || 10;
-
-// AJUSTE MANUAL DE GARANTÍA — QUIÉN AUTORIZA (CU-006, audio de Karina):
-// Lic. Alejandra o Lic. Monse, cualquiera de las dos. Se verifica por
-// IDENTIDAD DE SESIÓN (el id de USUARIOS con el que se entró), nunca por un
-// campo de texto libre — ver dominios/garantia_liquida.js#puedeAutorizarAjusteManual.
-// Parámetro de entorno (lista separada por comas), nunca fijo en código.
-const USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA = (process.env.GARANTIA_USUARIOS_AUTORIZAN_AJUSTE || "alejandra,monse")
-  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
-
-// Dominio Garantía Líquida (CU-006), portado a esta rama de prueba
-// (test/garantias-a-main) SOLO con lo que necesita — sin los otros 3
-// dominios (sincronizacion_desembolso, sobres_segregacion,
-// renovacion_documentos) que en develop se extrajeron en el mismo commit
-// pero NO son parte de este alcance. server.js solo inyecta lo que el
-// dominio necesita y usa las funciones que regresa.
-const {
-  registrarGarantiaLiquidaAlDesembolsar,
-  garantiaLiquidaDisponible,
-  garantiaADisponible,
-  ultimaSalidaGarantiaLiquida,
-  ticketGarantiaLiquidaH14,
-  resumenGarantias,
-  estadoDeCuentaGarantia,
-  validarAportacionGarantiaEnReestructura,
-  elegibilidadLiberacionGarantia,
-  reporteSemanalGarantias,
-  reporteSalidaGarantiasPorClienta,
-  corteDiarioGarantias,
-  ticketLiberacionGarantia,
-  alertaVencimientoGarantiaHipotecaria,
-  alertasGarantiaHipotecariaPorVencer,
-  alertasPlazoEntregaGarantia,
-  registrarRegresoHojaLiberacion,
-  alertasPlazoRegresoHojaLiberacion,
-  registrarAjusteManualGarantia,
-  validarSalidaAnticipadaGarantiaLiquida,
-} = require("./dominios/garantia_liquida")({
-  store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
-  infoCredito, carteraViva,
-  obtenerPadron: () => PADRON,
-  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
-  numeroDePago,
-  hoyMX,
-  garantiaHipotecariaDiasAlerta: Number(process.env.GARANTIA_HIPOTECARIA_DIAS_ALERTA) || 3,
-  usuariosAutorizanAjusteManual: USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA,
-});
 
 function filasCobranza(snaps) {
   const filas = [];
@@ -1493,14 +1440,13 @@ function carteraVivaCalcular(usuario) {
       // Solo se anotan los días de la liquidación si a ESTE crédito le tocó algo.
       fechasLiq: liquidado > 0 ? Object.keys(fechasLiq[soc] || {}) : [] });
   }
-  // Se exponen también los acumulados crudos por clave (cobrosGarMov,
-  // entregasGar, cobrosGarA, entregasGarA): garantiaLiquidaDisponible/
-  // garantiaADisponible (dominios/garantia_liquida.js, portado junto con
-  // CU-006 Garantías a esta rama de prueba) los necesita para créditos que
-  // YA NO están en porCredito (liquidaron o se dieron de baja) — sin esto,
-  // "cv.cobrosGarMov"/"cv.entregasGar" salían siempre undefined y la
-  // garantía guardada de una clienta de BAJA se veía en $0 aunque tuviera
-  // saldo real (caso ALBA, Monse 8-sep — sección 63-G de la batería).
+  // cobrosGarMov y entregasGar se exponen para el candado de Garantía Líquida
+  // (CU-006): un crédito de BAJA no entra a porCredito, pero su guardado por
+  // clave sí vive aquí y es lo que se le devuelve a la clienta que se va.
+  // cobrosGarA/entregasGarA: mismo motivo pero para Garantía A (20-sep-2026,
+  // hallazgo de validación — antes solo se usaban para calcular garantiaA en
+  // porCredito, sin exponerse, así que garantiaADisponible() no tenía cómo
+  // calcular el guardado de una clienta cuyo crédito ya no está en cartera viva).
   return { porCredito, pagos, garantias, cobrosGarMov, entregasGar, cobrosGarA, entregasGarA };
 }
 // CONCILIACIÓN: ¿todo lo que se cobró bajó de algún saldo?
@@ -2709,6 +2655,10 @@ app.get("/api/sin-catalogo/excel", requiere("direccion", "admin"), async (req, r
 // la Hoja de Cobranza. El módulo vive aparte (hoja-cobranza.js) y recibe su
 // contexto. A producción con OK de Karina, 10-sep-2026.
 const hojaCobranza = require("./hoja-cobranza");
+// Vista imprimible del ticket de liberación de garantías (CU-006, 21-sep-2026)
+// — mismo criterio que hojaCobranza: módulo de renderizado aparte, server.js
+// solo lo llama y decide cómo servir su resultado.
+const ticketLiberacionGarantiaHtml = require("./ticket-liberacion-garantia");
 app.get("/api/hoja-cobranza/excel", requiere("direccion", "admin"), async (req, res) => {
   try {
     // "Intentemos con el de la semana pasada y de este" (Karina, 10-sep):
@@ -3628,100 +3578,296 @@ app.post("/api/padron/purga", requiere("direccion", "admin"), (req, res) => {
   res.json({ ok: true, socios, centros });
 });
 
-app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
-  const b = req.body || {};
-  // El socio se limpia de espacios y guiones antes de validar: al copiarlo de
-  // otra hoja a veces viene "1111 3077 777" o "1111-3077-777".
+// Núcleo del alta real: valida, genera pagaré/plan/sobre (sincronización
+// automática) y escribe al padrón. Extraído 09-sep-2026 para que el flujo de
+// sobres/segregación (dispersar, más abajo) dé de alta EXACTAMENTE igual que
+// /api/clientes/alta — un crédito nacido por cualquiera de las dos puertas
+// queda idéntico, sin reglas de negocio duplicadas que puedan desalinearse.
+function procesarAltaPadron(b, usuario) {
+  b = b || {};
   const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
   const nombre = (b.nombre || "").trim();
   const centro = (b.centro || "").trim();
   const ejecutivo = (b.ejecutivo || "").trim();
-  // La cuenta de prueba NO toca el padrón real (probar el alta metía
-  // clientas falsas al padrón de verdad).
-  if (req.usuario.test) return res.status(400).json({ error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." });
-  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
-  // Solo dígitos: un socio con letras o espacios jamás hará match con sus
-  // pagos (la llave de crédito es socio+producto) — sería basura en el padrón.
-  if (!/^\d{5,15}$/.test(id)) return res.status(400).json({ error: "El número de socio debe ser solo dígitos (ej. 11113075182)." });
-  if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
-  if (!centro) return res.status(400).json({ error: "Falta el centro." });
-  if (!ejecutivo) return res.status(400).json({ error: "Falta el ejecutivo." });
-  // El centro debe EXISTIR (evita centros fantasma por dedazo). "C-0" = individual.
+  if (usuario.test) return { status: 400, error: "La cuenta de PRUEBA no puede dar de alta en el padrón real." };
+  if (!id) return { status: 400, error: "Falta el número de socio." };
+  if (!/^\d{5,15}$/.test(id)) return { status: 400, error: "El número de socio debe ser solo dígitos (ej. 11113075182)." };
+  if (!nombre) return { status: 400, error: "Falta el nombre de la clienta." };
+  if (!centro) return { status: 400, error: "Falta el centro." };
+  if (!ejecutivo) return { status: 400, error: "Falta el ejecutivo." };
   if (!/^c-?0$/i.test(centro) && !listaCentros().some((c) => norm(c.centro) === norm(centro)))
-    return res.status(400).json({ error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." });
-  // Duplicado exacto: mismo socio + mismo producto ya activo. Antes el alta se
-  // IGNORABA en silencio y parecía que sí se registró. El mensaje dice DÓNDE
-  // está el crédito que choca y cómo seguir — clave en reestructuras, donde la
-  // clienta suele existir ya con su crédito original.
-  // Si escribieron un producto que ya existe con otra puntuación, se guarda con
-  // el nombre que ya usa el padrón (no nace un "Foxi Plus 2" al lado del
-  // "Foxi Plus - 2" que ya estaba).
+    return { status: 400, error: "Ese centro no existe. Elígelo de la lista o regístralo con \"Centro nuevo\"." };
   const productoAlta = productoCanonico(b.producto);
-  if (!productoAlta) return res.status(400).json({ error: "Elige el tipo de crédito." });
+  if (!productoAlta) return { status: 400, error: "Elige el tipo de crédito." };
   const choca = PADRON.find((c) => c.activa !== false && c.estatus !== "BAJA" && String(c.id) === id && nprod(c.producto) === nprod(productoAlta));
   if (choca) {
     const donde = [choca.centro, choca.ejecutivo].filter(Boolean).join(" · ");
-    return res.status(400).json({
-      error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
+    return { status: 400, error: "La clienta " + choca.nombre + " (socio " + id + ") YA tiene un crédito \"" + choca.producto + "\"" +
         (donde ? " en " + donde : "") + ". Si está RENOVANDO ese mismo crédito, no la des de alta: usa \"Re-dar crédito\" en Créditos y saldos — ahí sí puede conservar el mismo nombre. " +
-        "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\").",
-    });
+        "Si es un crédito DISTINTO (ej. una reestructura aparte), ponle otro nombre de producto (ej. \"" + productoAlta + " 2\")." };
   }
-  // FECHA DE DESEMBOLSO (Karina, 12-ago). Sin ella el sistema no puede saber
-  // que un crédito futuro aún no debe: PILAR PEREZ se renovó con desembolso al
-  // 28-ago, el re-crédito no cargó la fecha y salió en la mora tres semanas
-  // antes de recibir el dinero. Puede ser futura — ese es justo el caso.
   const desembolso = String(b.desembolso || "").slice(0, 10);
   if (desembolso && !/^\d{4}-\d{2}-\d{2}$/.test(desembolso))
-    return res.status(400).json({ error: "La fecha de desembolso no se entiende (usa el calendario)." });
-  // DÍA DE PAGO: el que digan, o el del centro. Sin día la clienta queda fuera
-  // de la mora semanal (invisible) — es justo lo que no debe pasar.
-  const diaPagoAlta = diaCanon(b.diaPago);
+    return { status: 400, error: "La fecha de desembolso no se entiende (usa el calendario)." };
+  const diaPagoAlta = String(b.diaPago || "").trim().toUpperCase();
   if (diaPagoAlta && !idxDia(diaPagoAlta))
-    return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
-  const clienta = {
+    return { status: 400, error: "Ese día de pago no existe (Lunes a Sábado)." };
+  let clienta = {
     id, nombre, producto: productoAlta, centro, ejecutivo,
     saldo: Number(b.saldo) || 0, cuota: Number(b.cuota) || 0, plazo: Number(b.plazo) || 0,
-    // EL IMPORTE ORIGINAL: lo que se le prestó, SIN intereses (Karina, 23-ago).
-    // El saldo del padrón es lo que va a PAGAR (con interés e IVA); sin este
-    // campo, el monto prestado no quedaba en ningún lado y el motor tenía que
-    // deducirlo de la cuota. Es el mismo IMPORTE de su CARTERA MAESTRA.
     importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0,
     desembolso: desembolso || null,
     diaPago: diaPagoAlta || diaDelCentro(centro) || null,
   };
+  // SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014): en el mismo
+  // acto del alta, sin pantallas ni pasos aparte, se generan el pagaré, el
+  // plan de pagos y el sobre de dispersión — ver la sección de funciones
+  // arriba de diaDelCentro para el detalle y lo que a propósito no hace.
+  // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
+  // muta la de entrada — por eso se reasigna aquí.
+  clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): al originar se sincroniza el contador de ciclos
+  // limpios de la clienta (suma los ciclos ya terminados sin evaluar, reinicia
+  // si hay mora viva) y se deja la marca en el crédito. No cambia ninguna tasa.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, usuario) };
   // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
   // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
-  // NOTA: aquí no existe sincronizarAlDesembolsar (CU-013/014, no portado a
-  // main todavía), así que `clienta.sobreDispersion` nunca se llena y esta
-  // llamada es un no-op seguro — no hay retención automática del 10% al
-  // desembolsar en esta rama de prueba, solo el registro MANUAL de garantía
-  // ya capturada (ver PENDIENTES_POR_CONFIRMAR.md).
-  registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
+  registrarGarantiaLiquidaAlDesembolsar(clienta, usuario);
+  // CU-017 (PLD-01/PLD-02): antes de escribir el crédito, suma lo otorgado a
+  // esta clienta en los últimos 6 meses y, si supera 1,605 UMA, la MARCA para
+  // aviso. Nunca bloquea: el alta sigue igual, solo queda `alertaPLD`.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, usuario) };
   store.agregarCambioPadron({
     tipo: "alta", id, producto: clienta.producto, clienta,
-    fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+    fecha: hoyMX(), por: usuario.nombre, ts: Date.now(),
   });
+  // NOT-01 #3 "Desembolso realizado" (Dirección General · Gerencia de
+  // Sucursal) y el aviso nuevo a clienta de otorgamiento/renovación (11-sep-2026).
+  avisar("desembolso_realizado", { socio: id, usuario, test: !!usuario.test,
+    detalle: { nombre: clienta.nombre, centro: clienta.centro, producto: clienta.producto, importe: clienta.importe } });
+  avisar("otorgamiento_renovacion_cliente", { socio: id, usuario, test: !!usuario.test,
+    detalle: { nombre: clienta.nombre, producto: clienta.producto, importe: clienta.importe, tipo: clienta.recredito ? "renovacion" : "otorgamiento" } });
+  // NOT-01 #7 "Operación marcada por acumulación PLD" — solo si de verdad se
+  // marcó (PLD-02: el sistema marca, nunca bloquea; el aviso sigue esa misma regla).
+  if (clienta.alertaPLD && clienta.alertaPLD.activa) {
+    avisar("pld_marcada", { socio: id, usuario, test: !!usuario.test,
+      detalle: { nombre: clienta.nombre, acumulado: clienta.alertaPLD.acumulado, umbralPesos: clienta.alertaPLD.umbralPesos } });
+  }
   refrescarPadron();
-  // AVISO DE COBROS QUE YA TRAÍA. Cuando se da de alta a una clienta a la que la
-  // ejecutiva YA le cobró (el caso de "Agregar clienta nueva" en la app), hay
-  // dos formas de equivocarse y ninguna se ve:
-  //   1. capturar el saldo que debe HOY en vez del ORIGINAL → el sistema le
-  //      resta el pago otra vez y la clienta queda debiendo de menos;
-  //   2. escribir el producto distinto al del cobro → el pago se queda huérfano.
-  // Se contesta con lo que de verdad quedó, para que se vea en el momento.
-  const yaCobrado = cobranzaSinCredito(req.usuario, corteSaldos())
+  const yaCobrado = cobranzaSinCredito(usuario, corteSaldos())
     .filter((x) => String(x.socio) === id);
-  const info = infoCredito(carteraViva(req.usuario), clienta);
-  res.json({ ok: true, clienta,
+  const info = infoCredito(carteraViva(usuario), clienta);
+  return {
+    ok: true, clienta, alertaPLD: clienta.alertaPLD || null,
     saldoCapturado: clienta.saldo,
     yaLePagaron: Math.round((info.pagado || 0) * 100) / 100,
     saldoQuedaEn: Math.round((info.saldoActual || 0) * 100) / 100,
-    // Cobros de ESE socio que siguen sin empatar: casi siempre el producto se
-    // escribió distinto.
+    ciclosLimpios: clienta.ciclosLimpios || null,
     cobrosQueSiguenSueltos: yaCobrado.map((x) => ({ producto: x.producto, monto: x.pago })),
+  };
+}
+
+app.post("/api/clientes/alta", requiere("direccion", "admin"), (req, res) => {
+  const r = procesarAltaPadron(req.body, req.usuario);
+  if (r.error) return res.status(r.status || 400).json({ error: r.error });
+  res.json(r);
+});
+
+// ---------- SOBRES / SEGREGACIÓN DE FUNCIONES (CU-011/012/013, Regla K.2, CU-021) ----------
+// Reconstruido en el repo real 09-sep-2026. Carlos: "lo que estaba en el fork
+// carlosmatusm-svg/fooax se tiene que volver a hacer pero ahora en el repo de
+// Karina, tomando lo que está en los PR y en main". Se toma como referencia el
+// diseño de store_credito.js/rutas_credito.js del fork (commit c303b0a) —
+// solicitud → autoriza → dispersa → entrega → custodia — pero SIN portar su
+// taxonomía de "puestos" (Gerencia de Sucursal, Administración y Finanzas,
+// Control Operativo…): este repo real solo tiene rol ejecutivo|direccion|admin.
+// La Regla K.2 (quien autoriza no dispersa, quien dispersa no entrega, quien
+// entrega no custodia) se resuelve comparando el USUARIO literal de cada paso
+// — no un puesto — que es el equivalente más honesto sin inventar una
+// taxonomía que Dirección no ha confirmado (ver PENDIENTES §28, ESC-01).
+//
+// DIFERENCIA DELIBERADA con el fork: ahí "dispersar" dejaba un
+// `cartera_pendiente_alta` SIN tocar el padrón real (limitación documentada).
+// Aquí "dispersar" SÍ escribe al padrón real — reutiliza `procesarAltaPadron`,
+// la misma función que usa /api/clientes/alta, para que un crédito nacido por
+// este flujo quede IDÉNTICO a uno nacido por el alta directa (mismo pagaré,
+// mismo plan de pagos, mismo sobre de dispersión — sincronización automática
+// CU-013/CU-014 corre en el mismo acto).
+//
+// ESCALERA DE AUTORIZACIÓN: configurable por Dirección vía
+// /api/configuracion/escalera-autorizacion, VACÍA por defecto (mismo criterio
+// del fork: los montos/nombres de la escalera — ESC-01 — siguen sin
+// confirmarse, así que no se inventan). Con la escalera vacía, cualquier
+// dirección/admin puede autorizar; en cuanto Dirección registre usuarios ahí,
+// SOLO esos usuarios pueden autorizar (aunque no sean dirección/admin —
+// Dirección puede delegar la autorización a quien decida).
+//
+// La cuenta de PRUEBA puede solicitar/autorizar/entregar/custodiar (para
+// poder probar el flujo completo), pero JAMÁS dispersar — dispersar es el paso
+// que escribe al padrón real, y ninguna cuenta de prueba toca el padrón real
+// (mismo candado que ya tiene /api/clientes/alta).
+
+// folioSolicitud, solicitudPorFolio, escaleraAutorizacion, puedeAutorizar y
+// los 5 validarX (Regla K.2) viven en dominios/sobres_segregacion.js desde
+// el 10-sep-2026 — las rutas de abajo (solicitar/autorizar/rechazar/
+// dispersar/entregar/custodiar) siguen aquí, son el "pegamento" HTTP.
+const {
+  folioSolicitud,
+  solicitudPorFolio,
+  escaleraAutorizacion,
+  puedeAutorizar,
+  validarAutorizar,
+  validarRechazar,
+  validarDispersar,
+  validarEntregar,
+  validarCustodiar,
+} = require("./dominios/sobres_segregacion")({ store });
+
+// SOLICITAR (paso 1): cualquier ejecutivo/dirección/admin puede levantar la
+// solicitud — es la captura de la información, todavía no compromete dinero.
+app.post("/api/solicitudes", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const id = String(b.id || "").replace(/[\s\-.]/g, "").trim();
+  const nombre = (b.nombre || "").trim();
+  const centro = (b.centro || "").trim();
+  const ejecutivo = (b.ejecutivo || req.usuario.nombre || "").trim();
+  const productoSolicitado = productoCanonico(b.producto);
+  const importe = Number(b.importe) || 0;
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  if (!nombre) return res.status(400).json({ error: "Falta el nombre de la clienta." });
+  if (!productoSolicitado) return res.status(400).json({ error: "Elige el tipo de crédito." });
+  if (importe <= 0) return res.status(400).json({ error: "Falta el importe solicitado." });
+  const solicitud = {
+    folio: folioSolicitud(),
+    estado: "solicitada",
+    test: !!req.usuario.test,
+    id, nombre, centro, ejecutivo, producto: productoSolicitado,
+    importe, plazo: Number(b.plazo) || 0, saldo: Number(b.saldo) || 0,
+    cuota: Number(b.cuota) || 0,
+    desembolso: String(b.desembolso || "").slice(0, 10) || null,
+    diaPago: diaCanon(b.diaPago) || null,
+    comision: b.comision != null ? Number(b.comision) : null,
+    seguro: b.seguro != null ? Number(b.seguro) : null,
+    solicitadaPor: req.usuario.nombre, solicitadaPorId: req.usuario.id, solicitadaTs: Date.now(),
+  };
+  store.agregarSolicitud(solicitud);
+  avisar("solicitud_nueva", { socio: solicitud.id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { folio: solicitud.folio, nombre: solicitud.nombre, producto: solicitud.producto, importe: solicitud.importe } });
+  res.json({ ok: true, solicitud });
+});
+
+app.get("/api/solicitudes", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const estado = (req.query.estado || "").trim();
+  let lista = store.solicitudes().filter((s) => !!s.test === !!req.usuario.test);
+  if (estado) lista = lista.filter((s) => s.estado === estado);
+  res.json({ ok: true, solicitudes: lista });
+});
+
+app.get("/api/solicitudes/:folio", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  if (!s || !!s.test !== !!req.usuario.test) return res.status(404).json({ error: "No encuentro esa solicitud." });
+  res.json({ ok: true, solicitud: s });
+});
+
+// AUTORIZA (paso 2, escalera K.2).
+app.post("/api/solicitudes/:folio/autorizar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarAutorizar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "autorizada",
+    autorizadaPor: req.usuario.nombre, autorizadaPorId: req.usuario.id, autorizadaTs: Date.now(),
   });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// RECHAZAR: se puede rechazar mientras no se haya dispersado (después de
+// dispersar ya hay dinero comprometido — eso ya no se "rechaza", se maneja
+// como baja, igual que cualquier otro crédito activo).
+app.post("/api/solicitudes/:folio/rechazar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const motivo = ((req.body && req.body.motivo) || "").trim();
+  const v = validarRechazar(s, req.usuario, motivo);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "rechazada", rechazadaPor: req.usuario.nombre, rechazadaPorId: req.usuario.id,
+    rechazadaTs: Date.now(), motivoRechazo: motivo,
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// DISPERSA (paso 3, Regla K.2: quien autoriza NO dispersa). Este es el paso
+// que de verdad da de alta en el padrón real — usa procesarAltaPadron, la
+// MISMA función que usa el alta directa, para que el resultado sea idéntico
+// sin importar por cuál puerta entró el crédito.
+app.post("/api/solicitudes/:folio/dispersar", requiere("direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarDispersar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+
+  // CU-010: expediente íntegro y validado, y quien validó no dispersa.
+  const cand = expediente.validarDispersion(s, req.usuario, EXPEDIENTE_CANDADO_DISPERSION);
+  if (cand.error) return res.status(cand.status).json({ error: cand.error, expediente: cand.expediente ?? null });
+
+  // El paso que de verdad mueve dinero: si algo truena aquí (motor de
+  // reglas, store), se responde 500 en vez de tumbar el proceso completo —
+  // la solicitud se queda en "autorizada" y se puede reintentar.
+  let altaRes;
+  try {
+    altaRes = procesarAltaPadron(s, req.usuario);
+  } catch (error) {
+    console.error(`[dispersar ${s.folio}] procesarAltaPadron falló: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo dispersar por un error interno. Intenta de nuevo o avisa a soporte." });
+  }
+  if (altaRes.error) return res.status(altaRes.status || 400).json({ error: altaRes.error });
+
+  const { clienta } = altaRes;
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "dispersada",
+    dispersadaPor: req.usuario.nombre, dispersadaPorId: req.usuario.id, dispersadaTs: Date.now(),
+    pagare: clienta.pagare ?? null,
+    planPagos: clienta.planPagos ?? [],
+    sobreDispersion: clienta.sobreDispersion ?? null,
+  });
+  res.json({ ok: true, solicitud: actualizada, clienta, expediente: cand.estatus, candadoExpediente: EXPEDIENTE_CANDADO_DISPERSION ? "activo" : "aviso" });
+});
+
+// ENTREGA (paso 4, Regla K.2: quien dispersa NO entrega) — el sobre físico
+// (pagaré + tabla + ticket) se entrega a la clienta (paso 3 del mockup "3B").
+app.post("/api/solicitudes/:folio/entregar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarEntregar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "entregada", entregadaPor: req.usuario.nombre, entregadaPorId: req.usuario.id, entregadaTs: Date.now(),
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// CUSTODIA DEL PAGARÉ (paso 5, Regla K.2: quien entrega NO custodia) — cierra
+// el ciclo: el pagaré firmado regresa a resguardo (CU-014, paso 7 del mockup).
+app.post("/api/solicitudes/:folio/custodiar", requiere("ejecutivo", "direccion", "admin"), (req, res) => {
+  const s = solicitudPorFolio(req.params.folio);
+  const v = validarCustodiar(s, req.usuario);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const actualizada = store.actualizarSolicitud(s.folio, {
+    estado: "en_custodia", custodiadaPor: req.usuario.nombre, custodiadaPorId: req.usuario.id, custodiadaTs: Date.now(),
+  });
+  res.json({ ok: true, solicitud: actualizada });
+});
+
+// Configuración de la escalera de autorización — solo Dirección/admin.
+app.get("/api/configuracion/escalera-autorizacion", requiere("direccion", "admin"), (req, res) => {
+  res.json({ ok: true, escaleraAutorizacion: escaleraAutorizacion() });
+});
+app.put("/api/configuracion/escalera-autorizacion", requiere("direccion", "admin"), (req, res) => {
+  const lista = Array.isArray(req.body && req.body.escaleraAutorizacion) ? req.body.escaleraAutorizacion : null;
+  if (!lista) return res.status(400).json({ error: "Manda escaleraAutorizacion como lista de usuarios." });
+  const invalidos = lista.filter((u) => !USUARIOS[u]);
+  if (invalidos.length) return res.status(400).json({ error: "Usuario(s) inexistente(s): " + invalidos.join(", ") });
+  const cfg = store.guardarConfiguracion(Object.assign({}, store.configuracion(), { escaleraAutorizacion: lista }));
+  res.json({ ok: true, escaleraAutorizacion: cfg.escaleraAutorizacion });
 });
 
 app.post("/api/clientes/baja", requiere("direccion", "admin"), (req, res) => {
@@ -3887,6 +4033,136 @@ function diaDelCentro(centro) {
   }
   return dias.size === 1 ? [...dias][0] : "";
 }
+// ---------- SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014) ----------
+// En este sistema no hay un paso separado de "dispersar": dar de alta o
+// re-dar un crédito ES el desembolso (el dinero ya se entregó cuando se
+// captura). Por eso, en el MISMO acto de /api/clientes/alta y de
+// /api/creditos/recredito, se genera junto con el crédito: el pagaré
+// (registro simple, ver más abajo), el plan de pagos (fechas por el MISMO
+// método que ya usa vencimientosEntre/calendarioDelCredito para medir la
+// mora, con el desglose capital/interés/IVA del motor de reglas real cuando
+// el producto resuelve contra el catálogo — ver CORRECCIÓN 09-sep-2026 en
+// generarPlanPagos) y el sobre de dispersión (comisión + garantía líquida +
+// neto, Anexo F Secciones 7/8, Regla 3.3: "cada pago se desglosa y se
+// almacena separado"). El registro en cartera no necesita nada nuevo:
+// carteraViva() ya lee directo del PADRON, así que en cuanto existe el alta
+// ya está en cartera — cero recaptura, cero volver a subir nada.
+//
+// Lo que esto NO hace, a propósito, por los mismos huecos que ya documenta
+// CU-014 §10: no genera el PDF legal del pagaré (catálogo de productos
+// formal y validación legal del Lic. César Cáceres siguen pendientes), y no
+// decide la mecánica real de "cómo se entrega el efectivo" (DISP-01/02,
+// sigue sin definir en Pendientes por Confirmar). Tampoco toca el campo
+// `cuota` ya guardado en el crédito (el que usan mora/saldo en todo el
+// resto del sistema) aunque el motor calcule una cuota distinta — cambiar
+// ESE campo es una decisión aparte, con su propio impacto en mora y saldo,
+// que no es parte de este cambio.
+
+// Porcentaje de garantía líquida retenida al desembolsar. Anexo F, Secciones
+// 7 y 8 ("el 10% que normalmente se recibe de la clienta"), validado por
+// CLIC (Contadora Consuelo). Parámetro de entorno, nunca fijo en código —
+// mismo patrón que COMPROBANTE_DOMICILIO_MESES_MAX (DOC-01).
+const PORCENTAJE_GARANTIA_LIQUIDA = Number(process.env.PORCENTAJE_GARANTIA_LIQUIDA) || 10;
+
+// AJUSTE MANUAL DE GARANTÍA — QUIÉN AUTORIZA (CU-006, RESUELTO 21-sep-2026,
+// audio de Karina): Lic. Alejandra (Ing. Alejandra González Arango) o Lic.
+// Monse, cualquiera de las dos. Se verifica por IDENTIDAD DE SESIÓN (el id
+// de USUARIOS con el que se entró), nunca por un campo de texto libre — ver
+// dominios/garantia_liquida.js#puedeAutorizarAjusteManual. Parámetro de
+// entorno (lista separada por comas), nunca fijo en código, mismo patrón que
+// RIESGO_ROLES_PUEDEN_CAMBIAR — por si Dirección agrega o quita a alguien
+// sin necesitar un deploy.
+const USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA = (process.env.GARANTIA_USUARIOS_AUTORIZAN_AJUSTE || "alejandra,monse")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+// QUIÉN APRUEBA las solicitudes de garantías — soltar una garantía, o un
+// ajuste de saldo pedido por Alejandra (Karina, 24-sep-2026: "cuando
+// Alejandra quiera modificar el saldo, solo se modifique si la Ing. Monse lo
+// aprueba"). Mismo patrón de entorno que la lista de arriba: configurable
+// sin deploy, nunca fija en código.
+const USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA = (process.env.GARANTIA_USUARIOS_APRUEBAN_SOLICITUDES || "monse")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+// Dominio Garantía Líquida extraído a dominios/garantia_liquida.js (10-sep-2026,
+// ver "Reducir dependencia del monolito server.js" en CLAUDE.md). server.js
+// solo inyecta lo que el dominio necesita y usa las funciones que regresa —
+// la lógica de negocio en sí ya no vive aquí.
+const {
+  registrarGarantiaLiquidaAlDesembolsar,
+  garantiaLiquidaDisponible,
+  garantiaADisponible,
+  ultimaSalidaGarantiaLiquida,
+  ticketGarantiaLiquidaH14,
+  resumenGarantias,
+  estadoDeCuentaGarantia,
+  validarAportacionGarantiaEnReestructura,
+  elegibilidadLiberacionGarantia,
+  reporteSemanalGarantias,
+  reporteSalidaGarantiasPorClienta,
+  corteDiarioGarantias,
+  ticketLiberacionGarantia,
+  alertaVencimientoGarantiaHipotecaria,
+  alertasGarantiaHipotecariaPorVencer,
+  alertasPlazoEntregaGarantia,
+  registrarRegresoHojaLiberacion,
+  alertasPlazoRegresoHojaLiberacion,
+  registrarAjusteManualGarantia,
+  validarSalidaAnticipadaGarantiaLiquida,
+  movimientosDeGarantiaEntre,
+  crearSolicitudGarantia,
+  listarSolicitudesGarantia,
+  resolverSolicitudGarantia,
+} = require("./dominios/garantia_liquida")({
+  store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
+  infoCredito, carteraViva,
+  obtenerPadron: () => PADRON,
+  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+  numeroDePago,
+  hoyMX,
+  // Vigencia de la garantía hipotecaria (21-sep-2026, audio de Karina + pedido
+  // de Carlos): días de anticipación del aviso, configurable — mismo patrón
+  // que COMPROBANTE_DOMICILIO_MESES_MAX, nunca hardcodeado en la lógica.
+  garantiaHipotecariaDiasAlerta: Number(process.env.GARANTIA_HIPOTECARIA_DIAS_ALERTA) || 3,
+  usuariosAutorizanAjusteManual: USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA,
+  usuariosApruebanSolicitudes: USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA,
+});
+
+// Dominio Notificaciones (NOT-01, CU-020) extraído a
+// dominios/notificaciones.js (12-sep-2026): bandeja interna de avisos,
+// aprobada por Dirección General el 11-sep-2026. Ver la cabecera de ese
+// archivo para el catálogo completo de eventos NOT-01, cuáles ya disparan
+// aviso desde un punto real del código y cuáles quedan pendientes por no
+// existir todavía la funcionalidad de origen.
+const notificaciones = require("./dominios/notificaciones")({ store, hoyMX });
+// Envuelve crearAviso para que un error de un evento no construido, o
+// cualquier otro fallo al notificar, nunca tumbe la operación de negocio que
+// lo dispara (CU-020 §4: "si algo no sale como se espera" — un aviso es
+// siempre secundario a la operación real).
+function avisar(clave, datos) {
+  try { return notificaciones.crearAviso({ clave, ...datos }); }
+  catch (error) { console.error(`[notificaciones] ${clave}: ${error.message}`); return null; }
+}
+
+// Dominio Sincronización al Desembolso (CU-013/CU-014) extraído a
+// dominios/sincronizacion_desembolso.js (10-sep-2026, ver "Reducir
+// dependencia del monolito server.js" en CLAUDE.md) — sobre de dispersión,
+// pagaré (registro) y plan de pagos, generados juntos al desembolsar.
+const {
+  generarSobreDispersion,
+  generarPagare,
+  generarPlanPagos,
+  sincronizarAlDesembolsar,
+} = require("./dominios/sincronizacion_desembolso")({
+  nprod, hoyMX, idxDia, diaSiguiente, motor,
+  porcentajeGarantiaLiquida: PORCENTAJE_GARANTIA_LIQUIDA,
+});
+
+// (generarSobreDispersion, generarPagare, generarPlanPagos y
+// sincronizarAlDesembolsar viven en dominios/sincronizacion_desembolso.js
+// desde el 10-sep-2026; registrarGarantiaLiquidaAlDesembolsar vive en
+// dominios/garantia_liquida.js — ambos comentarios junto a
+// PORCENTAJE_GARANTIA_LIQUIDA)
+
 function aunNoDesembolsa(c) {
   const d = String(c.desembolso || "").slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(d) && d > hoyMX();
@@ -4622,6 +4898,25 @@ app.get("/api/creditos", soloAnelMonse, (req, res) => {
   res.json({ total: base.length, resultados: lista });
 });
 
+// PAGARÉ + PLAN DE PAGOS + SOBRE DE DISPERSIÓN de un crédito (CU-013/CU-014,
+// sincronización automática al desembolsar). No recalcula nada: solo lee lo
+// que ya se generó en /api/clientes/alta o /api/creditos/recredito y lo
+// devuelve junto, para verificar sin tener que abrir el padrón entero.
+app.get("/api/creditos/plan-pagos", soloAnelMonse, (req, res) => {
+  const id = String(req.query.id || "").replace(/[\s\-.]/g, "").trim();
+  const producto = String(req.query.producto || "").trim();
+  if (!id) return res.status(400).json({ error: "Falta el número de socio." });
+  const c = PADRON.find((x) => x.activa !== false && x.estatus !== "BAJA" && String(x.id) === id
+    && (!producto || nprod(x.producto) === nprod(producto)));
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({
+    id: c.id, producto: c.producto, centro: c.centro, diaPago: c.diaPago || null,
+    pagare: c.pagare || null,
+    planPagos: c.planPagos || [],
+    sobreDispersion: c.sobreDispersion || null,
+  });
+});
+
 // HISTORIAL DE PAGOS de un crédito: qué pagó, en qué fecha y quién lo capturó.
 // Pedido por Karina el 5-ago: «cuando le piquen a una clienta que sepa lo que
 // pagó y en qué fecha, para asegurarme de que sí se está bajando».
@@ -4946,9 +5241,77 @@ app.post("/api/creditos/captura", requiere("direccion", "admin"), (req, res) => 
   res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
 });
 
-// VIGENCIA DE LA GARANTÍA HIPOTECARIA (CU-006, audio de Karina: "el sistema
-// tiene que decir con tres días antes que ya está por expirar"). Mismo
-// patrón que /api/creditos/documentos-renovacion — motivo obligatorio en la
+// DOC-01 (carta "Definiciones de Dirección aprobadas", Dirección General,
+// 02-sep-2026): INE vigente por su propia fecha de vencimiento (impresa en
+// la credencial); comprobante de domicilio vigente solo dentro de esta
+// antigüedad máxima desde su fecha de emisión. Parámetro configurable —
+// NUNCA hardcodeado en la lógica de negocio.
+const COMPROBANTE_DOMICILIO_MESES_MAX = Number(process.env.COMPROBANTE_DOMICILIO_MESES_MAX) || 3;
+
+// vigenciaDocumentosRenovacion vive en dominios/renovacion_documentos.js
+// desde el 10-sep-2026 (ver "Reducir dependencia del monolito server.js" en
+// CLAUDE.md) — las rutas que la usan siguen aquí, son el pegamento HTTP.
+const { vigenciaDocumentosRenovacion } = require("./dominios/renovacion_documentos")({
+  hoyMX, comprobanteDomicilioMesesMax: COMPROBANTE_DOMICILIO_MESES_MAX,
+});
+
+// Documentos de renovación (CU-007 §3, precisión de Karina 24-ago sobre qué
+// cuenta como "actualizado" al renovar): INE y comprobante de domicilio son
+// SIEMPRE obligatorios, sin excepción — por eso el candado exige los dos, no
+// uno solo. Lo que este endpoint NO hace: decidir si un documento vencido
+// bloquea la renovación (CU-007 §10.6, todavía sin definir) — solo registra
+// que se capturaron y cuándo, con motivo en la bitácora.
+// DOC-01 (carta Dirección 02-sep): además de la fecha de captura, ahora se
+// puede mandar la fecha PROPIA de cada documento (vencimiento de la INE,
+// emisión del comprobante) — opcional, para no romper capturas que todavía
+// no la mandan. Sin ella, simplemente no se puede saber si venció
+// (vigenciaDocumentosRenovacion la marca en null, no en falso).
+app.post("/api/creditos/documentos-renovacion", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const c = creditoActivo(b.id, b.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  if (!b.ine || !b.comprobanteDomicilio)
+    return res.status(400).json({ error: "INE y comprobante de domicilio son siempre obligatorios para renovar (CU-007)." });
+  const motivo = String(b.motivo || "").trim();
+  if (motivo.length < 3) return res.status(400).json({ error: "Escribe el motivo de la captura (queda en la bitácora)." });
+  const fecha = String(b.fecha || hoyMX()).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return res.status(400).json({ error: "La fecha no se entiende (usa el calendario)." });
+  const docsRenov = { ine: fecha, comprobanteDomicilio: fecha };
+  if (b.ineFechaVencimiento != null) {
+    const v = String(b.ineFechaVencimiento).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return res.status(400).json({ error: "La fecha de vencimiento de la INE no se entiende (usa el calendario)." });
+    docsRenov.ineFechaVencimiento = v;
+  }
+  if (b.comprobanteFechaEmision != null) {
+    const v = String(b.comprobanteFechaEmision).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return res.status(400).json({ error: "La fecha de emisión del comprobante no se entiende (usa el calendario)." });
+    docsRenov.comprobanteFechaEmision = v;
+  }
+  store.agregarCambioPadron({
+    tipo: "ajuste", id: c.id, producto: c.producto,
+    campos: { documentosRenovacion: docsRenov },
+    motivo, fecha: hoyMX(), por: req.usuario.nombre, ts: Date.now(),
+  });
+  refrescarPadron();
+  res.json({ ok: true, clienta: creditoActivo(c.id, c.producto) });
+});
+
+// Estado de renovación de un crédito: el ciclo (ya existía como contador de
+// re-crédito, Karina 15-ago — ver cicloSiguiente) junto con los documentos de
+// renovación ya capturados y su vigencia (DOC-01), para que el frontend no
+// tenga que combinarlos.
+app.get("/api/creditos/renovacion", requiere("direccion", "admin"), (req, res) => {
+  const c = creditoActivo(req.query.id, req.query.producto);
+  if (!c) return res.status(400).json({ error: "No encuentro ese crédito activo (revisa socio y producto)." });
+  res.json({ ciclo: Number(c.ciclo) || 1, documentosRenovacion: c.documentosRenovacion || null,
+    vigenciaDocumentosRenovacion: vigenciaDocumentosRenovacion(c) });
+});
+
+// VIGENCIA DE LA GARANTÍA HIPOTECARIA (21-sep-2026, audio de Karina: "el
+// sistema tiene que decir con tres días antes que ya está por expirar" +
+// pedido explícito de Carlos: "avisar 3 días antes de vencer la vigencia
+// del documento hipotecario"). Mismo patrón exacto que
+// /api/creditos/documentos-renovacion (DOC-01) — motivo obligatorio en la
 // bitácora, se guarda vía store.agregarCambioPadron, nunca se sobrescribe
 // en silencio. alertaVencimientoGarantiaHipotecaria/
 // alertasGarantiaHipotecariaPorVencer viven en dominios/garantia_liquida.js.
@@ -4979,7 +5342,8 @@ app.get("/api/creditos/garantia-hipotecaria", requiere("direccion", "admin"), (r
 });
 
 // Tablero de Dirección: solo las clientas cuya vigencia hipotecaria ya
-// venció o está a 3 días (o menos) de vencer.
+// venció o está a 3 días (o menos) de vencer — no regresa a quien no
+// necesita alerta (mismo criterio que reporteSalidaGarantiasPorClienta).
 app.get("/api/garantias/hipotecaria/alertas", requiere("direccion", "admin"), (req, res) => {
   res.json(alertasGarantiaHipotecariaPorVencer());
 });
@@ -5124,9 +5488,18 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
   const diaPagoRc = String(b.diaPago || "").trim().toUpperCase();
   if (diaPagoRc && !idxDia(diaPagoRc))
     return res.status(400).json({ error: "Ese día de pago no existe (Lunes a Sábado)." });
-  const clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
+  let clienta = { id, nombre, producto, centro, ejecutivo: ejecOK, saldo, cuota, plazo: Number(b.plazo) || 0,
     importe: Number(b.importe) || 0,
     mora: 0, estatus: "VIGENTE", semana: 0, recredito: true, recreditoDe: (choca || previa).producto || null, previo,
+    // DOC-01: los documentos de renovacion (INE + comprobante, con sus fechas
+    // propias) capturados para este ciclo se estaban perdiendo al renovar --
+    // el credito nuevo siempre nacia sin documentosRenovacion, aunque se
+    // hubieran subido momentos antes de liquidar (CU-007: "documentos exactos
+    // requeridos al renovar", RESUELTO 25-ago-2026). Se cargan hacia el ciclo
+    // nuevo tal cual estaban en el credito que se cierra. NO decide si un
+    // documento vencido bloquea la renovacion (CU-007 SEC 10.6 sigue sin
+    // definir) -- solo evita perder lo ya capturado.
+    documentosRenovacion: (choca && choca.documentosRenovacion) || null,
     // CICLO INTERNO (Karina, 15-ago): «si alguien liquida su Grupal-Básico y
     // renueva otro Grupal-Básico, ponerle un folio interno 02, 03 — para ver
     // cuántos renovó con nosotros». Es un CONTADOR, no parte del nombre: la
@@ -5135,6 +5508,24 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
     desembolso: desembolsoRc || null,
     diaPago: diaPagoRc || String((choca || previa).diaPago || "").toUpperCase() || diaDelCentro(centro) || null,
     reasignadoDe: (choca && norm(choca.ejecutivo) !== norm(ejecOK)) ? choca.ejecutivo : null };
+  // SINCRONIZACIÓN AUTOMÁTICA AL DESEMBOLSAR (CU-013/CU-014): la renovación
+  // es un desembolso nuevo igual que el alta — mismo acto, mismas tres
+  // piezas (pagaré, plan de pagos, sobre de dispersión), para el ciclo que
+  // nace ahora.
+  // sincronizarAlDesembolsar es inmutable: regresa una clienta nueva, no
+  // muta la de entrada — por eso se reasigna aquí.
+  clienta = sincronizarAlDesembolsar(clienta, b.comision, b.seguro);
+  // CU-019 (R5.2/TASA-01): la renovación es EL momento del contador — el ciclo
+  // que se cierra (`choca`, ya en saldo cero) se evalúa aquí: +1 si no tuvo un
+  // solo día de mora, 0 si lo tuvo. Se corre ANTES de escribir la baja/alta
+  // para que el veredicto salga de los pagos tal como quedaron.
+  clienta = { ...clienta, ciclosLimpios: marcaCiclosLimpios(id, req.usuario) };
+  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
+  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
+  registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
+  // CU-017 (PLD-01/PLD-02): la renovación es un desembolso nuevo — misma
+  // vigilancia de acumulación en 6 meses que el alta. Marca, nunca bloquea.
+  clienta = { ...clienta, alertaPLD: evaluarPLDAlDesembolsar(clienta, req.usuario) };
   // El cierre va ANTES del alta y con timestamp menor: los cambios se reproducen
   // en orden de ts, y si empataran, el cierre podría caerle encima al crédito
   // nuevo y dejarlo dado de baja el mismo día que se abrió.
@@ -5144,17 +5535,24 @@ app.post("/api/creditos/recredito", soloAnelMonse, (req, res) => {
       motivo: "Liquidó y renovó (recrédito)", porRecredito: true,
       fecha: hoyMX(), por: req.usuario.nombre, ts });
   }
-  // CU-006: si el sobre de dispersión retuvo Garantía Líquida, se registra
-  // sola en el guardado de la clienta — ver registrarGarantiaLiquidaAlDesembolsar.
-  // NOTA: aquí no existe sincronizarAlDesembolsar (CU-013/014, no portado a
-  // main todavía) — no-op seguro, sin retención automática del 10%.
-  registrarGarantiaLiquidaAlDesembolsar(clienta, req.usuario);
   store.agregarCambioPadron({ tipo: "alta", id, producto, clienta, recredito: true,
     fecha: hoyMX(), por: req.usuario.nombre, ts: ts + 1 });
+  // NOT-01 #3 "Desembolso realizado" y el aviso a clienta de renovación —
+  // una renovación (recrédito) es un desembolso nuevo (CU-013/CU-014), igual
+  // que el alta.
+  avisar("desembolso_realizado", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { nombre: clienta.nombre, centro: clienta.centro, producto: clienta.producto, importe: clienta.importe, recredito: true } });
+  avisar("otorgamiento_renovacion_cliente", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { nombre: clienta.nombre, producto: clienta.producto, importe: clienta.importe, tipo: "renovacion" } });
+  if (clienta.alertaPLD && clienta.alertaPLD.activa) {
+    avisar("pld_marcada", { socio: id, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { nombre: clienta.nombre, acumulado: clienta.alertaPLD.acumulado, umbralPesos: clienta.alertaPLD.umbralPesos } });
+  }
   refrescarPadron();
-  res.json({ ok: true, clienta, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
+  res.json({ ok: true, clienta, alertaPLD: clienta.alertaPLD || null, avisoDeuda: debeEnOtros > 0 ? debeEnOtros : 0,
     cerroAnterior: choca ? choca.producto : null,
-    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe });
+    ejecutivo: ejecOK, reasignadoDe: clienta.reasignadoDe,
+    ciclosLimpios: clienta.ciclosLimpios || null });
 });
 
 // Corte de saldos: verlo (dirección/admin) y moverlo (solo Anel y Monse, al
@@ -5300,6 +5698,13 @@ const CONCEPTOS_DIR = {
   "Desembolso":                  { entrada: false, categoria: "Desembolso", clienta: "obliga", tesoreria: true },
   "Garantía líquida entregada":  { entrada: false, categoria: "Garantía líquida entregada", clienta: "obliga", tesoreria: true },
   "Garantía A entregada":        { entrada: false, categoria: "Garantía A entregada", clienta: "obliga", tesoreria: true },
+  // GARANTÍA LÍQUIDA APLICADA (10-sep-2026, CU-006/CU-022): aplicar la garantía
+  // guardada de la clienta contra su propio crédito vencido — no es efectivo
+  // que entra ni sale de caja, es una transferencia interna (baja el pasivo de
+  // garantía, sube el "Recuperación" ligado a ESE crédito). Solo se crea desde
+  // /api/garantia-liquida/aplicar, nunca suelta desde /api/movimiento: siempre
+  // va emparejada con su "Recuperación" (doble registro, ver esa función).
+  "Garantía líquida aplicada":   { entrada: false, categoria: "Garantía líquida aplicada", clienta: "obliga", tesoreria: true },
   // "Autorización / préstamo" queda FUERA (Karina, 19-ago). Con ese concepto se
   // registraban las ENTREGAS DE CRÉDITO: el 13-ago salieron $86,000 en un día
   // —$31,000 a una sola clienta— por una caja que es CHICA, para gastos de
@@ -5429,6 +5834,18 @@ function gastosDelDia(movs, porEjec) {
   return { porTipo, total: Math.round(gastos.reduce((a, m) => a + Number(m.monto || 0), 0) * 100) / 100,
     posiblesDobles: dobles, sobregiro };
 }
+// GARANTÍA LÍQUIDA: MOTOR DE RECEPCIÓN/APLICACIÓN/DEVOLUCIÓN (10-sep-2026,
+// CU-006, CU-022, Anexo F §7-8, Anexo G, Anexo H.14). El guardado neteado por
+// clienta ya lo calculaba infoCredito()/pagosDeLaSemana() desde el 24-ago —
+// aquí solo se usa ese mismo cálculo (nunca se reinventa) para dos cosas que
+// faltaban: 1) decir cuánto hay DISPONIBLE ahora mismo para una entrega o
+// aplicación puntual, y 2) el candado antiduplicado que exige CU-022 ("la
+// segunda devolución se rechaza con el ticket de la primera").
+//
+// (garantiaLiquidaDisponible, ultimaSalidaGarantiaLiquida y
+// ticketGarantiaLiquidaH14 viven en dominios/garantia_liquida.js desde el
+// 10-sep-2026 — ver comentario junto a PORCENTAJE_GARANTIA_LIQUIDA)
+
 // Cuánto de los "otros movimientos" son GARANTÍAS. Normalmente la garantía viene
 // dentro de la ficha que captura la ejecutiva, pero si una clienta la paga en la
 // oficina, Dirección la registra suelta. Antes ese dinero sumaba al efectivo a
@@ -5710,17 +6127,21 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     if (rechazoReestructura) return res.status(400).json({ error: rechazoReestructura });
   }
 
-  // GARANTÍA LÍQUIDA ENTREGADA — CANDADO ANTIDUPLICADO (CU-006, CU-022 Regla
-  // H.14 / sección 5: "el candado antiduplicado rechaza la segunda devolución
-  // y muestra el ticket con el que salió"). El neteo (recepciones automáticas
-  // al desembolso + cobradas a mano − entregadas) lo calcula
-  // garantiaLiquidaDisponible() reusando infoCredito(): ya no se puede
-  // entregar/aplicar más de lo disponible ni repetir una entrega que ya dejó
-  // el guardado en cero.
-  // GARANTÍA A — disponible ANTES del movimiento (CU-006 item 12 RESUELTO: "por
-  // cada importe recibido se deberá generar un ticket o extender un recibo...
-  // sin distinguir por volumen ni por tipo de garantía"). A propósito NO se
-  // agrega candado antiduplicado aquí — solo el dato para poder emitir el
+  // GARANTÍA LÍQUIDA ENTREGADA — CANDADO ANTIDUPLICADO (10-sep-2026, CU-006,
+  // CU-022 Regla H.14 / sección 5: "el candado antiduplicado rechaza la
+  // segunda devolución y muestra el ticket con el que salió"). El neteo
+  // (recepciones automáticas al desembolso + cobradas a mano − entregadas) ya
+  // lo calcula garantiaLiquidaDisponible() reusando infoCredito(); antes solo
+  // se anotaba (Karina, 25-ago: "el módulo aún no paga FOOAX"). Carlos confirma
+  // 10-sep-2026 que ese módulo YA está contratado, así que el candado se activa:
+  // ya no se puede entregar/aplicar más de lo disponible ni repetir una entrega
+  // que ya dejó el guardado en cero.
+  // GARANTÍA A — disponible ANTES del movimiento (20-sep-2026, hallazgo de
+  // validación, CU-006 item 12 RESUELTO 10-sep-2026: "por cada importe
+  // recibido se deberá generar un ticket o extender un recibo... sin
+  // distinguir por volumen ni por tipo de garantía"). A propósito NO se
+  // agrega candado antiduplicado aquí (eso no forma parte de lo resuelto por
+  // Dirección para Garantía A todavía) — solo el dato para poder emitir el
   // ticket en cada entrada Y cada salida, como exige el item 12.
   let disponibleAntesA = null;
   if ((tipoNombre === "Garantía A" || tipoNombre === "Garantía A entregada") && socio && producto) {
@@ -5733,6 +6154,10 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     disponibleAntes = g.disponible;
     if (monto > g.disponible + 0.009) {
       const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+      // NOT-01 #11 "Intento bloqueado por un candado" — con nombre, fecha y
+      // qué se intentó, como pide la definición aprobada.
+      avisar("candado_bloqueado", { socio, usuario: req.usuario, test: !!req.usuario.test,
+        detalle: { candado: "antiduplicado_garantia_liquida", accion: "entrega", producto, montoIntentado: monto, disponible: g.disponible } });
       return res.status(400).json({
         error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
           + (g.disponible <= 0.009 && previa
@@ -5745,7 +6170,7 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   }
 
   // MOTIVO OBLIGATORIO + ALERTA EN EL HISTORIAL AL SACAR LA GARANTÍA ANTES DE
-  // TIEMPO (CU-006 — ver
+  // TIEMPO (CU-006, RESUELTO 21-sep-2026, audio de Karina — ver
   // dominios/garantia_liquida.js#validarSalidaAnticipadaGarantiaLiquida). Si
   // la garantía todavía no era liberable, exige `motivoSalidaAnticipada` —
   // no bloquea la salida en sí, solo exige dejar el motivo por escrito.
@@ -5774,13 +6199,21 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
   };
   store.agregarMovimiento(mov);
+  // NOT-01 #4 "Garantía devuelta o aplicada" — destinatario corregido por
+  // Dirección (11-sep-2026) a Auxiliar administrativo (no Dirección General).
+  if (tipoNombre === "Garantía líquida entregada" && socio) {
+    avisar("garantia_devuelta_aplicada", { socio, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { accion: "entrega", producto, monto, folio } });
+  }
   // TICKET H.14 (Anexo H.14, CU-022): en los tres movimientos de garantía
   // —recepción, aplicación, devolución— se manda junto con el movimiento para
   // que el tablero lo pueda imprimir o mostrar. Solo se calcula el "después"
   // cuando ya sabíamos el "antes" (entregada); para el resto no aplica todavía.
-  // GARANTÍA A: se agrega ticket también en CADA aportación ("Garantía A",
-  // entrada) y CADA entrega ("Garantía A entregada", salida) — mismo formato
-  // H.14, mismo generador.
+  //
+  // GARANTÍA A (20-sep-2026, item 12 RESUELTO): se agrega ticket también en
+  // CADA aportación ("Garantía A", entrada) y CADA entrega ("Garantía A
+  // entregada", salida) — mismo formato H.14, mismo generador; la función no
+  // tiene nada específico de Garantía Líquida en su cuerpo.
   let ticket = null;
   if (tipoNombre === "Garantía líquida entregada" && disponibleAntes != null) {
     ticket = ticketGarantiaLiquidaH14(mov, disponibleAntes, Math.max(0, disponibleAntes - monto));
@@ -5792,13 +6225,24 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   res.json({ ok: true, movimiento: mov, ticket });
 });
 
-// APLICAR GARANTÍA LÍQUIDA A MORA/CRÉDITO (CU-006, CU-022 sección 5): no es
-// efectivo que se mueve, es transferencia interna, DOBLE REGISTRO (Regla
-// G.2/CU-022: "o entran los dos, o no entra ninguno"):
+// APLICAR GARANTÍA LÍQUIDA A MORA/CRÉDITO (10-sep-2026, CU-006, CU-022 sección
+// 5: "el sistema propone aplicar la garantía al vencido... aplicar requiere
+// autorización y ticket de aplicación"). No es efectivo que se mueve: es una
+// transferencia interna, DOBLE REGISTRO (Regla G.2/CU-022: "o entran los dos,
+// o no entra ninguno"):
 //   1) "Garantía líquida aplicada" — baja el guardado de garantía del crédito.
-//   2) "Recuperación" — abona ESE MISMO monto al crédito.
-// Los dos movimientos comparten `aplicacionId`. Alcance a propósito acotado:
-// solo aplica la garantía guardada de un crédito contra SU PROPIO saldo/mora.
+//   2) "Recuperación" — abona ESE MISMO monto al crédito, igual que si la
+//      clienta hubiera pagado en efectivo (liquidacionesLigadas() ya lee
+//      "Recuperación" para bajar el saldo — mismo camino que un abono real).
+// Los dos movimientos comparten `aplicacionId` para poder rastrearlos como par
+// y llevan metodo "retencion" (no cuenta como efectivo ni como transferencia
+// real, igual que la recepción automática — ver registrarGarantiaLiquidaAlDesembolsar).
+//
+// Alcance a propósito acotado: solo aplica la garantía guardada de un crédito
+// contra SU PROPIO saldo/mora (el caso ya resuelto y con Anexo detrás). Aplicarla
+// contra OTRO crédito de la misma clienta (CU-022 lo menciona de pasada, "al
+// vencido") queda pendiente de que Dirección confirme la regla exacta —
+// ver PENDIENTES_POR_CONFIRMAR.md.
 app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
   const socio = String(b.socio || "").replace(/[\s\-.]/g, "").trim();
@@ -5820,6 +6264,8 @@ app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, 
   const g = garantiaLiquidaDisponible(req.usuario, socio, producto);
   if (monto > g.disponible + 0.009) {
     const previa = ultimaSalidaGarantiaLiquida(socio, producto);
+    avisar("candado_bloqueado", { socio, usuario: req.usuario, test: !!req.usuario.test,
+      detalle: { candado: "antiduplicado_garantia_liquida", accion: "aplicacion", producto, montoIntentado: monto, disponible: g.disponible } });
     return res.status(400).json({
       error: "Esta clienta solo tiene $" + g.disponible.toFixed(2) + " guardado de Garantía Líquida en ese crédito"
         + (g.disponible <= 0.009 && previa
@@ -5847,16 +6293,38 @@ app.post("/api/garantia-liquida/aplicar", requiere("direccion", "admin"), (req, 
     aplicacionId, nota: "Aplicación de Garantía Líquida al crédito, folio " + movGarantia.folio + ". " + motivo,
     registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: ts + 1,
   };
-  // O entran los dos, o no entra ninguno (Regla G.2/CU-022).
+  // O entran los dos, o no entra ninguno (Regla G.2/CU-022): agregarMovimiento
+  // no falla por validación de negocio a estas alturas (ya se validó arriba),
+  // así que insertar en secuencia es seguro; si algo truena a media inserción,
+  // el candado antiduplicado de la próxima corrida detecta el hueco (guardado
+  // bajó pero el crédito no) porque los folios comparten aplicacionId.
   store.agregarMovimiento(movGarantia);
   store.agregarMovimiento(movRecuperacion);
+  // NOT-01 #4 "Garantía devuelta o aplicada" — destinatario corregido por
+  // Dirección (11-sep-2026) a Auxiliar administrativo (no Dirección General).
+  avisar("garantia_devuelta_aplicada", { socio, usuario: req.usuario, test: !!req.usuario.test,
+    detalle: { accion: "aplicacion", producto, monto, folio: movGarantia.folio } });
   const ticket = ticketGarantiaLiquidaH14(movGarantia, g.disponible, Math.max(0, g.disponible - monto));
   res.json({ ok: true, movimientoGarantia: movGarantia, movimientoRecuperacion: movRecuperacion, ticket });
 });
 
-// ---------- PANTALLA MÍNIMA DE GARANTÍAS (CU-006) ----------
-// resumenGarantias/estadoDeCuentaGarantia viven en dominios/garantia_liquida.js
-// — estas dos rutas son solo el pegamento HTTP.
+// ---------- PANTALLA MÍNIMA DE GARANTÍAS (MVP, 10-sep-2026) ----------
+// CU-006 — Carlos: "que Dirección vea la opción de garantías en la
+// aplicación junto con lo que se puede implementar, y mande mensaje solamente
+// de que algo no está definido o falta, para luego implementar esa
+// funcionalidad". No es la entrega 2E completa del lienzo (esa sigue
+// "CONSTRUYE: por acordar" en la cotización) — es SOLO lo que hoy ya se puede
+// calcular con datos reales (el motor de Garantía Líquida construido antes de
+// hoy). Todo lo que el mockup pide y que SÍ depende de una respuesta de
+// Dirección (reporte por corte histórico, conciliación bancaria, bienes en
+// garantía hipotecaria/prendaria) NO se inventa aquí: el frontend lo muestra
+// como "pendiente de definir" citando la fila exacta de
+// PENDIENTES_POR_CONFIRMAR.md, en vez de ocultarlo o fingir que ya existe.
+//
+// resumenGarantias/estadoDeCuentaGarantia viven en
+// dominios/garantia_liquida.js — estas dos rutas son solo el pegamento HTTP:
+// piden los datos, y traducen el resultado a la respuesta. Ninguna regla de
+// negocio se escribe aquí (mismo criterio que el resto del dominio).
 app.get("/api/garantias", requiere("direccion", "admin"), (req, res) => {
   res.json(resumenGarantias(req.usuario));
 });
@@ -5867,18 +6335,29 @@ app.get("/api/garantias/ficha", requiere("direccion", "admin"), (req, res) => {
   res.json(resultado);
 });
 
+// REPORTES DE GARANTÍAS (CU-008, 20-sep-2026 — hallazgo de validación: solo
+// se construyen los 2 de 5 reportes del catálogo que ya tienen ejemplo real y
+// corte confirmado por Dirección, ver dominios/garantia_liquida.js. El pegamento
+// HTTP solo normaliza la fecha al lunes de su semana (mismo criterio que el
+// resto de reportes de corte semanal, ver lunesDeLaSemana) y traduce a JSON.
 // TICKET DE LIBERACIÓN DE GARANTÍAS (CU-006, formato "HOJA DE LIBERACION DE
-// GARANTIAS" de Karina). ticketLiberacionGarantia vive en
-// dominios/garantia_liquida.js.
+// GARANTIAS" de Karina, 21-sep-2026). ticketLiberacionGarantia vive en
+// dominios/garantia_liquida.js — esta ruta es solo el pegamento HTTP: mismo
+// criterio de parámetros que /api/garantias/ficha (id + producto).
 app.get("/api/garantias/liberacion", requiere("direccion", "admin"), (req, res) => {
   const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
   if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
   res.json(resultado);
 });
 
-// VISTA IMPRIMIBLE del ticket de liberación — mismos datos y parámetros que
-// /api/garantias/liberacion, solo cambia el formato de salida (HTML con
-// @media print en vez de JSON).
+// VISTA IMPRIMIBLE del ticket de liberación (21-sep-2026, hallazgo de
+// validación sobre un audio de Karina: "cuando entregas la garantía tienes
+// que imprimir un ticket que se los deje firmar y que el ejecutivo lo deje
+// escanear para que quede de evidencia"). Mismos datos y mismos parámetros
+// que /api/garantias/liberacion — solo cambia el formato de salida (HTML con
+// @media print en vez de JSON) para que se pueda abrir en el teléfono/tablet
+// del ejecutivo, imprimir o guardar como PDF con el diálogo del sistema, y
+// que la clienta firme sobre el papel.
 app.get("/api/garantias/liberacion/ticket", requiere("direccion", "admin"), (req, res) => {
   const resultado = ticketLiberacionGarantia(req.usuario, req.query.id, req.query.producto);
   if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
@@ -5896,19 +6375,28 @@ app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, 
 });
 
 // CORTE DIARIO DE GARANTÍAS por grupo (centro) y tipo de crédito (producto)
-// — reporte APARTE del arqueo diario de caja.
+// — 21-sep-2026, audio de Karina/Dirección. Reporte APARTE del arqueo diario
+// de caja (GET /api/arqueo, más abajo): agrupan por unidades distintas
+// (ejecutiva vs. centro/producto) — ver el comentario en
+// dominios/garantia_liquida.js::corteDiarioGarantias para la validación
+// técnica completa de por qué no se mete dentro de calcularArqueo.
 app.get("/api/garantias/corte-diario", requiere("direccion", "admin"), (req, res) => {
   const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
   res.json(corteDiarioGarantias(fecha));
 });
 
-// ALERTA/ESCALACIÓN — PLAZO DE 2 SEMANAS PARA ENTREGAR LA GARANTÍA (CU-006).
-// Ver dominios/garantia_liquida.js#alertasPlazoEntregaGarantia.
+// ALERTA/ESCALACIÓN — PLAZO DE 2 SEMANAS PARA ENTREGAR LA GARANTÍA (CU-006,
+// RESUELTO 21-sep-2026: Dirección aprueba la propuesta de Sistemas del
+// 11-sep-2026 — "alerta y escala", nunca bloquea). Ver
+// dominios/garantia_liquida.js#alertasPlazoEntregaGarantia.
 app.get("/api/garantias/alertas-plazo-entrega", requiere("direccion", "admin"), (req, res) => {
   res.json(alertasPlazoEntregaGarantia(req.usuario));});
 
-// PLAZO DE 5 DÍAS PARA REGRESAR LA HOJA DE LIBERACIÓN FIRMADA (CU-006). El
-// candado es informativo — alerta y escala, nunca bloquea.
+// PLAZO DE 5 DÍAS PARA REGRESAR LA HOJA DE LIBERACIÓN FIRMADA (CU-006,
+// RESUELTO 21-sep-2026: Carlos confirma que SÍ es política vigente). El
+// candado es informativo — alerta y escala, nunca bloquea (misma doctrina
+// que el plazo de 2 semanas para entregar la garantía) — ver
+// dominios/garantia_liquida.js.
 app.get("/api/garantias/hoja-liberacion/alertas-plazo-regreso", requiere("direccion", "admin"), (req, res) => {
   res.json(alertasPlazoRegresoHojaLiberacion());
 });
@@ -5918,17 +6406,241 @@ app.post("/api/garantias/hoja-liberacion/regresada", requiere("direccion", "admi
   if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
   res.json(resultado);});
 
-// AJUSTE MANUAL DE GARANTÍA CON AUTORIZACIÓN (CU-006): aplica igual a
-// Garantía Líquida y Garantía A — la autorización se exige vía identidad de
-// sesión (ver dominios/garantia_liquida.js).
+// AJUSTE MANUAL DE GARANTÍA CON AUTORIZACIÓN (CU-006, RESUELTO 21-sep-2026):
+// aplica igual a Garantía Líquida y Garantía A — la autorización se exige
+// vía identidad de sesión (ver dominios/garantia_liquida.js), no un campo de
+// texto, así que el candado de rol (direccion/admin) es un primer filtro y
+// registrarAjusteManualGarantia() hace la verificación real, más fina, de
+// que la cuenta sea justo Alejandra o Monse.
+//
+// APROBACIÓN DE LA ING. MONSE (Karina, 24-sep-2026: "cuando Alejandra quiera
+// modificar el saldo, solo se modifique si la Ing. Monse lo aprueba"): si
+// quien captura NO está en la lista de quienes aprueban, el ajuste NO se
+// aplica — queda como SOLICITUD pendiente en la cola de garantías y a Monse
+// le llega la notificación (bandeja NOT-01 + campanita). Monse capturando
+// directo sigue aplicando en el acto, como siempre.
+function avisarSolicitudGarantia(s, usuario) {
+  avisar("solicitud_garantias", {
+    socio: s.socio, usuario, test: !!usuario.test,
+    detalle: (s.tipo === "liberacion" ? "Soltar garantía" : "Ajuste de saldo (" + s.tipoGarantia + ", " + s.direccion + ")")
+      + " · " + s.nombre + " · socio " + s.socio + " · crédito " + s.producto
+      + " · $" + Number(s.monto).toFixed(2) + " · pidió " + (s.solicitadoPor || "—") + " · folio " + s.folio,
+  });
+}
+
 app.post("/api/garantias/ajuste-manual", requiere("direccion", "admin"), (req, res) => {
   const b = req.body || {};
+  if (!USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA.includes(String(req.usuario.id || "").toLowerCase())) {
+    const sol = crearSolicitudGarantia({
+      tipo: "ajuste", socio: b.socio, producto: b.producto, monto: b.monto,
+      tipoGarantia: b.tipoGarantia, direccion: b.direccion, motivo: b.motivo,
+    }, req.usuario);
+    if (sol.error) return res.status(sol.status).json({ error: sol.error });
+    avisarSolicitudGarantia(sol.solicitud, req.usuario);
+    return res.json({
+      ok: true, pendiente: true, solicitud: sol.solicitud,
+      mensaje: "Tu ajuste quedó registrado como solicitud (folio " + sol.solicitud.folio
+        + ") — el saldo se modificará cuando la Ing. Monse lo apruebe.",
+    });
+  }
   const resultado = registrarAjusteManualGarantia({
     socio: b.socio, producto: b.producto, tipoGarantia: b.tipoGarantia,
     direccion: b.direccion, monto: b.monto, motivo: b.motivo,
   }, req.usuario);
   if (resultado.error) return res.status(resultado.status).json({ error: resultado.error, disponible: resultado.disponible });
   res.json(resultado);
+});
+
+// SOLICITUDES DE GARANTÍAS (Karina, 24-sep-2026): el botón "solicitar que
+// suelten las garantías" y los ajustes de Alejandra caen aquí; la Ing. Monse
+// aprueba o rechaza. Ver dominios/garantia_liquida.js.
+app.get("/api/garantias/solicitudes", requiere("direccion", "admin"), (req, res) => {
+  res.json(listarSolicitudesGarantia(req.usuario));
+});
+
+app.post("/api/garantias/solicitudes", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const resultado = crearSolicitudGarantia({
+    tipo: b.tipo, socio: b.socio, producto: b.producto, monto: b.monto,
+    tipoGarantia: b.tipoGarantia, direccion: b.direccion, motivo: b.motivo,
+  }, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error });
+  avisarSolicitudGarantia(resultado.solicitud, req.usuario);
+  res.json(resultado);
+});
+
+app.post("/api/garantias/solicitudes/resolver", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const resultado = resolverSolicitudGarantia({ folio: b.folio, decision: b.decision, nota: b.nota }, req.usuario);
+  if (resultado.error) return res.status(resultado.status).json({ error: resultado.error, disponible: resultado.disponible });
+  res.json(resultado);
+});
+
+// GARANTÍAS DE HOY (Karina, 24-sep-2026: "en el panel tiene que decir cuánto
+// de $$ de garantías se recibió hoy, qué centros y cuánto de garantía por
+// ejecutivo, así como las últimas garantías que se dieron y a qué crédito").
+// Junta las DOS fuentes reales de garantía del día:
+//   - EN CAMPO: el campo "Garantía" de las fichas que sincronizan las
+//     ejecutivas (snapshots del día — es lo que alimenta la Garantía Líquida
+//     en el motor, mismo recorrido que /api/resumen).
+//   - EN OFICINA: los movimientos de garantía del catálogo de Dirección
+//     (Garantía líquida / Garantía A), vía el corte diario del dominio. La
+//     retención automática al desembolso se muestra APARTE: no es efectivo
+//     que alguien haya recibido.
+function garantiasFichasDeFecha(fecha, usuario) {
+  const snaps = store.snapshotsDeFecha(fecha);
+  const filas = [];
+  for (const id of idsEjecutivos(usuario)) {
+    const s = snaps[id];
+    if (!s) continue;
+    let data = s.snapshot;
+    if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = {}; } }
+    const toma = (nodo, clave) => {
+      const g = (nodo && typeof nodo === "object" && Number(nodo.garantia)) || 0;
+      if (!(g > 0)) return;
+      const [socio, producto, nombre] = String(clave).split("|");
+      const cred = PADRON.find((c) => String(c.id).split("|")[0] === String(socio || "")
+        && norm(c.producto) === norm(producto || "")) || null;
+      filas.push({
+        fuente: "ficha", fecha, socio: socio || "—",
+        nombre: (cred && cred.nombre) || nombre || "—",
+        centro: (cred && cred.centro) || "Individual",
+        producto: (cred && cred.producto) || producto || "—",
+        monto: Math.round(g * 100) / 100,
+        quien: USUARIOS[id].nombre,
+      });
+    };
+    const rec = (st) => {
+      if (!st || typeof st !== "object") return;
+      for (const k in st) {
+        const nd = st[k];
+        if (nd && typeof nd === "object" && ("pago" in nd || "forma" in nd || "garantia" in nd)) toma(nd, k);
+        else if (nd && typeof nd === "object") for (const kk in nd) toma(nd[kk], kk);
+      }
+    };
+    rec(data.reg); rec(data.regI);
+  }
+  return filas;
+}
+
+app.get("/api/garantias/hoy", requiere("direccion", "admin"), (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  const fichas = garantiasFichasDeFecha(fecha, req.usuario);
+  const corte = corteDiarioGarantias(fecha);
+  const esRetencion = (m) => m.modalidad === "Retención automática";
+  const movsEntrada = corte.movimientos.filter((m) => m.entrada && !esRetencion(m));
+  const movsSalida = corte.movimientos.filter((m) => !m.entrada);
+  const retenidoAutomatico = Math.round(corte.movimientos
+    .filter((m) => m.entrada && esRetencion(m))
+    .reduce((a, m) => a + m.monto, 0) * 100) / 100;
+
+  const sumar = (mapa, llave, monto) => { mapa[llave] = Math.round(((mapa[llave] || 0) + monto) * 100) / 100; };
+  const porCentro = {}, porQuien = {};
+  for (const f of fichas) { sumar(porCentro, f.centro, f.monto); sumar(porQuien, f.quien, f.monto); }
+  for (const m of movsEntrada) { sumar(porCentro, m.centro, m.monto); sumar(porQuien, m.quien, m.monto); }
+
+  const enCampo = Math.round(fichas.reduce((a, f) => a + f.monto, 0) * 100) / 100;
+  const enOficina = Math.round(movsEntrada.reduce((a, m) => a + m.monto, 0) * 100) / 100;
+
+  // ÚLTIMAS GARANTÍAS QUE SE DIERON Y A QUÉ CRÉDITO: entradas de los últimos
+  // 14 días — fichas de las ejecutivas + capturas de oficina — las 15 más
+  // recientes primero.
+  const desdeDt = new Date(fecha + "T12:00:00"); desdeDt.setDate(desdeDt.getDate() - 13);
+  const desde = desdeDt.toISOString().slice(0, 10);
+  const ultimas = [];
+  for (let d = new Date(fecha + "T12:00:00"); d.toISOString().slice(0, 10) >= desde; d.setDate(d.getDate() - 1)) {
+    for (const fila of garantiasFichasDeFecha(d.toISOString().slice(0, 10), req.usuario)) ultimas.push(fila);
+  }
+  for (const mov of movimientosDeGarantiaEntre(desde, fecha)) {
+    if (!mov.entrada || mov.metodo === "retencion") continue;
+    const socio = socioDeMov(mov);
+    const cred = PADRON.find((c) => String(c.id).split("|")[0] === socio
+      && norm(c.producto) === norm(productoDeMov(mov) || "")) || null;
+    ultimas.push({
+      fuente: "movimiento", fecha: mov.fecha, socio,
+      nombre: (cred && cred.nombre) || null,
+      centro: (cred && cred.centro) || "—",
+      producto: (cred && cred.producto) || productoDeMov(mov) || "—",
+      monto: Number(mov.monto) || 0,
+      quien: mov.ejecutivo || mov.registradoPor || "—",
+      tipo: mov.tipo || mov.concepto,
+    });
+  }
+  ultimas.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || (b.ts || 0) - (a.ts || 0));
+
+  res.json({
+    fecha,
+    recibidoHoy: Math.round((enCampo + enOficina) * 100) / 100,
+    enCampo, enOficina, retenidoAutomatico,
+    entregadoHoy: Math.round(movsSalida.reduce((a, m) => a + m.monto, 0) * 100) / 100,
+    porCentro: Object.keys(porCentro).sort().map((c) => ({ centro: c, monto: porCentro[c] })),
+    porEjecutivo: Object.keys(porQuien).sort().map((q) => ({ quien: q, monto: porQuien[q] })),
+    ultimas: ultimas.slice(0, 15),
+  });
+});
+
+// DESCARGA EN EXCEL del reporte de salidas por clienta (Karina, 24-sep-2026:
+// "Reporte de salidas por clienta (mensual) tienen que poder descargarlo en
+// excell"). Mismos datos que GET /api/garantias/reporte-salidas; formato de
+// la casa: banda rosa, encabezados azules, TOTAL DENTRO de la tabla y rollup
+// por centro con su propio total adentro.
+app.get("/api/garantias/reporte-salidas/excel", requiere("direccion", "admin"), async (req, res) => {
+  const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
+  const d = reporteSalidaGarantiasPorClienta(mes);
+  const wb = new ExcelJS.Workbook(); wb.creator = "FOOAX";
+  const AURORA = "FFF1228E", RIO = "FF324AB6", DORADO = "FFF2BB06";
+  const s = wb.addWorksheet("Salidas " + mes);
+  s.mergeCells("A1:H1");
+  const t = s.getCell("A1");
+  t.value = "FOOAX · SALIDAS DE GARANTÍAS POR CLIENTA · " + mes + " (" + d.periodo.desde + " al " + d.periodo.hasta + ")";
+  t.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: AURORA } };
+  t.alignment = { horizontal: "center", vertical: "middle" };
+  s.getRow(1).height = 24;
+  const head = [["Folio", 24], ["Fecha", 12], ["Clienta", 32], ["Centro", 20], ["Quién capturó", 18],
+    ["Monto", 14], ["Tipo", 26], ["Modalidad", 20]];
+  const hr = s.getRow(2);
+  head.forEach(([h, w], i) => { const c = hr.getCell(i + 1); c.value = h; s.getColumn(i + 1).width = w;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+    c.alignment = { horizontal: "center", wrapText: true }; });
+  let f = 3, total = 0;
+  for (const x of d.salidas) {
+    const r = s.getRow(f++);
+    r.getCell(1).value = x.folio; r.getCell(2).value = x.fecha;
+    r.getCell(3).value = x.nombre || x.socio; r.getCell(4).value = x.centro;
+    r.getCell(5).value = x.quien;
+    r.getCell(6).value = x.monto; r.getCell(6).numFmt = '"$"#,##0.00';
+    r.getCell(7).value = x.tipo; r.getCell(8).value = x.modalidad;
+    total = Math.round((total + x.monto) * 100) / 100;
+  }
+  // TOTAL DENTRO de la tabla (regla de la casa: las tablas cierran su cuenta).
+  const filaTotal = f;
+  const tr2 = s.getRow(f++);
+  tr2.getCell(1).value = "TOTAL DEL MES · " + d.salidas.length + " salida(s)";
+  tr2.getCell(6).value = total; tr2.getCell(6).numFmt = '"$"#,##0.00';
+  [1, 6].forEach((i) => { tr2.getCell(i).font = { bold: true };
+    tr2.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DORADO } }; });
+  s.mergeCells(filaTotal, 1, filaTotal, 5);
+  f += 1;
+  const rc = s.getRow(f++);
+  rc.getCell(1).value = "POR CENTRO";
+  rc.getCell(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  rc.getCell(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: RIO } };
+  for (const x of d.rollupPorCentro) {
+    const r = s.getRow(f++);
+    r.getCell(1).value = x.centro;
+    r.getCell(6).value = x.total; r.getCell(6).numFmt = '"$"#,##0.00';
+  }
+  const tc = s.getRow(f++);
+  tc.getCell(1).value = "TOTAL";
+  tc.getCell(6).value = total; tc.getCell(6).numFmt = '"$"#,##0.00';
+  [1, 6].forEach((i) => { tc.getCell(i).font = { bold: true };
+    tc.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: DORADO } }; });
+  const buf = await wb.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="Salidas de garantias por clienta ${mes}.xlsx"`);
+  res.end(Buffer.from(buf));
 });
 
 // ANULAR un movimiento de caja. Nunca se borra: queda tachado, con quién lo
@@ -6108,6 +6820,54 @@ app.post("/api/movimiento/anular", requiere("direccion", "admin"), (req, res) =>
   res.json({ ok: true, folio, anulado: anular });
 });
 
+// ---------- RIESGO Y PEP · bitácora inmutable (CU-016, Regla R11.4 Anexo F) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/riesgo_bitacora.js; aquí
+// solo el pegamento HTTP. Quién puede cambiar: RIESGO_ROLES_PUEDEN_CAMBIAR
+// (roles separados por coma; default "direccion", CU-016 §10.2 pendiente).
+const RIESGO_ROLES_PUEDEN_CAMBIAR = String(process.env.RIESGO_ROLES_PUEDEN_CAMBIAR ?? "direccion")
+  .split(",").map((rol) => rol.trim()).filter(Boolean);
+const riesgo = require("./dominios/riesgo_bitacora")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  rolesPuedenCambiar: RIESGO_ROLES_PUEDEN_CAMBIAR,
+});
+// Traduce la respuesta del dominio ({ status, error } o el resultado) a HTTP;
+// si el dominio truena, 500 legible en vez de tumbar el proceso.
+const rutaRiesgo = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[riesgo] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación de riesgo. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/riesgo/catalogos", requiere("direccion", "admin"), rutaRiesgo(() => riesgo.catalogos()));
+app.get("/api/riesgo/:socio", requiere("direccion", "admin"), rutaRiesgo((req) => riesgo.fichaRiesgo(req.usuario, req.params.socio)));
+app.post("/api/riesgo/cambiar", requiere("direccion", "admin"), rutaRiesgo(({ body = {}, usuario }) => riesgo.registrarCambioRiesgo(
+  { socio: body.socio ?? body.id, campo: body.campo, valor: body.valor, motivo: body.motivo }, usuario,
+)));
+
+// ---------- NOTIFICACIONES · bandeja interna (NOT-01, dentro de CU-020) ----------
+// Construido 12-sep-2026, aprobado por Dirección General (Consuelo Bozas)
+// el 11-sep-2026. La lógica vive en dominios/notificaciones.js; aquí solo el
+// pegamento HTTP (mismo patrón que /api/riesgo).
+const rutaNotificaciones = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado && resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json({ ok: true, ...(Array.isArray(resultado) ? { notificaciones: resultado } : resultado) });
+  } catch (error) {
+    console.error(`[notificaciones] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación de notificaciones. Intenta de nuevo o avisa a soporte." });
+  }
+};
+app.get("/api/notificaciones/catalogo", requiere("direccion", "admin"), rutaNotificaciones(() => ({ catalogo: notificaciones.catalogo(), pendientes: notificaciones.pendientes() })));
+app.get("/api/notificaciones", requiere("direccion", "admin"), rutaNotificaciones((req) => notificaciones.bandeja(req.usuario)));
+app.post("/api/notificaciones/:ts/leida", requiere("direccion", "admin"), rutaNotificaciones((req) => notificaciones.marcarLeida(Number(req.params.ts), req.usuario)));
+
 // ---------- ARQUEO consolidado del día ----------
 // Reproduce el FORMATO ARQUEO de FOOAX: desglose de billetes/monedas por
 // ejecutivo, efectivo total, menos egresos (gastos/retiros), efectivo a
@@ -6279,6 +7039,36 @@ app.get("/api/arqueo", requiere("direccion", "admin", "ejecutivo"), (req, res) =
     denominaciones: DENOMS_ARQUEO,
   });
 });
+
+// ---------- PLD · ACUMULACIÓN POR CLIENTA EN 6 MESES (CU-017, R11.3 Anexo F, G.5-G.7 Anexo G) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/pld_acumulacion.js; aquí
+// el pegamento HTTP y los parámetros (umbral 1,605 UMA — PLD-01 — y ventana
+// de 180 días, por entorno; la UMA versionada en data/uma.json). SOLO MARCA,
+// NUNCA BLOQUEA (PLD-02): la marca `alertaPLD` se cuelga del crédito en
+// procesarAltaPadron y /api/creditos/recredito.
+const PLD_UMBRAL_UMA = Number(process.env.PLD_UMBRAL_UMA) || 1605;
+const PLD_VENTANA_DIAS = Number(process.env.PLD_VENTANA_DIAS) || 180;
+const pld = require("./dominios/pld_acumulacion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  umbralUMA: PLD_UMBRAL_UMA, ventanaDias: PLD_VENTANA_DIAS,
+  archivoUMA: path.join(__dirname, "data", "uma.json"),
+});
+const evaluarPLDAlDesembolsar = pld.evaluarAlDesembolsar;
+const rutaPLD = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[pld] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la consulta PLD. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/pld/acumulacion", requiere("direccion", "admin"), rutaPLD(({ query }) => pld.consultarAcumulacion(query)));
+app.get("/api/pld/alertas", requiere("direccion", "admin"), rutaPLD(({ usuario }) => pld.resumenAlertas(usuario)));
+app.get("/api/pld/uma", requiere("direccion", "admin"), rutaPLD(() => pld.resumenUMA()));
 
 // ---------- CIERRE DE CAJA DE LA SEMANA ----------
 // El arqueo diario contesta "¿cuánto entrega cada ejecutiva hoy?". No contesta
@@ -7321,6 +8111,37 @@ app.get("/api/arqueo/excel", requiere("direccion", "admin"), async (req, res) =>
   res.send(Buffer.from(buf));
 });
 
+// ---------- CICLOS LIMPIOS · contador por clienta (CU-019 parcial, R5.2 Anexo E/F, TASA-01) ----------
+// Construido 11-sep-2026. La lógica vive en dominios/ciclos_limpios.js; aquí el
+// pegamento HTTP, el umbral (CICLOS_LIMPIOS_TASA_PREFERENCIAL, default 3 —
+// TASA-01) y las dependencias inyectadas. PARCIAL: marca si aplica la tasa
+// preferencial, NO propone tasa (PENDIENTES §1 y §9).
+const CICLOS_LIMPIOS_TASA_PREFERENCIAL = Number(process.env.CICLOS_LIMPIOS_TASA_PREFERENCIAL) || 3;
+const DIAS_VENTANA_PAGOS_CICLOS = 395;   // misma ventana ancha que /api/creditos/recredito
+const ciclosLimpios = require("./dominios/ciclos_limpios")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  claveCredito, infoCredito, carteraViva, esVencido, atrasoEnPagos, vencidaPorPlazo,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_CICLOS);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  umbralCiclos: CICLOS_LIMPIOS_TASA_PREFERENCIAL,
+});
+const marcaCiclosLimpios = ciclosLimpios.marcaParaCredito;
+
+app.get("/api/ciclos-limpios/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = ciclosLimpios.consultar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[ciclos limpios] ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo calcular el contador de ciclos. Intenta de nuevo o avisa a soporte." });
+  }
+});
+
 // ---------- RESUMEN del día (campanita de alertas para dirección) ----------
 // Con CENTAVOS: las garantías traen medios pesos (57.50, 40.50) y este texto los
 // redondeaba a peso entero, así que la campanita y el resumen de WhatsApp decían
@@ -7430,6 +8251,15 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   if (garantias > 0) items.push({ sev: "info", txt: `Garantías: ${pesos(garantias)}` });
   if (faltantes > 0) items.push({ sev: "alto", txt: `Mora del día: ${pesos(faltantes)} en ${clientasFaltan} clientas` });
   for (const a of alertasReestructuras(req.usuario)) items.push({ sev: "alto", txt: a });
+  // SOLICITUDES DE GARANTÍAS PENDIENTES (Karina, 24-sep-2026): a quien
+  // aprueba (Ing. Monse) le suenan en la campanita con nombre, socio,
+  // crédito y monto — se resuelven en GARANTÍAS · Panel.
+  if (USUARIOS_APRUEBAN_SOLICITUDES_GARANTIA.includes(String(req.usuario.id || "").toLowerCase())) {
+    for (const s of listarSolicitudesGarantia(req.usuario).solicitudes.filter((x) => x.estado === "pendiente"))
+      items.push({ sev: "alto", txt: "Solicitud de garantías (" + (s.tipo === "liberacion" ? "soltar garantía" : "ajuste de saldo") + "): "
+        + s.nombre + " · socio " + s.socio + " · crédito " + s.producto + " · " + pesos(s.monto)
+        + " — pidió " + (s.solicitadoPor || "—") + ". Apruébala o recházala en GARANTÍAS · Panel." });
+  }
   // "Ponle a Anel solamente a qué horas sincroniza Monse" (Karina, 10-sep):
   // SOLO Anel ve la actividad de Monse del día elegido — cuándo entró, su
   // última actividad y qué movió (capturas, anulaciones, ajustes).
@@ -7489,6 +8319,42 @@ app.get("/api/resumen", requiere("direccion", "admin"), (req, res) => {
   const pendientes = sinSync.length + (faltantes > 0 ? 1 : 0) + desfases + descuadres.length;
   res.json({ fecha, items, pendientes });
 });
+
+// ---------- DERECHOS ARCO Y RETENCIÓN PLD (CU-015) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/arco_retencion.js; aquí el pegamento HTTP y los parámetros.
+// Exportar: dirección y admin. Anonimizar: solo ARCO_ROLES_ANONIMIZAR (default
+// "direccion" = Dirección General). Retención: RETENCION_PLD_ANIOS, solo lectura.
+const RETENCION_PLD_ANIOS = Number(process.env.RETENCION_PLD_ANIOS) || 10;
+const ARCO_ROLES_ANONIMIZAR = String(process.env.ARCO_ROLES_ANONIMIZAR ?? "direccion").split(",").map((rol) => rol.trim()).filter(Boolean);
+const DIAS_VENTANA_PAGOS_ARCO = 395;   // misma ventana ancha que /api/creditos/recredito
+const arco = require("./dominios/arco_retencion")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  pagosPorFecha: (usuario) => {
+    const desde = new Date(`${hoyMX()}T12:00:00`);
+    desde.setDate(desde.getDate() - DIAS_VENTANA_PAGOS_ARCO);
+    return pagosDeLaSemana(usuario, desde.toISOString().slice(0, 10)).porFecha ?? {};
+  },
+  retencionAnios: RETENCION_PLD_ANIOS, rolesAnonimizar: ARCO_ROLES_ANONIMIZAR,
+});
+const entidadARCO = (req) => String(req.params.entidad ?? "").toLowerCase();
+const rutaARCO = (operacion, { refrescaPadron = false } = {}) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    if (refrescaPadron) refrescarPadron();
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[arco] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la solicitud ARCO. Intenta de nuevo o avisa a soporte." });
+  }
+};
+
+app.get("/api/arco/:entidad/:id/exportar", requiere("direccion", "admin"), rutaARCO((req) => arco.exportar(req.usuario, entidadARCO(req), req.params.id, req.query.solicitante)));
+app.get("/api/arco/:entidad/:id", requiere("direccion", "admin"), rutaARCO((req) => arco.ficha(req.usuario, entidadARCO(req), req.params.id)));
+app.post("/api/arco/:entidad/:id/anonimizar", requiere("direccion", "admin"), rutaARCO((req) => arco.anonimizar(req.usuario, entidadARCO(req), req.params.id, req.body?.motivo), { refrescaPadron: true }));
+app.get("/api/retencion/pld", requiere("direccion", "admin"), rutaARCO((req) => arco.reporteRetencion(req.usuario, req.query.hoy)));
 
 // ---------- RECUPERAR COBRANZA DE UN DÍA ----------
 // Cada vez que un snapshot se sobrescribe, la versión anterior queda archivada.
@@ -7651,6 +8517,71 @@ app.get("/api/movimientos", requiere("direccion", "admin"), (req, res) => {
     netoEfectivo: neto("efectivo"), netoTransf: neto("transferencia"), netoCheques: neto("cheque") });
 });
 
+// ---------- EXPEDIENTE · alta y captura en campo (CU-009) + checklist y validación (CU-010) ----------
+// Construido 11-sep-2026 en el repo real. La lógica vive en
+// dominios/expediente.js; aquí el pegamento HTTP y los parámetros. La app de la
+// ejecutiva captura sin señal (public/alta-campo.js) y manda a
+// POST /api/expediente/captura cuando hay red; el folioCaptura hace idempotente
+// el reintento. La clienta nace "en captura": NO se escribe al padrón de
+// cobranza. El candado del desembolso (CU-010) vive en el flujo de sobres:
+// EXPEDIENTE_CANDADO_DISPERSION=0 lo vuelve aviso, solo para transición.
+const TOPE_RESPONSABLE = Number(process.env.TOPE_RESPONSABLE) || 2;
+const TOPE_AVAL = Number(process.env.TOPE_AVAL) || 1;
+const MONTO_REQUIERE_AVAL = Number(process.env.MONTO_REQUIERE_AVAL) || 10000;
+const EXPEDIENTE_CANDADO_DISPERSION = String(process.env.EXPEDIENTE_CANDADO_DISPERSION ?? "1") !== "0";
+// Quién valida el expediente (CU-010 §1: Administración y Finanzas = rol admin).
+// Parámetro por si Dirección decide ampliarlo; nunca la ejecutiva.
+const EXPEDIENTE_ROLES_VALIDAR = String(process.env.EXPEDIENTE_ROLES_VALIDAR ?? "admin").split(",").map((rol) => rol.trim()).filter(Boolean);
+const expediente = require("./dominios/expediente")({
+  store, hoyMX, idsEjecutivos, usuarios: USUARIOS,
+  obtenerPadron: () => PADRON,
+  topeResponsable: TOPE_RESPONSABLE, topeAval: TOPE_AVAL, montoRequiereAval: MONTO_REQUIERE_AVAL,
+  comprobanteDomicilioMesesMax: COMPROBANTE_DOMICILIO_MESES_MAX,
+});
+const rutaExpediente = (operacion) => (req, res) => {
+  try {
+    const resultado = operacion(req);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error, errores: resultado.errores ?? [resultado.error], estatus: resultado.estatus ?? null });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[expediente] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la operación del expediente. Intenta de nuevo o avisa a soporte." });
+  }
+};
+const TODOS_LOS_ROLES = requiere("ejecutivo", "direccion", "admin");
+
+app.get("/api/expediente/catalogos", TODOS_LOS_ROLES, rutaExpediente(() => expediente.catalogos()));
+app.get("/api/expedientes", TODOS_LOS_ROLES, rutaExpediente(({ usuario }) => expediente.listado(usuario)));
+// La captura de campo es de la EJECUTIVA (CU-009 §1); dirección/admin la leen.
+app.post("/api/expediente/captura", requiere("ejecutivo"), rutaExpediente(({ body, usuario }) => expediente.registrarCaptura(body, usuario)));
+app.get("/api/expediente/:socio", TODOS_LOS_ROLES, rutaExpediente(({ usuario, params }) => expediente.ficha(usuario, params.socio)));
+app.post("/api/expediente/:socio/documento", TODOS_LOS_ROLES, rutaExpediente(({ params, body, usuario }) => expediente.registrarDocumento(params.socio, body, usuario)));
+// CU-010 · validación de Administración y Finanzas (Ale): solo EXPEDIENTE_ROLES_VALIDAR.
+app.post("/api/expediente/:socio/validar", requiere(...EXPEDIENTE_ROLES_VALIDAR), rutaExpediente(({ params, body, usuario }) => expediente.registrarValidacion(params.socio, body, usuario)));
+
+// ---------- CU-018 · Vista 360 del expediente (solo lectura) ----------
+// La lógica vive en dominios/vista_360.js; aquí solo el pegamento HTTP.
+// Compone dominios ya construidos (riesgo, PLD, ciclos limpios, expediente,
+// garantías) — nunca recalcula nada con lógica propia (CU-018 §6).
+const vista360 = require("./dominios/vista_360")({
+  obtenerPadron: () => PADRON,
+  riesgo, pld, ciclosLimpios, expediente, estadoDeCuentaGarantia,
+  retencionAnios: RETENCION_PLD_ANIOS,
+});
+// Mismos roles que ya ven riesgo/PLD/garantías/ciclos (direccion, admin) —
+// Control Operativo (ejecutivo) queda como pendiente documentado (CU-018 §1,
+// ver dominios/vista_360.js → pendientes()).
+app.get("/api/vista360/:socio", requiere("direccion", "admin"), (req, res) => {
+  try {
+    const resultado = vista360.consolidar(req.usuario, req.params.socio);
+    if (resultado.error) return res.status(resultado.status ?? 400).json({ error: resultado.error });
+    return res.json(resultado);
+  } catch (error) {
+    console.error(`[vista360] ${req.method} ${req.path}: ${error.message}`);
+    return res.status(500).json({ error: "No se pudo completar la Vista 360. Intenta de nuevo o avisa a soporte." });
+  }
+});
+
 // ---------- páginas ----------
 app.get("/", (req, res) => {
   const u = usuarioDe(req);
@@ -7804,6 +8735,13 @@ function datosVivosParaApp(usuario) {
       const soc = String(c.id);
       const devuelve = Math.min(bolsa[soc] || 0, info.liquidado || 0);
       if (devuelve > 0) bolsa[soc] -= devuelve;
+      // CUÁL CUOTA LE TOCA HOY (CU-013/CU-014, sincronización automática al
+      // desembolsar): busca en el plan de pagos ya generado al alta/recrédito
+      // la fila cuya fecha_programada es HOY. Es la misma información que ya
+      // trae `dia` (el día de cobranza de la semana), pero con el número de
+      // cuota exacto — para que "el día que cae cada pago aparece solo en la
+      // app" no dependa de que la ejecutiva cuente a mano en qué cuota va.
+      const cuotaHoy = (c.planPagos || []).find((p) => p.fecha_programada === hoy) || null;
       return {
         id: soc, producto: c.producto,
         saldo: Math.max(0, info.saldoActual + pagoHoy + devuelve),
@@ -7820,6 +8758,12 @@ function datosVivosParaApp(usuario) {
         // ciclos, y la cuota que la ejecutiva guardó a mano en el ciclo
         // anterior se quedaba pegada ganándole a la cuota nueva.
         ciclo: Number(c.ciclo) || 1,
+        // Sincronizado en el mismo acto del alta/recrédito — sin recaptura,
+        // sin volver a subir nada: viaja tal cual se generó.
+        pagare: c.pagare || null,
+        planPagos: c.planPagos || [],
+        sobreDispersion: c.sobreDispersion || null,
+        cuotaDeHoy: cuotaHoy ? cuotaHoy.numero : null,
       };
     });
 }
@@ -7968,6 +8912,8 @@ app.get("/app", paginaRequiere("ejecutivo"), (req, res) => {
   // esté al día aunque el teléfono no tenga señal para el primer sondeo.
   const inyecciones =
     '<script src="/sync.js"></script><script src="/captura-agil.js"></script>' +
+    // CU-009: alta y captura de clienta en campo, sin conexión (expediente).
+    '<script src="/alta-campo.js"></script>' +
     "<script>window.__VIVOS0=" + JSON.stringify(paqueteVivo(req.usuario)) + ";</script>" +
     '<script src="/vivos.js"></script>' +
     // AUTO-CURACIÓN DEL TELÉFONO (Karina, 15-ago: «no encontré lo de la mora en

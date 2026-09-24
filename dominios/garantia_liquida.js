@@ -31,6 +31,7 @@ module.exports = function crearDominioGarantiaLiquida({
   hoyMX,
   garantiaHipotecariaDiasAlerta,
   usuariosAutorizanAjusteManual,
+  usuariosApruebanSolicitudes,
 }) {
   // GARANTÍA LÍQUIDA: CONEXIÓN AUTOMÁTICA AL DESEMBOLSO (10-sep-2026, CU-006,
   // Anexo F §7-8). generarSobreDispersion ya calculaba el 10% retenido desde
@@ -651,6 +652,12 @@ module.exports = function crearDominioGarantiaLiquida({
         entrada: !!mov.entrada,
         monto: Number(mov.monto) || 0,
         tipo: mov.tipo || mov.concepto,
+        // QUIÉN y CÓMO (24-sep-2026, panel "Garantías de hoy" de Karina:
+        // "cuánto de garantía por ejecutivo") — mismo criterio que el
+        // reporte semanal (porQuienCaptura) y que modalidadPagoDeMov.
+        quien: mov.ejecutivo || mov.registradoPor || "—",
+        modalidad: modalidadPagoDeMov(mov),
+        ts: mov.ts || 0,
       };
     });
 
@@ -1163,6 +1170,158 @@ module.exports = function crearDominioGarantiaLiquida({
     const ticket = ticketGarantiaLiquidaH14(mov, disponible, disponibleDespues);
     return { ok: true, movimiento: mov, ticket };  }
 
+  // ---------------------------------------------------------------------
+  // SOLICITUDES DE GARANTÍAS CON APROBACIÓN DE DIRECCIÓN (Karina, 24-sep-2026:
+  // "un botón para solicitar que suelten las garantías donde se le mande la
+  // notificación al panel de la Ing. Monse con el nombre y número de socio,
+  // qué crédito, el monto; así también cuando Alejandra quiera modificar el
+  // saldo, solo se modifique si la Ing. Monse lo aprueba").
+  //
+  // DOS TIPOS de solicitud, UNA sola cola:
+  //   "liberacion" — pedir que se SUELTE (entregue) la garantía guardada de
+  //     una clienta. Aprobarla NO mueve dinero: el dinero solo sale con el
+  //     flujo de entrega que ya existe (movimiento "…entregada" + ticket
+  //     H.14 / hoja de liberación) — la doctrina de la casa: los candados
+  //     duros van en el dinero, la solicitud es el aviso formal.
+  //   "ajuste" — un ajuste manual de saldo pedido por quien NO aprueba
+  //     (Alejandra). Aprobarla SÍ aplica el ajuste en el acto, vía
+  //     registrarAjusteManualGarantia con la SESIÓN de quien aprueba — así
+  //     el movimiento queda autorizado por identidad de sesión, nunca por un
+  //     campo de texto (mismo criterio que puedeAutorizarAjusteManual).
+  //
+  // APPEND-ONLY (mismo patrón que la hoja de liberación): una fila por
+  // solicitud + una fila por resolución; el estado se DERIVA de si existe
+  // resolución con ese folio — nunca se edita ni se borra nada.
+  const REGISTRO_SOLICITUDES_GARANTIA = "solicitudes_garantia";
+  const REGISTRO_RESOLUCION_SOLICITUD = "solicitudes_garantia_resolucion";
+
+  function puedeAprobarSolicitudGarantia(usuario) {
+    return Boolean(usuario) && usuariosApruebanSolicitudes.includes(String(usuario.id || "").toLowerCase());
+  }
+
+  function solicitudesGarantiaConEstado() {
+    const porFolio = {};
+    for (const r of store.registro(REGISTRO_RESOLUCION_SOLICITUD)) porFolio[r.folio] = r;
+    return store.registro(REGISTRO_SOLICITUDES_GARANTIA).map((s) => {
+      const r = porFolio[s.folio] || null;
+      return { ...s, estado: r ? (r.decision === "aprobar" ? "aprobada" : "rechazada") : "pendiente", resolucion: r };
+    });
+  }
+
+  function crearSolicitudGarantia({ tipo, socio, producto, monto, tipoGarantia, direccion, motivo }, usuario) {
+    if (tipo !== "liberacion" && tipo !== "ajuste") {
+      return { error: "El tipo de solicitud debe ser \"liberacion\" o \"ajuste\".", status: 400 };
+    }
+    const socioLimpio = String(socio ?? "").replace(/[\s\-.]/g, "").trim();
+    if (!socioLimpio) return { error: "Falta el número de socio.", status: 400 };
+    const cred = buscarCreditoDeSocia(socioLimpio, producto);
+    if (!cred) return { error: "No encuentro un crédito de esa clienta con ese producto.", status: 400 };
+
+    const { disponible: guardadaLiquida } = garantiaLiquidaDisponible(usuario, socioLimpio, cred.producto);
+    const { disponible: guardadaA } = garantiaADisponible(usuario, socioLimpio, cred.producto);
+
+    let montoNum = Number(monto);
+    let camposAjuste = {};
+    if (tipo === "ajuste") {
+      // Mismas validaciones que el ajuste directo — una solicitud que quien
+      // aprueba no podría aplicar tal cual no debe entrar a la cola.
+      if (!TIPOS_GARANTIA_AJUSTE_MANUAL.includes(tipoGarantia)) {
+        return { error: "El tipo de garantía debe ser \"Garantía Líquida\" o \"Garantía A\".", status: 400 };
+      }
+      if (direccion !== "entrada" && direccion !== "salida") {
+        return { error: "La dirección del ajuste debe ser \"entrada\" o \"salida\".", status: 400 };
+      }
+      if (!(montoNum > 0)) return { error: "El monto del ajuste debe ser mayor a cero.", status: 400 };
+      const justificacion = String(motivo ?? "").trim();
+      if (justificacion.length < JUSTIFICACION_MINIMA_AJUSTE) {
+        return { error: `La justificación es obligatoria (mínimo ${JUSTIFICACION_MINIMA_AJUSTE} caracteres): la Ing. Monse tiene que poder entender qué está aprobando.`, status: 400 };
+      }
+      camposAjuste = { tipoGarantia, direccion };
+    } else {
+      // Liberación: sin monto explícito se pide TODO lo guardado (Líquida +
+      // A, cada una con su cifra en la fila); sin nada guardado no hay nada
+      // que soltar.
+      if (!(montoNum > 0)) montoNum = Math.round((guardadaLiquida + guardadaA) * 100) / 100;
+      if (!(montoNum > 0)) return { error: "Esta clienta no tiene garantía guardada que soltar en ese crédito.", status: 400 };
+    }
+
+    const yaPendiente = solicitudesGarantiaConEstado().find((s) => s.estado === "pendiente"
+      && s.tipo === tipo && s.socio === socioLimpio && norm(s.producto || "") === norm(cred.producto));
+    if (yaPendiente) {
+      return {
+        error: "Ya hay una solicitud de " + (tipo === "liberacion" ? "liberación" : "ajuste")
+          + " pendiente para esa clienta y crédito (folio " + yaPendiente.folio
+          + ") — espera a que la Ing. Monse la resuelva.",
+        status: 400,
+      };
+    }
+
+    const fecha = hoyMX();
+    const folio = "SG-" + fecha.slice(8, 10) + fecha.slice(5, 7) + "-"
+      + String(store.registro(REGISTRO_SOLICITUDES_GARANTIA).length + 1).padStart(3, "0");
+    const fila = store.agregarRegistro(REGISTRO_SOLICITUDES_GARANTIA, {
+      folio, tipo, fecha,
+      socio: socioLimpio, nombre: cred.nombre, centro: cred.centro || null, producto: cred.producto,
+      monto: Math.round(montoNum * 100) / 100,
+      guardadaLiquida, guardadaA,
+      motivo: String(motivo ?? "").trim() || null,
+      ...camposAjuste,
+      solicitadoPor: (usuario && usuario.nombre) || null,
+      solicitadoPorId: (usuario && usuario.id) || null,
+    });
+    return { ok: true, solicitud: { ...fila, estado: "pendiente", resolucion: null } };
+  }
+
+  function listarSolicitudesGarantia(usuario) {
+    const solicitudes = solicitudesGarantiaConEstado().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    return {
+      solicitudes: solicitudes.slice(0, 100),
+      pendientes: solicitudes.filter((s) => s.estado === "pendiente").length,
+      puedeAprobar: puedeAprobarSolicitudGarantia(usuario),
+      aprueban: usuariosApruebanSolicitudes,
+    };
+  }
+
+  function resolverSolicitudGarantia({ folio, decision, nota }, usuario) {
+    if (!puedeAprobarSolicitudGarantia(usuario)) {
+      return { error: "Solo la Ing. Monse puede aprobar o rechazar solicitudes de garantías (Karina, 24-sep-2026) — entra con esa cuenta para resolverla.", status: 403 };
+    }
+    if (decision !== "aprobar" && decision !== "rechazar") {
+      return { error: "La decisión debe ser \"aprobar\" o \"rechazar\".", status: 400 };
+    }
+    const solicitud = solicitudesGarantiaConEstado().find((s) => String(s.folio) === String(folio));
+    if (!solicitud) return { error: "No encuentro una solicitud con ese folio.", status: 400 };
+    if (solicitud.estado !== "pendiente") {
+      return { error: "Esa solicitud ya está " + solicitud.estado + " — no se resuelve dos veces.", status: 400 };
+    }
+
+    // El AJUSTE aprobado se aplica en el acto con la sesión de quien aprueba.
+    // Si el ajuste ya no procede (p. ej. el guardado cambió y una salida
+    // excede lo disponible), NO se registra la resolución: la solicitud
+    // sigue pendiente y quien aprueba ve el porqué exacto.
+    let resultadoAjuste = null;
+    if (decision === "aprobar" && solicitud.tipo === "ajuste") {
+      resultadoAjuste = registrarAjusteManualGarantia({
+        socio: solicitud.socio, producto: solicitud.producto,
+        tipoGarantia: solicitud.tipoGarantia, direccion: solicitud.direccion,
+        monto: solicitud.monto,
+        motivo: (solicitud.motivo || "Ajuste solicitado") + " — solicitud " + solicitud.folio + " de "
+          + (solicitud.solicitadoPor || "—") + ", aprobada por " + usuario.nombre + ".",
+      }, usuario);
+      if (resultadoAjuste.error) return resultadoAjuste;
+    }
+
+    const resolucion = store.agregarRegistro(REGISTRO_RESOLUCION_SOLICITUD, {
+      folio: String(solicitud.folio), decision, nota: String(nota ?? "").trim() || null,
+      fecha: hoyMX(), por: usuario.nombre, porId: usuario.id,
+    });
+    return {
+      ok: true,
+      solicitud: { ...solicitud, estado: decision === "aprobar" ? "aprobada" : "rechazada", resolucion },
+      resultadoAjuste,
+    };
+  }
+
   return {
     registrarGarantiaLiquidaAlDesembolsar,
     garantiaLiquidaDisponible,
@@ -1184,5 +1343,9 @@ module.exports = function crearDominioGarantiaLiquida({
     alertasPlazoRegresoHojaLiberacion,
     registrarAjusteManualGarantia,
     validarSalidaAnticipadaGarantiaLiquida,
+    movimientosDeGarantiaEntre,
+    crearSolicitudGarantia,
+    listarSolicitudesGarantia,
+    resolverSolicitudGarantia,
   };
 };

@@ -17,6 +17,7 @@ const usePg = !!process.env.DATABASE_URL;
 
 let pool = null;
 const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambios: [], sesiones: {}, ajustes: [],
+  solicitudes: [], config: {},
   // Gestión de renovaciones: en qué va cada clienta que está por terminar
   // (Pendiente, Contactada, Renovó, Solo recuperación…). Vivía en el
   // localStorage del teléfono junto con la captura del día, así que al
@@ -24,14 +25,14 @@ const mem = { snapshots: {}, movimientos: [], padron: [], padronBase: [], cambio
   // (lo reportó Nery el 19-ago). Append-only, como los ajustes: cada marca
   // se agrega encima y queda quién la puso y cuándo.
   renov: [],
-  // REGISTROS APPEND-ONLY GENÉRICOS (11-sep-2026, portado junto con CU-006
-  // Garantías: dominios/garantia_liquida.js lo usa para su propia bitácora).
-  // Cada CU de cumplimiento necesita su propio rastro inmutable — mismo
-  // principio que padron_cambios: nunca se edita ni se borra una fila, el
-  // estado vigente se DERIVA de la última fila. En vez de una tabla y un
-  // archivo por CU, todos viven aquí: `registros[nombre]` es un arreglo de
-  // filas en orden de llegada. En archivos: data/registro_<nombre>.json; en
-  // Postgres: tabla `registros` (nombre, data, ts).
+  // REGISTROS APPEND-ONLY GENÉRICOS (11-sep-2026). Cada CU de cumplimiento
+  // (bitácora de riesgo CU-016, alertas PLD CU-017, ciclos limpios CU-019,
+  // solicitudes ARCO CU-015, expediente CU-009/010) necesita su propio rastro
+  // inmutable — mismo principio que padron_cambios: nunca se edita ni se
+  // borra una fila, el estado vigente se DERIVA de la última fila. En vez de
+  // una tabla y un archivo por CU, todos viven aquí: `registros[nombre]` es
+  // un arreglo de filas en orden de llegada. En archivos: data/registro_<nombre>.json;
+  // en Postgres: tabla `registros` (nombre, data, ts).
   registros: {} };
 
 // ¿ENTRA O SALE ESE DINERO? Desde el 6-ago el movimiento lo trae escrito
@@ -138,6 +139,17 @@ function aplicarCambios(base, cambios) {
         // replay nunca lo aplicaba: quedaba en la bitácora sin efecto. Con esta
         // línea, los capturados ese tiempo se aplican solos al re-reproducirse.
         if (k.plazo != null && Number.isFinite(Number(k.plazo))) { cl.plazo_anterior = cl.plazo || null; cl.plazo = Number(k.plazo); }
+        // Documentos de renovación (CU-007, confirmado 25-ago: INE + comprobante
+        // de domicilio siempre). Solo se registra que se capturaron y cuándo — el
+        // sistema todavía no decide si un documento vencido debe bloquear la
+        // renovación (pendiente, CU-007 §10.6). Se fusiona, no se reemplaza: una
+        // segunda captura no borra la fecha del documento que no se volvió a tocar.
+        if (k.documentosRenovacion) cl.documentosRenovacion = Object.assign({}, cl.documentosRenovacion, k.documentosRenovacion);
+        // Vigencia de la garantía hipotecaria (21-sep-2026, audio de Karina +
+        // pedido de Carlos: avisar 3 días antes de que venza). Mismo criterio
+        // que documentosRenovacion: se fusiona, no se reemplaza, y una
+        // segunda captura no borra la fecha si esta vez no se volvió a mandar.
+        if (k.garantiaHipotecaria) cl.garantiaHipotecaria = Object.assign({}, cl.garantiaHipotecaria, k.garantiaHipotecaria);
         // Etiqueta (Recuperación, Renovación…). La cadena vacía SÍ cuenta: es
         // como se quita. Por eso se compara contra undefined y no con un if
         // truthy — con un truthy nunca se podría borrar.
@@ -145,6 +157,13 @@ function aplicarCambios(base, cambios) {
           cl.etiqueta = k.etiqueta || null;
           cl.etiqueta_por = c.por || null; cl.etiqueta_fecha = c.fecha || null;
         }
+        // ARCO (CU-015): la "cancelación" de datos personales es SUSTITUIR el
+        // nombre por un marcador, nunca quitar el renglón — saldos, historial y
+        // bitácora conservan su integridad. No se guarda el nombre anterior:
+        // eso anularía la anonimización. La fila del alta original sigue en
+        // esta misma bitácora como rastro regulatorio (LFPIORPI).
+        if (k.nombre) cl.nombre = String(k.nombre);
+        if (k.anonimizada) { cl.anonimizada = true; cl.anonimizada_fecha = c.fecha || null; cl.anonimizada_por = c.por || null; }
         cl.ajuste_motivo = c.motivo || null; cl.ajuste_por = c.por || null; cl.ajuste_fecha = c.fecha || null;
       }
     }
@@ -176,6 +195,15 @@ async function init() {
     // Gestión de renovaciones por crédito. Append-only: el estado vigente es
     // el último de cada clave, y el historial queda para saber quién movió qué.
     await pool.query("CREATE TABLE IF NOT EXISTS renov_gestion (id serial PRIMARY KEY, data jsonb, ts bigint)");
+    // Sobres/segregación de funciones (Regla K.2, CU-011/012/013, reconstruido
+    // 09-sep-2026): cada solicitud es un registro MUTABLE — folio fijo, estado
+    // que avanza (solicitada→autorizada→dispersada→entregada→en_custodia) y se
+    // ACTUALIZA en el mismo renglón (no se re-inserta), a diferencia de
+    // renov_gestion que es puro historial append-only.
+    await pool.query("CREATE TABLE IF NOT EXISTS solicitudes_credito (folio text PRIMARY KEY, data jsonb, ts bigint)");
+    // Configuración runtime (por ahora solo la escalera de autorización K.2,
+    // vacía por defecto — ver Regla K.2 y PENDIENTES §28, ESC-01 sin confirmar).
+    await pool.query("CREATE TABLE IF NOT EXISTS configuracion (clave text PRIMARY KEY, data jsonb)");
     // Historial de snapshots: cada vez que un sync REEMPLAZA la foto de un día,
     // la versión anterior se archiva aquí (append-only). Así una captura con
     // fecha equivocada nunca destruye cobranza real: siempre es recuperable.
@@ -183,13 +211,12 @@ async function init() {
     // Sesiones persistentes: un redespliegue NO desloguea a las ejecutivas a
     // media jornada (antes vivían solo en memoria y cada deploy las mataba).
     await pool.query("CREATE TABLE IF NOT EXISTS sesiones (sid text PRIMARY KEY, usuario text, creada bigint)");
-    const se = await pool.query("SELECT sid, usuario, creada FROM sesiones").catch(() => ({ rows: [] }));
-    for (const r of se.rows) mem.sesiones[r.sid] = { usuario: r.usuario, creada: Number(r.creada) };
-    // Registros append-only genéricos por CU (ver `mem.registros`), portado
-    // junto con CU-006 Garantías.
+    // Registros append-only genéricos por CU (ver `mem.registros`).
     await pool.query("CREATE TABLE IF NOT EXISTS registros (id serial PRIMARY KEY, nombre text, data jsonb, ts bigint)");
     const rg = await pool.query("SELECT nombre, data FROM registros ORDER BY ts, id").catch(() => ({ rows: [] }));
     for (const r of rg.rows) (mem.registros[r.nombre] = mem.registros[r.nombre] || []).push(r.data);
+    const se = await pool.query("SELECT sid, usuario, creada FROM sesiones").catch(() => ({ rows: [] }));
+    for (const r of se.rows) mem.sesiones[r.sid] = { usuario: r.usuario, creada: Number(r.creada) };
 
     const s = await pool.query("SELECT ejecutivo, fecha, data, ts, recibido FROM snapshots");
     for (const r of s.rows) {
@@ -211,6 +238,10 @@ async function init() {
     mem.ajustes = aj.rows.map((r) => r.data);
     const gr = await pool.query("SELECT data FROM renov_gestion ORDER BY ts");
     mem.renov = gr.rows.map((r) => r.data);
+    const sc = await pool.query("SELECT data FROM solicitudes_credito ORDER BY ts");
+    mem.solicitudes = sc.rows.map((r) => r.data);
+    const cf = await pool.query("SELECT data FROM configuracion WHERE clave=$1", ["global"]).catch(() => ({ rows: [] }));
+    mem.config = (cf.rows[0] && cf.rows[0].data) || {};
     const cb = await pool.query("SELECT data FROM padron_cambios ORDER BY ts");
     mem.cambios = cb.rows.map((r) => r.data);
 
@@ -240,9 +271,10 @@ async function init() {
     try { mem.cambios = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "padron_cambios.json"), "utf8")); } catch { mem.cambios = []; }
     try { mem.ajustes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "cobranza_ajustes.json"), "utf8")); } catch { mem.ajustes = []; }
     try { mem.renov = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "renov_gestion.json"), "utf8")); } catch { mem.renov = []; }
+    try { mem.solicitudes = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "solicitudes.json"), "utf8")); } catch { mem.solicitudes = []; }
+    try { mem.config = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "configuracion.json"), "utf8")); } catch { mem.config = {}; }
     try { mem.sesiones = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "sesiones.json"), "utf8")); } catch { mem.sesiones = {}; }
-    // Registros append-only genéricos: un archivo por nombre,
-    // data/registro_<nombre>.json (portado junto con CU-006 Garantías).
+    // Registros append-only genéricos: un archivo por nombre, data/registro_<nombre>.json.
     try {
       for (const f of fs.readdirSync(DATA_DIR)) {
         const m = /^registro_([a-z0-9_]+)\.json$/.exec(f);
@@ -367,9 +399,8 @@ function toco() { rev++; }
 
 module.exports = {
   revision() { return rev; },
-  // Nombres de los registros append-only cargados (portado junto con CU-006
-  // Garantías; ARCO exporta todos los que mencionen a la persona, sin tener
-  // que conocerlos por nombre).
+  // Nombres de los registros append-only cargados (ARCO exporta todos los que
+  // mencionen a la persona, sin tener que conocerlos por nombre).
   nombresRegistros() { return Object.keys(mem.registros); },
   init,
   // Para que el servidor use EXACTAMENTE la misma regla al guardar un
@@ -454,6 +485,45 @@ module.exports = {
         .catch((e) => console.error("[store] renov:", e.message));
     } else escribirJSON("renov_gestion.json", mem.renov);
     return g;
+  },
+
+  // ---------- Sobres / segregación de funciones (K.2) ----------
+  // Lista completa (para listados/filtros del lado del servidor).
+  solicitudes() { return mem.solicitudes; },
+  agregarSolicitud(s) {
+    toco();
+    mem.solicitudes.push(s);
+    if (usePg) {
+      pool.query("INSERT INTO solicitudes_credito (folio, data, ts) VALUES ($1,$2,$3)", [s.folio, s, s.solicitadaTs || Date.now()])
+        .catch((e) => console.error("[store] solicitud:", e.message));
+    } else escribirJSON("solicitudes.json", mem.solicitudes);
+    return s;
+  },
+  // Fusiona `patch` sobre la solicitud existente (folio fijo) y persiste el
+  // renglón completo — igual que corregirMovimiento/setMovimientoAnulado.
+  actualizarSolicitud(folio, patch) {
+    toco();
+    const s = mem.solicitudes.find((x) => x.folio === folio);
+    if (!s) return null;
+    Object.assign(s, patch);
+    if (usePg) {
+      pool.query("UPDATE solicitudes_credito SET data=$2 WHERE folio=$1", [folio, s])
+        .catch((e) => console.error("[store] actualizar solicitud:", e.message));
+    } else escribirJSON("solicitudes.json", mem.solicitudes);
+    return s;
+  },
+  // Configuración runtime (hoy solo la escalera de autorización K.2).
+  configuracion() { return mem.config; },
+  guardarConfiguracion(cfg) {
+    toco();
+    mem.config = cfg || {};
+    if (usePg) {
+      pool.query(
+        "INSERT INTO configuracion (clave, data) VALUES ('global',$1) ON CONFLICT (clave) DO UPDATE SET data=$1",
+        [mem.config]
+      ).catch((e) => console.error("[store] configuracion:", e.message));
+    } else escribirJSON("configuracion.json", mem.config);
+    return mem.config;
   },
 
   agregarAjusteCobranza(a) {
@@ -681,11 +751,10 @@ module.exports = {
   },
   cambiosPadron() { return mem.cambios; },
 
-  // Registros append-only genéricos (ver `mem.registros`), portado junto con
-  // CU-006 Garantías. `registro(nombre)` devuelve las filas tal cual se
-  // agregaron (orden de llegada); nunca hay editar/borrar: el estado vigente
-  // se deriva de la última fila, igual que el padrón se deriva de
-  // padron_cambios.
+  // Registros append-only genéricos (ver `mem.registros`). `registro(nombre)`
+  // devuelve las filas tal cual se agregaron (orden de llegada); nunca hay
+  // editar/borrar: el estado vigente se deriva de la última fila, igual que
+  // el padrón se deriva de padron_cambios.
   registro(nombre) { return mem.registros[nombre] || []; },
   agregarRegistro(nombre, fila) {
     if (!/^[a-z0-9_]+$/.test(String(nombre))) throw new Error("nombre de registro inválido: " + nombre);

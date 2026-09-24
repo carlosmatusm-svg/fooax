@@ -28,15 +28,81 @@ por ejecutiva en `apps/`, tablero de dirección en `public/tablero.html`.
 
    ```bash
    D=/tmp/fooax-prueba; rm -rf $D; mkdir -p $D; cp data/padron.json $D/
+   cp data/padron_corte.json $D/ 2>/dev/null || true
    printf '{}' > $D/snapshots.json; printf '[]' > $D/movimientos.json
    printf '[]' > $D/padron_cambios.json; printf '{}' > $D/sesiones.json
    DATA_DIR=$D PORT=3899 node server.js &   # y en otra terminal:
    node tests/bateria_arqueo.js
    ```
 
+   `padron_corte.json` se copia también (2-sep-2026): sin él, `aplicarCorteDeLaPlantilla()`
+   nunca encuentra la plantilla al arrancar, ningun cambio de corte queda marcado
+   `dePlantilla`, y la prueba "la cartera avisa del corte adelantado..." (seccion 71)
+   falla siempre en este entorno -- no es un bug de codigo, es que faltaba este archivo
+   en la carpeta desechable.
+
    El padrón se copia porque la batería lo necesita para arrancar. Al terminar, el
    servidor de trabajo y sus datos siguen intactos. Si algún día hay que vaciar
    `data/` de verdad, **respaldar primero** (`archivo.bak-FECHA`).
+
+3) **Pruebas por dominio (`tests/<dominio>.js`)** — cada CU construido en `dominios/`
+   trae su prueba propia contra el servidor local con `DATA_DIR` desechable (misma
+   receta que la batería; ver la cabecera de cada archivo). Con `DATA_DIR_PRUEBA=$D`
+   también verifican el rastro en disco. Desde el 11-sep-2026: `riesgo_bitacora`
+   (CU-016), `pld_acumulacion` (CU-017), `ciclos_limpios` (CU-019),
+   `arco_retencion` (CU-015), `expediente_captura` (CU-009),
+   `expediente_validacion` (CU-010), además de las ya existentes
+   (`garantia_liquida`, `sincronizacion_desembolso`, `sobres_segregacion`).
+   Se corren una por servidor limpio o en secuencia; la batería siempre aparte.
+
+## Registros append-only por CU (11-sep-2026)
+
+`store.registro(nombre)` / `store.agregarRegistro(nombre, fila)`: un solo mecanismo
+para los rastros inmutables que exigen los CU de cumplimiento (bitácora de riesgo,
+alertas PLD, ciclos limpios, solicitudes ARCO, expediente). En archivos viven en
+`data/registro_<nombre>.json` (una carpeta `DATA_DIR` desechable los crea sola); en
+Postgres, tabla `registros`. Nunca se edita ni se borra una fila: el estado vigente
+se DERIVA de la última, igual que el padrón se deriva de `padron_cambios`. Si un CU
+nuevo necesita "guardar y poder cambiar", la respuesta es una fila nueva, no un update.
+
+## Reducir dependencia del monolito `server.js` (arrancado 10-sep-2026)
+
+`server.js` (8300+ líneas) mezcla en un solo archivo: rutas HTTP, acceso a datos
+(`store.js`/Postgres) y la lógica de negocio pura (cálculos de garantías, mora,
+amortización). Reescribirlo de golpe es riesgo alto en un sistema financiero en
+producción sin CI más allá de `smoke.js`/`bateria_arqueo.js`. En su lugar, se
+adopta un patrón "strangler fig": sacar la lógica de negocio pura a módulos
+propios, uno a la vez, cada vez que de todos modos se está tocando ese dominio —
+nunca como un refactor grande aparte.
+
+- **Carpeta `dominios/`** (nueva): un archivo por dominio de negocio
+  (`dominios/garantia_liquida.js`, y así sucesivamente conforme se toquen mora,
+  amortización, etc.). Solo funciones puras o casi-puras: reciben datos, regresan
+  datos, sin abrir `require('http')` ni definir rutas. Pueden llamar a
+  `store.js` si su rol es justo eso (ej. `store.agregarMovimiento`), pero no
+  conocen `req`/`res`.
+- **`server.js` se queda con el "pegamento"**: parsear el request, validar
+  forma básica, llamar a la función del dominio correspondiente, mandar la
+  respuesta. Ninguna regla de cálculo nueva se escribe directo en un handler de
+  `server.js` — si es lógica de negocio, va a `dominios/`.
+- **Cuándo extraer:** oportunista, no una tarea aparte. Cada vez que se
+  construye o corrige un CU, se extrae ESE dominio como parte del mismo PR (o
+  un PR de limpieza inmediato sobre la misma rama, antes de mergear). No se
+  hace una extracción masiva de todo `server.js` de una sola vez.
+- **Checklist de toda extracción (es refactor puro, NUNCA cambia comportamiento):**
+  1. Mover las funciones tal cual (mismos nombres, misma firma) a
+     `dominios/<nombre>.js`; `server.js` las importa con `require(...)`.
+  2. `node --check server.js` y `node --check dominios/<nombre>.js`.
+  3. Correr primero la prueba unitaria del dominio si existe (contra el módulo
+     directo, sin levantar servidor — más rápido y aísla el dominio).
+  4. Correr `smoke.js` + `bateria_arqueo.js` (`DATA_DIR` desechable) completos
+     y confirmar CERO cambio de números — si algo cambia, es que no fue un
+     refactor puro y hay que revisar antes de commitear.
+  5. El PR dice explícitamente "refactor sin cambio de comportamiento" y cita
+     los resultados de las pruebas.
+- **Beneficio esperado:** cada dominio se puede probar y entender sin arrancar
+  el servidor completo, y `server.js` deja de crecer con lógica de cálculo
+  nueva — solo enruta.
 
 ## Gotchas que ya nos mordieron (no reaprender)
 

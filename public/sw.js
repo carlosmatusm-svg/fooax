@@ -8,18 +8,18 @@
 // navegador las rechaza y muestra "sin conexión". Ahora toda respuesta se
 // guarda "limpia" (sin bandera de redirección) y cada pieza se cachea por
 // separado (antes, si una fallaba, el cache quedaba vacío).
-const CACHE = "fooax-v23"; // v23: centavos cuadran (±49¢) y adiós al arqueo repetido del día siguiente
+const CACHE = "fooax-v24"; // v24: alta de clienta en campo sin conexión (CU-009, alta-campo.js), sobre v23 (centavos cuadran)
 
 // LA LÓGICA VIVA NUNCA SE SIRVE VIEJA (Karina, 15-ago: «no encontré lo de la
 // mora en la app de Neri»). Estos archivos son el cerebro que baja del
 // servidor: si se sirven del cache, una mejora tarda UNA ABIERTA COMPLETA en
 // llegar al teléfono, y quien la busca no la encuentra. Van a la red primero;
 // si no hay señal, entonces sí sale la copia guardada.
-const SIEMPRE_FRESCO = ["/vivos.js", "/sync.js", "/captura-agil.js"];
+const SIEMPRE_FRESCO = ["/vivos.js", "/sync.js", "/captura-agil.js", "/alta-campo.js"];
 
 // La página pide activar la versión nueva de inmediato (auto-actualización).
 self.addEventListener("message", (e) => { if (e.data === "skip") self.skipWaiting(); });
-const ASSETS = ["/login.html", "/sync.js", "/captura-agil.js", "/img/logo-fooax.jpg", "/manifest.json"];
+const ASSETS = ["/login.html", "/sync.js", "/captura-agil.js", "/alta-campo.js", "/img/logo-fooax.jpg", "/manifest.json"];
 
 // Reconstruye la respuesta para que el cache la acepte al navegar sin señal.
 function limpia(r) {

@@ -3492,8 +3492,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const sw78 = await (await fetch(U + "/sw.js")).text();
   ok("el service worker ya NO sirve la lógica viva desde el cache",
     /SIEMPRE_FRESCO/.test(sw78) && /"\/vivos\.js"/.test(sw78), "sigue cacheando vivos.js");
+  // v23 = la vigente al escribir esto; cualquier versión POSTERIOR también vale
+  // (cada pieza nueva en la app sube la versión, p. ej. v24 = alta-campo.js, CU-009).
+  const vSW = Number((/fooax-v(\d+)/.exec(sw78) || [])[1] || 0);
   ok("y su versión de cache cambió, para que los teléfonos la tomen",
-    /fooax-v23/.test(sw78), "no se movió la versión del cache");
+    vSW >= 23, "no se movió la versión del cache (v" + vSW + ")");
   const vjs78 = await (await fetch(U + "/vivos.js")).text();
   ok("vivos.js trae la tarjeta de mora y sus botones de semana",
     /__pintarMora/.test(vjs78) && /__moraVer/.test(vjs78) && /miMoraBox/.test(vjs78),
@@ -3620,9 +3623,9 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     autorizadoA: "CLIENTA TESORERIA" }));
   ok("la autorización CON clienta y monto entregado SÍ entra", !a102.error,
     JSON.stringify(a102).slice(0, 80));
-  // CU-006 (motivo obligatorio al sacar la garantía antes de tiempo, Regla H.14):
-  // este crédito sigue vigente, así que la salida ya no procede sin motivo —
-  // se anota uno explícito, mismo monto y mismo resultado esperado.
+  // CU-006 RESUELTO 21-sep-2026 (motivo obligatorio al sacar la garantía antes
+  // de tiempo): este crédito sigue vigente, así que la salida ya no procede
+  // sin motivo — se anota uno explícito, mismo monto y mismo resultado.
   const g102 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 850,
     concepto: "Garantía devuelta", socio: "70000009102", producto: "Grupal-Basico",
     motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
@@ -3737,14 +3740,23 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // LA GARANTÍA: obligada y linkeada (Karina, 24-ago). El TOPE se quitó ese
   // mismo día: las clientas traen garantía de ANTES del sistema, así que la
   // entrega mayor a lo registrado PASA (anotada) — se prueba al final del ciclo.
+  //
+  // CORRECCIÓN 10-sep-2026 (CU-006, Anexo F §7-8): el alta de esta clienta
+  // (arriba, importe 4000) ahora retiene SOLA $400 de Garantía Líquida al
+  // desembolsar — antes ese 10% se calculaba (sobreDispersion.garantia) pero
+  // NUNCA se registraba en ningún lado; el guardado solo veía lo que Neri
+  // capturaba a mano (los $850 del sync). Los números de abajo suben
+  // exactamente esos $400 respecto a lo que este archivo esperaba antes de
+  // hoy — no es un error de la prueba ni del candado, es la retención
+  // automática haciendo lo que tenía que hacer desde CU-013/CU-014.
   const gSinX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 100, concepto: "sin clienta" });
   ok("la garantía entregada SIN clienta se rechaza (obliga a elegir a quién)",
     gSinX2.status === 400, "status " + gSinX2.status);
   const dgX2 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
   ok("el desglose del crédito dice la garantía guardada (ya neteada con la entrega)",
-    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 0,
-    "guardada=" + dgX2.garantiaGuardada + " (junto 850, se le entregaron 850)");
+    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 400,
+    "guardada=" + dgX2.garantiaGuardada + " (junto 850 capturados + 400 retenidos solos al desembolso, se le entregaron 850)");
   // LA GARANTÍA COBRADA: obligada y linkeada (Karina, 24-ago: «mismo caso»).
   const gcSin = await mov102({ tipo: "Garantía", monto: 300, concepto: "garantía sin clienta" });
   ok("la GARANTÍA cobrada sin clienta se rechaza (mismo caso que la liquidación)",
@@ -3754,26 +3766,23 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("con clienta entra y se linkea a su crédito", !gcOk.error, JSON.stringify(gcOk).slice(0, 70));
   const dgTras = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
-  ok("y le SUMA a su garantía guardada (estaba en 0, ahora $300)",
-    dgTras.ok && dgTras.garantiaGuardada === 300, "guardada=" + dgTras.garantiaGuardada);
-  // CU-006 (motivo obligatorio al sacar la garantía antes de tiempo, Regla H.14):
-  // este crédito sigue vigente (no ha cerrado/liquidado), así que ambas salidas
-  // de abajo ya necesitan su motivo explícito — mismos montos, mismo resultado.
+  ok("y le SUMA a su garantía guardada (estaba en 400 —la retención automática—, ahora $700)",
+    dgTras.ok && dgTras.garantiaGuardada === 700, "guardada=" + dgTras.garantiaGuardada);
+  // CU-006 RESUELTO 21-sep-2026 (motivo obligatorio al sacar la garantía antes
+  // de tiempo): este crédito sigue vigente (no ha cerrado/liquidado), así que
+  // ambas salidas de abajo ya necesitan su motivo explícito — mismos montos,
+  // mismo resultado esperado.
   const gEnt2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 300,
     concepto: "se le regresa", socio: "70000009102", producto: "Grupal-Basico",
     motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
   ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",
     !gEnt2.error, JSON.stringify(gEnt2).slice(0, 60));
-  // CU-006/CU-022 Regla H.14 (candado antiduplicado, resuelto después del
-  // 24-ago): el tope que se había quitado ese día quedó superado por este
-  // candado — ya NO se puede sacar más garantía de la que hay disponible,
-  // sin importar que la clienta "trajera garantía de antes". Con $0
-  // disponibles en este punto del ciclo, la salida de $400 se rechaza.
-  const gMasX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 400,
+  const gMasX2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 400,
     concepto: "trae garantía de antes", socio: "70000009102", producto: "Grupal-Basico",
-    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." });
-  ok("entregar MÁS de lo disponible ya se rechaza (candado antiduplicado H.14)",
-    gMasX2.status === 400, "status " + gMasX2.status);
+    motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
+  ok("entregar MÁS de lo registrado PASA, libre y sin nota (módulo no contratado)",
+    !gMasX2.error && !(gMasX2.movimiento || {}).notaGarantia,
+    JSON.stringify(gMasX2).slice(0, 70));
   const dgPiso = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
   ok("y el guardado registrado no se va a negativo: queda en 0",
@@ -5628,9 +5637,9 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
         socio: "78000000020", producto: "Grupal-Basico", metodo: "efectivo" }) });
     await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(cm),
       body: JSON.stringify({ id: "78000000020", producto: "Grupal-Basico", saldo: 0, motivo: "liquidó (prueba)" }) });
-    // CU-006 (motivo obligatorio al sacar la garantía antes de tiempo, Regla
-    // H.14): el ajuste de saldo a 0 (arriba) NO marca el crédito como
-    // BAJA/inactivo — elegibilidadLiberacionGarantia() todavía lo ve
+    // CU-006 RESUELTO 21-sep-2026 (motivo obligatorio al sacar la garantía
+    // antes de tiempo): el ajuste de saldo a 0 (arriba) NO marca el crédito
+    // como BAJA/inactivo — elegibilidadLiberacionGarantia() todavía lo ve
     // "vigente", así que esta salida ya necesita su motivo explícito.
     const e1 = await j(await fetch(U + "/api/movimiento", { method: "POST", headers: H(cm),
       body: JSON.stringify({ tipo: "Garantía líquida entregada", monto: 200, concepto: "se le regresa",
@@ -5686,6 +5695,96 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   const cen99b = await j(await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
     body: JSON.stringify({ nombre: "CENTRO RENACIDO", numero: "89", dia: "LUNES", ejecutivo: "Neri" }) }));
   ok("y su número queda LIBRE para un centro de verdad", cen99b.ok === true, JSON.stringify(cen99b).slice(0, 70));
+  console.log("\n— 103. DOCUMENTOS DE RENOVACIÓN Y CICLOS CUMPLIDOS (CU-007) —");
+  // Documentos "actualizados" al renovar = INE + comprobante de domicilio
+  // (nota de Karina en Drive, 24-ago-2026, confirmado en CU-007 §2). Aquí solo
+  // se prueba que el sistema los registra con fecha y motivo, y que el ciclo
+  // (contador que ya existía desde el 15-ago para re-crédito) se puede
+  // consultar junto con ellos. El candado de BLOQUEAR la renovación por
+  // documento vencido sigue sin definir (CU-007 §10.6) — no se construye aquí.
+  const ID103 = "70000000096", PROD103 = "Credito Renovacion Test";
+  await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, nombre: "RENOVACION TEST", producto: PROD103, centro: "CENTRO BATERIA", ejecutivo: "Neri", saldo: 5000, cuota: 500 }) }));
+  const qs103 = "id=" + ID103 + "&producto=" + encodeURIComponent(PROD103);
+  let dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ce), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "Renovación de prueba" }) }));
+  ok("la ejecutiva NO puede capturar documentos de renovación (403)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, motivo: "Renovación de prueba" }) }));
+  ok("sin comprobante de domicilio se rechaza (los dos son siempre obligatorios)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "" }) }));
+  ok("sin motivo se rechaza (queda en la bitácora)", !!dr103.error, JSON.stringify(dr103).slice(0, 60));
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({ id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "Renovación de prueba, documentos vigentes" }) }));
+  ok("Dirección sí puede capturar los documentos de renovación", dr103.ok === true && !!(dr103.clienta || {}).documentosRenovacion, JSON.stringify(dr103).slice(0, 80));
+  const est103 = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("el estado de renovación trae el ciclo (1, todavía no ha renovado)", est103.ciclo === 1, "ciclo " + est103.ciclo);
+  ok("y trae los documentos ya capturados con su fecha", !!(est103.documentosRenovacion && est103.documentosRenovacion.ine), JSON.stringify(est103.documentosRenovacion));
+  const est103b = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ce) }));
+  ok("la ejecutiva tampoco puede consultar el estado de renovación (403)", !!est103b.error, JSON.stringify(est103b).slice(0, 60));
+
+  // DOC-01 (carta Dirección 02-sep): la fecha PROPIA de cada documento
+  // (vencimiento INE, emisión comprobante) es aparte de la fecha de captura
+  // de arriba, y es opcional — sin ella, vigencia queda en null (no se
+  // sabe, no es lo mismo que "vigente"). Nada de esto bloquea nada (CU-007
+  // §10.6 sigue sin definir): se prueba que la renovación sigue
+  // funcionando igual en todos los casos.
+  let est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("sin fecha propia capturada, la vigencia es null (no se sabe, no bloquea)",
+    est103c.vigenciaDocumentosRenovacion
+      && est103c.vigenciaDocumentosRenovacion.ine === null
+      && est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === null,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+
+  const hoy103 = new Date().toISOString().slice(0, 10);
+  const fechaMuyVieja103 = "2020-01-01"; // vencida por cualquier tope razonable
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: INE vencida a propósito",
+    ineFechaVencimiento: fechaMuyVieja103, comprobanteFechaEmision: hoy103 }) }));
+  ok("acepta las fechas propias del documento (DOC-01)", dr103.ok === true, JSON.stringify(dr103).slice(0, 80));
+  est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("INE vencida por su propia fecha se marca vencida", est103c.vigenciaDocumentosRenovacion.ine === true,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("comprobante recién emitido no está vencido", est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === false,
+    JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("la renovación NO se bloquea aunque la INE esté vencida (CU-007 §10.6 sigue sin definir)",
+    dr103.ok === true && !dr103.error, "el endpoint debía seguir aceptando la captura");
+
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: comprobante vencido a propósito",
+    comprobanteFechaEmision: fechaMuyVieja103 }) }));
+  est103c = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("comprobante con antigüedad mayor al parámetro configurado se marca vencido",
+    est103c.vigenciaDocumentosRenovacion.comprobanteDomicilio === true, JSON.stringify(est103c.vigenciaDocumentosRenovacion));
+  ok("la fecha de vencimiento de la INE capturada antes no se perdió (se fusiona, no se reemplaza)",
+    est103c.vigenciaDocumentosRenovacion.ine === true, "la captura de arriba no mandó ineFechaVencimiento, debía conservarse");
+
+  dr103 = await j(await fetch(U + "/api/creditos/documentos-renovacion", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, ine: true, comprobanteDomicilio: true, motivo: "DOC-01: fecha inválida",
+    ineFechaVencimiento: "no-es-fecha" }) }));
+  ok("fecha de vencimiento de INE inválida se rechaza", !!dr103.error, JSON.stringify(dr103).slice(0, 80));
+
+    // CARRY-FORWARD AL RENOVAR (hallazgo 02-sep-2026, al verificar localmente el
+  // PR de DOC-01 con Karina): /api/creditos/recredito siempre creaba el ciclo
+  // nuevo con documentosRenovacion en null, aunque se hubieran capturado
+  // momentos antes de liquidar -- el trabajo de subir INE/comprobante se
+  // perdia justo al renovar. Esto NO decide nada de CU-007 SEC 10.6 (bloquear o
+  // no por documento vencido, sigue sin definir): solo evita perder lo ya
+  // capturado.
+  const docsAntesDeRenovar103 = (await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }))).documentosRenovacion;
+  ok("hay documentos capturados en el ciclo viejo antes de renovar (precondicion de esta prueba)",
+    !!(docsAntesDeRenovar103 && docsAntesDeRenovar103.ine && docsAntesDeRenovar103.comprobanteDomicilio),
+    JSON.stringify(docsAntesDeRenovar103));
+  await j(await fetch(U + "/api/creditos/ajuste", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, saldo: 0, motivo: "Liquidado para prueba de renovacion (carry-forward DOC-01)" }) }));
+  const ren103 = await j(await fetch(U + "/api/creditos/recredito", { method: "POST", headers: H(ca), body: JSON.stringify({
+    id: ID103, producto: PROD103, saldo: 4000, cuota: 400, ejecutivo: "Neri" }) }));
+  ok("renovar (recredito) con el mismo nombre funciona tras liquidar",
+    ren103.ok === true && ren103.clienta && ren103.clienta.recredito === true, JSON.stringify(ren103).slice(0, 120));
+  ok("los documentos de renovacion del ciclo viejo SE CARGAN al ciclo nuevo (antes se perdian)",
+    ren103.ok === true && JSON.stringify(ren103.clienta.documentosRenovacion) === JSON.stringify(docsAntesDeRenovar103),
+    JSON.stringify({ antes: docsAntesDeRenovar103, despues: ren103.clienta && ren103.clienta.documentosRenovacion }));
+  const est103d = await j(await fetch(U + "/api/creditos/renovacion?" + qs103, { headers: H(ca) }));
+  ok("el ciclo nuevo (ciclo 2) tambien trae ya calculada la vigencia sobre esos documentos cargados",
+    est103d.ciclo === 2 && est103d.vigenciaDocumentosRenovacion
+      && est103d.vigenciaDocumentosRenovacion.ine === true && est103d.vigenciaDocumentosRenovacion.comprobanteDomicilio === true,
+    JSON.stringify({ ciclo: est103d.ciclo, vig: est103d.vigenciaDocumentosRenovacion }));
 
   console.log("\n— 62b. LA HOJA DE COBRANZA AUTOMÁTICA (10-sep: el libro de 25 pestañas, generado) —");
   {
@@ -5837,6 +5936,99 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     ok("el resumen de cobranza tampoco", r106.status === 403, "status " + r106.status);
     const m106 = await fetch(U + "/api/garantias", { headers: H(cm) });
     ok("y Monse sigue viendo todo (Garantías incluida)", m106.status === 200, "status " + m106.status);
+  }
+
+  console.log("\n— 107. GARANTÍAS: PANEL DE HOY, SOLICITUDES CON APROBACIÓN DE MONSE Y EXCEL (Karina, 24-sep) —");
+  {
+    const ca107 = await login("alejandra", "alejandra2026");
+    // Clienta de prueba con crédito vivo para colgarle garantías.
+    await fetch(U + "/api/centros", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ nombre: "CENTRO GARANTIAS 107", numero: "76", dia: "MIERCOLES", ejecutivo: "Neri" }) });
+    await j(await fetch(U + "/api/clientes/alta", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ id: "77000000107", nombre: "GARDENIA DE PRUEBA 107", producto: "Grupal-Basico",
+        centro: "CENTRO GARANTIAS 107", ejecutivo: "Neri", saldo: 3000, cuota: 150, plazo: 20,
+        diaPago: "MIERCOLES", desembolso: HOY }) }));
+
+    // (a) La garantía de la FICHA de la ejecutiva entra al panel de HOY.
+    const hoy0 = await j(await fetch(U + "/api/garantias/hoy", { headers: H(cm) }));
+    await fetch(U + "/api/sync", { method: "POST", headers: H(cn), body: JSON.stringify({
+      fecha: HOY, snapshot: { reg: { "CENTRO GARANTIAS 107": {
+        "77000000107|Grupal-Basico|GARDENIA DE PRUEBA 107": { pago: 0, garantia: 68, forma: "E" } } },
+        regI: {}, movs: [] }, ts: Date.now() }) });
+    const hoy1 = await j(await fetch(U + "/api/garantias/hoy", { headers: H(cm) }));
+    ok("la garantía de la ficha de Neri suma al RECIBIDO HOY (en campo)",
+      Math.abs((hoy1.enCampo - (hoy0.enCampo || 0)) - 68) < 0.01,
+      "antes " + hoy0.enCampo + " · después " + hoy1.enCampo);
+    ok("y el panel la desglosa POR EJECUTIVO (Neri)",
+      (hoy1.porEjecutivo || []).some((x) => /neri/i.test(x.quien) && x.monto >= 68),
+      JSON.stringify(hoy1.porEjecutivo || []).slice(0, 120));
+    ok("y POR CENTRO", (hoy1.porCentro || []).some((x) => x.centro === "CENTRO GARANTIAS 107" && x.monto >= 68),
+      JSON.stringify(hoy1.porCentro || []).slice(0, 120));
+    ok("y en las ÚLTIMAS garantías, con su crédito",
+      (hoy1.ultimas || []).some((u) => u.socio === "77000000107" && u.producto === "Grupal-Basico" && u.fuente === "ficha"),
+      JSON.stringify((hoy1.ultimas || []).slice(0, 3)).slice(0, 160));
+    ok("a Alejandra el panel de HOY también le abre (es de su área)",
+      (await fetch(U + "/api/garantias/hoy", { headers: H(ca107) })).status === 200, "no le abrió");
+
+    // (b) El ajuste de saldo de Alejandra NO se aplica: queda como solicitud.
+    const aj107 = await j(await fetch(U + "/api/garantias/ajuste-manual", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ socio: "77000000107", producto: "Grupal-Basico", tipoGarantia: "Garantía A",
+        direccion: "entrada", monto: 50, motivo: "prueba de aprobación 107" }) }));
+    ok("el ajuste de Alejandra queda PENDIENTE, no aplicado",
+      aj107.ok === true && aj107.pendiente === true && !!(aj107.solicitud && aj107.solicitud.folio),
+      JSON.stringify(aj107).slice(0, 140));
+    const ficha0 = await j(await fetch(U + "/api/garantias/ficha?id=77000000107", { headers: H(cm) }));
+    ok("y el saldo de Garantía A sigue SIN moverse", !(ficha0.saldoActualGarantiaA > 0),
+      "saldo A: " + ficha0.saldoActualGarantiaA);
+
+    // (c) Solo la Ing. Monse resuelve; al aprobar, el ajuste se aplica.
+    const noAprueba = await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ folio: aj107.solicitud.folio, decision: "aprobar" }) });
+    ok("Alejandra NO puede aprobar (403 del servidor)", noAprueba.status === 403, "status " + noAprueba.status);
+    const listaA = await j(await fetch(U + "/api/garantias/solicitudes", { headers: H(ca107) }));
+    ok("ella ve la cola, pero sin poder de aprobar",
+      listaA.puedeAprobar === false && listaA.pendientes >= 1, JSON.stringify(listaA).slice(0, 100));
+    const rM107 = await j(await fetch(U + "/api/resumen", { headers: H(cm) }));
+    ok("a Monse le suena la campanita con nombre, socio y monto",
+      (rM107.items || []).some((x) => /Solicitud de garantías/.test(x.txt || "")
+        && /77000000107/.test(x.txt) && /GARDENIA/.test(x.txt)),
+      JSON.stringify((rM107.items || []).filter((x) => /garant/i.test(x.txt || ""))).slice(0, 200));
+    const ap107 = await j(await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ folio: aj107.solicitud.folio, decision: "aprobar" }) }));
+    ok("Monse aprueba y el ajuste SE APLICA en el acto",
+      ap107.ok === true && !!(ap107.resultadoAjuste && ap107.resultadoAjuste.ok),
+      JSON.stringify(ap107).slice(0, 160));
+    const ficha1 = await j(await fetch(U + "/api/garantias/ficha?id=77000000107", { headers: H(cm) }));
+    ok("el saldo de Garantía A ya subió los $50 y quedó en el historial",
+      Math.abs((ficha1.saldoActualGarantiaA || 0) - 50) < 0.01 && (ficha1.historialGarantiaA || []).length >= 1,
+      "saldo A: " + ficha1.saldoActualGarantiaA + " · historial: " + (ficha1.historialGarantiaA || []).length);
+    const dos107 = await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ folio: aj107.solicitud.folio, decision: "rechazar" }) });
+    ok("una solicitud resuelta no se resuelve dos veces (400)", dos107.status === 400, "status " + dos107.status);
+
+    // (d) El botón de SOLTAR: solicitud con monto guardado, sin duplicados,
+    //     y el rechazo no mueve dinero.
+    const sol107 = await j(await fetch(U + "/api/garantias/solicitudes", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ tipo: "liberacion", socio: "77000000107", producto: "Grupal-Basico" }) }));
+    ok("la solicitud de SOLTAR toma sola lo guardado (ficha $68 + ajuste $50)",
+      sol107.ok === true && sol107.solicitud.monto >= 50 && sol107.solicitud.guardadaA >= 49.99,
+      JSON.stringify(sol107.solicitud || {}).slice(0, 160));
+    const dup107 = await fetch(U + "/api/garantias/solicitudes", { method: "POST", headers: H(ca107),
+      body: JSON.stringify({ tipo: "liberacion", socio: "77000000107", producto: "Grupal-Basico" }) });
+    ok("no se duplica una solicitud pendiente igual (400)", dup107.status === 400, "status " + dup107.status);
+    const rz107 = await j(await fetch(U + "/api/garantias/solicitudes/resolver", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ folio: sol107.solicitud.folio, decision: "rechazar", nota: "prueba 107" }) }));
+    ok("Monse puede RECHAZAR sin que se mueva dinero",
+      rz107.ok === true && rz107.solicitud.estado === "rechazada" && !rz107.resultadoAjuste,
+      JSON.stringify(rz107).slice(0, 120));
+
+    // (e) El Excel del reporte de salidas por clienta baja.
+    const xl107 = await fetch(U + "/api/garantias/reporte-salidas/excel", { headers: H(cm) });
+    ok("el Excel de salidas por clienta baja (hoja de cálculo)",
+      xl107.status === 200 && /spreadsheetml/.test(xl107.headers.get("content-type") || ""),
+      "status " + xl107.status + " · " + xl107.headers.get("content-type"));
+    const xlA107 = await fetch(U + "/api/garantias/reporte-salidas/excel", { headers: H(ca107) });
+    ok("y a Alejandra también (es su área)", xlA107.status === 200, "status " + xlA107.status);
   }
 
   console.log("\n══════════════════════════════════");

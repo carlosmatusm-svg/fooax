@@ -197,6 +197,32 @@
   .credbtn.reda{border-color:var(--verde,#059669);color:var(--verde,#059669)}
   .credbox{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
   .credbox>span{font-size:11.5px;font-weight:700;color:var(--gris);width:100%}
+  /* CU-018 · Vista 360 del expediente (solo lectura) */
+  .v360acc{margin-top:9px;padding-top:8px;border-top:1px solid var(--lav)}
+  .v360box{margin-top:10px;padding-top:10px;border-top:1px dashed var(--linea);display:flex;flex-direction:column;gap:9px}
+  .v360head{font-size:12.5px;color:var(--gris)}
+  .v360head b{color:var(--tinta);font-size:13.5px}
+  .v360blk{border:1px solid var(--linea);border-radius:8px;padding:9px 11px;background:var(--fondo)}
+  .v360blk.unavailable{background:var(--lav);border-style:dashed}
+  .v360blk h4{font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .v360cu{font-family:var(--mono);font-size:9.5px;color:var(--gris);font-weight:400}
+  .v360kv{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:3px 0;border-bottom:1px dashed var(--linea)}
+  .v360kv:last-child{border-bottom:none}
+  .v360kv b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .v360tabla{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}
+  .v360tabla th{text-align:left;color:var(--gris);font-weight:700;font-size:9px;text-transform:uppercase;padding:2px 4px}
+  .v360tabla td{padding:4px;border-top:1px solid var(--linea)}
+  .v360caption{font-size:10px;color:var(--gris);font-style:italic;margin-top:6px}
+  .v360nota{font-size:11px;color:var(--gris)}
+  .v360resp{font-family:var(--mono);font-size:9.5px;color:var(--gris)}
+  .v360pill{display:inline-flex;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:99px;text-transform:uppercase}
+  .v360-n{background:var(--lav);color:var(--gris)}
+  .v360-o{background:#ECFDF5;color:var(--verde)}
+  .v360-w{background:#FFFBEB;color:var(--riqueza)}
+  .v360-d{background:#FEF2F2;color:var(--llama)}
+  .v360pend{background:var(--lav);border-style:dashed}
+  .v360penditem{font-size:11px;padding:3px 0}
+  .v360aviso{font-size:10.5px;color:var(--riqueza);font-weight:600;text-align:center}
   .credin{font:inherit;font-size:12.5px;border:1px solid var(--linea);border-radius:9px;padding:7px 9px;width:110px;background:var(--tarjeta);color:var(--tinta)}
   .credin.ancho{width:100%}
   .credok{font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--verde,#059669);
@@ -452,14 +478,16 @@
   .dlhint{font-size:11.5px;color:var(--gris);margin:8px 16px 0}
   .reccard{background:#fff;border:1px solid var(--lav);border-radius:10px;padding:14px 16px;margin:0 16px}
   .rechint{font-size:12px;color:var(--gris);line-height:1.45;margin-bottom:10px}
-  /* Desglose de garantías por grupo (centro) con cada integrante adentro.
-     <details> nativo, sin JS extra para abrir/cerrar cada centro. */
+  /* Desglose de garantias por grupo (centro) con cada integrante adentro,
+     21-sep-2026 -- item 44 de CU-006 corregido: el dato ya lo calculaba
+     resumenGarantias(), faltaba pintarlo. <details> nativo, sin JS extra
+     para abrir/cerrar cada centro. */
   .gardet{border:1px solid var(--lav);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:#fff}
   .gardet summary{display:flex;justify-content:space-between;gap:10px;cursor:pointer;font-size:13px;list-style:none}
   .gardet summary::-webkit-details-marker{display:none}
   .gardet summary span{color:var(--rio)}
 
-  /* Tarjetas "pendiente de definir" (pantalla de Garantías MVP, CU-006):
+  /* Tarjetas "pendiente de definir" (pantalla de Garantías MVP, 10-sep-2026):
      lo que el mockup pide y todavía no se puede construir se muestra así, en
      vez de ocultarlo o inventar el dato. */
   .garpend{background:#FFF8E6;border:1px solid #F0D98A;border-left:4px solid #C9971F;
@@ -533,6 +561,7 @@
   <button class="lit" data-tb="caja" onclick="tbShow('caja')"><span class="cod">CJ</span>Caja</button>
   <button class="lit" data-tb="cartera" onclick="tbShow('cartera')"><span class="cod">CT</span>Cartera</button>
   <button class="lit" data-tb="clientas" onclick="tbShow('clientas')"><span class="cod">CL</span>Clientas</button>
+        <button class="lit" data-tb="garantias" onclick="tbShow('garantias')"><span class="cod">GA</span>Garantías</button>
   <button class="lit" data-tb="mas" onclick="tbShow('mas')"><span class="cod">MS</span>Más</button>
   <button class="lit lsub" hidden data-mas="descargas" onclick="tbShow('mas');masShow('descargas')">Descargas</button>
   <button class="lit lsub" hidden data-mas="renov" onclick="tbShow('mas');masShow('renov')">Renovaciones</button>
@@ -581,6 +610,7 @@
     <button class="tbt" data-tb="caja" onclick="tbShow('caja')">Caja</button>
     <button class="tbt" data-tb="cartera" onclick="tbShow('cartera')">Cartera</button>
     <button class="tbt" data-tb="clientas" onclick="tbShow('clientas')">Clientas</button>
+    <button class="tbt" data-tb="garantias" onclick="tbShow('garantias')">Garantías</button>
     <button class="tbt" data-tb="mas" onclick="tbShow('mas')">Más</button>
     <button class="tbt" data-tb="garantias" onclick="tbShow('garantias')">Garantías</button>
   </div>
@@ -772,17 +802,16 @@
 
   </div>
 
-  <!-- PANTALLA MÍNIMA DE GARANTÍAS (MVP, CU-006). No es la entrega 2E
-       completa del lienzo de mockups — es solo lo que ya calcula el motor de
-       Garantía Líquida portado a esta rama (/api/garantias,
-       /api/garantias/ficha, /api/garantias/reporte-semanal,
-       /api/garantias/reporte-salidas), con tarjetas explícitas de "pendiente
-       de definir" para lo que el mockup pide y todavía depende de una
-       respuesta de Dirección (no se inventa ni se oculta). Esta rama de
-       prueba (test/garantias-a-main) NO incluye la retención automática del
-       10% al desembolso (CU-013/CU-014, fuera de alcance de este port) — el
-       pasivo que aquí se ve es solo lo capturado a mano por Dirección, tal
-       como ya documentado en server.js/dominios/garantia_liquida.js. -->
+  <!-- PANTALLA MÍNIMA DE GARANTÍAS (MVP, 10-sep-2026, CU-006). Carlos: "que
+       Dirección vea la opción de garantías en la aplicación junto con lo que
+       se puede implementar, y mande mensaje solamente de que algo no está
+       definido o falta". No es la entrega 2E completa del lienzo de mockups
+       (esa sigue "CONSTRUYE: por acordar" en la cotización) — es solo lo que
+       ya calcula el motor de Garantía Líquida construido antes de hoy
+       (/api/garantias, /api/garantias/ficha), con tarjetas explícitas de
+       "pendiente de definir" para lo que el mockup pide y que todavía
+       depende de una respuesta de Dirección (no se inventa ni se oculta). -->
+
   <div class="tbtab" id="tb-garantias" style="display:none">
   <div class="maschips">
     <button class="mchip active" data-gar="panel" onclick="garShow('panel')">Panel</button>
@@ -790,9 +819,28 @@
     <button class="mchip" data-gar="reportes" onclick="garShow('reportes')">Reportes</button>
   </div>
   <div class="garsec" id="gar-panel">
-    <h3 style="margin-top:6px">Garantías · resumen</h3>
+    <!-- GARANTÍAS DE HOY (Karina, 24-sep-2026): cuánto entró HOY, por centro
+         y por ejecutivo, y las últimas garantías que se dieron y a qué
+         crédito. Dos fuentes: el campo Garantía de las fichas de las
+         ejecutivas (campo) y las capturas de Dirección (oficina). -->
+    <h3 style="margin-top:6px">Garantías de hoy</h3>
     <div class="reccard">
-      <div class="rechint">Pasivo total de Garantía Líquida y cuántas socias lo tienen guardado ahora mismo. Se calcula en vivo con los mismos números que ya usa la búsqueda de créditos — no es un dato capturado a mano.</div>
+      <div class="rechint">Lo que entró HOY de garantías — en campo (el campo Garantía de las fichas de las ejecutivas) y en oficina (capturas de Dirección) — por centro y por ejecutivo, y las últimas garantías que se dieron y a qué crédito.</div>
+      <div id="garHoy"><div class="arq-vacio">Cargando…</div></div>
+    </div>
+
+    <!-- SOLICITUDES CON APROBACIÓN (Karina, 24-sep-2026): soltar garantías y
+         ajustes de saldo llegan aquí y a la campanita de la Ing. Monse; solo
+         ella aprueba o rechaza. -->
+    <h3>Solicitudes por aprobar</h3>
+    <div class="reccard">
+      <div class="rechint">Peticiones de soltar una garantía o de ajustar un saldo. Se crean desde la FICHA de una clienta; a la Ing. Monse le suenan en su campanita y ella las aprueba o rechaza aquí mismo.</div>
+      <div id="garSolicitudes"><div class="arq-vacio">Cargando…</div></div>
+    </div>
+
+    <h3>Garantías · resumen</h3>
+    <div class="reccard">
+      <div class="rechint">Pasivo total de Garantía Líquida (10% retenido al desembolso, Anexo F §7-8) y cuántas socias lo tienen guardado ahora mismo. Se calcula en vivo con los mismos números que ya usa la búsqueda de créditos — no es un dato capturado a mano.</div>
       <div id="garResumen"><div class="arq-vacio">Cargando garantías…</div></div>
     </div>
 
@@ -801,7 +849,7 @@
          fingir un solo pasivo donde hay dos. -->
     <h3>Garantía A · resumen</h3>
     <div class="reccard">
-      <div class="rechint">Pasivo de Garantía A (aportación semanal voluntaria, se devuelve al cierre del ciclo). Monto/rango de la aportación sigue sin definir por Dirección; esto solo muestra lo que ya se capturó.</div>
+      <div class="rechint">Pasivo de Garantía A (aportación semanal voluntaria, se devuelve al cierre del ciclo — RESUELTO 10-sep-2026). Monto/rango de la aportación sigue sin definir por Dirección; esto solo muestra lo que ya se capturó.</div>
       <div id="garResumenA"><div class="arq-vacio">Cargando…</div></div>
     </div>
 
@@ -817,8 +865,8 @@
       <div id="garFicha" style="margin-top:10px"></div>
     </div>
 
-    <!-- REPORTES (CU-008): solo los 2 de 5 reportes del catálogo que ya
-         tienen ejemplo real y corte confirmado por Dirección — ver
+    <!-- REPORTES (CU-008, 20-sep-2026): solo los 2 de 5 reportes del catálogo
+         que ya tienen ejemplo real y corte confirmado por Dirección — ver
          PENDIENTES_POR_CONFIRMAR.md sección 3. Los otros 3 (pendientes de
          devolución, aplicadas a crédito, ticket de depósitos) siguen abajo
          como pendientes, no se inventan aquí. -->
@@ -826,7 +874,7 @@
   <div class="garsec" id="gar-reportes" style="display:none">
     <h3>Reporte semanal de entrada/salida</h3>
     <div class="reccard">
-      <div class="rechint">Corte oficial: lunes, semana de lunes a domingo. Incluye Garantía Líquida y Garantía A.</div>
+      <div class="rechint">Corte oficial: lunes, semana de lunes a domingo (RESUELTO 11-sep-2026). Incluye Garantía Líquida y Garantía A.</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input id="garRepSemFecha" type="date">
         <button class="recbtn" onclick="cargarReporteSemanalGarantias()">Ver semana</button>
@@ -840,6 +888,7 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input id="garRepMesMes" type="month">
         <button class="recbtn" onclick="cargarReporteSalidasGarantias()">Ver mes</button>
+        <button class="recbtn" onclick="descargarExcelSalidasGarantias()">Descargar Excel</button>
       </div>
       <div id="garRepSalidas" style="margin-top:10px"></div>
     </div>
@@ -1277,6 +1326,11 @@ async function cargarYo() {
     if (window.__PUEDE_CREDITO) {
       const p = $("credPanel"); if (p) p.style.display = "flex";
     }
+    // CU-018 · Vista 360 del expediente — mismos roles que ya ven riesgo/PLD/
+    // garantías/ciclos por separado (direccion, admin). Control Operativo
+    // (ejecutivo) queda pendiente de decisión de Dirección (ver
+    // dominios/vista_360.js → pendientes()), no se le muestra el botón.
+    window.__PUEDE_VISTA360 = (d.rol === "direccion" || d.rol === "admin");
   } catch {}
 }
 // ---------- corte de saldos (desde cuándo descuentan los abonos) ----------
@@ -1398,6 +1452,7 @@ function tarjetaCredito(c, i) {
       + '<button class="credbtn" onclick="verPagos(this,' + i + ')">Ver pagos</button>'
       + '<button class="credbtn" onclick="pedirAjuste(this,' + i + ')">Ajustar saldo</button>'
       + '<button class="credbtn" onclick="pedirEtiqueta(this,' + i + ')">' + (c.etiqueta ? "Cambiar etiqueta" : "Etiquetar") + "</button>"
+      + '<button class="credbtn" onclick="pedirDocsRenovacion(this,' + i + ')">' + (c.documentosRenovacion ? "Ver documentos renovación" : "Documentos renovación") + "</button>"
       + venc + reda + "</div>";
   }
   return '<div class="rcard">'
@@ -1424,6 +1479,12 @@ function tarjetaCredito(c, i) {
     + ((c.ciclo || 1) > 1
         ? '<span class="rbadge-eti" title="Cuántas veces ha tomado este producto">ciclo '
           + String(c.ciclo).padStart(2, "0") + "</span>" : "")
+    // CU-007: documentos de renovación (INE + comprobante de domicilio). Solo
+    // avisa que YA se capturaron y cuándo — no bloquea nada (CU-007 §10.6,
+    // todavía sin definir si un documento vencido debe impedir la renovación).
+    + (c.documentosRenovacion && c.documentosRenovacion.ine
+        ? '<span class="rbadge-eti" style="background:#ECFDF5;color:#059669" title="INE y comprobante de domicilio capturados">docs. renovación '
+          + hesc(c.documentosRenovacion.ine) + "</span>" : "")
     + (c.liquidadoEl
         ? '<span class="rpago" style="background:#ECFDF5;color:#059669">liquidó el '
           + hesc(c.liquidadoEl) + "</span>" : "")
@@ -1438,7 +1499,130 @@ function tarjetaCredito(c, i) {
     + (c.mora > 0 ? '<span class="rmora">mora ' + dinero(c.mora) + "</span>" : "")
     + "</div>"
     + (esBaja ? "" : '<div class="racc"><button class="rbaja" onclick="pedirBaja(this,\'' + esc(c.id) + "','" + esc(c.producto) + '\')">Dar de baja</button></div>')
-    + acc + "</div>";
+    + acc
+    // CU-018 · Vista 360 del expediente (solo lectura) — independiente de
+    // __PUEDE_CREDITO (que es solo anel/monse) y de si el crédito está de
+    // baja: Dirección/Admin puede consultar el expediente consolidado de
+    // cualquier clienta, tenga o no crédito activo (CU-018 §2).
+    + (window.__PUEDE_VISTA360
+        ? '<div class="v360acc"><button class="credbtn v360btn" onclick="verVista360(this,' + i + ')">Ver expediente 360</button></div>'
+        : "")
+    + "</div>";
+}
+// ---------- CU-018 · Vista 360 del expediente (solo lectura) ----------
+// Mismo patrón toggle que verDesglose/verPagos: un clic abre la ficha
+// consolidada bajo la tarjeta, otro clic la cierra. Pinta EXACTAMENTE lo que
+// regresa /api/vista360/:socio (dominios/vista_360.js) — ningún bloque nuevo
+// aquí, "disponible:false" se muestra tal cual con su motivo, nunca se
+// inventa un dato para rellenar un hueco (CU-018 §5/§6). Botones de acción
+// (reabrir, solicitar baja, exportar) y el acceso de Control Operativo NO se
+// construyen todavía — siguen como decisión pendiente de Dirección (ver
+// PENDIENTES_POR_CONFIRMAR.md §10).
+async function verVista360(btn, i) {
+  const c = credRow(i), card = btn.closest(".rcard"); if (!card) return;
+  const ya = card.querySelector(".v360box");
+  if (ya) { ya.remove(); return; }
+  const box = document.createElement("div");
+  box.className = "v360box";
+  box.innerHTML = '<div class="rvacio">Cargando expediente 360…</div>';
+  card.appendChild(box);
+  let d;
+  try {
+    d = await (await fetch("/api/vista360/" + encodeURIComponent(c.id), { credentials: "include" })).json();
+  } catch { box.innerHTML = '<div class="rvacio">Sin conexión con el servidor.</div>'; return; }
+  if (d.error) { box.innerHTML = '<div class="rvacio">' + hesc(d.error) + "</div>"; return; }
+  box.innerHTML = render360(d);
+}
+function v360kv(k, v) { return '<div class="v360kv"><span>' + hesc(k) + "</span><b>" + v + "</b></div>"; }
+function v360NoDisp(motivo, responsable) {
+  return '<div class="v360nota">No disponible todavía' + (responsable ? ' <span class="v360resp">(' + hesc(responsable) + ")</span>" : "")
+    + ". " + hesc(motivo || "") + "</div>";
+}
+function v360Pill(texto, tono) { return '<span class="v360pill v360-' + (tono || "n") + '">' + hesc(texto) + "</span>"; }
+// Arma la ficha entera, bloque por bloque, en el mismo orden del API.
+function render360(d) {
+  const b = [];
+  b.push('<div class="v360head"><b>' + hesc(d.nombre || "") + "</b> · socio " + hesc(d.socio)
+    + '<div class="rm">' + hesc(d.centro || "—") + " · " + hesc(d.ejecutivo || "—") + "</div></div>");
+
+  const idn = d.identidad || {};
+  b.push('<div class="v360blk"><h4>Identidad <span class="v360cu">Regla 11.1 · Anexo F</span></h4>'
+    + v360kv("CURP", hesc(idn.curp || "—")) + v360kv("RFC", hesc(idn.rfc || "—"))
+    + v360kv("Domicilio", hesc(idn.domicilio || "—")) + v360kv("Actividad económica", hesc(idn.actividadEconomica || "—"))
+    + v360kv("Origen de recursos", hesc(idn.origenRecursos || "—")) + v360kv("Fecha de integración", hesc(idn.fechaIntegracion || "—"))
+    + v360kv("Sucursal", hesc(idn.sucursal || "—")) + "</div>");
+
+  const hc = d.historialCreditos || {};
+  if (hc.disponible) {
+    const filas = (hc.creditos || []).map((cr) => "<tr><td>" + hesc(cr.producto || "—") + "</td><td>" + hesc(cr.centro || "—")
+      + "</td><td>" + dinero(cr.saldo || 0) + "</td><td>" + hesc(cr.estatus || "—") + "</td><td>"
+      + (cr.tasaAplicada == null ? v360Pill("no disponible", "n") : hesc(cr.tasaAplicada) + "%") + "</td></tr>").join("");
+    b.push('<div class="v360blk"><h4>Historial de créditos <span class="v360cu">Regla 2.2 · Anexo F</span></h4>'
+      + '<table class="v360tabla"><tr><th>Producto</th><th>Centro</th><th>Saldo</th><th>Estatus</th><th>Tasa</th></tr>' + filas + "</table>"
+      + '<div class="v360caption">' + hesc(hc.notaTasa || "") + "</div></div>");
+  }
+
+  const ec = d.exposicionCredito || {};
+  if (ec.disponible) {
+    b.push('<div class="v360blk"><h4>Exposición de crédito</h4>'
+      + v360kv("Créditos activos", ec.creditosActivos) + v360kv("Saldo insoluto total", dinero(ec.saldoInsolutoTotal || 0)) + "</div>");
+  }
+
+  const rg = d.riesgo || {};
+  if (rg.disponible) {
+    const uc = rg.ultimoCambio;
+    b.push('<div class="v360blk"><h4>Riesgo y PEP <span class="v360cu">Regla 11.4 · CU-016</span></h4>'
+      + v360kv("Nivel de riesgo", v360Pill(rg.nivelRiesgo || "—", rg.nivelRiesgo === "Alto" ? "d" : rg.nivelRiesgo === "Medio" ? "w" : "n"))
+      + v360kv("PEP", rg.pep ? v360Pill("Sí", "w") : v360Pill("No", "n"))
+      + v360kv("Último cambio", uc ? hesc(uc.fecha) + " · " + hesc(uc.usuario) + " · " + hesc(uc.campo) : "—") + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Riesgo y PEP</h4>' + v360NoDisp(rg.motivo) + "</div>");
+
+  const pl = d.pld || {};
+  if (pl.disponible) {
+    b.push('<div class="v360blk"><h4>Acumulación PLD <span class="v360cu">CU-017</span></h4>'
+      + v360kv("Acumulado (6 meses / 180 días)", dinero(pl.acumulado || 0)) + v360kv("Umbral (1,605 UMA)", dinero(pl.umbralPesos || 0))
+      + v360kv("% del umbral", pl.porcentajeUmbral != null ? pl.porcentajeUmbral + "%" : "—")
+      + v360kv("Supera el umbral", pl.supera ? v360Pill("Sí", "d") : v360Pill("No", "n")) + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Acumulación PLD</h4>' + v360NoDisp(pl.motivo) + "</div>");
+
+  const cl = d.ciclosLimpios || {};
+  if (cl.disponible) {
+    b.push('<div class="v360blk"><h4>Ciclos limpios <span class="v360cu">Regla 5.1 · CU-019</span></h4>'
+      + v360kv("Contador vigente", cl.contador) + v360kv("Aplica tasa preferencial", cl.aplicaTasaPreferencial ? v360Pill("Sí", "o") : v360Pill("No", "n"))
+      + (cl.faltanParaTasaPreferencial != null ? v360kv("Faltan para tasa preferencial", cl.faltanParaTasaPreferencial) : "") + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Ciclos limpios</h4>' + v360NoDisp(cl.motivo) + "</div>");
+
+  const ga = d.garantias || {};
+  if (ga.disponible) {
+    b.push('<div class="v360blk"><h4>Garantías en custodia <span class="v360cu">CU-006/008</span></h4>'
+      + v360kv("Saldo actual", dinero(ga.saldoActual || 0)) + v360kv("Créditos vivos con garantía", ga.creditosVivos) + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Garantías en custodia</h4>' + v360NoDisp(ga.motivo) + "</div>");
+
+  const pp = d.performancePago || {};
+  b.push('<div class="v360blk unavailable"><h4>Performance de pago <span class="v360cu">CU-018 §3, fila 2</span></h4>' + v360NoDisp(pp.motivo, pp.responsable) + "</div>");
+
+  const ex = d.expediente || {};
+  if (ex.disponible) {
+    b.push('<div class="v360blk"><h4>Expediente <span class="v360cu">CU-009/010</span></h4>'
+      + v360kv("Semáforo", v360Pill(ex.semaforo || "—", ex.semaforo === "validado" ? "o" : ex.semaforo === "incompleto" ? "w" : "n"))
+      + v360kv("Completo", ex.completo ? v360Pill("Sí", "o") : v360Pill("No", "w")) + v360kv("PEP", ex.pep ? v360Pill("Sí", "w") : v360Pill("No", "n")) + "</div>");
+  } else b.push('<div class="v360blk unavailable"><h4>Expediente</h4>' + v360NoDisp(ex.motivo) + "</div>");
+
+  const rt = d.retencion || {};
+  if (rt.disponible) {
+    b.push('<div class="v360blk"><h4>Retención y derechos ARCO <span class="v360cu">CU-015</span></h4>'
+      + v360kv("Plazo de retención", rt.anios != null ? rt.anios + " años" : "—")
+      + '<div class="v360caption">Reporte completo (solo lectura): ' + hesc(rt.verReporte || "") + "</div></div>");
+  }
+
+  if ((d.pendientes || []).length) {
+    b.push('<div class="v360blk v360pend"><h4>Pendientes de esta vista</h4>'
+      + d.pendientes.map((p) => '<div class="v360penditem"><b>' + hesc(p.tema) + ":</b> " + hesc(p.motivo)
+        + ' <span class="v360resp">(' + hesc(p.responsable || "") + ")</span></div>").join("") + "</div>");
+  }
+
+  b.push('<div class="v360aviso">Vista de SOLO LECTURA (CU-018 §6) — no se puede editar nada desde aquí.</div>');
+  return b.join("");
 }
 // VER PAGOS: qué pagó la clienta, en qué fecha y si ese pago cuenta contra el
 // saldo de hoy. Pedido por Karina el 5-ago para poder comprobar que el abono sí
@@ -1540,6 +1724,63 @@ async function ponerEtiqueta(btn, i) {
   } catch { alert("Sin conexión con el servidor."); btn.disabled = false; btn.textContent = "Guardar"; return; }
   if (d.error) { alert(d.error); btn.disabled = false; btn.textContent = "Guardar"; return; }
   refrescarLista();
+}
+// DOCUMENTOS DE RENOVACIÓN (CU-007 §3, precisión de Karina 24-ago): INE y
+// comprobante de domicilio son SIEMPRE obligatorios al renovar — por eso los
+// dos checks vienen prendidos y no se puede guardar con uno solo. También se
+// muestra el ciclo (cuántas veces ha tomado este producto), que ya existía
+// como contador desde el 15-ago. Esto NO decide si un documento vencido
+// bloquea la renovación (CU-007 §10.6, todavía sin definir) — solo registra
+// la captura, con motivo en la bitácora.
+async function pedirDocsRenovacion(btn, i) {
+  const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
+  box.className = "credbox";
+  const dr = c.documentosRenovacion || {};
+  const yaTiene = !!dr.ine;
+  box.innerHTML = "<span>Documentos de renovación de <b>" + hesc(c.nombre) + "</b>"
+    + " · ciclo " + String(c.ciclo || 1).padStart(2, "0")
+    + (yaTiene ? " (última captura: " + hesc(dr.ine) + ")" : "") + ":</span>"
+    + '<label class="credin ancho" style="display:flex;gap:6px;align-items:center">'
+    + '<input type="checkbox" id="drIne" checked> INE actualizada</label>'
+    + '<label class="credin ancho">Fecha de vencimiento de la INE (impresa en la credencial)'
+    + '<input type="date" class="credin ancho" id="drIneVenc" value="' + hesc(dr.ineFechaVencimiento || "") + '"></label>'
+    + '<label class="credin ancho" style="display:flex;gap:6px;align-items:center">'
+    + '<input type="checkbox" id="drComp" checked> Comprobante de domicilio actualizado</label>'
+    + '<label class="credin ancho">Fecha de emisión del comprobante'
+    + '<input type="date" class="credin ancho" id="drCompEmi" value="' + hesc(dr.comprobanteFechaEmision || "") + '"></label>'
+    + '<input class="credin ancho" id="drMotivo" placeholder="motivo (ej. renovación en sucursal, revisado en la cita)">'
+    + '<button class="credok" onclick="hacerDocsRenovacion(this,' + i + ')">Guardar</button>'
+    + '<button class="credno" onclick="refrescarLista()">Cancelar</button>'
+    + '<div class="crederr" id="drErr"></div>'
+    + '<div class="crederr" id="drVigencia" style="color:#B45309"></div>';
+  // DOC-01 (carta Dirección 02-sep): solo AVISA si algo venció por su propia
+  // fecha, no bloquea nada (CU-007 §10.6 sigue sin definir). Se consulta
+  // aparte porque la vigencia se calcula en el servidor (parámetro
+  // configurable, nunca fijo aquí en el frontend).
+  try {
+    const rv = await fetch("/api/creditos/renovacion?id=" + encodeURIComponent(c.id) + "&producto=" + encodeURIComponent(c.producto), { credentials: "include" });
+    const dv = await rv.json().catch(() => ({}));
+    const v = dv.vigenciaDocumentosRenovacion;
+    const avisos = [];
+    if (v && v.ine === true) avisos.push("la INE ya venció");
+    if (v && v.comprobanteDomicilio === true) avisos.push("el comprobante de domicilio ya venció");
+    const nota = $("drVigencia");
+    if (nota) nota.textContent = avisos.length ? "⚠ " + avisos.join(" y ") + " (no bloquea el registro, solo avisa)." : "";
+  } catch { /* si falla la consulta de vigencia, el registro sigue funcionando igual */ }
+}
+async function hacerDocsRenovacion(btn, i) {
+  const c = credRow(i), err = $("drErr"); btn.disabled = true;
+  const body = { id: c.id, producto: c.producto, motivo: $("drMotivo").value,
+    ine: $("drIne").checked, comprobanteDomicilio: $("drComp").checked };
+  const ineVenc = $("drIneVenc").value; if (ineVenc) body.ineFechaVencimiento = ineVenc;
+  const compEmi = $("drCompEmi").value; if (compEmi) body.comprobanteFechaEmision = compEmi;
+  try {
+    const r = await fetch("/api/creditos/documentos-renovacion", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { err.textContent = d.error || "No se pudo registrar."; btn.disabled = false; return; }
+    refrescarLista();
+  } catch { err.textContent = "Sin conexión con el servidor."; btn.disabled = false; }
 }
 function pedirAjuste(btn, i) {
   const c = credRow(i), box = btn.closest(".credacc"); if (!box) return;
@@ -3531,13 +3772,36 @@ function masShow(sec) {
   document.querySelectorAll(".mchip,.lsub").forEach((b) => b.classList.toggle("active", b.dataset.mas === sec));
 }
 try { window._masSec = localStorage.getItem("masSec") || "descargas"; } catch { window._masSec = "descargas"; }
-// ---------- GARANTÍAS (pantalla mínima, MVP, CU-006) ----------
-// Consume /api/garantias, /api/garantias/ficha, /api/garantias/reporte-semanal
-// y /api/garantias/reporte-salidas (server.js, portados junto con el dominio
-// dominios/garantia_liquida.js a esta rama de prueba). Cada endpoint trae su
-// propio arreglo "pendientes" -- lo que el mockup pide y aún no se puede
-// calcular -- y esta pantalla lo pinta tal cual, con el mismo texto que manda
-// el servidor, en vez de inventar una explicación distinta aquí.
+// Secciones del grupo Garantías (panel / ficha / reportes) — mismo patrón
+// que los submenús de Más: una a la vez, sincronizada en barra y chips.
+window._garSub = "panel";
+function garShow(sub) {
+  window._garSub = sub;
+  document.querySelectorAll(".garsec").forEach((x) => { x.style.display = x.id === "gar-" + sub ? "" : "none"; });
+  document.querySelectorAll("[data-gar]").forEach((b) => b.classList.toggle("active", b.dataset.gar === sub));
+}
+
+function tbShow(name) {
+  document.querySelectorAll(".tbt,.lit").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
+  // Los submenús de Más solo se ven cuando Más está abierto (acordeón).
+  document.querySelectorAll(".lsub").forEach((b) => { b.hidden = name !== "mas"; });
+  if (name === "mas") masShow(window._masSec || "descargas");
+  if (name === "garantias") garShow(window._garSub || "panel");
+  ["hoy", "caja", "cartera", "clientas", "garantias", "mas"].forEach((t) => {
+    const el = document.getElementById("tb-" + t);
+    if (el) el.style.display = (t === name) ? "" : "none";
+  });
+  try { localStorage.setItem("fooax_tb_tab", name); } catch (e) {}
+  if (name === "garantias" && !_garCargada) { _garCargada = true; cargarGarantias(); }
+}
+try { const t0 = localStorage.getItem("fooax_tb_tab"); if (t0 && t0 !== "hoy") tbShow(t0); } catch (e) {}
+
+// ---------- GARANTÍAS (pantalla mínima, MVP 10-sep-2026, CU-006) ----------
+// Consume /api/garantias y /api/garantias/ficha (server.js). Cada uno de los
+// dos endpoints trae su propio arreglo "pendientes" — lo que el mockup pide y
+// aún no se puede calcular — y esta pantalla lo pinta tal cual, con el mismo
+// texto que manda el servidor, en vez de inventar una explicación distinta
+// aquí. Así el mensaje de "falta definir" vive en un solo lugar (el backend).
 let _garCargada = false;
 function pintarPendientesGarantia(contId, pendientes) {
   // Dirección pidió NO mostrar la cocina de pendientes en la pantalla
@@ -3550,10 +3814,13 @@ function pintarPendientesGarantia(contId, pendientes) {
 }
 // Agrupa el arreglo plano "socias"/"sociasGarantiaA" (que ya trae id, nombre,
 // centro, producto, garantia/garantiaA por integrante) por centro, para
-// pintar el desglose dentro de cada grupo. OJO: "socias"/"sociasGarantiaA"
-// vienen topadas a 200 filas globales desde el backend (límite del MVP) -- si
-// un centro tiene integrantes fuera de ese tope no aparecerán en su
-// desglose; no se oculta este límite, se hereda tal cual del endpoint.
+// pintar el desglose dentro de cada grupo -- Karina preguntó el 21-sep-2026
+// si esto ya se veía; el dato ya lo calculaba resumenGarantias() pero nunca
+// se pintaba en pantalla (item 44 de CU-006, corregido el mismo día). OJO:
+// "socias"/"sociasGarantiaA" vienen topadas a 200 filas globales desde el
+// backend (mismo límite del MVP, no nuevo aquí) -- si un centro tiene
+// integrantes fuera de ese tope no aparecerán en su desglose; no se oculta
+// este límite, se hereda tal cual del endpoint existente.
 function agruparPorCentro(lista, campoMonto) {
   const porCentro = new Map();
   (lista || []).forEach((s) => {
@@ -3578,15 +3845,9 @@ function pintarDesgloseCentros(filasTotales, porIntegrante, campoMonto, etiqueta
       + '</details>';
   }).join("");
 }
-// Secciones del grupo Garantías (panel / ficha / reportes) — mismo patrón
-// que los submenús de Más: una a la vez, sincronizada en barra y chips.
-window._garSub = "panel";
-function garShow(sub) {
-  window._garSub = sub;
-  document.querySelectorAll(".garsec").forEach((x) => { x.style.display = x.id === "gar-" + sub ? "" : "none"; });
-  document.querySelectorAll("[data-gar]").forEach((b) => b.classList.toggle("active", b.dataset.gar === sub));
-}
 async function cargarGarantias() {
+  cargarGarantiasHoy();
+  cargarSolicitudesGarantia();
   const box = $("garResumen"), boxA = $("garResumenA");
   try {
     const r = await fetch("/api/garantias", { credentials: "include" });
@@ -3597,8 +3858,8 @@ async function cargarGarantias() {
       '<div class="renrow"><span>Pasivo total de Garantía Líquida</span><b>' + dinero(d.pasivoTotal) + '</b></div>'
       + '<div class="renrow"><span>Socias con garantía viva</span><b>' + d.sociasConGarantia + '</b></div>'
       + (gruposCentro ? '<div style="margin-top:8px">' + gruposCentro + '</div>' : '');
-    // GARANTÍA A: mismo patrón, bloque separado — pasivoTotalGarantiaA y
-    // porCentroGarantiaA nunca se mezclan con los de Líquida de arriba.
+    // GARANTÍA A (20-sep-2026): mismo patrón, bloque separado — pasivoTotalGarantiaA
+    // y porCentroGarantiaA nunca se mezclan con los de Líquida de arriba.
     if (boxA) {
       const gruposCentroA = pintarDesgloseCentros(d.porCentroGarantiaA, d.sociasGarantiaA, "garantiaA", "Garantía A");
       boxA.innerHTML =
@@ -3609,6 +3870,136 @@ async function cargarGarantias() {
     pintarPendientesGarantia("garPendGlobal", d.pendientes);
   } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
+// GARANTÍAS DE HOY (Karina, 24-sep-2026) — consume /api/garantias/hoy.
+async function cargarGarantiasHoy() {
+  const box = $("garHoy");
+  if (!box) return;
+  try {
+    const r = await fetch("/api/garantias/hoy", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const t2 = (titulo, cab, filas) => filas
+      ? '<div class="gar-eti">' + titulo + '</div><table class="gar-tab chica" style="max-width:420px"><thead><tr><th>' + cab + '</th><th class="num">Recibido hoy</th></tr></thead><tbody>' + filas + '</tbody></table>'
+      : "";
+    const fCentro = (d.porCentro || []).map((x) => '<tr><td>' + hesc(x.centro) + '</td><td class="num">' + dinero(x.monto) + '</td></tr>').join("");
+    const fEjec = (d.porEjecutivo || []).map((x) => '<tr><td>' + hesc(x.quien) + '</td><td class="num">' + dinero(x.monto) + '</td></tr>').join("");
+    const fUlt = (d.ultimas || []).map((u) =>
+      '<tr><td class="mono">' + hesc(u.fecha) + '</td><td>' + hesc(u.nombre || u.socio) + '</td><td>' + hesc(u.centro || "—")
+      + '</td><td>' + hesc(u.producto || "—") + '</td><td class="num">' + dinero(u.monto) + '</td><td>' + hesc(u.quien || "—")
+      + '</td><td><span class="gar-pill' + (u.fuente === "ficha" ? " liquida" : "") + '">'
+      + (u.fuente === "ficha" ? "Ficha de campo" : hesc(u.tipo || "Oficina")) + '</span></td></tr>').join("");
+    box.innerHTML =
+      '<div class="renrow"><span>Recibido HOY de garantías</span><b>' + dinero(d.recibidoHoy) + '</b></div>'
+      + '<div class="renrow"><span>· En campo (fichas de las ejecutivas)</span><b>' + dinero(d.enCampo) + '</b></div>'
+      + '<div class="renrow"><span>· En oficina (capturas de Dirección)</span><b>' + dinero(d.enOficina) + '</b></div>'
+      + (d.retenidoAutomatico > 0 ? '<div class="renrow"><span>· Retención automática al desembolso (no es efectivo)</span><b>' + dinero(d.retenidoAutomatico) + '</b></div>' : '')
+      + (d.entregadoHoy > 0 ? '<div class="renrow"><span>Entregado HOY (salidas)</span><b>' + dinero(d.entregadoHoy) + '</b></div>' : '')
+      + t2("Por centro", "Centro", fCentro)
+      + t2("Por ejecutivo", "Ejecutivo", fEjec)
+      + (fUlt
+        ? '<div class="gar-eti">Últimas garantías que se dieron (14 días)</div><div class="gar-scroll"><table class="gar-tab"><thead><tr><th>Fecha</th><th>Clienta</th><th>Centro</th><th>Crédito</th><th class="num">Monto</th><th>Quién</th><th>Cómo</th></tr></thead><tbody>' + fUlt + '</tbody></table></div>'
+        : '<div class="rechint">Sin garantías recibidas hoy ni en los últimos 14 días.</div>');
+  } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
+// SOLICITUDES DE GARANTÍAS (Karina, 24-sep-2026): la Ing. Monse ve los
+// botones de Aprobar/Rechazar; el resto solo ve el estado.
+async function cargarSolicitudesGarantia() {
+  const box = $("garSolicitudes");
+  if (!box) return;
+  try {
+    const r = await fetch("/api/garantias/solicitudes", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const pillEstado = (e2) => '<span class="gar-pill' + (e2 === "aprobada" ? " liquida" : "") + '"'
+      + (e2 === "rechazada" ? ' style="background:#FEF2F2;color:#B91C1C"' : '') + '>' + hesc(e2) + '</span>';
+    const filas = (d.solicitudes || []).slice(0, 30).map((s) =>
+      '<tr><td class="mono">' + hesc(s.folio) + '</td><td class="mono">' + hesc(s.fecha) + '</td>'
+      + '<td>' + (s.tipo === "liberacion" ? "Soltar garantía" : "Ajuste de saldo")
+      + (s.tipoGarantia ? '<br><span style="font-size:11px;color:var(--gris)">' + hesc(s.tipoGarantia + " · " + s.direccion) + '</span>' : '') + '</td>'
+      + '<td>' + hesc(s.nombre || s.socio) + '<br><span class="mono" style="color:var(--gris);font-size:11px">' + hesc(s.socio) + '</span></td>'
+      + '<td>' + hesc(s.producto || "—") + '</td><td class="num">' + dinero(s.monto) + '</td>'
+      + '<td>' + hesc(s.solicitadoPor || "—") + '</td>'
+      + '<td>' + (s.estado === "pendiente" && d.puedeAprobar
+          ? '<button class="recbtn" onclick="resolverSolGarantia(\'' + hesc(s.folio) + '\',\'aprobar\')">Aprobar</button> '
+            + '<button class="recbtn" style="background:#FEF2F2;color:#B91C1C" onclick="resolverSolGarantia(\'' + hesc(s.folio) + '\',\'rechazar\')">Rechazar</button>'
+          : pillEstado(s.estado) + (s.resolucion ? '<br><span style="font-size:11px;color:var(--gris)">' + hesc((s.resolucion.por || "") + " · " + (s.resolucion.fecha || "")) + '</span>' : ''))
+      + '</td></tr>').join("");
+    box.innerHTML = filas
+      ? '<div class="gar-scroll"><table class="gar-tab"><thead><tr><th>Folio</th><th>Fecha</th><th>Qué pide</th><th>Clienta</th><th>Crédito</th><th class="num">Monto</th><th>Pidió</th><th>Estado</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
+      : '<div class="rechint">Sin solicitudes todavía. Se crean desde la FICHA de una clienta (botones "Solicitar que se suelte la garantía" y "Ajustar saldo").</div>';
+  } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
+async function resolverSolGarantia(folio, decision) {
+  if (!confirm((decision === "aprobar" ? "¿Aprobar" : "¿Rechazar") + " la solicitud " + folio + "?")) return;
+  try {
+    const r = await fetch("/api/garantias/solicitudes/resolver", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ folio, decision }) });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error || "No se pudo resolver."); return; }
+    alert(decision === "aprobar"
+      ? (d.resultadoAjuste ? "Aprobada — el ajuste ya quedó aplicado al saldo." : "Aprobada — ya se puede entregar la garantía con su ticket desde la Ficha.")
+      : "Rechazada.");
+    cargarSolicitudesGarantia();
+  } catch (e) { alert("Sin conexión con el servidor."); }
+}
+
+// BOTONES DE LA FICHA (Karina, 24-sep-2026): pedir que se suelte la garantía
+// (le llega a la Ing. Monse con nombre, socio, crédito y monto) y el ajuste
+// manual de saldo (Monse aplica directo; Alejandra queda pendiente de
+// aprobación — el server decide, aquí solo se muestra la respuesta).
+async function solicitarSueltaGarantia() {
+  const d = window._garFichaActual;
+  if (!d) return;
+  const total = Math.round(((d.saldoActual || 0) + (d.saldoActualGarantiaA || 0)) * 100) / 100;
+  if (!(total > 0)) { alert("Esta clienta no tiene garantía guardada que soltar."); return; }
+  if (!confirm("Se le mandará a la Ing. Monse la solicitud de SOLTAR la garantía de:\n\n"
+    + d.nombre + " · socio " + d.socio + "\nCrédito: " + d.producto
+    + "\nGuardado: $" + total.toFixed(2) + "\n\n¿Mandar la solicitud?")) return;
+  try {
+    const r = await fetch("/api/garantias/solicitudes", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ tipo: "liberacion", socio: d.socio, producto: d.producto }) });
+    const j = await r.json();
+    if (!r.ok) { alert(j.error || "No se pudo mandar la solicitud."); return; }
+    alert("Solicitud mandada (folio " + j.solicitud.folio + ") — le llega a la Ing. Monse en su campanita y en GARANTÍAS · Panel.");
+    cargarSolicitudesGarantia();
+  } catch (e) { alert("Sin conexión con el servidor."); }
+}
+
+function toggleAjusteGarantia() {
+  const f = $("garAjusteForm");
+  if (f) f.style.display = f.style.display === "none" ? "" : "none";
+}
+
+async function enviarAjusteGarantia() {
+  const d = window._garFichaActual;
+  if (!d) return;
+  const cuerpo = {
+    socio: d.socio, producto: d.producto,
+    tipoGarantia: $("garAjTipo").value, direccion: $("garAjDir").value,
+    monto: Number($("garAjMonto").value), motivo: ($("garAjMotivo").value || "").trim(),
+  };
+  if (!(cuerpo.monto > 0)) { alert("Escribe el monto del ajuste."); return; }
+  if (cuerpo.motivo.length < 5) { alert("Escribe el motivo del ajuste (mínimo 5 caracteres)."); return; }
+  try {
+    const r = await fetch("/api/garantias/ajuste-manual", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify(cuerpo) });
+    const j = await r.json();
+    if (!r.ok) { alert(j.error || "No se pudo registrar el ajuste."); return; }
+    if (j.pendiente) { alert(j.mensaje); cargarSolicitudesGarantia(); }
+    else { alert("Ajuste aplicado (folio " + (j.movimiento && j.movimiento.folio || "—") + ")."); buscarFichaGarantia(); }
+  } catch (e) { alert("Sin conexión con el servidor."); }
+}
+
+function descargarExcelSalidasGarantias() {
+  const mes = ($("garRepMesMes").value || "").trim();
+  location.href = "/api/garantias/reporte-salidas/excel" + (mes ? "?mes=" + encodeURIComponent(mes) : "");
+}
+
 async function buscarFichaGarantia() {
   const socio = ($("garSocio").value || "").trim();
   const cont = $("garFicha");
@@ -3621,8 +4012,8 @@ async function buscarFichaGarantia() {
     const filas = (d.historial || []).map((m) =>
       '<tr><td>' + hesc(m.fecha) + '</td><td>' + hesc(m.tipo) + '</td><td>' + (m.entrada ? '+' : '−') + dinero(m.monto)
       + '</td><td>' + dinero(m.saldoDespues) + '</td><td>' + hesc(m.capturadoPor || "—") + '</td></tr>').join("");
-    // GARANTÍA A EN LA FICHA: bloque propio bajo el de Líquida, usando
-    // historialGarantiaA/saldoActualGarantiaA — nunca se mezcla con el
+    // GARANTÍA A EN LA FICHA (20-sep-2026): bloque propio bajo el de Líquida,
+    // usando historialGarantiaA/saldoActualGarantiaA — nunca se mezcla con el
     // historial de Líquida de arriba.
     const filasA = (d.historialGarantiaA || []).map((m) =>
       '<tr><td>' + hesc(m.fecha) + '</td><td>' + hesc(m.tipo) + '</td><td>' + (m.entrada ? '+' : '−') + dinero(m.monto)
@@ -3638,13 +4029,32 @@ async function buscarFichaGarantia() {
       + (filasA
           ? '<table class="ct-tab" style="margin-top:8px"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Monto</th><th>Saldo</th><th>Capturó</th></tr></thead><tbody>' + filasA + '</tbody></table>'
           : '<div class="rechint">Sin movimientos de Garantía A en este crédito.</div>')
+      // BOTONES (Karina, 24-sep-2026): solicitar que se suelte la garantía
+      // (solicitud a la Ing. Monse) y el ajuste manual de saldo (Monse aplica
+      // directo; a Alejandra le queda pendiente de aprobación).
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
+      + '<button class="recbtn" onclick="solicitarSueltaGarantia()">Solicitar que se suelte la garantía</button>'
+      + '<button class="recbtn" onclick="toggleAjusteGarantia()">Ajustar saldo…</button>'
+      + '</div>'
+      + '<div id="garAjusteForm" style="display:none;margin-top:10px;border:1px solid var(--linea);border-radius:8px;padding:10px">'
+      + '<div class="gar-eti" style="margin-top:0">Ajuste manual de saldo</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+      + '<select id="garAjTipo" class="recbtn"><option>Garantía Líquida</option><option>Garantía A</option></select>'
+      + '<select id="garAjDir" class="recbtn"><option value="entrada">Entrada (sube el saldo)</option><option value="salida">Salida (baja el saldo)</option></select>'
+      + '<input id="garAjMonto" type="number" min="0" step="0.01" placeholder="Monto" style="font:inherit;padding:8px;border:1px solid var(--linea);border-radius:8px;width:110px">'
+      + '</div>'
+      + '<input id="garAjMotivo" placeholder="Motivo del ajuste (obligatorio)" style="font:inherit;padding:8px;border:1px solid var(--linea);border-radius:8px;width:100%;max-width:420px;margin-top:8px;box-sizing:border-box">'
+      + '<div style="margin-top:8px"><button class="recbtn" onclick="enviarAjusteGarantia()">Registrar ajuste</button></div>'
+      + '<div class="rechint" style="margin-top:6px">Si no eres la Ing. Monse, el ajuste queda como solicitud y el saldo solo cambia cuando ella lo apruebe.</div>'
+      + '</div>'
       + '<div id="garFichaPend" style="margin-top:8px"></div>';
+    window._garFichaActual = d;
     pintarPendientesGarantia("garFichaPend", d.pendientes);
   } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
 
-// REPORTES DE GARANTÍAS (CU-008) — consumen /api/garantias/reporte-semanal y
-// /api/garantias/reporte-salidas.
+// REPORTES DE GARANTÍAS (CU-008, 20-sep-2026) — consumen
+// /api/garantias/reporte-semanal y /api/garantias/reporte-salidas.
 async function cargarReporteSemanalGarantias() {
   const cont = $("garRepSemanal");
   const fecha = ($("garRepSemFecha").value || "").trim();
@@ -3704,21 +4114,6 @@ async function cargarReporteSalidasGarantias() {
         : '');
   } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
-
-function tbShow(name) {
-  document.querySelectorAll(".tbt,.lit").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
-  // Los submenús de Más solo se ven cuando Más está abierto (acordeón).
-  document.querySelectorAll(".lsub").forEach((b) => { b.hidden = name !== "mas"; });
-  if (name === "mas") masShow(window._masSec || "descargas");
-  if (name === "garantias" && !_garCargada) { _garCargada = true; cargarGarantias(); }
-  if (name === "garantias") garShow(window._garSub || "panel");
-  ["hoy", "caja", "cartera", "clientas", "garantias", "mas"].forEach((t) => {
-    const el = document.getElementById("tb-" + t);
-    if (el) el.style.display = (t === name) ? "" : "none";
-  });
-  try { localStorage.setItem("fooax_tb_tab", name); } catch (e) {}
-}
-try { const t0 = localStorage.getItem("fooax_tb_tab"); if (t0 && t0 !== "hoy") tbShow(t0); } catch (e) {}
 
 async function salir() {
   await fetch("/api/logout", { method: "POST", credentials: "include" });
