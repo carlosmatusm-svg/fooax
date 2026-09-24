@@ -389,6 +389,23 @@
   .rescopy{margin-top:8px;font:inherit;font-size:12px;font-weight:800;color:#fff;background:var(--rio);
     border:0;border-radius:9px;padding:8px 14px;cursor:pointer}
   .ct-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
+  /* Tablas de los reportes de Garantías (rediseño Karina 23-sep): texto a
+     la izquierda, montos a la derecha en mono, aire entre columnas, líneas
+     suaves y pastilla para el tipo. Scroll propio en pantallas angostas. */
+  .gar-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
+  .gar-tab{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px}
+  .gar-tab.chica{min-width:0}
+  .gar-tab th{font:600 10px var(--mono);color:var(--gris);text-transform:uppercase;letter-spacing:.06em;
+    text-align:left;padding:0 10px 6px 0;border-bottom:1px solid var(--linea)}
+  .gar-tab td{padding:7px 10px 7px 0;border-bottom:1px solid var(--lav);vertical-align:top}
+  .gar-tab tr:last-child td{border-bottom:0}
+  .gar-tab th.num,.gar-tab td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .gar-tab td.mono{font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+  .gar-tab tr.gar-total td{border-top:2px solid var(--linea);border-bottom:0;font-weight:700}
+  .gar-pill{display:inline-block;font:600 10px var(--mono);padding:3px 8px;border-radius:99px;
+    background:#FFFBEB;color:#B45309;white-space:nowrap}
+  .gar-pill.liquida{background:#ECFDF5;color:#059669}
+  .gar-eti{font:600 10px var(--mono);color:var(--gris);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 4px}
   .ct-tab{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
   .ct-scroll .ct-tab{margin-top:0;min-width:520px}
   .ct-tab th,.ct-tab td{white-space:nowrap;padding-left:8px}
@@ -3638,21 +3655,22 @@ async function cargarReporteSemanalGarantias() {
     const d = await r.json();
     if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
     const filasDia = (d.porDia || []).map((x) =>
-      '<tr><td>' + hesc(x.fecha) + '</td><td>' + dinero(x.entradas) + '</td><td>' + dinero(x.salidas) + '</td></tr>').join("");
+      '<tr><td class="mono">' + hesc(x.fecha) + '</td><td class="num">' + dinero(x.entradas) + '</td><td class="num">' + dinero(x.salidas) + '</td></tr>').join("");
     const filasQuien = (d.porQuienCaptura || []).map((x) =>
-      '<tr><td>' + hesc(x.quien) + '</td><td>' + dinero(x.entradas) + '</td><td>' + dinero(x.salidas) + '</td></tr>').join("");
+      '<tr><td>' + hesc(x.quien) + '</td><td class="num">' + dinero(x.entradas) + '</td><td class="num">' + dinero(x.salidas) + '</td></tr>').join("");
     const filasForma = (d.porFormaPago || []).map((x) =>
-      '<tr><td>' + hesc(x.forma) + '</td><td>' + dinero(x.entradas) + '</td><td>' + dinero(x.salidas) + '</td></tr>').join("");
+      '<tr><td>' + hesc(x.forma) + '</td><td class="num">' + dinero(x.entradas) + '</td><td class="num">' + dinero(x.salidas) + '</td></tr>').join("");
+    const tablita = (titulo, cab, cuerpo, conTotal) => cuerpo
+      ? '<div class="gar-eti">' + titulo + '</div><table class="gar-tab chica" style="max-width:460px"><thead><tr><th>' + cab + '</th><th class="num">Entradas</th><th class="num">Salidas</th></tr></thead><tbody>'
+        + cuerpo
+        + (conTotal ? '<tr class="gar-total"><td>TOTAL</td><td class="num">' + dinero(d.totalEntradas) + '</td><td class="num">' + dinero(d.totalSalidas) + '</td></tr>' : "")
+        + '</tbody></table>'
+      : "";
     cont.innerHTML =
       '<div class="permeta">Semana ' + hesc(d.semana.desde) + ' a ' + hesc(d.semana.hasta) + '</div>'
-      + '<div class="renrow"><span>Total entradas</span><b>' + dinero(d.totalEntradas) + '</b></div>'
-      + '<div class="renrow"><span>Total salidas</span><b>' + dinero(d.totalSalidas) + '</b></div>'
-      + '<b style="display:block;margin-top:8px">Por día</b>'
-      + (filasDia ? '<table class="ct-tab"><thead><tr><th>Fecha</th><th>Entradas</th><th>Salidas</th></tr></thead><tbody>' + filasDia + '</tbody></table>' : '<div class="rechint">Sin movimientos esa semana.</div>')
-      + '<b style="display:block;margin-top:8px">Por quién capturó</b>'
-      + (filasQuien ? '<table class="ct-tab"><thead><tr><th>Quien</th><th>Entradas</th><th>Salidas</th></tr></thead><tbody>' + filasQuien + '</tbody></table>' : '')
-      + '<b style="display:block;margin-top:8px">Por forma de pago</b>'
-      + (filasForma ? '<table class="ct-tab"><thead><tr><th>Forma</th><th>Entradas</th><th>Salidas</th></tr></thead><tbody>' + filasForma + '</tbody></table>' : '');
+      + (filasDia ? tablita("Por día", "Fecha", filasDia, true) : '<div class="rechint">Sin movimientos esa semana.</div>')
+      + tablita("Por quién capturó", "Quién", filasQuien, false)
+      + tablita("Por forma de pago", "Forma", filasForma, false);
   } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
 async function cargarReporteSalidasGarantias() {
@@ -3664,15 +3682,26 @@ async function cargarReporteSalidasGarantias() {
     const r = await fetch(url, { credentials: "include" });
     const d = await r.json();
     if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    const pillTipo = (tipo) => '<span class="gar-pill' + (/l[íi]quida/i.test(String(tipo)) ? " liquida" : "") + '">' + hesc(tipo) + '</span>';
+    const totalMes = (d.salidas || []).reduce((x, s) => x + (Number(s.monto) || 0), 0);
     const filas = (d.salidas || []).map((s) =>
-      '<tr><td>' + hesc(s.folio) + '</td><td>' + hesc(s.fecha) + '</td><td>' + hesc(s.nombre || s.socio) + '</td><td>' + hesc(s.centro) + '</td><td>' + hesc(s.quien) + '</td><td>' + dinero(s.monto) + '</td><td>' + hesc(s.tipo) + '</td></tr>').join("");
+      '<tr><td class="mono">' + hesc(s.folio) + '</td><td class="mono">' + hesc(s.fecha) + '</td><td>' + hesc(s.nombre || s.socio) + '</td><td>' + hesc(s.centro) + '</td><td>' + hesc(s.quien) + '</td><td class="num">' + dinero(s.monto) + '</td><td>' + pillTipo(s.tipo) + '</td></tr>').join("");
     const filasRollup = (d.rollupPorCentro || []).map((x) =>
-      '<tr><td>' + hesc(x.centro) + '</td><td>' + dinero(x.total) + '</td></tr>').join("");
+      '<tr><td>' + hesc(x.centro) + '</td><td class="num">' + dinero(x.total) + '</td></tr>').join("");
     cont.innerHTML =
       '<div class="permeta">Mes ' + hesc(d.mes) + '</div>'
-      + (filas ? '<table class="ct-tab"><thead><tr><th>Folio</th><th>Fecha</th><th>Clienta</th><th>Centro</th><th>Quién</th><th>Monto</th><th>Tipo</th></tr></thead><tbody>' + filas + '</tbody></table>' : '<div class="rechint">Sin salidas ese mes.</div>')
-      + '<b style="display:block;margin-top:8px">Rollup por centro</b>'
-      + (filasRollup ? '<table class="ct-tab"><thead><tr><th>Centro</th><th>Total</th></tr></thead><tbody>' + filasRollup + '</tbody></table>' : '');
+      + (filas
+        ? '<div class="gar-scroll"><table class="gar-tab"><thead><tr><th>Folio</th><th>Fecha</th><th>Clienta</th><th>Centro</th><th>Quién</th><th class="num">Monto</th><th>Tipo</th></tr></thead><tbody>'
+          + filas
+          + '<tr class="gar-total"><td colspan="5">TOTAL DEL MES · ' + (d.salidas || []).length + ' salida(s)</td><td class="num">' + dinero(totalMes) + '</td><td></td></tr>'
+          + '</tbody></table></div>'
+        : '<div class="rechint">Sin salidas ese mes.</div>')
+      + (filasRollup
+        ? '<div class="gar-eti">Por centro</div><table class="gar-tab chica" style="max-width:420px"><thead><tr><th>Centro</th><th class="num">Total</th></tr></thead><tbody>'
+          + filasRollup
+          + '<tr class="gar-total"><td>TOTAL</td><td class="num">' + dinero(totalMes) + '</td></tr>'
+          + '</tbody></table>'
+        : '');
   } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
 
