@@ -855,12 +855,6 @@
       </div>
       <div id="garRepSalidas" style="margin-top:10px"></div>
     </div>
-
-    <h3>Lo que todavía falta definir</h3>
-    <div class="reccard">
-      <div class="rechint">Esta pantalla es un primer paso (MVP): muestra lo que el motor de garantías ya calcula (Líquida y A) y 2 de los 5 reportes del catálogo de CU-008. La conciliación contra la cuenta bancaria de garantías, el ticket de depósitos, los 2 reportes restantes del catálogo, y el control de bienes en garantía (hipotecaria) todavía dependen de que Dirección resuelva varios pendientes — se listan abajo tal como están en <code>PENDIENTES_POR_CONFIRMAR.md</code>, sección 3, para no fingir que ya existen.</div>
-      <div id="garPendGlobal"></div>
-    </div>
   </div>
   </div>
 
@@ -3773,14 +3767,13 @@ try { const t0 = localStorage.getItem("fooax_tb_tab"); if (t0 && t0 !== "hoy") t
 // aquí. Así el mensaje de "falta definir" vive en un solo lugar (el backend).
 let _garCargada = false;
 function pintarPendientesGarantia(contId, pendientes) {
+  // Dirección pidió NO mostrar la cocina de pendientes en la pantalla
+  // (Karina, 23-sep: "elimina esto, no tiene que saber"). Los pendientes
+  // siguen viajando en los endpoints para el equipo técnico; aquí no se
+  // pintan.
   const cont = $(contId);
-  if (!cont) return;
-  if (!pendientes || !pendientes.length) { cont.innerHTML = ""; return; }
-  cont.innerHTML = pendientes.map((p) =>
-    '<div class="garpend"><b>⚠ ' + hesc(p.tema) + '</b>'
-    + '<div class="garpendmot">' + hesc(p.motivo) + '</div>'
-    + '<div class="garpendresp">Le toca a: ' + hesc(p.responsable) + '</div></div>'
-  ).join("");
+  if (cont) cont.innerHTML = "";
+  void pendientes;
 }
 // Agrupa el arreglo plano "socias"/"sociasGarantiaA" (que ya trae id, nombre,
 // centro, producto, garantia/garantiaA por integrante) por centro, para
