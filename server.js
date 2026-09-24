@@ -6579,6 +6579,57 @@ app.get("/api/garantias/hoy", requiere("direccion", "admin"), (req, res) => {
   });
 });
 
+// BUSCADOR DE LA FICHA DE GARANTÍAS (Karina, 24-sep-2026: "el ver estado de
+// cuenta no solo tiene que ser por ID socio, también por nombre y grupo").
+// Vive bajo /api/garantias/* a propósito: es parte del área de Garantías y
+// así le funciona a Alejandra con su candado, sin abrirle el buscador
+// general de clientas. Regresa UNA fila por crédito (una socia con 3
+// créditos son 3 filas) para poder abrir el estado de cuenta exacto, con lo
+// guardado de Líquida y de A ya calculado — mismo neteo que
+// garantiaLiquidaDisponible/garantiaADisponible, con carteraViva UNA vez
+// (está memoizada por revisión y día, así que la búsqueda no recalcula el
+// motor por fila).
+app.get("/api/garantias/buscar", requiere("direccion", "admin"), (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (q.length < 2) return res.status(400).json({ error: "Escribe al menos 2 letras o números para buscar." });
+  const nq = norm(q);
+  const qDig = q.replace(/[\s\-.]/g, "");
+  const soloDigitos = /^\d+$/.test(qDig);
+  const cv = carteraViva(req.usuario);
+  const guardadoDe = (cred) => {
+    const clave = claveCredito(cred.id, cred.producto);
+    if (cv.porCredito.has(clave)) {
+      const info = infoCredito(cv, cred);
+      return { liq: info.garantia || 0, a: info.garantiaA || 0 };
+    }
+    return {
+      liq: Math.max(0, ((cv.garantias || {})[clave] || 0)
+        + ((cv.cobrosGarMov || {})[clave] || 0) - ((cv.entregasGar || {})[clave] || 0)),
+      a: Math.max(0, ((cv.cobrosGarA || {})[clave] || 0) - ((cv.entregasGarA || {})[clave] || 0)),
+    };
+  };
+  const filas = [];
+  for (const c of PADRON) {
+    const socio = String(c.id).split("|")[0];
+    const pega = soloDigitos
+      ? socio.includes(qDig)
+      : (norm(c.nombre || "").includes(nq) || norm(c.centro || "").includes(nq));
+    if (!pega) continue;
+    const g = guardadoDe(c);
+    filas.push({
+      socio, nombre: c.nombre, centro: c.centro || "Individual", producto: c.producto,
+      activa: !(c.activa === false || c.estatus === "BAJA"),
+      guardadaLiquida: Math.round(g.liq * 100) / 100,
+      guardadaA: Math.round(g.a * 100) / 100,
+    });
+    if (filas.length >= 60) break;
+  }
+  filas.sort((a, b) => (Number(b.activa) - Number(a.activa))
+    || String(a.nombre).localeCompare(String(b.nombre), "es")
+    || String(a.producto).localeCompare(String(b.producto), "es"));
+  res.json({ q, resultados: filas.slice(0, 30), total: filas.length });
+});
+
 // DESCARGA EN EXCEL del reporte de salidas por clienta (Karina, 24-sep-2026:
 // "Reporte de salidas por clienta (mensual) tienen que poder descargarlo en
 // excell"). Mismos datos que GET /api/garantias/reporte-salidas; formato de

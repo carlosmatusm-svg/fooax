@@ -6031,6 +6031,30 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     ok("y a Alejandra también (es su área)", xlA107.status === 200, "status " + xlA107.status);
   }
 
+  console.log("\n— 108. LA FICHA DE GARANTÍAS SE BUSCA POR NOMBRE Y GRUPO (Karina, 24-sep) —");
+  {
+    const ca108 = await login("alejandra", "alejandra2026");
+    const porNombre = await j(await fetch(U + "/api/garantias/buscar?q=GARDENIA", { headers: H(cm) }));
+    ok("por NOMBRE encuentra a las GARDENIA (una fila por crédito)",
+      (porNombre.resultados || []).some((x) => x.socio === "77000000107" && x.producto === "Grupal-Basico"),
+      JSON.stringify(porNombre.resultados || []).slice(0, 140));
+    const porGrupo = await j(await fetch(U + "/api/garantias/buscar?q=CENTRO%20GARANTIAS%20107", { headers: H(cm) }));
+    ok("por GRUPO también", (porGrupo.resultados || []).length >= 1
+      && (porGrupo.resultados || []).every((x) => x.centro === "CENTRO GARANTIAS 107"),
+      JSON.stringify(porGrupo.resultados || []).slice(0, 140));
+    const porSocio = await j(await fetch(U + "/api/garantias/buscar?q=77000000107", { headers: H(cm) }));
+    ok("y por número de socio, como siempre",
+      (porSocio.resultados || []).length >= 1 && porSocio.resultados[0].socio === "77000000107",
+      JSON.stringify(porSocio.resultados || []).slice(0, 100));
+    ok("con lo GUARDADO ya calculado en la fila (el ajuste de $50 de la 107)",
+      (porSocio.resultados || []).some((x) => x.guardadaA >= 49.99),
+      JSON.stringify(porSocio.resultados || []).slice(0, 140));
+    const corto = await fetch(U + "/api/garantias/buscar?q=G", { headers: H(cm) });
+    ok("una letra sola no barre el padrón (400)", corto.status === 400, "status " + corto.status);
+    const ale108 = await fetch(U + "/api/garantias/buscar?q=GARDENIA", { headers: H(ca108) });
+    ok("a Alejandra el buscador le abre (es su área)", ale108.status === 200, "status " + ale108.status);
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);
