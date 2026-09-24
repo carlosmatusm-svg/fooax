@@ -859,7 +859,7 @@
     <div class="reccard">
       <div class="buscador">
         <svg class="lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="garSocio" type="search" placeholder="Número de socio…" autocomplete="off" enterkeyhint="search" onkeydown="if(event.key==='Enter')buscarFichaGarantia()">
+        <input id="garSocio" type="search" placeholder="Nombre, número de socio o grupo…" autocomplete="off" enterkeyhint="search" onkeydown="if(event.key==='Enter')buscarFichaGarantia()">
       </div>
       <button class="recbtn" style="margin-top:8px" onclick="buscarFichaGarantia()">Ver estado de cuenta</button>
       <div id="garFicha" style="margin-top:10px"></div>
@@ -3991,7 +3991,7 @@ async function enviarAjusteGarantia() {
     const j = await r.json();
     if (!r.ok) { alert(j.error || "No se pudo registrar el ajuste."); return; }
     if (j.pendiente) { alert(j.mensaje); cargarSolicitudesGarantia(); }
-    else { alert("Ajuste aplicado (folio " + (j.movimiento && j.movimiento.folio || "—") + ")."); buscarFichaGarantia(); }
+    else { alert("Ajuste aplicado (folio " + (j.movimiento && j.movimiento.folio || "—") + ")."); cargarFichaGarantia(d.socio, d.producto); }
   } catch (e) { alert("Sin conexión con el servidor."); }
 }
 
@@ -4000,13 +4000,46 @@ function descargarExcelSalidasGarantias() {
   location.href = "/api/garantias/reporte-salidas/excel" + (mes ? "?mes=" + encodeURIComponent(mes) : "");
 }
 
+// BUSCAR POR NOMBRE, SOCIO O GRUPO (Karina, 24-sep-2026: "el ver estado de
+// cuenta no solo tiene que ser por ID socio, también por nombre y grupo").
+// Igual que el buscador de Clientas: si hay una sola coincidencia abre la
+// ficha directo; si hay varias (o la socia tiene varios créditos) enseña la
+// lista y cada renglón abre el estado de cuenta de ESE crédito.
 async function buscarFichaGarantia() {
-  const socio = ($("garSocio").value || "").trim();
+  const q = ($("garSocio").value || "").trim();
   const cont = $("garFicha");
-  if (!socio) { cont.innerHTML = '<div class="arq-vacio">Escribe un número de socio.</div>'; return; }
+  if (!q) { cont.innerHTML = '<div class="arq-vacio">Escribe un nombre, número de socio o grupo.</div>'; return; }
   cont.innerHTML = '<div class="arq-vacio">Buscando…</div>';
   try {
-    const r = await fetch("/api/garantias/ficha?id=" + encodeURIComponent(socio), { credentials: "include" });
+    const r = await fetch("/api/garantias/buscar?q=" + encodeURIComponent(q), { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo buscar.") + '</div>'; return; }
+    const rs = d.resultados || [];
+    if (!rs.length) {
+      cont.innerHTML = '<div class="arq-vacio">No encontré clientas con "' + hesc(q) + '" — busca por nombre, número de socio o grupo.</div>';
+      return;
+    }
+    if (rs.length === 1) { cargarFichaGarantia(rs[0].socio, rs[0].producto); return; }
+    const filas = rs.map((x) =>
+      '<tr style="cursor:pointer" data-s="' + hesc(x.socio) + '" data-p="' + hesc(x.producto) + '"'
+      + ' onclick="cargarFichaGarantia(this.dataset.s,this.dataset.p)">'
+      + '<td>' + hesc(x.nombre) + '<br><span class="mono" style="color:var(--gris);font-size:11px">' + hesc(x.socio) + '</span></td>'
+      + '<td>' + hesc(x.centro) + '</td><td>' + hesc(x.producto) + '</td>'
+      + '<td class="num">' + dinero(x.guardadaLiquida) + '</td><td class="num">' + dinero(x.guardadaA) + '</td>'
+      + '<td><span class="gar-pill' + (x.activa ? " liquida" : "") + '">' + (x.activa ? "vigente" : "baja") + '</span></td></tr>').join("");
+    cont.innerHTML =
+      '<div class="permeta">' + rs.length + ' resultado(s)' + (d.total > rs.length ? ' de ' + d.total + ' — afina la búsqueda' : '') + ' · toca uno para ver su estado de cuenta</div>'
+      + '<div class="gar-scroll"><table class="gar-tab"><thead><tr><th>Clienta</th><th>Grupo</th><th>Crédito</th><th class="num">Garantía Líq.</th><th class="num">Garantía A</th><th>Estado</th></tr></thead><tbody>'
+      + filas + '</tbody></table></div>';
+  } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
+async function cargarFichaGarantia(socio, producto) {
+  const cont = $("garFicha");
+  cont.innerHTML = '<div class="arq-vacio">Buscando…</div>';
+  try {
+    const r = await fetch("/api/garantias/ficha?id=" + encodeURIComponent(socio)
+      + (producto ? "&producto=" + encodeURIComponent(producto) : ""), { credentials: "include" });
     const d = await r.json();
     if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo buscar.") + '</div>'; return; }
     const filas = (d.historial || []).map((m) =>
