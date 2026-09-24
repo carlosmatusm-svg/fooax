@@ -6055,6 +6055,49 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     ok("a Alejandra el buscador le abre (es su área)", ale108.status === 200, "status " + ale108.status);
   }
 
+  console.log("\n— 109. VACIADO INICIAL DEL RÉCORD DE GARANTÍAS (Karina, 24-sep) —");
+  {
+    // La GARDENIA de la 107 ya tiene $68 de Líquida capturados por ficha:
+    // el récord de la planilla dice $100 → solo debe cargarse la DIFERENCIA.
+    const filasVac = [
+      { socio: "77000000107", nombre: "GARDENIA DE PRUEBA 107", monto: 100, dia: "MIERCOLES",
+        centroPlanilla: "C-76 CENTRO GARANTIAS 107", fechaCorte: "2026-09-23", fuente: "prueba109.xlsx" },
+      { socio: "99999999999", nombre: "NADIE DE PRUEBA", monto: 50, dia: "LUNES", fuente: "prueba109.xlsx" },
+    ];
+    const sim = await j(await fetch(U + "/api/garantias/vaciado-inicial", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ simular: true, filas: filasVac }) }));
+    ok("la SIMULACIÓN matchea por socio y calcula la DIFERENCIA ($100 − $68 = $32)",
+      sim.ok === true && sim.resumen.simulacion === true && sim.resumen.cargadas === 1
+        && Math.abs(sim.resumen.montoCargado - 32) < 0.01,
+      JSON.stringify(sim.resumen || {}).slice(0, 160));
+    ok("y acusa el socio que NO está en el padrón", sim.resumen.sinSocio === 1,
+      JSON.stringify((sim.detalle || []).filter((x) => x.estado === "SIN-SOCIO")).slice(0, 120));
+    const f109a = await j(await fetch(U + "/api/garantias/ficha?id=77000000107", { headers: H(cm) }));
+    ok("simular NO escribió nada (el guardado sigue en $68)",
+      Math.abs((f109a.saldoActual || 0) - 68) < 0.01, "saldo: " + f109a.saldoActual);
+
+    const carga = await j(await fetch(U + "/api/garantias/vaciado-inicial", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ simular: false, filas: filasVac }) }));
+    ok("la CARGA real mete los $32 con folio VAC-",
+      carga.ok === true && carga.resumen.cargadas === 1 && Math.abs(carga.resumen.montoCargado - 32) < 0.01
+        && (carga.detalle || []).some((x) => x.estado === "CARGADA" && /^VAC-77000000107-/.test(x.folio || "")),
+      JSON.stringify(carga.resumen || {}).slice(0, 160));
+    const f109b = await j(await fetch(U + "/api/garantias/ficha?id=77000000107", { headers: H(cm) }));
+    ok("la ficha ya empata con el récord de la planilla ($100) y el vaciado quedó en el historial",
+      Math.abs((f109b.saldoActual || 0) - 100) < 0.01
+        && (f109b.historial || []).some((m) => /^VAC-/.test(m.folio || "")),
+      "saldo: " + f109b.saldoActual + " · historial: " + (f109b.historial || []).length);
+
+    const dosVeces = await j(await fetch(U + "/api/garantias/vaciado-inicial", { method: "POST", headers: H(cm),
+      body: JSON.stringify({ simular: false, filas: filasVac }) }));
+    ok("correr el vaciado DOS veces no duplica un peso (ya cubierta / folio VAC-)",
+      dosVeces.resumen.cargadas === 0,
+      JSON.stringify(dosVeces.resumen || {}).slice(0, 160));
+    const f109c = await j(await fetch(U + "/api/garantias/ficha?id=77000000107", { headers: H(cm) }));
+    ok("y el saldo sigue en $100 exactos", Math.abs((f109c.saldoActual || 0) - 100) < 0.01,
+      "saldo: " + f109c.saldoActual);
+  }
+
   console.log("\n══════════════════════════════════");
   console.log(FAIL === 0 ? "✅✅ TODO PASÓ: " + PASS + " pruebas" : "❌ FALLARON " + FAIL + " de " + (PASS + FAIL));
   process.exit(FAIL === 0 ? 0 : 1);

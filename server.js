@@ -6630,6 +6630,123 @@ app.get("/api/garantias/buscar", requiere("direccion", "admin"), (req, res) => {
   res.json({ q, resultados: filas.slice(0, 30), total: filas.length });
 });
 
+// VACIADO INICIAL DEL RÉCORD DE GARANTÍAS (Karina, 24-sep-2026: "puedes
+// hacer este vaciado, matchea a sus ID socios con toda la base en general…
+// es el récord de sus clientas… linkea este histórico a clientas general").
+// Carga el acumulado histórico de las planillas de Dirección (LUNES/MARTES/
+// MIÉRCOLES) que la pantalla de Garantías no tenía (nacía en $0, pendiente
+// #22 del port de Carlos).
+//
+// CÓMO NO SE DUPLICA NADA (las tres defensas, en orden):
+//   1. DELTA, no el total: lo que se carga es (récord de la planilla −
+//      lo que el sistema YA tiene guardado de Garantía Líquida en ese
+//      crédito), calculado AL MOMENTO de la carga — las capturas de ficha
+//      recientes (que ya viven en el sistema) no se vuelven a sumar.
+//   2. Folio determinístico VAC-<socio>-<producto>: agregarMovimiento es
+//      idempotente por folio (store.js) — correr la carga dos veces no
+//      duplica un solo peso.
+//   3. Simulación primero: con simular:true no se escribe nada; regresa el
+//      mismo desglose fila por fila para revisarlo antes del clic real.
+//
+// A QUÉ BOLSA VA: "Garantía líquida" — la MISMA donde hoy caen las capturas
+// del campo "Garantía" de las fichas de las ejecutivas, para que cada
+// clienta quede con UN solo saldo continuo (histórico + capturas nuevas).
+// metodo "ajuste" (como el ajuste manual): invisible para el arqueo/cierre
+// de caja — un vaciado histórico no es efectivo entrando hoy a una caja.
+//
+// EL LINKEO A CLIENTAS: cada movimiento queda amarrado a socio+producto —
+// exactamente como cualquier garantía — así que aparece en la ficha de
+// Garantías (historial y saldo), en el desglose del crédito de la clienta
+// (buscador general), y viaja con ella para expedientes. Además cada
+// movimiento lleva vaciadoInicial:true para poder identificarlos siempre.
+//
+// CON QUÉ CRÉDITO MATCHEA cuando la socia tiene varios y la planilla solo
+// dice "GRUPAL": día de cobranza → centro → y si sigue empatado, su crédito
+// activo MÁS RECIENTE — la misma regla que ya usa /api/movimiento para
+// linkear una garantía sin producto (el dinero se amarra a su historia más
+// nueva). Sin crédito ACTIVO no se carga: un vaciado no le cuelga dinero a
+// un crédito cerrado — esas filas salen marcadas para revisión.
+app.post("/api/garantias/vaciado-inicial", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  const simular = b.simular !== false;   // por default NO escribe
+  const filas = Array.isArray(b.filas) ? b.filas : [];
+  if (!filas.length) return res.status(400).json({ error: "Manda las filas del vaciado (arreglo `filas`)." });
+  if (filas.length > 1000) return res.status(400).json({ error: "Máximo 1000 filas por carga." });
+
+  const numCentro = (t) => { const m = String(t || "").match(/C\s*-?\s*0*(\d+)/i); return m ? m[1] : null; };
+  const hoy = hoyMX();
+  const detalle = [];
+  const resumen = { total: filas.length, cargadas: 0, montoCargado: 0, yaCubiertas: 0, sistemaTieneMas: 0,
+    sinSocio: 0, sinCreditoActivo: 0, filasMalas: 0, simulacion: simular };
+
+  for (const f of filas) {
+    const socio = String(f.socio || "").replace(/[\s\-.]/g, "").trim();
+    const monto = Math.round((Number(f.monto) || 0) * 100) / 100;
+    const base = { socio, nombre: f.nombre || null, monto, dia: f.dia || null, fechaCorte: f.fechaCorte || null, fuente: f.fuente || null };
+    if (!/^\d{6,}$/.test(socio) || !(monto > 0)) { resumen.filasMalas++; detalle.push({ ...base, estado: "FILA-MALA", motivo: "socio o monto inválido" }); continue; }
+
+    let creds = PADRON.filter((c) => String(c.id).split("|")[0] === socio && c.activa !== false && c.estatus !== "BAJA");
+    if (!creds.length) {
+      const tuvo = PADRON.some((c) => String(c.id).split("|")[0] === socio);
+      if (tuvo) { resumen.sinCreditoActivo++; detalle.push({ ...base, estado: "SIN-CREDITO-ACTIVO", motivo: "La socia existe pero no tiene crédito activo — revisar con Dirección antes de cargar." }); }
+      else { resumen.sinSocio++; detalle.push({ ...base, estado: "SIN-SOCIO", motivo: "Ese número de socio no está en el padrón." }); }
+      continue;
+    }
+    if (f.producto) {
+      const exacto = creds.find((c) => norm(c.producto) === norm(f.producto));
+      creds = exacto ? [exacto] : creds;
+    }
+    if (creds.length > 1 && f.dia) {
+      const porDia = creds.filter((c) => norm(c.diaPago || "") === norm(f.dia));
+      if (porDia.length) creds = porDia;
+    }
+    if (creds.length > 1 && f.centroPlanilla) {
+      const nc = numCentro(f.centroPlanilla);
+      const porCentro = creds.filter((c) => (nc && numCentro(c.noCentro || c.centro) === nc));
+      if (porCentro.length) creds = porCentro;
+    }
+    creds.sort((c1, c2) => String(c2.alta_fecha || "").localeCompare(String(c1.alta_fecha || "")));
+    const cred = creds[0];
+
+    const guardado = garantiaLiquidaDisponible(req.usuario, socio, cred.producto).disponible;
+    const delta = Math.round((monto - guardado) * 100) / 100;
+    if (delta <= 0.009) {
+      if (guardado > monto + 0.009) { resumen.sistemaTieneMas++; detalle.push({ ...base, estado: "SISTEMA-TIENE-MAS", producto: cred.producto, guardado, motivo: "El sistema ya tiene $" + guardado.toFixed(2) + " y la planilla dice $" + monto.toFixed(2) + " — revisar, no se descuenta nada." }); }
+      else { resumen.yaCubiertas++; detalle.push({ ...base, estado: "YA-CUBIERTA", producto: cred.producto, guardado }); }
+      continue;
+    }
+
+    const folio = "VAC-" + socio + "-" + nprod(cred.producto);
+    // Anti-duplicado explícito: si ya hay un vaciado con este folio (aunque
+    // el récord de la planilla haya crecido después), no se carga otro — un
+    // segundo empate sería un ajuste manual con su aprobación, no un vaciado.
+    if (store.todosMovimientos().some((m) => !m.anulado && String(m.folio) === folio)) {
+      detalle.push({ ...base, estado: "YA-CARGADA-ANTES", producto: cred.producto, folio,
+        motivo: "Ya existe un vaciado con este folio — no se duplica. Si el récord cambió, va por ajuste manual (con aprobación)." });
+      continue;
+    }
+    if (!simular) {
+      store.agregarMovimiento({
+        folio, fecha: hoy, monto: delta,
+        concepto: "Vaciado inicial de garantías (récord de Dirección)", categoria: "Otro",
+        metodo: "ajuste", ejecutivo: null, socio, producto: cred.producto,
+        tipo: "Garantía líquida", entrada: true, vaciadoInicial: true,
+        nota: "Vaciado inicial: el récord de Dirección acumula $" + monto.toFixed(2)
+          + (f.fechaCorte ? " al corte " + f.fechaCorte : "") + (f.fuente ? " (" + f.fuente + ")" : "")
+          + ". El sistema ya tenía $" + guardado.toFixed(2) + " — se carga la diferencia para empatar."
+          + (f.fechaInicio ? " Periodo del récord: " + f.fechaInicio + " → " + (f.fechaCorte || hoy) + "." : ""),
+        registradoPor: req.usuario.nombre, rol: req.usuario.rol, usuario: req.usuario.id, ts: Date.now(),
+      });
+    }
+    resumen.cargadas++;
+    resumen.montoCargado = Math.round((resumen.montoCargado + delta) * 100) / 100;
+    detalle.push({ ...base, estado: simular ? "CARGARIA" : "CARGADA", producto: cred.producto,
+      centroSistema: cred.centro || null, guardado, aCargar: delta, folio });
+  }
+
+  res.json({ ok: true, resumen, detalle });
+});
+
 // DESCARGA EN EXCEL del reporte de salidas por clienta (Karina, 24-sep-2026:
 // "Reporte de salidas por clienta (mensual) tienen que poder descargarlo en
 // excell"). Mismos datos que GET /api/garantias/reporte-salidas; formato de

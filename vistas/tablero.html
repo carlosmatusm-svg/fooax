@@ -853,6 +853,23 @@
       <div id="garResumenA"><div class="arq-vacio">Cargando…</div></div>
     </div>
 
+    <!-- VACIADO INICIAL (Karina, 24-sep-2026: "puedes hacer este vaciado,
+         matchea a sus ID socios con toda la base en general"): carga por
+         única vez el récord histórico de las planillas de Dirección.
+         Siempre SIMULA primero (no escribe nada); la carga real solo mete
+         la DIFERENCIA contra lo ya guardado y el folio VAC- por crédito
+         hace imposible duplicar. -->
+    <h3>Vaciado inicial del récord (Dirección)</h3>
+    <div class="reccard">
+      <div class="rechint">Sube el archivo del vaciado (.json, preparado por Sistemas desde las planillas de garantías), SIMULA para ver el matcheo por número de socio contra el padrón vivo, y solo entonces carga. La carga mete únicamente la diferencia contra lo que cada clienta ya tiene guardado — no se duplica un solo peso.</div>
+      <input type="file" id="garVacFile" accept=".json,application/json" style="font:inherit;max-width:100%">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="recbtn" onclick="vaciadoGarantias(true)">Simular (sin cargar)</button>
+        <button class="recbtn" id="garVacCargar" onclick="vaciadoGarantias(false)" disabled>Cargar de verdad</button>
+      </div>
+      <div id="garVacRes" style="margin-top:10px"></div>
+    </div>
+
   </div>
   <div class="garsec" id="gar-ficha" style="display:none">
     <h3>Ficha de una clienta</h3>
@@ -3993,6 +4010,46 @@ async function enviarAjusteGarantia() {
     if (j.pendiente) { alert(j.mensaje); cargarSolicitudesGarantia(); }
     else { alert("Ajuste aplicado (folio " + (j.movimiento && j.movimiento.folio || "—") + ")."); cargarFichaGarantia(d.socio, d.producto); }
   } catch (e) { alert("Sin conexión con el servidor."); }
+}
+
+// VACIADO INICIAL (Karina, 24-sep-2026): sube el .json del vaciado, simula
+// contra el padrón vivo y solo entonces carga. El server hace el matcheo por
+// socio y calcula la DIFERENCIA — aquí solo se enseña el resultado.
+async function vaciadoGarantias(simular) {
+  const inp = $("garVacFile"), box = $("garVacRes");
+  const file = inp && inp.files && inp.files[0];
+  if (!file) { alert("Elige el archivo del vaciado (.json) que preparó Sistemas."); return; }
+  if (!simular && !confirm("Se van a CARGAR los montos de verdad (solo la diferencia contra lo ya guardado; el folio VAC- no deja duplicar). ¿Continuar?")) return;
+  box.innerHTML = '<div class="arq-vacio">' + (simular ? "Simulando…" : "Cargando…") + '</div>';
+  try {
+    const texto = await file.text();
+    let datos; try { datos = JSON.parse(texto); } catch (e2) { box.innerHTML = '<div class="arq-vacio">Ese archivo no es un JSON válido.</div>'; return; }
+    const filas = Array.isArray(datos) ? datos : datos.filas;
+    const r = await fetch("/api/garantias/vaciado-inicial", { method: "POST",
+      headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ simular, filas }) });
+    const d = await r.json();
+    if (!r.ok) { box.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo.") + '</div>'; return; }
+    const rz = d.resumen;
+    const probl = (d.detalle || []).filter((x) => !/^(CARGARIA|CARGADA|YA-CUBIERTA)$/.test(x.estado));
+    const filasP = probl.slice(0, 40).map((x) =>
+      '<tr><td class="mono">' + hesc(x.socio) + '</td><td>' + hesc(x.nombre || "—") + '</td><td class="num">' + dinero(x.monto)
+      + '</td><td><span class="gar-pill">' + hesc(x.estado) + '</span></td><td>' + hesc(x.motivo || "") + '</td></tr>').join("");
+    box.innerHTML =
+      '<div class="renrow"><span>Filas del archivo</span><b>' + rz.total + '</b></div>'
+      + '<div class="renrow"><span>' + (simular ? "Se cargarían" : "Se cargaron") + ' (diferencia contra lo ya guardado)</span><b>' + rz.cargadas + ' · ' + dinero(rz.montoCargado) + '</b></div>'
+      + '<div class="renrow"><span>Ya cubiertas (el sistema ya tiene ese monto o más)</span><b>' + (rz.yaCubiertas + rz.sistemaTieneMas) + '</b></div>'
+      + '<div class="renrow"><span>Para revisar (sin socio, sin crédito activo, filas malas)</span><b>' + (rz.sinSocio + rz.sinCreditoActivo + rz.filasMalas) + '</b></div>'
+      + (filasP
+        ? '<div class="gar-eti">Filas que necesitan revisión</div><div class="gar-scroll"><table class="gar-tab"><thead><tr><th>Socio</th><th>Clienta</th><th class="num">Monto</th><th>Estado</th><th>Motivo</th></tr></thead><tbody>' + filasP + '</tbody></table></div>'
+        : '')
+      + (simular
+        ? '<div class="rechint" style="margin-top:8px">Nada se escribió todavía. Si los números cuadran, dale "Cargar de verdad".</div>'
+        : '<div class="rechint" style="margin-top:8px">Carga hecha — los saldos ya se ven en la Ficha de cada clienta, en el panel y en el buscador.</div>');
+    const btn = $("garVacCargar");
+    if (btn) btn.disabled = !simular;
+    if (!simular) cargarGarantias();
+  } catch (e) { box.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
 
 function descargarExcelSalidasGarantias() {
