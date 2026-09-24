@@ -553,6 +553,12 @@
        no es una sección del tablero, es la descarga del libro de la semana. -->
   <div class="lat-eti">Hoja de cobranza</div>
   <button class="lit" onclick="descargar('/api/hoja-cobranza/excel')"><span class="cod">HC</span>Hoja de la semana</button>
+  <!-- GARANTÍAS como grupo propio con sus secciones (Karina, 23-sep):
+       abajo de la Hoja, nunca revuelto con el tablero. -->
+  <div class="lat-eti">Garantías</div>
+  <button class="lit" data-gar="panel" onclick="tbShow('garantias');garShow('panel')"><span class="cod">GA</span>Panel</button>
+  <button class="lit" data-gar="ficha" onclick="tbShow('garantias');garShow('ficha')"><span class="cod">GF</span>Ficha de clienta</button>
+  <button class="lit" data-gar="reportes" onclick="tbShow('garantias');garShow('reportes')"><span class="cod">GR</span>Reportes</button>
   <div class="lat-pie">RFC FOO2411271T3<br>UMA vigente · $117.31<br>Anel Aydee Díaz Silva<br>Rep. legal</div>
 </aside>
 <div class="marco">
@@ -589,6 +595,7 @@
     <button class="tbt" data-tb="clientas" onclick="tbShow('clientas')">Clientas</button>
     <button class="tbt" data-tb="garantias" onclick="tbShow('garantias')">Garantías</button>
     <button class="tbt" data-tb="mas" onclick="tbShow('mas')">Más</button>
+    <button class="tbt" data-tb="garantias" onclick="tbShow('garantias')">Garantías</button>
   </div>
 
   <div class="tbtab" id="tb-cartera" style="display:none">
@@ -787,23 +794,31 @@
        (/api/garantias, /api/garantias/ficha), con tarjetas explícitas de
        "pendiente de definir" para lo que el mockup pide y que todavía
        depende de una respuesta de Dirección (no se inventa ni se oculta). -->
+
   <div class="tbtab" id="tb-garantias" style="display:none">
+  <div class="maschips">
+    <button class="mchip active" data-gar="panel" onclick="garShow('panel')">Panel</button>
+    <button class="mchip" data-gar="ficha" onclick="garShow('ficha')">Ficha</button>
+    <button class="mchip" data-gar="reportes" onclick="garShow('reportes')">Reportes</button>
+  </div>
+  <div class="garsec" id="gar-panel">
     <h3 style="margin-top:6px">Garantías · resumen</h3>
     <div class="reccard">
       <div class="rechint">Pasivo total de Garantía Líquida (10% retenido al desembolso, Anexo F §7-8) y cuántas socias lo tienen guardado ahora mismo. Se calcula en vivo con los mismos números que ya usa la búsqueda de créditos — no es un dato capturado a mano.</div>
       <div id="garResumen"><div class="arq-vacio">Cargando garantías…</div></div>
     </div>
 
-    <!-- GARANTÍA A (20-sep-2026, hallazgo de validación del módulo): es un
-         concepto DISTINTO a la Garantía Líquida (RESUELTO 10-sep-2026, Karina
-         Matus) — se muestra en su PROPIO bloque, nunca sumada a la de arriba,
-         para no fingir un solo pasivo donde hay dos. -->
+    <!-- GARANTÍA A: es un concepto DISTINTO a la Garantía Líquida — se
+         muestra en su PROPIO bloque, nunca sumada a la de arriba, para no
+         fingir un solo pasivo donde hay dos. -->
     <h3>Garantía A · resumen</h3>
     <div class="reccard">
       <div class="rechint">Pasivo de Garantía A (aportación semanal voluntaria, se devuelve al cierre del ciclo — RESUELTO 10-sep-2026). Monto/rango de la aportación sigue sin definir por Dirección; esto solo muestra lo que ya se capturó.</div>
       <div id="garResumenA"><div class="arq-vacio">Cargando…</div></div>
     </div>
 
+  </div>
+  <div class="garsec" id="gar-ficha" style="display:none">
     <h3>Ficha de una clienta</h3>
     <div class="reccard">
       <div class="buscador">
@@ -819,6 +834,8 @@
          PENDIENTES_POR_CONFIRMAR.md sección 3. Los otros 3 (pendientes de
          devolución, aplicadas a crédito, ticket de depósitos) siguen abajo
          como pendientes, no se inventan aquí. -->
+  </div>
+  <div class="garsec" id="gar-reportes" style="display:none">
     <h3>Reporte semanal de entrada/salida</h3>
     <div class="reccard">
       <div class="rechint">Corte oficial: lunes, semana de lunes a domingo (RESUELTO 11-sep-2026). Incluye Garantía Líquida y Garantía A.</div>
@@ -844,6 +861,7 @@
       <div class="rechint">Esta pantalla es un primer paso (MVP): muestra lo que el motor de garantías ya calcula (Líquida y A) y 2 de los 5 reportes del catálogo de CU-008. La conciliación contra la cuenta bancaria de garantías, el ticket de depósitos, los 2 reportes restantes del catálogo, y el control de bienes en garantía (hipotecaria) todavía dependen de que Dirección resuelva varios pendientes — se listan abajo tal como están en <code>PENDIENTES_POR_CONFIRMAR.md</code>, sección 3, para no fingir que ya existen.</div>
       <div id="garPendGlobal"></div>
     </div>
+  </div>
   </div>
 
   <div class="tbtab" id="tb-mas" style="display:none">
@@ -3723,12 +3741,22 @@ function masShow(sec) {
   document.querySelectorAll(".mchip,.lsub").forEach((b) => b.classList.toggle("active", b.dataset.mas === sec));
 }
 try { window._masSec = localStorage.getItem("masSec") || "descargas"; } catch { window._masSec = "descargas"; }
+// Secciones del grupo Garantías (panel / ficha / reportes) — mismo patrón
+// que los submenús de Más: una a la vez, sincronizada en barra y chips.
+window._garSub = "panel";
+function garShow(sub) {
+  window._garSub = sub;
+  document.querySelectorAll(".garsec").forEach((x) => { x.style.display = x.id === "gar-" + sub ? "" : "none"; });
+  document.querySelectorAll("[data-gar]").forEach((b) => b.classList.toggle("active", b.dataset.gar === sub));
+}
+
 function tbShow(name) {
   document.querySelectorAll(".tbt,.lit").forEach((b) => b.classList.toggle("active", b.dataset.tb === name));
-      // Los submenus de Mas solo se ven cuando Mas esta abierto (acordeon).
-    document.querySelectorAll(".lsub").forEach((b) => { b.hidden = name !== "mas"; });
-    if (name === "mas") masShow(window._masSec || "descargas");
-    ["hoy", "caja", "cartera", "clientas", "garantias", "mas"].forEach((t) => {
+  // Los submenús de Más solo se ven cuando Más está abierto (acordeón).
+  document.querySelectorAll(".lsub").forEach((b) => { b.hidden = name !== "mas"; });
+  if (name === "mas") masShow(window._masSec || "descargas");
+  if (name === "garantias") garShow(window._garSub || "panel");
+  ["hoy", "caja", "cartera", "clientas", "garantias", "mas"].forEach((t) => {
     const el = document.getElementById("tb-" + t);
     if (el) el.style.display = (t === name) ? "" : "none";
   });
@@ -3900,15 +3928,43 @@ async function salir() {
 }
 fetch("/api/me", { credentials: "include" }).then(r => r.json()).then(d => {
   if (d.nombre) $("saludo").textContent = "Buen día, " + d.nombre;
-});
-cargar();
-cargarMovs();
-cargarArqueo();
-cargarResumen();
-cargarSeg();
-cargarSemana();
-cargarCentros();
-cargarYo();
+  if (d.soloCajaGarantias) { modoCajaGarantias(); return; }
+  arranqueCompleto();
+}).catch(() => arranqueCompleto());
+let _arranco = false;
+function arranqueCompleto() {
+  if (_arranco) return; _arranco = true;
+  cargar();
+  cargarMovs();
+  cargarArqueo();
+  cargarResumen();
+  cargarSeg();
+  cargarSemana();
+  cargarCentros();
+  cargarYo();
+}
+// El puesto de Alejandra (Karina y Anel, 23-sep): valida el efectivo que
+// entrega la sucursal y opera Garantías. Su sesión ve SOLO Caja y Garantías;
+// el servidor además responde 403 a todo lo demás (el candado real).
+function modoCajaGarantias() {
+  if (_arranco) return; _arranco = true;
+  // style.display, no [hidden]: el display:flex de .lit/.tbt le gana al
+  // atributo hidden del navegador.
+  document.querySelectorAll(".lat .lit").forEach((b) => {
+    if (!b.dataset.gar && b.dataset.tb !== "caja") b.style.display = "none";
+  });
+  document.querySelectorAll(".lat .lat-eti").forEach((e) => {
+    if (/hoja/i.test(e.textContent)) e.style.display = "none";
+  });
+  document.querySelectorAll(".tbnav .tbt").forEach((b) => {
+    if (b.dataset.tb !== "caja" && b.dataset.tb !== "garantias") b.style.display = "none";
+  });
+  try { const fs = document.getElementById("fSel"); if (fs && !fs.value) fs.value = (window.__hoyServidor || new Date().toISOString().slice(0, 10)); } catch (e) {}
+  cargarMovs();
+  cargarArqueo();
+  cargarSemana();
+  tbShow("caja");
+}
 cargarCorte();
 cargarCartera();
 cargarTendencias();

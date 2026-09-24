@@ -25,7 +25,11 @@ const USUARIOS = {
   julio:       { nombre: "Julio",       rol: "ejecutivo", app: "App_Cobranza_JULIO.html",        pass: process.env.PASS_JULIO       || "julio2026" },
   monse:       { nombre: "Monserrat",   rol: "admin",     pass: process.env.PASS_MONSE      || "monse2026" },
   anel:        { nombre: "Anel",        rol: "direccion", pass: process.env.PASS_ANEL       || "anel2026" },
-  alejandra:   { nombre: "Alejandra",   rol: "admin",     pass: process.env.PASS_ALEJANDRA  || "alejandra2026" },
+  // SU PUESTO ES GARANTÍAS + CAJA (Karina y Anel, 23-sep): Alejandra opera
+  // el módulo de Garantías y valida el efectivo que entrega la sucursal
+  // (arqueo, movimientos, correcciones de forma). El resto del tablero es de
+  // Monse y Anel. El candado vive en requiere(), no solo en pantalla.
+  alejandra:   { nombre: "Alejandra",   rol: "admin",     soloCajaGarantias: true, pass: process.env.PASS_ALEJANDRA  || "alejandra2026" },
   prueba:      { nombre: "Prueba",      rol: "ejecutivo", test: true, app: "App_Cobranza_PRUEBA.html", pass: process.env.PASS_PRUEBA     || "PruebaFOOAX2026" },
   pruebadir:   { nombre: "Prueba Dir",  rol: "direccion", test: true, pass: process.env.PASS_PRUEBADIR   || "PruebaFOOAX2026" },
 };
@@ -104,6 +108,14 @@ function requiere(...roles) {
     const u = usuarioDe(req);
     if (!u) return res.status(401).json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." });
     if (roles.length && !roles.includes(u.rol)) return res.status(403).json({ error: "No tienes permiso para ver esta sección." });
+    // Cuenta de área (soloCajaGarantias): solo las rutas de su puesto —
+    // Garantías completa y la validación del efectivo (arqueo, movimientos,
+    // cierre de caja, corrección de forma/monto) — aunque su rol sea admin.
+    // Lo demás del tablero responde 403 desde el servidor: esconderlo en
+    // pantalla no es un permiso.
+    if (u.soloCajaGarantias
+      && !/^\/api\/(garantias|garantia-liquida|arqueo|movimientos|semana|cobranza\/ajuste|me|logout)(\/|$|\?)/.test(req.path))
+      return res.status(403).json({ error: "Tu cuenta es del área de Garantías y Caja." });
     req.usuario = u;
     next();
   };
@@ -229,7 +241,7 @@ app.get("/api/me", (req, res) => {
   if (!u) return res.status(401).json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." });
   // hoy: la fecha oficial del servidor (hora de México) — la app la compara
   // con la suya y alerta si el teléfono quedó pegado en un día viejo.
-  res.json({ usuario: u.id, nombre: u.nombre, rol: u.rol, wipe: borrarTelefono.has(u.id), hoy: hoyMX() });
+  res.json({ usuario: u.id, nombre: u.nombre, rol: u.rol, wipe: borrarTelefono.has(u.id), hoy: hoyMX(), soloCajaGarantias: !!u.soloCajaGarantias });
 });
 
 // ---------- borrado remoto de datos del teléfono ----------
