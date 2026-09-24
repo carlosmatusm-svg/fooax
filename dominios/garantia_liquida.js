@@ -150,19 +150,39 @@ module.exports = function crearDominioGarantiaLiquida({
   // El folio de la última SALIDA (entregada o aplicada) de Garantía Líquida de
   // ese crédito, para citarlo en el candado ("ya salió con el ticket X") — CU-022
   // sección 5.
-  function ultimaSalidaGarantiaLiquida(socio, producto) {
+  //
+  // Búsqueda genérica reutilizada por ultimaSalidaGarantiaLiquida y
+  // ultimaSalidaGarantiaA (24-sep-2026, ver esta última más abajo): mismo
+  // recorrido, solo cambia el patrón que identifica el TIPO de salida.
+  function ultimaSalidaGarantiaComo(socio, producto, patronTipo) {
     const clave = claveCredito(socio, producto);
     let ultimo = null;
     for (const m of store.todosMovimientos()) {
       if (m.anulado || m.entrada) continue;
       const t = tipoDeMov(m) || "";
-      if (!/^garant[íi]a l[íi]quida (entregada|aplicada)$/i.test(t.trim())) continue;
+      if (!patronTipo.test(t.trim())) continue;
       if (socioDeMov(m) !== String(socio)) continue;
       const p = productoDeMov(m) || producto;
       if (claveCredito(socioDeMov(m), p) !== clave) continue;
       if (!ultimo || (m.ts || 0) > (ultimo.ts || 0)) ultimo = m;
     }
     return ultimo;
+  }
+  function ultimaSalidaGarantiaLiquida(socio, producto) {
+    return ultimaSalidaGarantiaComo(socio, producto, /^garant[íi]a l[íi]quida (entregada|aplicada)$/i);
+  }
+
+  // MISMA BÚSQUEDA PARA GARANTÍA A (24-sep-2026, hallazgo de Karina: probó
+  // sacar $550 de Garantía A a una socia con solo $467 guardados y el sistema
+  // lo dejó pasar — "Garantía A entregada" nunca tuvo el candado antiduplicado
+  // que sí tiene "Garantía líquida entregada" desde el 10-sep-2026. El
+  // comentario original decía que esto quedaba fuera "a propósito" hasta que
+  // Dirección lo resolviera para Garantía A; con dinero real ya entregado de
+  // más, el riesgo deja de ser hipotético — se agrega el mismo candado, mismo
+  // criterio, para no repetir la salida). Garantía A no tiene variante
+  // "aplicada" en el catálogo (CONCEPTOS_DIR) — solo "entregada".
+  function ultimaSalidaGarantiaA(socio, producto) {
+    return ultimaSalidaGarantiaComo(socio, producto, /^garant[íi]a a entregada$/i);
   }
 
   // EL TICKET H.14 (Anexo H.14, CU-022 Regla H.14: "ticket en los tres
@@ -1327,6 +1347,7 @@ module.exports = function crearDominioGarantiaLiquida({
     garantiaLiquidaDisponible,
     garantiaADisponible,
     ultimaSalidaGarantiaLiquida,
+    ultimaSalidaGarantiaA,
     ticketGarantiaLiquidaH14,
     resumenGarantias,
     estadoDeCuentaGarantia,

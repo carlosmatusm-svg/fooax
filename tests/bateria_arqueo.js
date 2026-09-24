@@ -3798,11 +3798,24 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("la Garantía A tiene su guardado PROPIO ($200), separado del de la líquida",
     dgAGA.ok && dgAGA.garantiaAGuardada === 200,
     "A=" + dgAGA.garantiaAGuardada + " líquida=" + dgAGA.garantiaGuardada);
-  const gaMasGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 500,
-    concepto: "trae de antes", socio: "70000009102", producto: "Grupal-Basico" }));
-  ok("la Garantía A mayor a lo registrado también pasa libre, sin nota",
-    !gaMasGA.error && !(gaMasGA.movimiento || {}).notaGarantia,
-    JSON.stringify(gaMasGA).slice(0, 80));
+  // CORREGIDO 24-sep-2026 (hallazgo de Karina: probó sacar $550 de Garantía A
+  // a una socia con solo $467 guardados y el sistema lo dejó pasar — con
+  // dinero real entregado de más). Hasta hoy esta prueba documentaba esa
+  // ausencia de candado como comportamiento esperado ("pasa libre, sin
+  // nota") — ahora "Garantía A entregada" tiene el MISMO candado
+  // antiduplicado que ya protegía "Garantía líquida entregada" desde el
+  // 10-sep-2026 (ver la sección de arriba, "trae garantía de antes"), y esta
+  // sección deja de ser la excepción.
+  const respGaMasGA = await mov102({ tipo: "Garantía A entregada", monto: 500,
+    concepto: "trae de antes", socio: "70000009102", producto: "Grupal-Basico" });
+  const gaMasGA = await j(respGaMasGA);
+  ok("la Garantía A mayor a lo registrado YA SE RECHAZA (candado antiduplicado, 24-sep-2026)",
+    respGaMasGA.status === 400 && !!gaMasGA.error, "status " + respGaMasGA.status + " " + JSON.stringify(gaMasGA).slice(0, 80));
+  const dgAGAtrasIntento = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
+    { headers: H(cm) }));
+  ok("y el guardado de Garantía A NO se movió (sigue en $200)",
+    dgAGAtrasIntento.ok && dgAGAtrasIntento.garantiaAGuardada === 200,
+    "A=" + dgAGAtrasIntento.garantiaAGuardada);
   const gaOkGA = await j(await mov102({ tipo: "Garantía A entregada", monto: 200,
     concepto: "se entrega", socio: "70000009102", producto: "Grupal-Basico" }));
   ok("y entregar lo guardado sí pasa: el ciclo A cierra en 0", !gaOkGA.error);

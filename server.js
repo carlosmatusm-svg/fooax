@@ -4092,6 +4092,7 @@ const {
   garantiaLiquidaDisponible,
   garantiaADisponible,
   ultimaSalidaGarantiaLiquida,
+  ultimaSalidaGarantiaA,
   ticketGarantiaLiquidaH14,
   resumenGarantias,
   estadoDeCuentaGarantia,
@@ -6139,13 +6140,32 @@ app.post("/api/movimiento", requiere("direccion", "admin"), (req, res) => {
   // GARANTÍA A — disponible ANTES del movimiento (20-sep-2026, hallazgo de
   // validación, CU-006 item 12 RESUELTO 10-sep-2026: "por cada importe
   // recibido se deberá generar un ticket o extender un recibo... sin
-  // distinguir por volumen ni por tipo de garantía"). A propósito NO se
-  // agrega candado antiduplicado aquí (eso no forma parte de lo resuelto por
-  // Dirección para Garantía A todavía) — solo el dato para poder emitir el
-  // ticket en cada entrada Y cada salida, como exige el item 12.
+  // distinguir por volumen ni por tipo de garantía").
+  //
+  // CANDADO ANTIDUPLICADO — CORREGIDO 24-sep-2026 (hallazgo de Karina: probó
+  // sacar $550 de Garantía A a una socia con solo $467 guardados y el
+  // sistema lo dejó pasar). Hasta hoy esto quedaba "a propósito" sin candado
+  // porque Dirección no había resuelto si aplicaba a Garantía A — con dinero
+  // real ya entregado de más, el riesgo dejó de ser hipotético. Se agrega
+  // AQUÍ el mismo candado que ya protege "Garantía líquida entregada" desde
+  // el 10-sep-2026 (mismo mensaje, mismo criterio, solo cambia la fuente del
+  // disponible y el folio de la última salida que se cita).
   let disponibleAntesA = null;
   if ((tipoNombre === "Garantía A" || tipoNombre === "Garantía A entregada") && socio && producto) {
     disponibleAntesA = garantiaADisponible(req.usuario, socio, producto).disponible;
+    if (tipoNombre === "Garantía A entregada" && monto > disponibleAntesA + 0.009) {
+      const previaA = ultimaSalidaGarantiaA(socio, producto);
+      avisar("candado_bloqueado", { socio, usuario: req.usuario, test: !!req.usuario.test,
+        detalle: { candado: "antiduplicado_garantia_a", accion: "entrega", producto, montoIntentado: monto, disponible: disponibleAntesA } });
+      return res.status(400).json({
+        error: "Esta clienta solo tiene $" + disponibleAntesA.toFixed(2) + " guardado de Garantía A en ese crédito"
+          + (disponibleAntesA <= 0.009 && previaA
+              ? " — ya se devolvió por completo con el ticket " + previaA.folio + " (" + previaA.fecha + ")."
+              : ". No se puede entregar más de lo que tiene guardado."),
+        disponible: disponibleAntesA,
+        ticketAnterior: previaA ? { folio: previaA.folio, fecha: previaA.fecha, monto: previaA.monto } : null,
+      });
+    }
   }
 
   let disponibleAntes = null;
