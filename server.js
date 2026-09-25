@@ -4079,15 +4079,20 @@ const {
   elegibilidadLiberacionGarantia,
   reporteSemanalGarantias,
   reporteSalidaGarantiasPorClienta,
+  reporteSalidaGarantiasSemanal,
+  observacionesDeSalida,
   corteDiarioGarantias,
   ticketLiberacionGarantia,
   alertaVencimientoGarantiaHipotecaria,
   alertasGarantiaHipotecariaPorVencer,
   alertasPlazoEntregaGarantia,
   registrarRegresoHojaLiberacion,
+  hojaLiberacionYaRegresada,
   alertasPlazoRegresoHojaLiberacion,
   registrarAjusteManualGarantia,
   validarSalidaAnticipadaGarantiaLiquida,
+  tipoGarantiaNormalizado,
+  responsablesGarantias,
 } = require("./dominios/garantia_liquida")({
   store, norm, nprod, claveCredito, tipoDeMov, socioDeMov, productoDeMov,
   infoCredito, carteraViva,
@@ -4101,6 +4106,25 @@ const {
   garantiaHipotecariaDiasAlerta: Number(process.env.GARANTIA_HIPOTECARIA_DIAS_ALERTA) || 3,
   usuariosAutorizanAjusteManual: USUARIOS_AUTORIZAN_AJUSTE_MANUAL_GARANTIA,
 });
+
+// Hoja de liberación por centro (formato "GARANTIA GRUPAL") + catálogo de
+// jefas de centro + regreso escaneado y validación de Alejandra (CU-006,
+// 25-sep-2026, audio de Karina / mensaje de Anel). Toda la lógica vive en
+// dominios/hoja_liberacion_grupal.js; quién valida va por variable de entorno
+// (mismo patrón que el ajuste manual), nunca fijo en el código.
+const USUARIOS_VALIDAN_HOJA_LIBERACION = (process.env.GARANTIA_USUARIOS_VALIDAN_HOJA || "alejandra")
+  .split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+const hojaGrupal = require("./dominios/hoja_liberacion_grupal")({
+  store, norm, nprod, hoyMX, carteraViva, tipoDeMov, socioDeMov, productoDeMov,
+  obtenerPadron: () => PADRON,
+  garantias: {
+    observacionesDeSalida, tipoGarantiaNormalizado, responsablesGarantias,
+    hojaLiberacionYaRegresada, registrarRegresoHojaLiberacion,
+  },
+  usuariosValidanHoja: USUARIOS_VALIDAN_HOJA_LIBERACION,
+});
+const hojaLiberacionGrupalHtml = require("./hoja-liberacion-grupal");
+const reportesGarantiasExcel = require("./reportes-garantias-excel");
 
 // Dominio Notificaciones (NOT-01, CU-020) extraído a
 // dominios/notificaciones.js (12-sep-2026): bandeja interna de avisos,
@@ -6344,9 +6368,79 @@ app.get("/api/garantias/reporte-semanal", requiere("direccion", "admin"), (req, 
   res.json(reporteSemanalGarantias(lunesDeLaSemana(fecha)));
 });
 
+// ?semana=YYYY-MM-DD (cualquier día de la semana) corta de lunes a domingo;
+// sin `semana`, sigue siendo el reporte mensual de siempre (?mes=YYYY-MM).
 app.get("/api/garantias/reporte-salidas", requiere("direccion", "admin"), (req, res) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(req.query.semana || "")) {
+    return res.json(reporteSalidaGarantiasSemanal(lunesDeLaSemana(req.query.semana), req.usuario));
+  }
   const mes = /^\d{4}-\d{2}$/.test(req.query.mes || "") ? req.query.mes : hoyMX().slice(0, 7);
-  res.json(reporteSalidaGarantiasPorClienta(mes));
+  res.json(reporteSalidaGarantiasPorClienta(mes, req.usuario));
+});
+
+// REPORTE SEMANAL EN EXCEL (25-sep-2026, "falta el reporte semanal"): el
+// mismo libro que Karina arma a mano (REPORTES SEMANALES + REPORTE DE SALIDA
+// A). Los datos salen de los dos reportes de arriba; reportes-garantias-excel.js
+// solo los acomoda en celdas.
+app.get("/api/garantias/reporte-semanal/excel", requiere("direccion", "admin"), async (req, res) => {
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(req.query.fecha || "") ? req.query.fecha : hoyMX();
+  const lunes = lunesDeLaSemana(fecha);
+  try {
+    const wb = reportesGarantiasExcel.generarReporteSemanal(ExcelJS, {
+      semanal: reporteSemanalGarantias(lunes),
+      salidas: reporteSalidaGarantiasSemanal(lunes, req.usuario),
+      responsables: responsablesGarantias,
+      fechaReporte: hoyMX(),
+    });
+    const buf = await wb.xlsx.writeBuffer();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="Reporte semanal de garantias FOOAX ${lunes}.xlsx"`);
+    res.send(Buffer.from(buf));
+  } catch (error) {
+    console.error("[reporte-semanal/excel]", error);
+    res.status(500).json({ error: "No se pudo generar el Excel del reporte semanal." });
+  }
+});
+
+// ---- HOJA DE LIBERACIÓN POR CENTRO (GARANTÍA GRUPAL) — pegamento HTTP de
+// dominios/hoja_liberacion_grupal.js. Mismo criterio que el resto: parsear,
+// llamar al dominio, traducir { error, status } a la respuesta.
+const responderDominio = (res, resultado) => (resultado.error
+  ? res.status(resultado.status || 400).json({ error: resultado.error })
+  : res.json(resultado));
+
+app.get("/api/garantias/jefas-centro", requiere("direccion", "admin"), (req, res) => {
+  res.json(hojaGrupal.catalogoJefasDeCentro());
+});
+app.post("/api/garantias/jefas-centro", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  responderDominio(res, hojaGrupal.cargarJefasDeCentro({ filas: b.filas, texto: b.texto }, req.usuario));
+});
+app.get("/api/garantias/hoja-grupal/centros", requiere("direccion", "admin"), (req, res) => {
+  responderDominio(res, hojaGrupal.centrosConEntregasDelDia(req.query.fecha || hoyMX()));
+});
+app.get("/api/garantias/hoja-grupal", requiere("direccion", "admin"), (req, res) => {
+  responderDominio(res, hojaGrupal.hojaLiberacionGrupal(req.usuario, req.query.centro, req.query.fecha));
+});
+app.get("/api/garantias/hoja-grupal/imprimir", requiere("direccion", "admin"), (req, res) => {
+  const hoja = hojaGrupal.hojaLiberacionGrupal(req.usuario, req.query.centro, req.query.fecha);
+  if (hoja.error) return res.status(hoja.status || 400).json({ error: hoja.error });
+  res.type("html").send(hojaLiberacionGrupalHtml.renderHtml(hoja));
+});
+app.post("/api/garantias/hoja-grupal/regreso", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  responderDominio(res, hojaGrupal.registrarRegresoHojaGrupal({
+    centro: b.centro, fecha: b.fecha, evidencia: b.evidencia, fechaRegreso: b.fechaRegreso,
+  }, req.usuario));
+});
+app.post("/api/garantias/hoja-grupal/validacion", requiere("direccion", "admin"), (req, res) => {
+  const b = req.body || {};
+  responderDominio(res, hojaGrupal.validarHojaGrupal({
+    centro: b.centro, fecha: b.fecha, resultado: b.resultado, nota: b.nota,
+  }, req.usuario));
+});
+app.get("/api/garantias/hoja-grupal/pendientes-validar", requiere("direccion", "admin"), (req, res) => {
+  res.json({ ...hojaGrupal.hojasPendientesDeValidar(), puedoValidar: hojaGrupal.puedeValidarHoja(req.usuario) });
 });
 
 // CORTE DIARIO DE GARANTÍAS por grupo (centro) y tipo de crédito (producto)
