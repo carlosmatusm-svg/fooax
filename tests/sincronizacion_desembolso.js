@@ -69,10 +69,17 @@ const sumaDias = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(
   ok("la numeración va de 1 a 8 sin saltos", plan.map((p) => p.numero).join(",") === "1,2,3,4,5,6,7,8");
 
   const sobre = (r1.clienta && r1.clienta.sobreDispersion) || {};
-  ok("la garantía es el 10% del importe (Anexo F, Secciones 7/8)", sobre.garantia === 400, JSON.stringify(sobre));
+  // CORRECCIÓN 25-sep-2026 (CU-006 §2/§10.1, Anexo F §7): la garantía líquida es
+  // requisito EXCLUSIVO de Magnus. Este producto de prueba no es Magnus (ni
+  // Comadre, ni ninguno del catálogo), así que NO debe generar retención —
+  // antes de la corrección este caso reportaba $400 (10% de cualquier
+  // producto), que es justo el bug que reportó Anel para la línea Comadre.
+  ok("un producto que NO es Magnus no genera retención de garantía (Anexo F §7 la limita a Magnus)",
+    sobre.garantia === 0, JSON.stringify(sobre));
   ok("el sobre respeta la comisión y el seguro capturados (datos manuales, sin catálogo)",
     sobre.comision === 100 && sobre.seguro === 50);
-  ok("el neto = importe − comisión − seguro − garantía", sobre.neto === 4000 - 100 - 50 - 400, JSON.stringify(sobre));
+  ok("el neto = importe − comisión − seguro − garantía (garantía 0 en este producto)",
+    sobre.neto === 4000 - 100 - 50 - 0, JSON.stringify(sobre));
   ok("el sobre dice qué porcentaje de garantía usó (parámetro, no un número mudo)",
     sobre.porcentajeGarantia === 10);
 
@@ -112,7 +119,9 @@ const sumaDias = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(
   ok("la primera cuota del ciclo nuevo parte del NUEVO desembolso, no del viejo",
     plan2[0] && plan2[0].fecha_programada === sumaDias(desembolso2, 2));
   const sobre2 = (r2.clienta && r2.clienta.sobreDispersion) || {};
-  ok("el sobre del recrédito usa el importe nuevo (garantía 10% de 3000 = 300)", sobre2.garantia === 300, JSON.stringify(sobre2));
+  // Mismo criterio que la sección 1: este producto tampoco es Magnus.
+  ok("el sobre del recrédito de un producto que NO es Magnus tampoco genera retención",
+    sobre2.garantia === 0, JSON.stringify(sobre2));
 
   console.log("\n— 5. Sin desembolso/día de pago/plazo no se inventa un plan (falla en silencio, no en error) —");
   const socio2 = "8" + RUN.padStart(10, "0");
@@ -157,6 +166,42 @@ const sumaDias = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(
     plan3.every((p) => diaDe(p.fecha_programada) === "MIERCOLES"));
   ok("el producto de la sección 1 (no está en ningún catálogo) SIGUE cayendo al respaldo manual",
     plan[0] && plan[0].fuente === "manual", JSON.stringify(plan[0]));
+
+  console.log("\n— 7. CORRECCIÓN 25-sep-2026 (CU-006 §2/§10.1, Anexo F §7): la garantía líquida");
+  console.log("     es requisito EXCLUSIVO de Magnus — Comadre nunca la lleva (bug reportado por Anel) —");
+  const socioMagnus = "6" + RUN.padStart(10, "0");
+  const desembolsoMagnus = "2026-03-01"; // domingo
+  const rMagnus = await j(await fetch(U + "/api/clientes/alta", {
+    method: "POST", headers: H(ca), body: JSON.stringify({
+      id: socioMagnus, nombre: "Prueba Magnus " + RUN, centro: "C-0", ejecutivo: "Karina",
+      producto: "Magnus", saldo: 4640, cuota: 580, plazo: 8, importe: 4000,
+      desembolso: desembolsoMagnus, diaPago: "LUNES", comision: 100, seguro: 50,
+    }),
+  }));
+  ok("el alta con producto Magnus responde ok", rMagnus.ok === true, JSON.stringify(rMagnus).slice(0, 200));
+  const sobreMagnus = (rMagnus.clienta && rMagnus.clienta.sobreDispersion) || {};
+  ok("Magnus SÍ genera la retención del 10% (Anexo F §7, único producto que la exige)",
+    sobreMagnus.garantia === 400, JSON.stringify(sobreMagnus));
+
+  const socioComadre = "5" + RUN.padStart(10, "0");
+  const desembolsoComadre = "2026-03-08"; // domingo
+  const rComadre = await j(await fetch(U + "/api/clientes/alta", {
+    method: "POST", headers: H(ca), body: JSON.stringify({
+      id: socioComadre, nombre: "Prueba Comadre " + RUN, centro: "C-0", ejecutivo: "Karina",
+      producto: "Comadre", saldo: 2320, cuota: 290, plazo: 8, importe: 2000,
+      desembolso: desembolsoComadre, diaPago: "LUNES",
+    }),
+  }));
+  ok("el alta con producto Comadre responde ok", rComadre.ok === true, JSON.stringify(rComadre).slice(0, 200));
+  const sobreComadre = (rComadre.clienta && rComadre.clienta.sobreDispersion) || {};
+  ok("Comadre NO genera retención de garantía líquida (CU-006: no es requisito de esta línea)",
+    sobreComadre.garantia === 0, JSON.stringify(sobreComadre));
+
+  console.log("\n— 8. La corrección también evita el movimiento GAR-AUTO en Comadre —");
+  const movsComadre = await j(await fetch(U + "/api/garantias?q=" + encodeURIComponent(socioComadre), { headers: H(ca) }));
+  const tieneGarAuto = JSON.stringify(movsComadre).includes("GAR-AUTO-" + socioComadre.toLowerCase());
+  ok("no aparece ningún movimiento GAR-AUTO para la clienta de Comadre",
+    !tieneGarAuto, JSON.stringify(movsComadre).slice(0, 300));
 
   console.log("\n" + PASS + " pasaron, " + FAIL + " fallaron.");
   process.exit(FAIL > 0 ? 1 : 0);

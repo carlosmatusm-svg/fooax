@@ -27,11 +27,23 @@ module.exports = function crearDominioSincronizacionDesembolso({
   // regla validada (Anexo F): 10% del importe prestado, redondeado a
   // centavos. Regla 3.1 del Anexo F: el IVA nunca aplica sobre la garantía ni
   // sobre capital — por eso este sobre no calcula IVA.
-  function generarSobreDispersion(importe, comisionCapturada, seguroCapturado) {
+  //
+  // CORRECCIÓN 25-sep-2026 (CU-006 §2/§10.1, Anexo F §7): la retención del
+  // 10% es un requisito EXCLUSIVO de la línea Magnus — CU-006 nunca la pide
+  // para Comadre ni para ningún otro producto. Antes de esta corrección
+  // generarSobreDispersion la calculaba para CUALQUIER producto, sin
+  // distinción, porque el catálogo de productos (data/reglas-productos.json)
+  // no tiene un campo de "requiere garantía" y nadie lo estaba consultando
+  // aquí. Reportado por Anel (Administración, 25-sep-2026): la línea Comadre
+  // estaba generando una retención de garantía líquida que no le corresponde.
+  function generarSobreDispersion(importe, comisionCapturada, seguroCapturado, producto) {
     const monto = Number(importe) ?? 0;
     const comision = Math.max(0, Number(comisionCapturada ?? 0));
     const seguro = Math.max(0, Number(seguroCapturado ?? 0));
-    const garantia = Math.round(monto * (porcentajeGarantiaLiquida / 100) * 100) / 100;
+    const requiereGarantiaLiquida = nprod(producto) === nprod("Magnus");
+    const garantia = requiereGarantiaLiquida
+      ? Math.round(monto * (porcentajeGarantiaLiquida / 100) * 100) / 100
+      : 0;
     const neto = Math.round((monto - comision - seguro - garantia) * 100) / 100;
     return { monto, comision, seguro, garantia, porcentajeGarantia: porcentajeGarantiaLiquida, neto };
   }
@@ -136,7 +148,7 @@ module.exports = function crearDominioSincronizacionDesembolso({
     const { id, producto, importe, plazo, desembolso, diaPago, cuota } = clienta;
     const pagare = generarPagare(id, producto, importe, plazo, desembolso);
     const planPagos = generarPlanPagos(clienta, desembolso, diaPago, cuota);
-    const sobreDispersion = generarSobreDispersion(importe, comisionCapturada, seguroCapturado);
+    const sobreDispersion = generarSobreDispersion(importe, comisionCapturada, seguroCapturado, producto);
     // Inmutable: regresa una clienta nueva en vez de mutar el argumento — quien
     // llama debe reasignar su variable con el resultado.
     return { ...clienta, pagare, planPagos, sobreDispersion };
