@@ -3741,22 +3741,23 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   // mismo día: las clientas traen garantía de ANTES del sistema, así que la
   // entrega mayor a lo registrado PASA (anotada) — se prueba al final del ciclo.
   //
-  // CORRECCIÓN 10-sep-2026 (CU-006, Anexo F §7-8): el alta de esta clienta
-  // (arriba, importe 4000) ahora retiene SOLA $400 de Garantía Líquida al
-  // desembolsar — antes ese 10% se calculaba (sobreDispersion.garantia) pero
-  // NUNCA se registraba en ningún lado; el guardado solo veía lo que Neri
-  // capturaba a mano (los $850 del sync). Los números de abajo suben
-  // exactamente esos $400 respecto a lo que este archivo esperaba antes de
-  // hoy — no es un error de la prueba ni del candado, es la retención
-  // automática haciendo lo que tenía que hacer desde CU-013/CU-014.
+  // CORRECCIÓN 25-sep-2026 (CU-006 §2/§10.1, Anexo F §7, bug reportado por
+  // Anel): "Grupal-Basico" NO es Magnus, así que ya NO retiene el 10% al
+  // desembolso — esa retención es requisito exclusivo de Magnus. Los números
+  // de abajo BAJAN los mismos $400 que la corrección del 10-sep-2026 había
+  // subido (esa corrección aplicaba el 10% a CUALQUIER producto, que era
+  // justo el bug; ahora solo aplica a Magnus). El guardado de esta clienta
+  // vuelve a ser SOLO lo que Neri capturó a mano (los $850 del sync) — no es
+  // un error de la prueba ni del candado, es la corrección del bug haciendo
+  // lo que tenía que hacer.
   const gSinX2 = await mov102({ tipo: "Garantía líquida entregada", monto: 100, concepto: "sin clienta" });
   ok("la garantía entregada SIN clienta se rechaza (obliga a elegir a quién)",
     gSinX2.status === 400, "status " + gSinX2.status);
   const dgX2 = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
   ok("el desglose del crédito dice la garantía guardada (ya neteada con la entrega)",
-    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 400,
-    "guardada=" + dgX2.garantiaGuardada + " (junto 850 capturados + 400 retenidos solos al desembolso, se le entregaron 850)");
+    dgX2.ok && typeof dgX2.garantiaGuardada === "number" && dgX2.garantiaGuardada === 0,
+    "guardada=" + dgX2.garantiaGuardada + " (solo 850 capturados, Grupal-Basico ya no retiene 10% — se le entregaron los 850)");
   // LA GARANTÍA COBRADA: obligada y linkeada (Karina, 24-ago: «mismo caso»).
   const gcSin = await mov102({ tipo: "Garantía", monto: 300, concepto: "garantía sin clienta" });
   ok("la GARANTÍA cobrada sin clienta se rechaza (mismo caso que la liquidación)",
@@ -3766,8 +3767,8 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("con clienta entra y se linkea a su crédito", !gcOk.error, JSON.stringify(gcOk).slice(0, 70));
   const dgTras = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));
-  ok("y le SUMA a su garantía guardada (estaba en 400 —la retención automática—, ahora $700)",
-    dgTras.ok && dgTras.garantiaGuardada === 700, "guardada=" + dgTras.garantiaGuardada);
+  ok("y le SUMA a su garantía guardada (estaba en 0 —Grupal-Basico no retiene—, ahora $300)",
+    dgTras.ok && dgTras.garantiaGuardada === 300, "guardada=" + dgTras.garantiaGuardada);
   // CU-006 RESUELTO 21-sep-2026 (motivo obligatorio al sacar la garantía antes
   // de tiempo): este crédito sigue vigente (no ha cerrado/liquidado), así que
   // ambas salidas de abajo ya necesitan su motivo explícito — mismos montos,
@@ -3777,11 +3778,22 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
   ok("y esos $300 ya se le pueden ENTREGAR (el ciclo cierra en 0)",
     !gEnt2.error, JSON.stringify(gEnt2).slice(0, 60));
+  // OJO 25-sep-2026: antes de la corrección de hoy, esta prueba "pasaba" un
+  // intento de entregar $400 sin que quedara NADA guardado — pero solo porque
+  // el bug del 10% en cualquier producto le daba a esta clienta $400 de
+  // colchón que no le correspondían. Con el bug corregido, el disponible real
+  // es $0 y el candado antiduplicado (10-sep-2026) SÍ lo rechaza — el código
+  // no tiene ninguna excepción "sin tope para garantía de antes del sistema"
+  // (el comentario de arriba, "el TOPE se quitó", no está implementado en
+  // ningún lado que se haya encontrado). Se deja documentado así — no se
+  // resuelve aquí solo: es una pregunta de negocio aparte (¿debe existir esa
+  // excepción?) para confirmar con Carlos/Dirección, no algo que este PR deba
+  // decidir por su cuenta.
   const gMasX2 = await j(await mov102({ tipo: "Garantía líquida entregada", monto: 400,
     concepto: "trae garantía de antes", socio: "70000009102", producto: "Grupal-Basico",
     motivoSalidaAnticipada: "Autorizado por Dirección — sección 102 de la batería (prueba)." }));
-  ok("entregar MÁS de lo registrado PASA, libre y sin nota (módulo no contratado)",
-    !gMasX2.error && !(gMasX2.movimiento || {}).notaGarantia,
+  ok("entregar MÁS de lo registrado se RECHAZA (no hay excepción 'sin tope' implementada; PENDIENTE confirmar con Dirección si debería existir)",
+    gMasX2.error && gMasX2.disponible === 0,
     JSON.stringify(gMasX2).slice(0, 70));
   const dgPiso = await j(await fetch(U + "/api/creditos/desglose?socio=70000009102&producto=Grupal-Basico",
     { headers: H(cm) }));

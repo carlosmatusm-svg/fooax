@@ -46,7 +46,11 @@ async function garantiaDe(ca, socio) {
 
   console.log("\n— 1. El alta retiene Garantía Líquida SOLA, sin que nadie la capture —");
   const socio1 = "6" + RUN.padStart(10, "0");
-  const producto1 = "Prueba GL Alta " + RUN;
+  // CORRECCIÓN 25-sep-2026 (CU-006 §2/§10.1, Anexo F §7): la retención
+  // automática es exclusiva de Magnus — este archivo prueba el MECANISMO
+  // (retención/candado/aplicación), así que necesita un producto que sí la
+  // dispare. "Prueba GL Alta ..." (genérico) ya no la dispara a propósito.
+  const producto1 = "Magnus";
   const r1 = await j(await fetch(U + "/api/clientes/alta", {
     method: "POST", headers: H(ca), body: JSON.stringify({
       id: socio1, nombre: "Prueba GL " + RUN, centro: "C-0", ejecutivo: "Karina",
@@ -71,10 +75,15 @@ async function garantiaDe(ca, socio) {
   ok("(nota) idempotencia de folio reusa store.agregarMovimiento, no se reprueba aparte", true);
 
   console.log("\n— 3. Devolver toda la garantía guardada —");
+  // El crédito sigue vigente (nadie le ha pagado en esta prueba), así que el
+  // candado de motivo obligatorio (CU-006, RESUELTO 21-sep-2026) exige anotar
+  // por qué sale antes de tiempo — mismo criterio que ya sigue bateria_arqueo.js
+  // sección 102 para este mismo candado.
   const r2 = await j(await fetch(U + "/api/movimiento", {
     method: "POST", headers: H(ca), body: JSON.stringify({
       tipo: "Garantía líquida entregada", concepto: "Garantía líquida entregada", monto: 400, metodo: "efectivo",
       fecha: fechaMov, socio: socio1, producto: producto1,
+      motivoSalidaAnticipada: "Prueba automatizada: devolución completa antes del cierre de ciclo.",
     }),
   }));
   ok("la devolución de los $400 completos entra", r2.ok === true, JSON.stringify(r2).slice(0, 200));
@@ -96,7 +105,9 @@ async function garantiaDe(ca, socio) {
 
   console.log("\n— 5. Aplicar Garantía Líquida al propio crédito (doble registro) —");
   const socio2 = "5" + RUN.padStart(10, "0");
-  const producto2 = "Prueba GL Aplicar " + RUN;
+  // Mismo motivo que producto1: necesita ser Magnus para que la retención
+  // automática exista y se pueda probar su aplicación al crédito.
+  const producto2 = "Magnus";
   const r4 = await j(await fetch(U + "/api/clientes/alta", {
     method: "POST", headers: H(ca), body: JSON.stringify({
       id: socio2, nombre: "Prueba GL Aplicar " + RUN, centro: "C-0", ejecutivo: "Karina",
