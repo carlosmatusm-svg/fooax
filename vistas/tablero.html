@@ -825,18 +825,48 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input id="garRepSemFecha" type="date">
         <button class="recbtn" onclick="cargarReporteSemanalGarantias()">Ver semana</button>
+        <!-- 25-sep-2026: el mismo libro que Karina arma a mano (REPORTES
+             SEMANALES + REPORTE DE SALIDA A), generado por el sistema. -->
+        <button class="recbtn" onclick="descargarReporteSemanalGarantias()">Descargar Excel</button>
       </div>
       <div id="garRepSemanal" style="margin-top:10px"></div>
     </div>
 
-    <h3>Reporte de salidas por clienta (mensual)</h3>
+    <h3>Reporte de salidas por clienta</h3>
     <div class="reccard">
-      <div class="rechint">Folio, centro, quién capturó y monto de cada salida del mes, con rollup por centro.</div>
+      <div class="rechint">Cada salida con ID, clienta, centro, ejecutivo, monto y observaciones (periodo de garantías y pago de cierre), con total por centro. Por semana (lunes a domingo) o por mes.</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="garRepSalSemana" type="date">
+        <button class="recbtn" onclick="cargarReporteSalidasGarantias('semana')">Ver semana</button>
         <input id="garRepMesMes" type="month">
-        <button class="recbtn" onclick="cargarReporteSalidasGarantias()">Ver mes</button>
+        <button class="recbtn" onclick="cargarReporteSalidasGarantias('mes')">Ver mes</button>
       </div>
       <div id="garRepSalidas" style="margin-top:10px"></div>
+    </div>
+
+    <!-- HOJA DE LIBERACIÓN POR CENTRO (formato "GARANTIA GRUPAL", 25-sep-2026,
+         audio de Karina / mensaje de Anel): una hoja por centro y fecha de
+         entrega, firma de cada clienta + gerente de sucursal + jefa de centro.
+         Se regresa escaneada y Alejandra la valida. -->
+    <h3>Hoja de liberación por centro</h3>
+    <div class="reccard">
+      <div class="rechint">Elige la fecha de entrega: aparecen los centros que tuvieron entregas de garantía ese día. Cada hoja se imprime, la firman las clientas, la gerente y la jefa de centro, se regresa escaneada y Alejandra la valida.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input id="garHojaFecha" type="date">
+        <button class="recbtn" onclick="cargarHojasGrupales()">Ver centros con entregas</button>
+      </div>
+      <div id="garHojas" style="margin-top:10px"></div>
+      <b style="display:block;margin-top:12px">Hojas regresadas por validar</b>
+      <div id="garHojasPendientes" style="margin-top:6px"></div>
+    </div>
+
+    <h3>Jefas de centro</h3>
+    <div class="reccard">
+      <div class="rechint">Nombre de la jefa de cada centro, para su firma en la hoja de liberación. Pega desde Excel dos columnas: centro y nombre de la jefa (una fila por centro). Si una jefa cambia, vuelve a cargar esa fila: queda el historial.</div>
+      <textarea id="garJefasTexto" rows="4" style="width:100%;margin-top:6px" placeholder="C-59 24 DE FEBRERO&#9;MARÍA PÉREZ LÓPEZ"></textarea>
+      <button class="recbtn" style="margin-top:6px" onclick="cargarJefasCentro()">Cargar jefas de centro</button>
+      <div id="garJefasResultado" style="margin-top:8px"></div>
+      <div id="garJefas" style="margin-top:8px"></div>
     </div>
 
     <h3>Lo que todavía falta definir</h3>
@@ -3733,7 +3763,7 @@ function tbShow(name) {
     if (el) el.style.display = (t === name) ? "" : "none";
   });
   try { localStorage.setItem("fooax_tb_tab", name); } catch (e) {}
-  if (name === "garantias" && !_garCargada) { _garCargada = true; cargarGarantias(); }
+  if (name === "garantias" && !_garCargada) { _garCargada = true; cargarGarantias(); cargarHojasPendientes(); cargarCatalogoJefas(); }
 }
 try { const t0 = localStorage.getItem("fooax_tb_tab"); if (t0 && t0 !== "hoy") tbShow(t0); } catch (e) {}
 
@@ -3873,25 +3903,124 @@ async function cargarReporteSemanalGarantias() {
       + (filasForma ? '<table class="ct-tab"><thead><tr><th>Forma</th><th>Entradas</th><th>Salidas</th></tr></thead><tbody>' + filasForma + '</tbody></table>' : '');
   } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
 }
-async function cargarReporteSalidasGarantias() {
+async function cargarReporteSalidasGarantias(corte) {
   const cont = $("garRepSalidas");
+  const semana = ($("garRepSalSemana").value || "").trim();
   const mes = ($("garRepMesMes").value || "").trim();
   cont.innerHTML = '<div class="arq-vacio">Cargando…</div>';
   try {
-    const url = "/api/garantias/reporte-salidas" + (mes ? "?mes=" + encodeURIComponent(mes) : "");
+    const url = "/api/garantias/reporte-salidas" + (corte === "semana"
+      ? "?semana=" + encodeURIComponent(semana || new Date().toISOString().slice(0, 10))
+      : (mes ? "?mes=" + encodeURIComponent(mes) : ""));
     const r = await fetch(url, { credentials: "include" });
     const d = await r.json();
     if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
     const filas = (d.salidas || []).map((s) =>
-      '<tr><td>' + hesc(s.folio) + '</td><td>' + hesc(s.fecha) + '</td><td>' + hesc(s.nombre || s.socio) + '</td><td>' + hesc(s.centro) + '</td><td>' + hesc(s.quien) + '</td><td>' + dinero(s.monto) + '</td><td>' + hesc(s.tipo) + '</td></tr>').join("");
-    const filasRollup = (d.rollupPorCentro || []).map((x) =>
-      '<tr><td>' + hesc(x.centro) + '</td><td>' + dinero(x.total) + '</td></tr>').join("");
+      '<tr><td>' + hesc(s.socio) + '</td><td>' + hesc(s.nombre || "—") + '</td><td>' + hesc(s.centro) + '</td><td>' + hesc(s.ejecutivo || s.quien) + '</td><td>' + dinero(s.monto) + '</td><td>' + hesc(s.tipoGarantia) + '</td><td>' + hesc(s.observaciones || "") + '</td></tr>').join("");
+    const filasRollup = (d.rollupPorCentroYEjecutivo || []).map((x) =>
+      '<tr><td>' + hesc(x.centro) + '</td><td>' + hesc(x.ejecutivo) + '</td><td>' + dinero(x.total) + '</td></tr>').join("");
+    const titulo = d.semana ? 'Semana ' + hesc(d.semana.desde) + ' a ' + hesc(d.semana.hasta) : 'Mes ' + hesc(d.mes);
     cont.innerHTML =
-      '<div class="permeta">Mes ' + hesc(d.mes) + '</div>'
-      + (filas ? '<table class="ct-tab"><thead><tr><th>Folio</th><th>Fecha</th><th>Clienta</th><th>Centro</th><th>Quién</th><th>Monto</th><th>Tipo</th></tr></thead><tbody>' + filas + '</tbody></table>' : '<div class="rechint">Sin salidas ese mes.</div>')
-      + '<b style="display:block;margin-top:8px">Rollup por centro</b>'
-      + (filasRollup ? '<table class="ct-tab"><thead><tr><th>Centro</th><th>Total</th></tr></thead><tbody>' + filasRollup + '</tbody></table>' : '');
+      '<div class="permeta">' + titulo + ' · Total ' + dinero(d.total || 0) + '</div>'
+      + (filas ? '<table class="ct-tab"><thead><tr><th>ID</th><th>Clienta</th><th>Centro</th><th>Ejecutivo</th><th>Monto</th><th>Tipo</th><th>Observaciones</th></tr></thead><tbody>' + filas + '</tbody></table>' : '<div class="rechint">Sin salidas en ese periodo.</div>')
+      + '<b style="display:block;margin-top:8px">Por centro</b>'
+      + (filasRollup ? '<table class="ct-tab"><thead><tr><th>Centro</th><th>Ejecutivo</th><th>Total</th></tr></thead><tbody>' + filasRollup + '</tbody></table>' : '');
   } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+
+function descargarReporteSemanalGarantias() {
+  const fecha = ($("garRepSemFecha").value || "").trim();
+  location.href = "/api/garantias/reporte-semanal/excel" + (fecha ? "?fecha=" + encodeURIComponent(fecha) : "");
+}
+
+// HOJA DE LIBERACIÓN POR CENTRO (25-sep-2026) — consume /api/garantias/hoja-grupal*.
+const ESTADO_HOJA = {
+  pendiente: "Pendiente de regresar firmada",
+  regreso: "Regresó — falta validar",
+  validada: "Validada por Alejandra",
+  rechazada: "Rechazada — debe regresar de nuevo",
+};
+async function postJson(url, cuerpo) {
+  const r = await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
+  const d = await r.json().catch(() => ({}));
+  return { ok: r.ok, d };
+}
+async function cargarHojasGrupales() {
+  const cont = $("garHojas");
+  const fecha = ($("garHojaFecha").value || "").trim();
+  if (!fecha) { cont.innerHTML = '<div class="arq-vacio">Elige la fecha de entrega.</div>'; return; }
+  cont.innerHTML = '<div class="arq-vacio">Cargando…</div>';
+  try {
+    const r = await fetch("/api/garantias/hoja-grupal/centros?fecha=" + encodeURIComponent(fecha), { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+    if (!(d.centros || []).length) { cont.innerHTML = '<div class="rechint">No hubo entregas de garantía ese día.</div>'; return; }
+    cont.innerHTML = '<table class="ct-tab"><thead><tr><th>Centro</th><th>Entregas</th><th>Total</th><th>Estado</th><th></th></tr></thead><tbody>'
+      + d.centros.map((c) => {
+        const q = "centro=" + encodeURIComponent(c.centro) + "&fecha=" + encodeURIComponent(fecha);
+        const acciones = '<a class="recbtn" target="_blank" href="/api/garantias/hoja-grupal/imprimir?' + q + '">Imprimir hoja</a> '
+          + ((c.estado === "pendiente" || c.estado === "rechazada")
+            ? '<button class="recbtn" data-centro="' + hesc(c.centro) + '" onclick="registrarRegresoHoja(this.dataset.centro)">Registrar regreso</button>' : '');
+        return '<tr><td>' + hesc(c.centro) + '</td><td>' + c.entregas + '</td><td>' + dinero(c.total) + '</td><td>' + hesc(ESTADO_HOJA[c.estado] || c.estado) + '</td><td>' + acciones + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  } catch (e) { cont.innerHTML = '<div class="arq-vacio">Sin conexión con el servidor.</div>'; }
+}
+async function registrarRegresoHoja(centro) {
+  const fecha = ($("garHojaFecha").value || "").trim();
+  const evidencia = prompt("¿Dónde quedó el escaneo de la hoja firmada? (ej. \"WhatsApp de Neri 25-sep 15:40\" o liga de Drive)");
+  if (evidencia === null) return;
+  const { ok, d } = await postJson("/api/garantias/hoja-grupal/regreso", { centro, fecha, evidencia });
+  alert(ok ? "Regreso registrado. Queda en espera de la validación de Alejandra." : (d.error || "No se pudo registrar."));
+  cargarHojasGrupales(); cargarHojasPendientes();
+}
+async function validarHoja(centro, fecha, resultado) {
+  const nota = resultado === "rechazada" ? prompt("¿Por qué se rechaza? (ej. falta la firma de la jefa de centro)") : "";
+  if (nota === null) return;
+  const { ok, d } = await postJson("/api/garantias/hoja-grupal/validacion", { centro, fecha, resultado, nota });
+  alert(ok ? (resultado === "validada" ? "Hoja validada." : "Hoja rechazada: debe regresar de nuevo.") : (d.error || "No se pudo validar."));
+  cargarHojasPendientes(); if ($("garHojaFecha").value) cargarHojasGrupales();
+}
+async function cargarHojasPendientes() {
+  const cont = $("garHojasPendientes");
+  try {
+    const r = await fetch("/api/garantias/hoja-grupal/pendientes-validar", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = ''; return; }
+    if (!(d.pendientes || []).length) { cont.innerHTML = '<div class="rechint">No hay hojas esperando validación.</div>'; return; }
+    cont.innerHTML = '<table class="ct-tab"><thead><tr><th>Centro</th><th>Entrega</th><th>Regresó</th><th>Escaneo</th><th></th></tr></thead><tbody>'
+      + d.pendientes.map((p) => {
+        const botones = d.puedoValidar
+          ? '<button class="recbtn" data-c="' + hesc(p.centro) + '" data-f="' + hesc(p.fechaEntrega) + '" onclick="validarHoja(this.dataset.c,this.dataset.f,\'validada\')">Validar</button> '
+            + '<button class="recbtn" data-c="' + hesc(p.centro) + '" data-f="' + hesc(p.fechaEntrega) + '" onclick="validarHoja(this.dataset.c,this.dataset.f,\'rechazada\')">Rechazar</button>'
+          : '<span class="rechint">Solo Alejandra valida</span>';
+        return '<tr><td>' + hesc(p.centro) + '</td><td>' + hesc(p.fechaEntrega) + '</td><td>' + hesc(p.fechaRegreso) + ' · ' + hesc(p.registradoPor || "") + '</td><td>' + hesc(p.evidencia) + '</td><td>' + botones + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  } catch (e) { cont.innerHTML = ''; }
+}
+async function cargarCatalogoJefas() {
+  const cont = $("garJefas");
+  try {
+    const r = await fetch("/api/garantias/jefas-centro", { credentials: "include" });
+    const d = await r.json();
+    if (!r.ok) { cont.innerHTML = ''; return; }
+    cont.innerHTML = '<div class="permeta">' + d.sinJefa + ' centro(s) sin jefa cargada</div>'
+      + '<table class="ct-tab"><thead><tr><th>Centro</th><th>Jefa de centro</th></tr></thead><tbody>'
+      + d.centros.map((c) => '<tr><td>' + hesc([c.noCentro, c.centro].filter(Boolean).join(" ")) + '</td><td>'
+        + (c.jefa ? hesc(c.jefa.nombre) : '<span style="color:#b00020">Falta cargar</span>') + '</td></tr>').join("")
+      + '</tbody></table>';
+  } catch (e) { cont.innerHTML = ''; }
+}
+async function cargarJefasCentro() {
+  const texto = ($("garJefasTexto").value || "").trim();
+  const cont = $("garJefasResultado");
+  if (!texto) { cont.innerHTML = '<div class="arq-vacio">Pega primero las filas desde Excel.</div>'; return; }
+  const { ok, d } = await postJson("/api/garantias/jefas-centro", { texto });
+  if (!ok) { cont.innerHTML = '<div class="arq-vacio">' + hesc(d.error || "No se pudo cargar.") + '</div>'; return; }
+  cont.innerHTML = '<div class="renrow"><span>Guardadas</span><b>' + d.guardadas.length + '</b></div>'
+    + '<div class="renrow"><span>Sin cambio</span><b>' + d.sinCambio.length + '</b></div>'
+    + (d.rechazadas.length ? '<div class="rechint" style="color:#b00020">No se cargaron: ' + d.rechazadas.map((x) => hesc(x.centro) + ' (' + hesc(x.motivo) + ')').join("; ") + '</div>' : '');
+  if (d.guardadas.length) $("garJefasTexto").value = "";
+  cargarCatalogoJefas();
 }
 
 async function salir() {
