@@ -532,6 +532,11 @@ module.exports = function crearDominioGarantiaLiquida({
     const sumar = (mapa, llave, monto) => { mapa[llave] = Math.round(((mapa[llave] || 0) + monto) * 100) / 100; };
 
     const porDia = {}, porQuien = {}, porForma = {}, porTipoGarantia = {};
+    // Cruce quién capturó × forma de pago, solo de ENTRADAS: es el "DESGLOSE"
+    // (EJECUTIVO / EFECTIVO / DEPÓSITO / TRANSFERENCIA) de la hoja "REPORTES
+    // SEMANALES" del Excel de Karina (PLANILLA-GARANTIAS LUNES PRIMERA PARTE,
+    // 25-sep-2026). Se agrega sin tocar porQuienCaptura/porFormaPago.
+    const entradasPorQuienYForma = {};
     let totalEntradas = 0, totalSalidas = 0;
     for (const mov of movs) {
       const monto = Number(mov.monto) || 0;
@@ -547,6 +552,10 @@ module.exports = function crearDominioGarantiaLiquida({
       sumar(porQuien[quien], campo, monto);
       sumar(porForma[forma], campo, monto);
       sumar(porTipoGarantia[tipoG], campo, monto);
+      if (mov.entrada) {
+        if (!entradasPorQuienYForma[quien]) entradasPorQuienYForma[quien] = {};
+        sumar(entradasPorQuienYForma[quien], forma, monto);
+      }
       if (mov.entrada) totalEntradas = Math.round((totalEntradas + monto) * 100) / 100;
       else totalSalidas = Math.round((totalSalidas + monto) * 100) / 100;
     }
@@ -557,6 +566,11 @@ module.exports = function crearDominioGarantiaLiquida({
     return {
       semana: { desde, hasta },
       totalEntradas, totalSalidas,
+      // "RESUMEN DE MOVIMIENTO DE GARANTÍAS" del Excel de Karina: entrada −
+      // salida de la semana (puede ser negativo: se devolvió más de lo que entró).
+      movimientoNeto: Math.round((totalEntradas - totalSalidas) * 100) / 100,
+      entradasPorQuienYForma: Object.keys(entradasPorQuienYForma).sort()
+        .map((quien) => ({ quien, porForma: entradasPorQuienYForma[quien] })),
       porDia: aArreglo(porDia, "fecha"),
       porQuienCaptura: aArreglo(porQuien, "quien"),
       porFormaPago: aArreglo(porForma, "forma"),
@@ -567,13 +581,20 @@ module.exports = function crearDominioGarantiaLiquida({
   // REPORTE DE SALIDAS POR CLIENTA (página del catálogo CU-008 #2, con
   // ejemplo real en la misma planilla): folio, centro, ejecutivo, monto,
   // periodo — con rollup mensual por centro. `mes` en formato "YYYY-MM".
-  function reporteSalidaGarantiasPorClienta(mes) {
-    const desde = mes + "-01";
-    const hastaDt = new Date(desde + "T12:00:00");
-    hastaDt.setMonth(hastaDt.getMonth() + 1);
-    hastaDt.setDate(hastaDt.getDate() - 1);
-    const hasta = hastaDt.toISOString().slice(0, 10);
+  //
+  // 25-sep-2026 (Anel/Karina: "falta el reporte semanal"): el reporte ya
+  // existía, pero NO traía la columna que Karina sigue llenando a mano en su
+  // Excel ("REPORTE DE SALIDA A"): OBSERVACIONES (periodo de garantías y pago
+  // de cierre), p. ej. "GARANTIAS DEL 14-04-2026 AL 08-09-2026 CIERRE AL PAGO
+  // 22". Ahora cada fila la trae (observacionesDeSalida, el mismo cálculo que
+  // ya usaba el ticket de liberación), junto con el ejecutivo DEL CRÉDITO
+  // (columna EJECUTIVO del Excel — distinto de `quien`, que es quién capturó
+  // la salida). Y se puede pedir por SEMANA (lunes a domingo, mismo corte que
+  // reporteSemanalGarantias) además de por mes. Los campos que ya existían no
+  // cambian: solo se agregan.
+  function salidasDeGarantiaPorClientaEntre(desde, hasta, usuario) {
     const padron = obtenerPadron();
+    const cv = carteraViva(usuario);
 
     const salidas = movimientosDeGarantiaEntre(desde, hasta)
       .filter((mov) => !mov.entrada)
@@ -582,6 +603,7 @@ module.exports = function crearDominioGarantiaLiquida({
         const cred = padron.find((c) => String(c.id).split("|")[0] === socio
           && norm(c.producto) === norm(productoDeMov(mov) || "")) || null;
         const tipoRaw = mov.tipo || mov.concepto;
+        const { periodo, numeroDePagoCierre, observaciones } = observacionesDeSalida(mov, cv);
         return {
           folio: mov.folio, fecha: mov.fecha, socio, nombre: (cred && cred.nombre) || null,
           centro: (cred && cred.centro) || "—", quien: mov.ejecutivo || mov.registradoPor || "—",
@@ -594,26 +616,55 @@ module.exports = function crearDominioGarantiaLiquida({
           // `modalidad` es la forma de pago.
           tipoGarantia: tipoGarantiaNormalizado(tipoRaw),
           modalidad: modalidadPagoDeMov(mov),
+          noCentro: (cred && cred.noCentro) || null,
+          ejecutivo: (cred && cred.ejecutivo) || null,
+          periodo, numeroDePagoCierre, observaciones,
         };
       })
       .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
     const sumarEn = (mapa, llave, monto) => { mapa[llave] = Math.round(((mapa[llave] || 0) + monto) * 100) / 100; };
-    const porCentro = {}, porTipoGarantia = {}, porModalidad = {};
+    const porCentro = {}, porTipoGarantia = {}, porModalidad = {}, porCentroYEjecutivo = {};
     for (const s of salidas) {
       sumarEn(porCentro, s.centro, s.monto);
       sumarEn(porTipoGarantia, s.tipoGarantia, s.monto);
       sumarEn(porModalidad, s.modalidad, s.monto);
+      sumarEn(porCentroYEjecutivo, s.centro + "\u0000" + (s.ejecutivo || "—"), s.monto);
     }
+    const total = Math.round(salidas.reduce((suma, s) => suma + s.monto, 0) * 100) / 100;
 
     return {
-      mes, periodo: { desde, hasta }, salidas,
+      periodo: { desde, hasta }, salidas, total,
       rollupPorCentro: Object.keys(porCentro).sort().map((centro) => ({ centro, total: porCentro[centro] })),
+      // "GARANTIAS MENSUAL POR CENTRO" del Excel: centro + ejecutivo + monto.
+      rollupPorCentroYEjecutivo: Object.keys(porCentroYEjecutivo).sort().map((llave) => {
+        const [centro, ejecutivo] = llave.split("\u0000");
+        return { centro, ejecutivo, total: porCentroYEjecutivo[llave] };
+      }),
       rollupPorTipoGarantia: Object.keys(porTipoGarantia).sort()
         .map((tipo) => ({ tipo, total: porTipoGarantia[tipo] })),
       rollupPorModalidad: Object.keys(porModalidad).sort()
         .map((modalidad) => ({ modalidad, total: porModalidad[modalidad] })),
     };
+  }
+
+  function reporteSalidaGarantiasPorClienta(mes, usuario) {
+    const desde = mes + "-01";
+    const hastaDt = new Date(desde + "T12:00:00");
+    hastaDt.setMonth(hastaDt.getMonth() + 1);
+    hastaDt.setDate(hastaDt.getDate() - 1);
+    const hasta = hastaDt.toISOString().slice(0, 10);
+    return { mes, ...salidasDeGarantiaPorClientaEntre(desde, hasta, usuario) };
+  }
+
+  // Misma salida por clienta, cortada por SEMANA. `fechaLunes` ya viene
+  // normalizada al lunes (server.js usa lunesDeLaSemana, igual que en
+  // reporteSemanalGarantias).
+  function reporteSalidaGarantiasSemanal(fechaLunes, usuario) {
+    const hastaDt = new Date(fechaLunes + "T12:00:00");
+    hastaDt.setDate(hastaDt.getDate() + 6);
+    const hasta = hastaDt.toISOString().slice(0, 10);
+    return { semana: { desde: fechaLunes, hasta }, ...salidasDeGarantiaPorClientaEntre(fechaLunes, hasta, usuario) };
   }
 
   // CORTE DIARIO DE GARANTÍAS, POR GRUPO (centro) Y POR TIPO DE CRÉDITO
@@ -824,13 +875,62 @@ module.exports = function crearDominioGarantiaLiquida({
     return (anio && mes && dia) ? `${dia}-${mes}-${anio}` : (fechaISO || null);
   }
 
+  // INICIO DEL CICLO DE UNA SALIDA (25-sep-2026). El periodo "GARANTIAS DEL X
+  // AL Y" arranca en la primera aportación DEL CICLO que esa salida está
+  // liberando — no en la primera aportación de toda la historia de la clienta.
+  // Antes se tomaba historial[0], que da lo mismo en un primer ciclo pero, en
+  // una clienta que renovó con el mismo producto (misma llave socio+producto),
+  // hacía que la hoja del ciclo 2 dijera que la garantía venía "desde" el ciclo
+  // 1. Un ciclo termina cuando el guardado queda en cero después de una salida
+  // (una devolución PARCIAL no corta el ciclo).
+  function inicioDelCicloDeSalida(historial, filaSalida) {
+    const idx = historial.indexOf(filaSalida);
+    if (idx < 0) return historial[0] ?? null;
+    let inicio = 0;
+    for (let k = idx - 1; k >= 0; k--) {
+      const fila = historial[k];
+      if (!fila.entrada && fila.saldoDespues <= 0.009) { inicio = k + 1; break; }
+    }
+    return historial[inicio] ?? filaSalida;
+  }
+
+  const PATRON_HISTORIAL_LIQUIDA = /^garant[íi]a l[íi]quida( entregada| aplicada)?$/i;
+  const PATRON_HISTORIAL_A = /^garant[íi]a a( entregada)?$/i;
+
+  // OBSERVACIONES DE UNA SALIDA — la columna "OBSERVACIONES (periodo de
+  // garantías y pago de cierre)" del Excel de Karina y el renglón de
+  // comentarios de la hoja de liberación: "GARANTIAS DEL dd-mm-aaaa AL
+  // dd-mm-aaaa CIERRE AL PAGO N". El nº de pago sale de numeroDePago() con el
+  // saldo vivo del crédito (el mismo dato que ya imprime el ticket de
+  // liberación); si el crédito no permite derivarlo (cuota variable, vencido,
+  // plazo mal capturado) se omite "CIERRE AL PAGO" en vez de inventarlo.
+  // `cv` = carteraViva(usuario), calculada UNA vez por quien llama.
+  function observacionesDeSalida(mov, cv) {
+    const socio = socioDeMov(mov);
+    const productoMov = productoDeMov(mov) || mov.producto || "";
+    const credito = obtenerPadron().find((c) => String(c.id).split("|")[0] === socio
+      && norm(c.producto) === norm(productoMov)) || null;
+    const productoDelCredito = credito?.producto ?? productoMov;
+    const esA = tipoGarantiaNormalizado(mov.tipo || tipoDeMov(mov)) === "Garantía A";
+    const historial = historialGarantiaDelCredito(socio, claveCredito(socio, productoDelCredito), productoDelCredito,
+      esA ? PATRON_HISTORIAL_A : PATRON_HISTORIAL_LIQUIDA);
+    const filaSalida = historial.find((fila) => String(fila.folio) === String(mov.folio)) ?? null;
+    const inicio = filaSalida ? inicioDelCicloDeSalida(historial, filaSalida) : null;
+    const periodo = { desde: inicio?.fecha ?? mov.fecha, hasta: mov.fecha };
+    const pago = credito && cv ? numeroDePago(credito, infoCredito(cv, credito).saldoActual) : null;
+    const numeroDePagoCierre = pago && pago.pago != null ? pago.pago : null;
+    const observaciones = "GARANTIAS DEL " + formatoDDMMAAAA(periodo.desde) + " AL " + formatoDDMMAAAA(periodo.hasta)
+      + (numeroDePagoCierre != null ? " CIERRE AL PAGO " + numeroDePagoCierre : "");
+    return { credito, periodo, numeroDePagoCierre, observaciones };
+  }
+
   // Una partida del ticket por tipo de garantía (Líquida o A) — folio, fecha y
   // monto SON los de su propio movimiento de salida; el periodo cubierto va
-  // desde el primer movimiento de ese historial (la primera aportación) hasta
-  // la fecha de esa misma salida.
+  // desde la primera aportación DEL CICLO que libera (ver
+  // inicioDelCicloDeSalida) hasta la fecha de esa misma salida.
   function partidaDeSalida(filaSalida, historialCompleto, tipoGarantia) {
     if (!filaSalida) return null;
-    const primeraFila = historialCompleto[0];
+    const primeraFila = inicioDelCicloDeSalida(historialCompleto, filaSalida);
     return {
       tipoGarantia,
       folio: filaSalida.folio,
@@ -1173,6 +1273,8 @@ module.exports = function crearDominioGarantiaLiquida({
     estadoDeCuentaGarantia,
     reporteSemanalGarantias,
     reporteSalidaGarantiasPorClienta,
+    reporteSalidaGarantiasSemanal,
+    observacionesDeSalida,
     corteDiarioGarantias,
     validarAportacionGarantiaEnReestructura,
     elegibilidadLiberacionGarantia,
@@ -1181,8 +1283,15 @@ module.exports = function crearDominioGarantiaLiquida({
     alertasGarantiaHipotecariaPorVencer,
     alertasPlazoEntregaGarantia,
     registrarRegresoHojaLiberacion,
+    hojaLiberacionYaRegresada,
     alertasPlazoRegresoHojaLiberacion,
     registrarAjusteManualGarantia,
     validarSalidaAnticipadaGarantiaLiquida,
+    tipoGarantiaNormalizado,
+    responsablesGarantias: {
+      custodia: CUSTODIA_GARANTIAS,
+      autoriza: AUTORIZA_GARANTIAS,
+      telefono: TELEFONO_CONTACTO_GARANTIAS,
+    },
   };
 };
