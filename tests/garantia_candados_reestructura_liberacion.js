@@ -101,6 +101,12 @@ async function garantiaDe(ca, socio) {
     method: "POST", headers: H(ca), body: JSON.stringify({
       tipo: "Garantía líquida entregada", concepto: "Garantía líquida entregada", monto: 200, metodo: "efectivo",
       fecha: fechaMov, socio: socioR, producto: productoR,
+      // El crédito reestructurado sigue vigente (nadie lo ha cerrado en esta
+      // prueba) — el candado de motivo obligatorio (CU-006, resuelto
+      // 21-sep-2026) exige anotar por qué sale antes de tiempo. Item 30 solo
+      // dice que no se PIDE MÁS garantía en reestructura; no exime del
+      // candado de salida anticipada que ya aplica a cualquier crédito vigente.
+      motivoSalidaAnticipada: "Prueba automatizada: salida sobre crédito reestructurado, sigue vigente.",
     }),
   }));
   ok("SÍ se puede entregar/liberar la garantía que ya tenía guardada un crédito en Reestructura",

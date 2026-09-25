@@ -89,6 +89,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
       method: "POST", headers: H(ca), body: JSON.stringify({
         tipo: "Garantía líquida entregada", concepto: "Garantía líquida entregada", monto: 500,
         metodo: "transferencia", socio, producto, fecha,
+        // Los 3 créditos de esta prueba siguen vigentes (nadie los cierra) —
+        // candado de motivo obligatorio (CU-006, resuelto 21-sep-2026), mismo
+        // criterio que el resto del módulo de garantías.
+        motivoSalidaAnticipada: "Prueba automatizada: salida antes del cierre de ciclo (plazo de regreso de hoja).",
       }),
     }));
   }

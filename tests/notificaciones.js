@@ -98,6 +98,9 @@ const get = (ruta, c) => fetch(U + ruta, { headers: H(c) });
   const r2 = await j(await post("/api/movimiento", {
     tipo: "Garantía líquida entregada", concepto: "Garantía líquida entregada", monto: 400, metodo: "efectivo",
     fecha: "2026-09-02", socio: socio1, producto: producto1,
+    // Crédito vigente — candado de motivo obligatorio (CU-006, resuelto
+    // 21-sep-2026), mismo criterio que garantia_liquida.js.
+    motivoSalidaAnticipada: "Prueba automatizada: devolución antes del cierre de ciclo.",
   }, cAnel));
   ok("la devolución de garantía entra", r2.ok === true, JSON.stringify(r2).slice(0, 200));
   bm = await j(await get("/api/notificaciones", cMonse));
@@ -111,6 +114,7 @@ const get = (ruta, c) => fetch(U + ruta, { headers: H(c) });
   const r3 = await j(await post("/api/movimiento", {
     tipo: "Garantía líquida entregada", concepto: "Garantía líquida entregada", monto: 50, metodo: "efectivo",
     fecha: "2026-09-03", socio: socio1, producto: producto1,
+    motivoSalidaAnticipada: "Prueba automatizada: segundo intento, debe rechazarse por el candado antiduplicado.",
   }, cAnel));
   ok("la segunda devolución se rechaza (candado antiduplicado)", r3.error && r3.disponible === 0, JSON.stringify(r3).slice(0, 200));
   ba = await j(await get("/api/notificaciones", cAnel));

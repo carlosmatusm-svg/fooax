@@ -75,6 +75,9 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
     method: "POST", headers: H(ca), body: JSON.stringify({
       tipo: "Garantía líquida entregada", concepto: "Garantía líquida entregada", monto: 200, metodo: "efectivo",
       fecha: fechaMov, socio: socio1, producto: producto1,
+      // Crédito vigente — candado de motivo obligatorio (CU-006, resuelto
+      // 21-sep-2026), mismo criterio que garantia_liquida.js.
+      motivoSalidaAnticipada: "Prueba automatizada: devolución parcial antes del cierre de ciclo.",
     }),
   }));
   ok("la devolución parcial de $200 entra", rDev.ok === true, JSON.stringify(rDev).slice(0, 200));
