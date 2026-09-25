@@ -50,10 +50,10 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("alta ok", rAlta.ok === true, JSON.stringify(rAlta));
 
   console.log("\n— 1. Entradas: Garantía Líquida por transferencia, Garantía A por efectivo —");
-  async function mov(tipo, monto, metodo) {
+  async function mov(tipo, monto, metodo, extra) {
     return j(await fetch(U + "/api/movimiento", {
       method: "POST", headers: H(ca), body: JSON.stringify({
-        tipo, concepto: tipo, monto, metodo, socio, producto, fecha: hoy,
+        tipo, concepto: tipo, monto, metodo, socio, producto, fecha: hoy, ...(extra || {}),
       }),
     }));
   }
@@ -63,7 +63,11 @@ const H = (c) => ({ "Content-Type": "application/json", Cookie: c });
   ok("entrada Garantía A (efectivo) ok", !rEntradaA.error, JSON.stringify(rEntradaA));
 
   console.log("\n— 2. Salidas: Garantía líquida entregada por transferencia, Garantía A entregada por cheque —");
-  const rSalidaLiq = await mov("Garantía líquida entregada", 400, "transferencia");
+  // El crédito de esta prueba sigue vigente — candado de motivo obligatorio
+  // (CU-006, resuelto 21-sep-2026), mismo criterio que garantia_liquida.js.
+  const rSalidaLiq = await mov("Garantía líquida entregada", 400, "transferencia", {
+    motivoSalidaAnticipada: "Prueba automatizada: salida antes del cierre de ciclo.",
+  });
   ok("salida Garantía líquida entregada (transferencia) ok", !rSalidaLiq.error, JSON.stringify(rSalidaLiq));
   const rSalidaA = await mov("Garantía A entregada", 100, "cheque");
   ok("salida Garantía A entregada (cheque) ok", !rSalidaA.error, JSON.stringify(rSalidaA));
